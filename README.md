@@ -8,6 +8,11 @@ A full-stack food delivery application built with **React**, **Node.js**, **Expr
 ![Node](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js)
 ![MongoDB](https://img.shields.io/badge/MongoDB-6.0+-47A248?logo=mongodb)
 
+## 🚀 Live Demo
+
+- **Backend API**: https://flashbites-backend.up.railway.app
+- **Frontend**: Deploy to Vercel (see deployment guide)
+
 ## 🌟 Features
 
 ### For Customers
