@@ -35,6 +35,9 @@ const errorHandler = require('./src/middleware/errorHandler');
 // Initialize Express app
 const app = express();
 
+// Trust proxy - Required for Railway, Heroku, etc.
+app.set('trust proxy', 1);
+
 // Connect to database
 connectDB();
 
