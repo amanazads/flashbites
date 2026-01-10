@@ -8,4 +8,4 @@ cmds = ['cd backend && npm ci']
 cmds = ['echo "No build step needed"']
 
 [start]
-cmd = 'cd backend && node server.js'
+cmd = 'node backend/server.js'
