@@ -15,11 +15,17 @@ const connectDB = async () => {
       throw new Error('MONGO_URI environment variable is not defined');
     }
 
+    // Log connection attempt (hide password)
+    const uriForLog = process.env.MONGO_URI.replace(/:([^:@]{8})[^:@]*@/, ':****@');
+    console.log('🔄 Attempting MongoDB connection to:', uriForLog);
+
     const conn = await mongoose.connect(process.env.MONGO_URI, {
       // Options for better connection handling
       maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 30000, // Increased to 30 seconds
       socketTimeoutMS: 45000,
+      connectTimeoutMS: 30000,
+      family: 4 // Force IPv4
     });
 
     console.log(`
