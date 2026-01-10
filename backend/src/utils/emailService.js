@@ -1,21 +1,14 @@
 const nodemailer = require('nodemailer');
-const { Resend } = require('resend');
 
-// Initialize Resend if API key is available
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+// Gmail SMTP only - Resend removed for simplicity
 
 // Create transporter
 const createTransporter = () => {
-  return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Use SSL
+  return nodemailer.createTransporter({
+    service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD
-    },
-    tls: {
-      rejectUnauthorized: false
     }
   });
 };
@@ -25,12 +18,18 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Send OTP email with Resend (fallback to nodemailer)
+// Send OTP email using Gmail SMTP
 const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   // Always log OTP for development/debugging
   console.log(`📧 Sending OTP to ${email}: ${otp} (${purpose})`);
   
   try {
+    // Check if email credentials are configured
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+      console.warn('⚠️ Gmail credentials not configured. OTP logged above.');
+      return true;
+    }
+
     const subject = purpose === 'verification' 
       ? 'FlashBites - Email Verification OTP'
       : 'FlashBites - Password Reset OTP';
@@ -56,54 +55,28 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
       </div>
     `;
 
-    // Try Resend first (best deliverability)
-    if (resend && process.env.RESEND_API_KEY) {
-      console.log('📨 Using Resend API...');
-      const { data, error } = await resend.emails.send({
-        from: 'FlashBites <onboarding@resend.dev>', // Use verified domain or resend.dev for testing
-        to: [email],
-        subject: subject,
-        html: htmlContent,
-      });
+    console.log('📨 Using Gmail SMTP...');
+    const transporter = createTransporter();
+    
+    const mailOptions = {
+      from: `FlashBites <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: subject,
+      html: htmlContent
+    };
 
-      if (error) {
-        console.error('❌ Resend error:', error.message || error);
-        // If Resend fails (like unverified domain), try Gmail fallback
-        if (error.statusCode === 403 || error.name === 'validation_error') {
-          console.log('📨 Falling back to Gmail SMTP...');
-          // Fall through to Gmail
-        } else {
-          throw error;
-        }
-      } else {
-        console.log(`✅ Email sent via Resend to ${email}. ID: ${data.id}`);
-        return true;
-      }
-    }
+    // Send email with timeout
+    const sendPromise = transporter.sendMail(mailOptions);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Email send timeout after 10s')), 10000)
+    );
 
-    // Fallback to Gmail SMTP (or if Resend not configured)
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
-      console.log('📨 Using Gmail SMTP...');
-      const transporter = createTransporter();
-      
-      const mailOptions = {
-        from: `FlashBites <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: subject,
-        html: htmlContent
-      };
-
-      await transporter.verify();
-      const info = await transporter.sendMail(mailOptions);
-      console.log(`✅ Email sent via Gmail to ${email}. MessageID: ${info.messageId}`);
-      return true;
-    }
-
-    console.warn('⚠️ No email service configured. OTP logged above.');
+    const info = await Promise.race([sendPromise, timeoutPromise]);
+    console.log(`✅ Email sent to ${email}. MessageID: ${info.messageId}`);
     return true;
     
   } catch (error) {
-    console.error('❌ Email service error:', error.message);
+    console.error('❌ Email error:', error.message);
     console.log(`📧 OTP for ${email}: ${otp} - Check Railway logs`);
     return true; // Still return true to not block user flow
   }
