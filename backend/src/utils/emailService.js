@@ -4,19 +4,14 @@ const nodemailer = require('nodemailer');
 const createTransporter = () => {
   return nodemailer.createTransport({
     service: 'gmail',
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: process.env.EMAIL_PORT || 587,
-    secure: false,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD
     },
-    tls: {
-      rejectUnauthorized: false
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 20000
+    pool: true,
+    maxConnections: 1,
+    rateDelta: 20000,
+    rateLimit: 5
   });
 };
 
@@ -27,12 +22,14 @@ const generateOTP = () => {
 
 // Send OTP email
 const sendOTPEmail = async (email, otp, purpose = 'verification') => {
+  // Always log OTP for development/debugging
+  console.log(`📧 OTP for ${email}: ${otp} (${purpose})`);
+  
   try {
     // Check if email credentials are configured
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-      console.warn('⚠️  Email credentials not configured. Skipping email send.');
-      console.log(`📧 OTP for ${email}: ${otp} (${purpose})`);
-      return true; // Return true to not block the flow in development
+      console.warn('⚠️  Email credentials not configured. OTP logged above.');
+      return true; // Return true to not block the flow
     }
 
     const transporter = createTransporter();
@@ -67,22 +64,15 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
       `
     };
 
-    // Add timeout to prevent hanging - increased for Gmail
-    const sendMailWithTimeout = Promise.race([
-      transporter.sendMail(mailOptions),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Email send timeout')), 15000)
-      )
-    ]);
-
-    await sendMailWithTimeout;
-    console.log(`✅ Email sent successfully to ${email}`);
-    return true;
+    // Send email asynchronously without blocking
+    transporter.sendMail(mailOptions)
+      .then(() => console.log(`✅ Email sent successfully to ${email}`))
+      .catch((err) => console.error('Email send failed:', err.message));
+    
+    return true; // Return immediately, don't wait for email
   } catch (error) {
-    console.error('Email sending error:', error.message);
-    // Still return true to not block user flow, just log the error
-    console.log(`📧 Failed to send email. OTP for ${email}: ${otp}`);
-    return true;
+    console.error('Email service error:', error.message);
+    return true; // Still return true to not block user flow
   }
 };
 
