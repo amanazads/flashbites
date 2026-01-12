@@ -10,8 +10,8 @@ const {
   updatePassword,
   sendOTP,
   verifyOTP,
-  resetPassword,
-  googleAuth
+  resetPassword
+  // googleAuth // Commented out - not using Google OAuth for now
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 
@@ -28,60 +28,60 @@ router.get('/me', protect, getMe);
 router.put('/password', protect, updatePassword);
 router.post('/reset-password', resetPassword);
 
-// Google OAuth routes
-router.get('/google', 
-  passport.authenticate('google', { 
-    scope: ['profile', 'email'] 
-  })
-);
+// Google OAuth routes - COMMENTED OUT
+// router.get('/google', 
+//   passport.authenticate('google', { 
+//     scope: ['profile', 'email'] 
+//   })
+// );
 
-router.get('/google/callback',
-  (req, res, next) => {
-    console.log('🔵 Google callback route hit');
-    passport.authenticate('google', { 
-      failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/login?error=${encodeURIComponent('Google authentication failed. Please try again.')}`,
-      session: false 
-    }, (err, user, info) => {
-      if (err) {
-        // Handle passport errors
-        console.error('❌ Passport authentication error:', err);
-        console.error('Error code:', err.code);
-        console.error('Error keyPattern:', err.keyPattern);
-        
-        let errorMessage = 'Authentication failed. Please try again.';
-        
-        if (err.code === 11000) {
-          // Duplicate key error
-          if (err.keyPattern && err.keyPattern.phone) {
-            errorMessage = 'This phone number is already registered. Please login with your existing account.';
-            console.log('⚠️ Duplicate phone error');
-          } else if (err.keyPattern && err.keyPattern.email) {
-            errorMessage = 'This email is already registered. Please login with your existing account.';
-            console.log('⚠️ Duplicate email error');
-          }
-        } else if (err.message) {
-          errorMessage = err.message;
-        }
-        
-        const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3001';
-        console.log('🔄 Redirecting to login with error:', errorMessage);
-        return res.redirect(`${frontendURL}/login?error=${encodeURIComponent(errorMessage)}`);
-      }
-      
-      if (!user) {
-        console.error('❌ No user returned from passport');
-        console.log('Info:', info);
-        const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3001';
-        return res.redirect(`${frontendURL}/login?error=${encodeURIComponent('Authentication failed. No user found.')}`);
-      }
-      
-      console.log('✅ User authenticated in passport middleware:', user.email);
-      // Attach user to request and proceed
-      req.user = user;
-      next();
-    })(req, res, next);
-  },
-  googleAuth
-);
+// router.get('/google/callback',
+//   (req, res, next) => {
+//     console.log('🔵 Google callback route hit');
+//     passport.authenticate('google', { 
+//       failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/login?error=${encodeURIComponent('Google authentication failed. Please try again.')}`,
+//       session: false 
+//     }, (err, user, info) => {
+//       if (err) {
+//         // Handle passport errors
+//         console.error('❌ Passport authentication error:', err);
+//         console.error('Error code:', err.code);
+//         console.error('Error keyPattern:', err.keyPattern);
+//         
+//         let errorMessage = 'Authentication failed. Please try again.';
+//         
+//         if (err.code === 11000) {
+//           // Duplicate key error
+//           if (err.keyPattern && err.keyPattern.phone) {
+//             errorMessage = 'This phone number is already registered. Please login with your existing account.';
+//             console.log('⚠️ Duplicate phone error');
+//           } else if (err.keyPattern && err.keyPattern.email) {
+//             errorMessage = 'This email is already registered. Please login with your existing account.';
+//             console.log('⚠️ Duplicate email error');
+//           }
+//         } else if (err.message) {
+//           errorMessage = err.message;
+//         }
+//         
+//         const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3001';
+//         console.log('🔄 Redirecting to login with error:', errorMessage);
+//         return res.redirect(`${frontendURL}/login?error=${encodeURIComponent(errorMessage)}`);
+//       }
+//       
+//       if (!user) {
+//         console.error('❌ No user returned from passport');
+//         console.log('Info:', info);
+//         const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3001';
+//         return res.redirect(`${frontendURL}/login?error=${encodeURIComponent('Authentication failed. No user found.')}`);
+//       }
+//       
+//       console.log('✅ User authenticated in passport middleware:', user.email);
+//       // Attach user to request and proceed
+//       req.user = user;
+//       next();
+//     })(req, res, next);
+//   },
+//   googleAuth
+// );
 
 module.exports = router;
