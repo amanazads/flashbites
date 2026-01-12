@@ -49,7 +49,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
             return done(null, user);
           }
 
-          // Create new user
+          // Create new user without phone (will be optional)
           const newUser = await User.create({
             googleId: profile.id,
             name: profile.displayName,
@@ -57,7 +57,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
             avatar: profile.photos && profile.photos.length > 0 ? profile.photos[0].value : null,
             isEmailVerified: true,
             password: 'google-oauth-' + Math.random().toString(36).slice(-8), // Random password
-            phone: '0000000000' // Placeholder, will be updated later
+            phone: null // No phone number, user can add later
           });
 
           done(null, newUser);

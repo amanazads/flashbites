@@ -402,6 +402,12 @@ exports.resetPassword = async (req, res) => {
 // @access  Public
 exports.googleAuth = async (req, res) => {
   try {
+    // Check if authentication failed
+    if (!req.user) {
+      const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3001';
+      return res.redirect(`${frontendURL}/login?error=${encodeURIComponent('Authentication failed. Please try again.')}`);
+    }
+
     // This will be handled by passport middleware
     // User will be attached to req.user by passport
     const user = req.user;
@@ -422,7 +428,21 @@ exports.googleAuth = async (req, res) => {
     const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3001';
     res.redirect(`${frontendURL}/auth/google/success?token=${accessToken}&refresh=${refreshToken}`);
   } catch (error) {
+    console.error('Google OAuth error:', error);
     const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3001';
-    res.redirect(`${frontendURL}/login?error=Authentication failed`);
+    
+    // Handle specific error types
+    let errorMessage = 'Authentication failed. Please try again.';
+    
+    if (error.code === 11000) {
+      // Duplicate key error
+      if (error.keyPattern && error.keyPattern.phone) {
+        errorMessage = 'This phone number is already registered. Please login with your existing account or use a different phone number.';
+      } else if (error.keyPattern && error.keyPattern.email) {
+        errorMessage = 'This email is already registered. Please login with your existing account.';
+      }
+    }
+    
+    res.redirect(`${frontendURL}/login?error=${encodeURIComponent(errorMessage)}`);
   }
 };
