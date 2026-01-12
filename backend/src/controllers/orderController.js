@@ -262,23 +262,31 @@ exports.getOrderById = async (req, res) => {
 // @access  Private (Restaurant Owner/Admin)
 exports.updateOrderStatus = async (req, res) => {
   try {
+    console.log('🔄 [updateOrderStatus] Start - OrderID:', req.params.id, 'Status:', req.body.status);
+    
     const { status } = req.body;
     const validStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled'];
 
     if (!validStatuses.includes(status)) {
+      console.log('❌ [updateOrderStatus] Invalid status:', status);
       return errorResponse(res, 400, 'Invalid order status');
     }
 
+    console.log('✓ [updateOrderStatus] Finding order...');
     const order = await Order.findById(req.params.id);
 
     if (!order) {
+      console.log('❌ [updateOrderStatus] Order not found');
       return errorResponse(res, 404, 'Order not found');
     }
 
+    console.log('✓ [updateOrderStatus] Order found, updating status to:', status);
+    
     // Update status
     order.status = status;
 
     if (status === 'delivered') {
+      console.log('✓ [updateOrderStatus] Marking as delivered...');
       order.deliveredAt = new Date();
       
       // Update restaurant earnings
@@ -288,20 +296,26 @@ exports.updateOrderStatus = async (req, res) => {
       
       restaurant.totalEarnings += restaurantEarning;
       await restaurant.save();
+      console.log('✓ [updateOrderStatus] Restaurant earnings updated');
     }
 
     if (status === 'cancelled') {
+      console.log('✓ [updateOrderStatus] Marking as cancelled...');
       order.cancelledAt = new Date();
       order.cancellationReason = req.body.reason || 'Cancelled by restaurant';
     }
 
+    console.log('✓ [updateOrderStatus] Saving order...');
     await order.save();
 
     // Populate order details for notifications
+    console.log('✓ [updateOrderStatus] Populating order data...');
     const populatedOrder = await Order.findById(order._id)
       .populate('userId', 'name email phone')
       .populate('restaurantId', 'name phone address')
       .populate('items.menuItemId', 'name price');
+
+    console.log('✓ [updateOrderStatus] Order populated successfully');
 
     // Send notification for status update
     const statusMap = {
@@ -314,15 +328,29 @@ exports.updateOrderStatus = async (req, res) => {
     };
     
     if (statusMap[status]) {
-      // Use populatedOrder for both notifications
-      await notifyOrderStatus(populatedOrder, statusMap[status]);
-      
-      // Send real-time notification to user with sound
-      notifyUserOrderUpdate(populatedOrder.userId, populatedOrder);
+      console.log('✓ [updateOrderStatus] Sending notifications...');
+      try {
+        // Use populatedOrder for both notifications
+        await notifyOrderStatus(populatedOrder, statusMap[status]);
+        console.log('✓ [updateOrderStatus] Email notification sent');
+        
+        // Send real-time notification to user with sound
+        if (populatedOrder.userId) {
+          notifyUserOrderUpdate(populatedOrder.userId.toString(), populatedOrder);
+          console.log('✓ [updateOrderStatus] Socket notification sent to user');
+        }
+      } catch (notifError) {
+        console.error('⚠️ [updateOrderStatus] Notification error (non-fatal):', notifError.message);
+        console.error(notifError.stack);
+        // Don't fail the request if notifications fail
+      }
     }
 
+    console.log('✅ [updateOrderStatus] Success - Sending response');
     successResponse(res, 200, 'Order status updated successfully', { order: populatedOrder });
   } catch (error) {
+    console.error('❌ [updateOrderStatus] Fatal error:', error.message);
+    console.error(error.stack);
     errorResponse(res, 500, 'Failed to update order status', error.message);
   }
 };
