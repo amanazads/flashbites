@@ -1,34 +1,67 @@
-const Mailjet = require('node-mailjet');
+const nodemailer = require('nodemailer');
 
-// Initialize Mailjet with API keys
-let mailjet = null;
-if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) {
-  mailjet = Mailjet.apiConnect(
-    process.env.MAILJET_API_KEY,
-    process.env.MAILJET_SECRET_KEY
-  );
-  console.log('✅ Mailjet initialized successfully');
-} else {
-  console.warn('⚠️ Mailjet API keys not configured');
-}
+// Send email via Mailtrap API
+const sendMailtrapAPI = async (to, subject, html, text = '') => {
+  const response = await fetch('https://send.api.mailtrap.io/api/send', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.MAILTRAP_API_TOKEN}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: {
+        email: process.env.MAILTRAP_FROM_EMAIL || 'hello@flashbites.shop',
+        name: process.env.MAILTRAP_FROM_NAME || 'FlashBites'
+      },
+      to: [{ email: to }],
+      subject: subject,
+      html: html,
+      text: text,
+      category: 'Application Email'
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Mailtrap API error: ${response.status} - ${error}`);
+  }
+
+  return await response.json();
+};
+
+// Create transporter with Mailtrap SMTP (fallback)
+const createTransporter = () => {
+  if (!process.env.MAILTRAP_HOST || !process.env.MAILTRAP_PORT || !process.env.MAILTRAP_USER || !process.env.MAILTRAP_PASS) {
+    console.warn('⚠️ Mailtrap SMTP credentials not configured, using API');
+    return null;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.MAILTRAP_HOST,
+    port: process.env.MAILTRAP_PORT,
+    auth: {
+      user: process.env.MAILTRAP_USER,
+      pass: process.env.MAILTRAP_PASS
+    }
+  });
+
+  console.log('✅ Mailtrap email service initialized');
+  return transporter;
+};
+
+const transporter = createTransporter();
 
 // Generate 6-digit OTP
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Send OTP email using Mailjet
+// Send OTP email using Mailtrap API or SMTP
 const sendOTPEmail = async (email, otp, purpose = 'verification') => {
   // Always log OTP for development/debugging
   console.log(`📧 Sending OTP to ${email}: ${otp} (${purpose})`);
   
   try {
-    // Check if Mailjet is configured
-    if (!mailjet) {
-      console.warn('⚠️ Mailjet not configured. OTP logged above.');
-      return true;
-    }
-
     const subject = purpose === 'verification' 
       ? 'FlashBites - Email Verification OTP'
       : 'FlashBites - Password Reset OTP';
@@ -49,41 +82,37 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
             <span style="font-size: 32px; font-weight: bold; color: #f97316; letter-spacing: 5px;">${otp}</span>
           </div>
           <p style="color: #999; font-size: 14px;">If you didn't request this OTP, please ignore this email.</p>
-          <p style="color: #999; font-size: 14px;">This is an automated email, please do not reply.</p>
         </div>
       </div>
     `;
 
-    console.log('📨 Using Mailjet API...');
-    
-    const request = mailjet.post('send', { version: 'v3.1' }).request({
-      Messages: [
-        {
-          From: {
-            Email: process.env.MAILJET_FROM_EMAIL || 'noreply@flashbites.shop',
-            Name: 'FlashBites'
-          },
-          To: [
-            {
-              Email: email
-            }
-          ],
-          Subject: subject,
-          HTMLPart: htmlContent
-        }
-      ]
-    });
+    // Try Mailtrap API first
+    if (process.env.MAILTRAP_API_TOKEN) {
+      await sendMailtrapAPI(email, subject, htmlContent, message);
+      console.log(`✅ OTP email sent successfully via Mailtrap API to ${email}`);
+      return true;
+    }
 
-    const result = await request;
-    console.log(`✅ Email sent to ${email} via Mailjet. Status: ${result.body.Messages[0].Status}`);
+    // Fallback to SMTP if API not configured
+    if (!transporter) {
+      console.warn('⚠️ Email service not configured. OTP logged above.');
+      return true;
+    }
+
+    const mailOptions = {
+      from: process.env.MAILTRAP_FROM_EMAIL || 'FlashBites <noreply@flashbites.shop>',
+      to: email,
+      subject: subject,
+      html: htmlContent
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ OTP email sent successfully via SMTP to ${email}`);
     return true;
     
   } catch (error) {
     console.error('❌ Email error:', error.message);
-    if (error.response) {
-      console.error('Response:', JSON.stringify(error.response.data));
-    }
-    console.log(`📧 OTP for ${email}: ${otp} - Check Railway logs`);
+    console.log(`📧 OTP for ${email}: ${otp} - Check console logs`);
     return true; // Still return true to not block user flow
   }
 };
@@ -91,48 +120,47 @@ const sendOTPEmail = async (email, otp, purpose = 'verification') => {
 // Send welcome email
 const sendWelcomeEmail = async (email, name) => {
   try {
-    if (!mailjet) {
-      console.warn('⚠️ Mailjet not configured, skipping welcome email');
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #f97316; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0;">Welcome to FlashBites!</h1>
+        </div>
+        <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333;">Hello ${name}!</h2>
+          <p style="color: #666; font-size: 16px;">Thank you for joining FlashBites. We're excited to have you on board!</p>
+          <p style="color: #666; font-size: 16px;">Start exploring delicious food from the best restaurants near you.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://flashbites.shop" 
+               style="background-color: #f97316; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+              Start Ordering
+            </a>
+          </div>
+          <p style="color: #999; font-size: 14px; text-align: center;">Happy eating! 🍕🍔🍜</p>
+        </div>
+      </div>
+    `;
+
+    // Try Mailtrap API first
+    if (process.env.MAILTRAP_API_TOKEN) {
+      await sendMailtrapAPI(email, 'Welcome to FlashBites!', htmlContent, `Hello ${name}! Welcome to FlashBites.`);
+      console.log(`✅ Welcome email sent to ${email}`);
       return true;
     }
 
-    const request = mailjet.post('send', { version: 'v3.1' }).request({
-      Messages: [
-        {
-          From: {
-            Email: process.env.MAILJET_FROM_EMAIL || 'noreply@flashbites.shop',
-            Name: 'FlashBites'
-          },
-          To: [
-            {
-              Email: email
-            }
-          ],
-          Subject: 'Welcome to FlashBites!',
-          HTMLPart: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-              <div style="background-color: #f97316; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
-                <h1 style="color: white; margin: 0;">Welcome to FlashBites!</h1>
-              </div>
-              <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-                <h2 style="color: #333;">Hello ${name}!</h2>
-                <p style="color: #666; font-size: 16px;">Thank you for joining FlashBites. We're excited to have you on board!</p>
-                <p style="color: #666; font-size: 16px;">Start exploring delicious food from the best restaurants near you.</p>
-                <div style="text-align: center; margin: 30px 0;">
-                  <a href="https://flashbites.shop" 
-                     style="background-color: #f97316; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                    Start Ordering
-                  </a>
-                </div>
-                <p style="color: #999; font-size: 14px; text-align: center;">Happy eating! 🍕🍔🍜</p>
-              </div>
-            </div>
-          `
-        }
-      ]
-    });
+    // Fallback to SMTP
+    if (!transporter) {
+      console.warn('⚠️ Email service not configured, skipping welcome email');
+      return true;
+    }
 
-    await request;
+    const mailOptions = {
+      from: process.env.MAILTRAP_FROM_EMAIL || 'FlashBites <noreply@flashbites.shop>',
+      to: email,
+      subject: 'Welcome to FlashBites!',
+      html: htmlContent
+    };
+
+    await transporter.sendMail(mailOptions);
     console.log(`✅ Welcome email sent to ${email}`);
     return true;
   } catch (error) {
@@ -144,42 +172,41 @@ const sendWelcomeEmail = async (email, name) => {
 // Send password reset success email
 const sendPasswordResetSuccessEmail = async (email, name) => {
   try {
-    if (!mailjet) {
-      console.warn('⚠️ Mailjet not configured, skipping password reset email');
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #10b981; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0;">Password Reset Successful</h1>
+        </div>
+        <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333;">Hello ${name}!</h2>
+          <p style="color: #666; font-size: 16px;">Your password has been successfully reset.</p>
+          <p style="color: #666; font-size: 16px;">You can now log in with your new password.</p>
+          <p style="color: #dc2626; font-size: 14px; margin-top: 20px;">If you didn't make this change, please contact our support team immediately.</p>
+        </div>
+      </div>
+    `;
+
+    // Try Mailtrap API first
+    if (process.env.MAILTRAP_API_TOKEN) {
+      await sendMailtrapAPI(email, 'Password Reset Successful', htmlContent, `Hello ${name}! Your password has been successfully reset.`);
+      console.log(`✅ Password reset email sent to ${email}`);
       return true;
     }
 
-    const request = mailjet.post('send', { version: 'v3.1' }).request({
-      Messages: [
-        {
-          From: {
-            Email: process.env.MAILJET_FROM_EMAIL || 'noreply@flashbites.shop',
-            Name: 'FlashBites'
-          },
-          To: [
-            {
-              Email: email
-            }
-          ],
-          Subject: 'Password Reset Successful',
-          HTMLPart: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-              <div style="background-color: #10b981; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
-                <h1 style="color: white; margin: 0;">Password Reset Successful</h1>
-              </div>
-              <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-                <h2 style="color: #333;">Hello ${name}!</h2>
-                <p style="color: #666; font-size: 16px;">Your password has been successfully reset.</p>
-                <p style="color: #666; font-size: 16px;">You can now log in with your new password.</p>
-                <p style="color: #dc2626; font-size: 14px; margin-top: 20px;">If you didn't make this change, please contact our support team immediately.</p>
-              </div>
-            </div>
-          `
-        }
-      ]
-    });
+    // Fallback to SMTP
+    if (!transporter) {
+      console.warn('⚠️ Email service not configured, skipping password reset email');
+      return true;
+    }
 
-    await request;
+    const mailOptions = {
+      from: process.env.MAILTRAP_FROM_EMAIL || 'FlashBites <noreply@flashbites.shop>',
+      to: email,
+      subject: 'Password Reset Successful',
+      html: htmlContent
+    };
+
+    await transporter.sendMail(mailOptions);
     console.log(`✅ Password reset email sent to ${email}`);
     return true;
   } catch (error) {
