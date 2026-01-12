@@ -95,11 +95,12 @@ const Login = () => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-    const baseUrl = apiUrl.replace('/api', ''); // Remove /api suffix to get base URL
-    window.location.href = `${baseUrl}/api/auth/google`;
-  };
+  // Google OAuth - COMMENTED OUT
+  // const handleGoogleLogin = () => {
+  //   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+  //   const baseUrl = apiUrl.replace('/api', ''); // Remove /api suffix to get base URL
+  //   window.location.href = `${baseUrl}/api/auth/google`;
+  // };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -182,7 +183,8 @@ const Login = () => {
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
 
-            <div className="relative my-6">
+            {/* Google OAuth - COMMENTED OUT */}
+            {/* <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300"></div>
               </div>
@@ -203,7 +205,7 @@ const Login = () => {
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
               </svg>
               Sign in with Google
-            </button>
+            </button> */}
           </form>
         </div>
       </div>
