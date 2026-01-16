@@ -20,18 +20,24 @@ class NotificationSound {
 
   // Play notification sound (synthesized beep)
   async playNotification(type = 'new-order') {
+    // Auto-initialize if not initialized
     if (!this.initialized) {
       this.init();
     }
 
     if (!this.audioContext) {
-      console.warn('Audio context not available');
-      return;
+      console.warn('Audio context not available - trying to initialize...');
+      this.init();
+      if (!this.audioContext) {
+        console.error('Failed to initialize audio context');
+        return;
+      }
     }
 
     try {
       // Resume audio context if suspended (browser autoplay policy)
       if (this.audioContext.state === 'suspended') {
+        console.log('Resuming suspended audio context...');
         await this.audioContext.resume();
       }
 
@@ -151,4 +157,10 @@ class NotificationSound {
 }
 
 // Export singleton instance
-export default new NotificationSound();
+const notificationSoundInstance = new NotificationSound();
+export default notificationSoundInstance;
+
+// Export convenience function for direct use
+export const playNotificationSound = (type) => {
+  return notificationSoundInstance.playNotification(type);
+};

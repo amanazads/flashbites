@@ -16,21 +16,44 @@ export const useNotifications = () => {
   // Initialize socket connection
   useEffect(() => {
     if (token && user) {
+      console.log('🔌 Initializing socket connection for user:', user.email, 'Role:', user.role);
       socketService.connect(token);
       setConnected(true);
 
       // Initialize audio context on first user interaction
       const initAudio = () => {
+        console.log('🎵 Initializing audio context on user interaction...');
         notificationSound.init();
-        document.removeEventListener('click', initAudio);
+        // Keep listener for mobile - might need multiple interactions
+        setTimeout(() => {
+          document.removeEventListener('click', initAudio);
+          document.removeEventListener('touchstart', initAudio);
+        }, 2000);
       };
-      document.addEventListener('click', initAudio);
+      
+      document.addEventListener('click', initAudio, { once: false });
+      document.addEventListener('touchstart', initAudio, { once: false });
+
+      // Also try to initialize immediately (will work if user already interacted)
+      notificationSound.init();
+
+      // Request notification permission if not already decided
+      if ('Notification' in window && Notification.permission === 'default') {
+        // Wait a bit before requesting to not overwhelm user on page load
+        setTimeout(() => {
+          console.log('📱 Requesting notification permission...');
+          Notification.requestPermission().then(permission => {
+            console.log('📱 Notification permission:', permission);
+          });
+        }, 3000);
+      }
 
       // Cleanup on unmount
       return () => {
         socketService.disconnect();
         setConnected(false);
         document.removeEventListener('click', initAudio);
+        document.removeEventListener('touchstart', initAudio);
       };
     }
   }, [token, user]);
@@ -38,10 +61,17 @@ export const useNotifications = () => {
   // Handle new order notifications (for restaurant owners and admins)
   const handleNewOrder = useCallback((data) => {
     console.log('🆕 New order received:', data);
+    console.log('🔊 Sound enabled:', soundEnabled);
+    console.log('🔊 Data.sound:', data.sound);
     
     // Play sound if enabled
     if (soundEnabled && data.sound) {
-      notificationSound.playNotification('new-order');
+      console.log('🎵 Attempting to play notification sound...');
+      notificationSound.playNotification('new-order')
+        .then(() => console.log('✅ Sound played successfully'))
+        .catch(err => console.error('❌ Sound play failed:', err));
+    } else {
+      console.log('🔇 Sound not played. Enabled:', soundEnabled, 'Data.sound:', data.sound);
     }
 
     // Show toast notification
@@ -62,15 +92,22 @@ export const useNotifications = () => {
     );
 
     // Request browser notification permission if not granted
-    if (Notification.permission === 'granted') {
-      new Notification('New Order Received! 🎉', {
-        body: `Order #${data.order._id?.slice(-6)} - Total: ₹${data.order.total}`,
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
-        tag: 'new-order',
-        requireInteraction: true,
-      });
-    } else if (Notification.permission !== 'denied') {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification('New Order Received! 🎉', {
+          body: `Order #${data.order._id?.slice(-6) || 'N/A'} - Total: ₹${data.order.total || 0}`,
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: 'new-order',
+          requireInteraction: true,
+          silent: false, // Ensure browser plays its own sound
+        });
+        console.log('✅ Browser notification displayed');
+      } catch (error) {
+        console.error('❌ Failed to show browser notification:', error);
+      }
+    } else if ('Notification' in window && Notification.permission !== 'denied') {
+      console.log('📱 Notification permission not granted, requesting...');
       Notification.requestPermission();
     }
   }, [soundEnabled]);
@@ -78,10 +115,14 @@ export const useNotifications = () => {
   // Handle order status update notifications (for users)
   const handleOrderUpdate = useCallback((data) => {
     console.log('📦 Order update received:', data);
+    console.log('🔊 Sound enabled:', soundEnabled);
     
     // Play sound if enabled
     if (soundEnabled && data.sound) {
-      notificationSound.playNotification('order-update');
+      console.log('🎵 Attempting to play order update sound...');
+      notificationSound.playNotification('order-update')
+        .then(() => console.log('✅ Sound played successfully'))
+        .catch(err => console.error('❌ Sound play failed:', err));
     }
 
     // Map status to user-friendly messages
@@ -109,13 +150,19 @@ export const useNotifications = () => {
     );
 
     // Browser notification
-    if (Notification.permission === 'granted') {
-      new Notification(message, {
-        body: `Order #${data.order._id?.slice(-6)}`,
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
-        tag: 'order-update',
-      });
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification(message, {
+          body: `Order #${data.order._id?.slice(-6) || 'N/A'}`,
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: 'order-update',
+          silent: false,
+        });
+        console.log('✅ Browser notification displayed');
+      } catch (error) {
+        console.error('❌ Failed to show browser notification:', error);
+      }
     }
   }, [soundEnabled]);
 
