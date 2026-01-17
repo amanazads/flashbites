@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchRestaurants } from '../redux/slices/restaurantSlice';
@@ -17,10 +17,28 @@ const Home = () => {
   const [nearbyRestaurants, setNearbyRestaurants] = useState([]);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [selectedLocationName, setSelectedLocationName] = useState('');
+  const dropdownRef = useRef(null);
 
   useEffect(() => {
     dispatch(fetchRestaurants({}));
   }, [dispatch]);
+
+  useEffect(() => {
+    // Close dropdown when clicking outside
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowLocationDropdown(false);
+      }
+    };
+
+    if (showLocationDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showLocationDropdown]);
 
   useEffect(() => {
     // Filter restaurants by distance when location or restaurants change
@@ -31,16 +49,36 @@ const Home = () => {
 
   const requestLocationPermission = async () => {
     try {
-      const locationData = await getLocation();
+      // First attempt with high accuracy
+      const locationData = await getLocation({
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 300000
+      });
       setUserLocation(locationData);
       setSelectedLocationName('Current Location');
       setShowLocationDropdown(false);
       toast.success('Location detected! Showing nearby restaurants');
     } catch (err) {
-      console.error('Location error:', err);
-      // Show location dropdown as fallback
-      setShowLocationDropdown(true);
-      toast.error(error || 'Unable to get your location. Please select a location manually.');
+      console.error('High accuracy location failed, trying low accuracy:', err);
+      
+      // Fallback: Try with low accuracy (uses network/IP-based location)
+      try {
+        const locationData = await getLocation({
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 600000
+        });
+        setUserLocation(locationData);
+        setSelectedLocationName('Current Location (Approximate)');
+        setShowLocationDropdown(false);
+        toast.success('Approximate location detected! Showing nearby restaurants');
+      } catch (fallbackErr) {
+        console.error('Location detection failed completely:', fallbackErr);
+        // Show location dropdown as fallback
+        setShowLocationDropdown(true);
+        toast.error('Unable to detect location. Please select a location from the list.');
+      }
     }
   };
 
@@ -138,11 +176,35 @@ const Home = () => {
 
                 {/* Location Dropdown */}
                 {showLocationDropdown && (
-                  <div className="absolute top-full mt-2 left-0 bg-white rounded-lg shadow-xl border border-gray-200 z-10 w-64 max-h-80 overflow-y-auto">
+                  <div ref={dropdownRef} className="absolute top-full mt-2 left-0 bg-white rounded-lg shadow-xl border border-gray-200 z-10 w-72 max-h-96 overflow-y-auto">
                     <div className="p-3 border-b border-gray-200">
-                      <p className="text-sm font-semibold text-gray-700">Select a nearby location</p>
+                      <p className="text-sm font-semibold text-gray-700">Choose your location</p>
                     </div>
+                    
+                    {/* Use Current Location Option */}
+                    <button
+                      onClick={requestLocationPermission}
+                      disabled={locationLoading}
+                      className="w-full text-left px-4 py-3 hover:bg-orange-50 transition-colors border-b border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">📍</span>
+                        <div>
+                          <div className="font-medium text-orange-600">
+                            {locationLoading ? 'Detecting location...' : 'Use Current Location'}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {locationLoading ? 'Please wait...' : 'Enable GPS for accurate results'}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Nearby Locations */}
                     <div className="py-1">
+                      <div className="px-4 py-2 bg-gray-50">
+                        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Popular Locations</p>
+                      </div>
                       {NEARBY_LOCATIONS.map((loc) => (
                         <button
                           key={loc.id}
