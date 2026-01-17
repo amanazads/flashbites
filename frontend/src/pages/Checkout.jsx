@@ -6,9 +6,11 @@ import { clearCart } from '../redux/slices/cartSlice';
 import { getAddresses } from '../api/userApi';
 import { formatCurrency } from '../utils/formatters';
 import { calculateCartTotal } from '../utils/helpers';
-import { MINIMUM_ORDER_VALUE } from '../utils/constants';
+import { MINIMUM_ORDER_VALUE, calculateDeliveryCharge } from '../utils/constants';
+import { calculateDistance } from '../utils/helpers';
 import { createRazorpayOrder, verifyPayment } from '../api/paymentApi';
 import { updateOrderStatus } from '../api/orderApi';
+import { validateCoupon } from '../api/couponApi';
 import AddAddressModal from '../components/common/AddAddressModal';
 import toast from 'react-hot-toast';
 import { loadStripe } from '@stripe/stripe-js';
@@ -28,6 +30,10 @@ const Checkout = () => {
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [loading, setLoading] = useState(false);
   const [showAddAddressModal, setShowAddAddressModal] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [deliveryDistance, setDeliveryDistance] = useState(0);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -59,10 +65,51 @@ const Checkout = () => {
     toast.success('Address added successfully!');
   };
 
+  // Calculate distance when address or restaurant changes
+  useEffect(() => {
+    if (selectedAddress && restaurant?.location?.coordinates) {
+      const address = addresses.find(addr => addr._id === selectedAddress);
+      if (address && address.location?.coordinates) {
+        const [restLng, restLat] = restaurant.location.coordinates;
+        const [addrLng, addrLat] = address.location.coordinates;
+        const distance = calculateDistance(restLat, restLng, addrLat, addrLng);
+        setDeliveryDistance(parseFloat(distance));
+      }
+    }
+  }, [selectedAddress, restaurant, addresses]);
+
   const subtotal = calculateCartTotal(items);
-  const deliveryFee = restaurant?.deliveryFee || 0;
-  const tax = subtotal * 0.05;
-  const total = subtotal + deliveryFee + tax;
+  const deliveryFee = deliveryDistance > 0 ? calculateDeliveryCharge(deliveryDistance) : 30; // Default ₹30
+  const discount = appliedCoupon?.discount || 0;
+  const tax = (subtotal - discount) * 0.05;
+  const total = subtotal + deliveryFee + tax - discount;
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      toast.error('Please enter a coupon code');
+      return;
+    }
+
+    setCouponLoading(true);
+    try {
+      const response = await validateCoupon(couponCode, subtotal);
+      if (response.success) {
+        setAppliedCoupon(response.data.coupon);
+        toast.success(response.message || 'Coupon applied successfully!');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Invalid coupon code');
+      setAppliedCoupon(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    toast.success('Coupon removed');
+  };
 
   const handlePlaceOrder = async () => {
     if (subtotal < MINIMUM_ORDER_VALUE) {
@@ -89,7 +136,8 @@ const Checkout = () => {
           menuItemId: item._id,
           quantity: item.quantity
         })),
-        paymentMethod: paymentMethod || 'cod'
+        paymentMethod: paymentMethod || 'cod',
+        couponCode: appliedCoupon?.code || null
       };
 
       const result = await dispatch(createOrder(orderData));
@@ -272,6 +320,51 @@ const Checkout = () => {
               )}
             </div>
 
+            {/* Apply Coupon */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-bold mb-4">Apply Coupon</h2>
+              
+              {appliedCoupon ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-green-600 font-bold text-lg">{appliedCoupon.code}</span>
+                        <span className="bg-green-600 text-white text-xs px-2 py-0.5 rounded">Applied</span>
+                      </div>
+                      <p className="text-sm text-green-700 mt-1">{appliedCoupon.description}</p>
+                      <p className="text-sm font-semibold text-green-800 mt-2">
+                        You saved {formatCurrency(appliedCoupon.discount)}!
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleRemoveCoupon}
+                      className="text-red-600 hover:text-red-700 font-semibold text-sm"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    placeholder="Enter coupon code"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                  <button
+                    onClick={handleApplyCoupon}
+                    disabled={couponLoading || !couponCode.trim()}
+                    className="btn-primary px-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {couponLoading ? 'Applying...' : 'Apply'}
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Payment Method */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-bold mb-4">Payment Method</h2>
@@ -403,10 +496,21 @@ const Checkout = () => {
                   <span>Subtotal</span>
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Delivery Fee</span>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span>Delivery Fee</span>
+                    {deliveryDistance > 0 && (
+                      <span className="text-xs text-gray-500 ml-1">({deliveryDistance.toFixed(1)} km)</span>
+                    )}
+                  </div>
                   <span>{formatCurrency(deliveryFee)}</span>
                 </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-green-600 font-semibold">
+                    <span>Discount ({appliedCoupon.code})</span>
+                    <span>-{formatCurrency(discount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Tax (5%)</span>
                   <span>{formatCurrency(tax)}</span>

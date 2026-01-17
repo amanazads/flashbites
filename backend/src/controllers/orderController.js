@@ -1,9 +1,11 @@
 const Order = require('../models/Order');
 const Restaurant = require('../models/Restaurant');
 const MenuItem = require('../models/MenuItem');
+const Address = require('../models/Address');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { notifyOrderStatus } = require('../utils/notificationService');
 const { notifyRestaurantNewOrder, notifyAdminNewOrder, notifyUserOrderUpdate } = require('../services/socketService');
+const { calculateDistance, calculateDeliveryCharge } = require('../utils/calculateDistance');
 
 // Cancellation policy rules
 const CANCELLATION_RULES = {
@@ -153,11 +155,21 @@ exports.createOrder = async (req, res) => {
     console.log('Order items processed:', orderItems.length);
     console.log('Subtotal:', subtotal);
 
-    console.log('Order items processed:', orderItems.length);
-    console.log('Subtotal:', subtotal);
+    // Calculate distance-based delivery fee (platform-controlled)
+    let deliveryFee = 30; // Default ₹30
+    
+    if (addressId) {
+      const address = await Address.findById(addressId);
+      if (address && address.location && address.location.coordinates && 
+          restaurant.location && restaurant.location.coordinates) {
+        const [addrLng, addrLat] = address.location.coordinates;
+        const [restLng, restLat] = restaurant.location.coordinates;
+        const distance = calculateDistance(restLat, restLng, addrLat, addrLng);
+        deliveryFee = calculateDeliveryCharge(distance);
+        console.log(`Distance: ${distance.toFixed(1)} km, Delivery Fee: ₹${deliveryFee}`);
+      }
+    }
 
-    // Calculate taxes and fees
-    const deliveryFee = restaurant.deliveryFee || 0;
     const tax = subtotal * 0.05; // 5% tax
     let discount = 0;
 

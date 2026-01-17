@@ -59,6 +59,22 @@ export const USER_ROLES = {
 
 export const MINIMUM_ORDER_VALUE = 199; // Minimum order value in INR
 
+// Delivery charge tiers based on distance (platform-controlled)
+export const DELIVERY_CHARGES = [
+  { minDistance: 0, maxDistance: 2, charge: 20 },      // 0-2 km: ₹20
+  { minDistance: 2, maxDistance: 5, charge: 30 },      // 2-5 km: ₹30
+  { minDistance: 5, maxDistance: 10, charge: 50 },     // 5-10 km: ₹50
+  { minDistance: 10, maxDistance: 20, charge: 80 },    // 10-20 km: ₹80
+  { minDistance: 20, maxDistance: Infinity, charge: 100 } // 20+ km: ₹100
+];
+
+export const calculateDeliveryCharge = (distance) => {
+  const tier = DELIVERY_CHARGES.find(
+    (tier) => distance >= tier.minDistance && distance < tier.maxDistance
+  );
+  return tier ? tier.charge : 100; // Default to ₹100 if no tier found
+};
+
 // Nearby locations with coordinates (Uttar Pradesh region)
 export const NEARBY_LOCATIONS = [
   {
