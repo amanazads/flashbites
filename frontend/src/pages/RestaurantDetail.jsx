@@ -5,6 +5,7 @@ import { fetchRestaurantById } from '../redux/slices/restaurantSlice';
 import { getRestaurantMenuItems } from '../api/restaurantApi';
 import { StarIcon, ClockIcon, MapPinIcon } from '@heroicons/react/24/solid';
 import MenuCard from '../components/restaurant/MenuCard';
+import ReviewsList from '../components/restaurant/ReviewsList';
 import { Loader } from '../components/common/Loader';
 import { formatCurrency } from '../utils/formatters';
 import { FOOD_CATEGORIES } from '../utils/constants';
@@ -245,6 +246,11 @@ const RestaurantDetail = () => {
                 <li>• Safe packaging and contactless delivery</li>
               </ul>
             </div>
+          </div>
+
+          {/* Reviews Section */}
+          <div className="mt-8">
+            <ReviewsList restaurantId={id} />
           </div>
         </div>
       </div>

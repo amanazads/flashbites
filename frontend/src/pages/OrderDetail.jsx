@@ -5,6 +5,7 @@ import { getOrderById, cancelOrder } from '../api/orderApi';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
 import { Loader } from '../components/common/Loader';
+import ReviewModal from '../components/common/ReviewModal';
 import toast from 'react-hot-toast';
 import {
   MapPinIcon,
@@ -15,7 +16,8 @@ import {
   TruckIcon,
   CreditCardIcon,
   ReceiptRefundIcon,
-  BuildingStorefrontIcon
+  BuildingStorefrontIcon,
+  StarIcon
 } from '@heroicons/react/24/outline';
 
 const OrderDetail = () => {
@@ -25,6 +27,7 @@ const OrderDetail = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   useEffect(() => {
     fetchOrderDetails();
@@ -364,19 +367,35 @@ const OrderDetail = () => {
                 <button
                   onClick={handleCancelOrder}
                   disabled={cancelling}
-                  className="w-full btn-outline border-red-500 text-red-500 hover:bg-red-50"
+                  className="w-full btn-outline border-red-500 text-red-500 hover:bg-red-50 mb-3"
                 >
                   {cancelling ? 'Cancelling...' : 'Cancel Order'}
                 </button>
               )}
 
               {isDelivered && (
-                <Link
-                  to={`/restaurant/${order.restaurantId._id}`}
-                  className="w-full btn-primary block text-center"
-                >
-                  Order Again
-                </Link>
+                <div className="space-y-3">
+                  {!order.reviewId && (
+                    <button
+                      onClick={() => setShowReviewModal(true)}
+                      className="w-full btn-primary flex items-center justify-center gap-2"
+                    >
+                      <StarIcon className="w-5 h-5" />
+                      Rate this Order
+                    </button>
+                  )}
+                  {order.reviewId && (
+                    <div className="w-full p-3 bg-green-50 border border-green-200 rounded-lg text-center">
+                      <p className="text-green-800 text-sm font-medium">✓ You've reviewed this order</p>
+                    </div>
+                  )}
+                  <Link
+                    to={`/restaurant/${order.restaurantId._id}`}
+                    className="w-full btn-outline block text-center"
+                  >
+                    Order Again
+                  </Link>
+                </div>
               )}
             </div>
 
@@ -447,6 +466,16 @@ const OrderDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Review Modal */}
+      <ReviewModal
+        isOpen={showReviewModal}
+        onClose={() => {
+          setShowReviewModal(false);
+          fetchOrderDetails(); // Refresh to show review submitted
+        }}
+        order={order}
+      />
     </div>
   );
 };

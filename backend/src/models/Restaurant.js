@@ -129,4 +129,32 @@ restaurantSchema.index({ cuisines: 1 });
 restaurantSchema.index({ rating: -1 });
 restaurantSchema.index({ isActive: 1, isApproved: 1 });
 
+// Method to calculate average rating from reviews
+restaurantSchema.methods.calculateAverageRating = async function() {
+  const Review = mongoose.model('Review');
+  const stats = await Review.aggregate([
+    {
+      $match: { restaurantId: this._id }
+    },
+    {
+      $group: {
+        _id: null,
+        avgRating: { $avg: '$rating' },
+        totalReviews: { $sum: 1 }
+      }
+    }
+  ]);
+
+  if (stats.length > 0) {
+    this.rating = Math.round(stats[0].avgRating * 10) / 10; // Round to 1 decimal
+    this.totalReviews = stats[0].totalReviews;
+  } else {
+    this.rating = 0;
+    this.totalReviews = 0;
+  }
+
+  await this.save();
+  return this.rating;
+};
+
 module.exports = mongoose.model('Restaurant', restaurantSchema);
