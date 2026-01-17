@@ -6,6 +6,7 @@ import { formatCurrency, formatDateTime } from '../utils/formatters';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
 import { Loader } from '../components/common/Loader';
 import ReviewModal from '../components/common/ReviewModal';
+import CancellationModal from '../components/common/CancellationModal';
 import toast from 'react-hot-toast';
 import {
   MapPinIcon,
@@ -28,6 +29,7 @@ const OrderDetail = () => {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showCancellationModal, setShowCancellationModal] = useState(false);
 
   useEffect(() => {
     fetchOrderDetails();
@@ -48,15 +50,12 @@ const OrderDetail = () => {
     }
   };
 
-  const handleCancelOrder = async () => {
-    if (!window.confirm('Are you sure you want to cancel this order?')) {
-      return;
-    }
-
+  const handleCancelOrder = async (reason) => {
     setCancelling(true);
     try {
-      await cancelOrder(id);
+      await cancelOrder(id, { reason });
       toast.success('Order cancelled successfully');
+      setShowCancellationModal(false);
       fetchOrderDetails();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to cancel order');
@@ -365,11 +364,11 @@ const OrderDetail = () => {
               {/* Actions */}
               {canCancel && !isCancelled && (
                 <button
-                  onClick={handleCancelOrder}
+                  onClick={() => setShowCancellationModal(true)}
                   disabled={cancelling}
                   className="w-full btn-outline border-red-500 text-red-500 hover:bg-red-50 mb-3"
                 >
-                  {cancelling ? 'Cancelling...' : 'Cancel Order'}
+                  Cancel Order
                 </button>
               )}
 
@@ -475,6 +474,15 @@ const OrderDetail = () => {
           fetchOrderDetails(); // Refresh to show review submitted
         }}
         order={order}
+      />
+
+      {/* Cancellation Modal */}
+      <CancellationModal
+        isOpen={showCancellationModal}
+        onClose={() => setShowCancellationModal(false)}
+        onConfirm={handleCancelOrder}
+        order={order}
+        loading={cancelling}
       />
     </div>
   );

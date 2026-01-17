@@ -5,6 +5,78 @@ const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { notifyOrderStatus } = require('../utils/notificationService');
 const { notifyRestaurantNewOrder, notifyAdminNewOrder, notifyUserOrderUpdate } = require('../services/socketService');
 
+// Cancellation policy rules
+const CANCELLATION_RULES = {
+  pending: { allowed: true, fee: 0, message: 'Free cancellation' },
+  confirmed: { 
+    allowed: true, 
+    fee: 0, 
+    timeLimit: 60, // seconds
+    message: 'Free cancellation within 60 seconds of confirmation' 
+  },
+  preparing: { 
+    allowed: false, 
+    fee: 100, 
+    message: 'Order is being prepared and cannot be cancelled. Please contact restaurant.' 
+  },
+  ready: { 
+    allowed: false, 
+    fee: 100, 
+    message: 'Order is ready and cannot be cancelled.' 
+  },
+  out_for_delivery: { 
+    allowed: false, 
+    fee: 100, 
+    message: 'Order is out for delivery and cannot be cancelled.' 
+  },
+  delivered: { 
+    allowed: false, 
+    fee: 100, 
+    message: 'Order is already delivered.' 
+  }
+};
+
+// Check if order can be cancelled based on policy
+const checkCancellationEligibility = (order) => {
+  const status = order.status;
+  const rule = CANCELLATION_RULES[status];
+
+  if (!rule) {
+    return { allowed: false, fee: 0, reason: 'Invalid order status' };
+  }
+
+  // If status doesn't allow cancellation at all
+  if (!rule.allowed) {
+    return { 
+      allowed: false, 
+      fee: rule.fee, 
+      reason: rule.message 
+    };
+  }
+
+  // For confirmed orders, check time window
+  if (status === 'confirmed' && rule.timeLimit) {
+    const confirmedAt = order.confirmedAt || order.updatedAt;
+    const timeSinceConfirmation = (Date.now() - new Date(confirmedAt).getTime()) / 1000;
+
+    if (timeSinceConfirmation > rule.timeLimit) {
+      return {
+        allowed: false,
+        fee: 100,
+        reason: `Cancellation window expired. Free cancellation is only available within ${rule.timeLimit} seconds of confirmation.`
+      };
+    }
+  }
+
+  // Calculate fee as percentage of order total
+  const feePercentage = rule.fee;
+  return {
+    allowed: true,
+    fee: (order.total * feePercentage) / 100,
+    reason: rule.message
+  };
+};
+
 // @desc    Create new order
 // @route   POST /api/orders
 // @access  Private (User)
@@ -285,6 +357,11 @@ exports.updateOrderStatus = async (req, res) => {
     // Update status
     order.status = status;
 
+    if (status === 'confirmed') {
+      console.log('✓ [updateOrderStatus] Marking as confirmed...');
+      order.confirmedAt = new Date();
+    }
+
     if (status === 'delivered') {
       console.log('✓ [updateOrderStatus] Marking as delivered...');
       order.deliveredAt = new Date();
@@ -376,25 +453,51 @@ exports.updateOrderStatus = async (req, res) => {
 // @access  Private (User)
 exports.cancelOrder = async (req, res) => {
   try {
+    console.log('🚫 [cancelOrder] Start - OrderID:', req.params.id);
+    
     const order = await Order.findById(req.params.id);
 
     if (!order) {
+      console.log('❌ [cancelOrder] Order not found');
       return errorResponse(res, 404, 'Order not found');
     }
 
     if (order.userId.toString() !== req.user._id.toString()) {
+      console.log('❌ [cancelOrder] Unauthorized access attempt');
       return errorResponse(res, 403, 'Not authorized');
     }
 
-    // Can only cancel pending or confirmed orders
-    if (!['pending', 'confirmed'].includes(order.status)) {
-      return errorResponse(res, 400, 'Order cannot be cancelled at this stage');
+    // Check cancellation eligibility based on status and time
+    const cancellationCheck = checkCancellationEligibility(order);
+    
+    if (!cancellationCheck.allowed) {
+      console.log('❌ [cancelOrder] Cancellation not allowed:', cancellationCheck.reason);
+      return errorResponse(res, 400, cancellationCheck.reason, { 
+        canCancel: false,
+        fee: cancellationCheck.fee
+      });
     }
 
+    console.log('✓ [cancelOrder] Cancellation allowed, fee:', cancellationCheck.fee);
+
+    // Calculate refund amount
+    const cancellationFee = cancellationCheck.fee;
+    const refundAmount = order.total - cancellationFee;
+
+    // Update order
     order.status = 'cancelled';
     order.cancelledAt = new Date();
     order.cancellationReason = req.body.reason || 'Cancelled by user';
+    order.cancellationFee = cancellationFee;
+    order.refundAmount = refundAmount;
+    
+    // Update payment status for refund
+    if (order.paymentStatus === 'completed' && refundAmount > 0) {
+      order.paymentStatus = 'refunded';
+    }
+    
     await order.save();
+    console.log('✓ [cancelOrder] Order updated, refund amount:', refundAmount);
 
     // Populate order for notifications
     const populatedOrder = await Order.findById(order._id)

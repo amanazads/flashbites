@@ -78,9 +78,18 @@ const orderSchema = new mongoose.Schema({
   },
   deliveryInstructions: String,
   estimatedDelivery: Date,
+  confirmedAt: Date,
   deliveredAt: Date,
   cancelledAt: Date,
-  cancellationReason: String
+  cancellationReason: String,
+  cancellationFee: {
+    type: Number,
+    default: 0
+  },
+  refundAmount: {
+    type: Number,
+    default: 0
+  }
 }, { timestamps: true });
 
 orderSchema.index({ userId: 1, createdAt: -1 });
