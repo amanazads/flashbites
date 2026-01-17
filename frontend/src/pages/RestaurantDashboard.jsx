@@ -66,8 +66,8 @@ const RestaurantDashboard = () => {
       coordinates: [0, 0],
     },
     timing: {
-      opening: '09:00',
-      closing: '22:00',
+      open: '09:00',
+      close: '22:00',
     },
     deliveryFee: 0,
     deliveryTime: '30-40 min',
@@ -599,7 +599,7 @@ const RestaurantDashboard = () => {
                   <div>
                     <p className="text-sm text-gray-600">Opening Hours</p>
                     <p className="font-medium">
-                      {restaurant.timing.opening} - {restaurant.timing.closing}
+                      {restaurant.timing?.open || '09:00'} - {restaurant.timing?.close || '22:00'}
                     </p>
                   </div>
                 </div>
@@ -1085,13 +1085,13 @@ const RestaurantDashboard = () => {
                     </label>
                     <input
                       type="time"
-                      value={restaurantData.timing.opening}
+                      value={restaurantData.timing.open}
                       onChange={(e) =>
                         setRestaurantData({
                           ...restaurantData,
                           timing: {
                             ...restaurantData.timing,
-                            opening: e.target.value,
+                            open: e.target.value,
                           },
                         })
                       }
@@ -1104,13 +1104,13 @@ const RestaurantDashboard = () => {
                     </label>
                     <input
                       type="time"
-                      value={restaurantData.timing.closing}
+                      value={restaurantData.timing.close}
                       onChange={(e) =>
                         setRestaurantData({
                           ...restaurantData,
                           timing: {
                             ...restaurantData.timing,
-                            closing: e.target.value,
+                            close: e.target.value,
                           },
                         })
                       }

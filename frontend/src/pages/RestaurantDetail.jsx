@@ -211,14 +211,26 @@ const RestaurantDetail = () => {
                 <h4 className="font-semibold text-lg">Operating Hours</h4>
               </div>
               <div className="text-sm space-y-2">
-                {Object.entries(restaurant.timing).map(([day, hours]) => (
-                  <div key={day} className="flex justify-between items-center py-1">
-                    <span className="capitalize font-medium text-gray-700">{day}</span>
-                    <span className={hours.isClosed ? 'text-red-600' : 'text-green-600'}>
-                      {hours.isClosed ? 'Closed' : `${hours.open} - ${hours.close}`}
+                {restaurant.timing?.open && restaurant.timing?.close ? (
+                  <>
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="font-medium text-gray-700">Daily</span>
+                      <span className="text-green-600 font-medium">
+                        {restaurant.timing.open} - {restaurant.timing.close}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-3">
+                      Open all days of the week
+                    </p>
+                  </>
+                ) : (
+                  <div className="flex justify-between items-center py-2">
+                    <span className="font-medium text-gray-700">Daily</span>
+                    <span className="text-green-600 font-medium">
+                      9:00 AM - 10:00 PM
                     </span>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
