@@ -6,8 +6,10 @@ import { clearCart } from '../redux/slices/cartSlice';
 import { getAddresses } from '../api/userApi';
 import { formatCurrency } from '../utils/formatters';
 import { calculateCartTotal } from '../utils/helpers';
+import { MINIMUM_ORDER_VALUE } from '../utils/constants';
 import { createRazorpayOrder, verifyPayment } from '../api/paymentApi';
 import { updateOrderStatus } from '../api/orderApi';
+import AddAddressModal from '../components/common/AddAddressModal';
 import toast from 'react-hot-toast';
 import { loadStripe } from '@stripe/stripe-js';
 
@@ -25,6 +27,7 @@ const Checkout = () => {
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [loading, setLoading] = useState(false);
+  const [showAddAddressModal, setShowAddAddressModal] = useState(false);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -49,12 +52,24 @@ const Checkout = () => {
     }
   };
 
+  const handleAddressAdded = (newAddress) => {
+    setAddresses([...addresses, newAddress]);
+    setSelectedAddress(newAddress._id);
+    setShowAddAddressModal(false);
+    toast.success('Address added successfully!');
+  };
+
   const subtotal = calculateCartTotal(items);
   const deliveryFee = restaurant?.deliveryFee || 0;
   const tax = subtotal * 0.05;
   const total = subtotal + deliveryFee + tax;
 
   const handlePlaceOrder = async () => {
+    if (subtotal < MINIMUM_ORDER_VALUE) {
+      toast.error(`Minimum order value is ${formatCurrency(MINIMUM_ORDER_VALUE)}`);
+      return;
+    }
+
     if (!selectedAddress) {
       toast.error('Please select a delivery address');
       return;
@@ -208,13 +223,21 @@ const Checkout = () => {
           <div className="md:col-span-2 space-y-6">
             {/* Delivery Address */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-bold mb-4">Delivery Address</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold">Delivery Address</h2>
+                <button
+                  onClick={() => setShowAddAddressModal(true)}
+                  className="text-orange-600 hover:text-orange-700 font-semibold text-sm"
+                >
+                  + Add New Address
+                </button>
+              </div>
               
               {addresses.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-gray-600 mb-4">No saved addresses</p>
                   <button
-                    onClick={() => navigate('/profile')}
+                    onClick={() => setShowAddAddressModal(true)}
                     className="btn-primary"
                   >
                     Add Address
@@ -394,17 +417,47 @@ const Checkout = () => {
                 </div>
               </div>
 
+              {/* Minimum Order Warning */}
+              {subtotal < MINIMUM_ORDER_VALUE && (
+                <div className="mt-4 p-3 bg-red-50 rounded-lg border border-red-200">
+                  <p className="text-sm text-red-800 font-medium">
+                    ⚠️ Minimum order value is {formatCurrency(MINIMUM_ORDER_VALUE)}
+                  </p>
+                  <p className="text-xs text-red-600 mt-1">
+                    Add {formatCurrency(MINIMUM_ORDER_VALUE - subtotal)} more to place order
+                  </p>
+                </div>
+              )}
+
+              {/* Minimum Order Warning */}
+              {subtotal < MINIMUM_ORDER_VALUE && (
+                <div className="mt-4 p-3 bg-red-50 rounded-lg border border-red-200">
+                  <p className="text-sm text-red-800 font-medium">
+                    ⚠️ Minimum order value is {formatCurrency(MINIMUM_ORDER_VALUE)}
+                  </p>
+                  <p className="text-xs text-red-600 mt-1">
+                    Add {formatCurrency(MINIMUM_ORDER_VALUE - subtotal)} more to place order
+                  </p>
+                </div>
+              )}
+
               <button
                 onClick={handlePlaceOrder}
-                disabled={loading || !selectedAddress}
-                className="w-full btn-primary py-3 mt-6"
+                disabled={loading || !selectedAddress || subtotal < MINIMUM_ORDER_VALUE}
+                className="w-full btn-primary py-3 mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Placing Order...' : 'Place Order'}
+                {loading ? 'Placing Order...' : subtotal < MINIMUM_ORDER_VALUE ? `Minimum Order ${formatCurrency(MINIMUM_ORDER_VALUE)}` : 'Place Order'}
               </button>
             </div>
-          </div>
         </div>
       </div>
+
+      {/* Add Address Modal */}
+      <AddAddressModal
+        isOpen={showAddAddressModal}
+        onClose={() => setShowAddAddressModal(false)}
+        onAddressAdded={handleAddressAdded}
+      />
     </div>
   );
 };

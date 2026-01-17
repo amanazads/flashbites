@@ -4,25 +4,23 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchRestaurants } from '../redux/slices/restaurantSlice';
 import RestaurantCard from '../components/restaurant/RestaurantCard';
 import { Loader } from '../components/common/Loader';
-import { CUISINES } from '../utils/constants';
+import { CUISINES, NEARBY_LOCATIONS } from '../utils/constants';
 import { calculateDistance } from '../utils/helpers';
+import { useGeolocation } from '../hooks/useGeolocation';
 import toast from 'react-hot-toast';
 
 const Home = () => {
   const dispatch = useDispatch();
   const { restaurants, loading } = useSelector((state) => state.restaurant);
+  const { location, error, loading: locationLoading, getLocation, clearLocation } = useGeolocation();
   const [userLocation, setUserLocation] = useState(null);
-  const [locationLoading, setLocationLoading] = useState(false);
   const [nearbyRestaurants, setNearbyRestaurants] = useState([]);
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [selectedLocationName, setSelectedLocationName] = useState('');
 
   useEffect(() => {
     dispatch(fetchRestaurants({}));
   }, [dispatch]);
-
-  // Removed automatic location request on mount - only manual now
-  // useEffect(() => {
-  //   requestLocationPermission();
-  // }, []);
 
   useEffect(() => {
     // Filter restaurants by distance when location or restaurants change
@@ -31,29 +29,33 @@ const Home = () => {
     }
   }, [userLocation, restaurants]);
 
-  const requestLocationPermission = () => {
-    if ('geolocation' in navigator) {
-      setLocationLoading(true);
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setUserLocation({ latitude, longitude });
-          toast.success('Location detected! Showing nearby restaurants');
-          setLocationLoading(false);
-        },
-        (error) => {
-          // Completely silent - no logs, no messages
-          setLocationLoading(false);
-        },
-        {
-          enableHighAccuracy: false,
-          timeout: 5000, // Shorter timeout
-          maximumAge: 600000 // 10 minutes cache
-        }
-      );
-    } else {
-      setLocationLoading(false);
+  const requestLocationPermission = async () => {
+    try {
+      const locationData = await getLocation();
+      setUserLocation(locationData);
+      setSelectedLocationName('Current Location');
+      setShowLocationDropdown(false);
+      toast.success('Location detected! Showing nearby restaurants');
+    } catch (err) {
+      console.error('Location error:', err);
+      // Show location dropdown as fallback
+      setShowLocationDropdown(true);
+      toast.error(error || 'Unable to get your location. Please select a location manually.');
     }
+  };
+
+  const selectNearbyLocation = (location) => {
+    setUserLocation(location.coordinates);
+    setSelectedLocationName(location.name);
+    setShowLocationDropdown(false);
+    toast.success(`Showing restaurants near ${location.name}`);
+  };
+
+  const clearSelectedLocation = () => {
+    setUserLocation(null);
+    setSelectedLocationName('');
+    clearLocation();
+    setNearbyRestaurants([]);
   };
 
   const filterRestaurantsByDistance = () => {
@@ -107,16 +109,54 @@ const Home = () => {
                 </div>
               </div>
             ) : userLocation ? (
-              <p className="text-sm mb-6 text-orange-100">
-                📍 Showing restaurants near you ({nearbyRestaurants.length} found)
-              </p>
+              <div className="mb-6">
+                <div className="inline-flex items-center gap-2 text-sm text-orange-100 bg-white/10 px-4 py-2 rounded-lg">
+                  <span>📍 {selectedLocationName} ({nearbyRestaurants.length} restaurants found)</span>
+                  <button
+                    onClick={clearSelectedLocation}
+                    className="ml-2 text-orange-100 hover:text-white"
+                    title="Clear location"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
             ) : (
-              <button
-                onClick={requestLocationPermission}
-                className="inline-flex items-center gap-2 text-sm mb-6 text-orange-100 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-all"
-              >
-                📍 Find restaurants near me
-              </button>
+              <div className="mb-6 relative">
+                <button
+                  onClick={requestLocationPermission}
+                  className="inline-flex items-center gap-2 text-sm text-orange-100 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-all"
+                >
+                  📍 Find restaurants near me
+                </button>
+                <button
+                  onClick={() => setShowLocationDropdown(!showLocationDropdown)}
+                  className="ml-3 inline-flex items-center gap-2 text-sm text-orange-100 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-all"
+                >
+                  📌 Select Location
+                </button>
+
+                {/* Location Dropdown */}
+                {showLocationDropdown && (
+                  <div className="absolute top-full mt-2 left-0 bg-white rounded-lg shadow-xl border border-gray-200 z-10 w-64 max-h-80 overflow-y-auto">
+                    <div className="p-3 border-b border-gray-200">
+                      <p className="text-sm font-semibold text-gray-700">Select a nearby location</p>
+                    </div>
+                    <div className="py-1">
+                      {NEARBY_LOCATIONS.map((loc) => (
+                        <button
+                          key={loc.id}
+                          onClick={() => selectNearbyLocation(loc)}
+                          className="w-full text-left px-4 py-3 hover:bg-orange-50 transition-colors border-b border-gray-100 last:border-b-0"
+                        >
+                          <div className="font-medium text-gray-900">{loc.name}</div>
+                          <div className="text-xs text-gray-500">{loc.district}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
             
             <div>

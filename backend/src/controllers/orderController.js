@@ -144,6 +144,12 @@ exports.createOrder = async (req, res) => {
       });
     }
 
+    // Validate minimum order value
+    const MINIMUM_ORDER_VALUE = 199;
+    if (subtotal < MINIMUM_ORDER_VALUE) {
+      return errorResponse(res, 400, `Minimum order value is ₹${MINIMUM_ORDER_VALUE}`);
+    }
+
     console.log('Order items processed:', orderItems.length);
     console.log('Subtotal:', subtotal);
 

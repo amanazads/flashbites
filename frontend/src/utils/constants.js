@@ -56,3 +56,57 @@ export const USER_ROLES = {
   RESTAURANT_OWNER: 'restaurant_owner',
   ADMIN: 'admin',
 };
+
+export const MINIMUM_ORDER_VALUE = 199; // Minimum order value in INR
+
+// Nearby locations with coordinates (Uttar Pradesh region)
+export const NEARBY_LOCATIONS = [
+  {
+    id: 'ataria',
+    name: 'Ataria',
+    coordinates: { latitude: 27.2046, longitude: 80.6179 },
+    district: 'Sitapur'
+  },
+  {
+    id: 'sidhauli',
+    name: 'Sidhauli',
+    coordinates: { latitude: 27.2833, longitude: 80.8333 },
+    district: 'Sitapur'
+  },
+  {
+    id: 'sitapur',
+    name: 'Sitapur',
+    coordinates: { latitude: 27.5667, longitude: 80.6833 },
+    district: 'Sitapur'
+  },
+  {
+    id: 'lucknow',
+    name: 'Lucknow',
+    coordinates: { latitude: 26.8467, longitude: 80.9462 },
+    district: 'Lucknow'
+  },
+  {
+    id: 'barabanki',
+    name: 'Barabanki',
+    coordinates: { latitude: 26.9221, longitude: 81.1865 },
+    district: 'Barabanki'
+  },
+  {
+    id: 'lakhimpur',
+    name: 'Lakhimpur Kheri',
+    coordinates: { latitude: 27.9479, longitude: 80.7782 },
+    district: 'Lakhimpur Kheri'
+  },
+  {
+    id: 'hardoi',
+    name: 'Hardoi',
+    coordinates: { latitude: 27.3965, longitude: 80.1314 },
+    district: 'Hardoi'
+  },
+  {
+    id: 'shahjahanpur',
+    name: 'Shahjahanpur',
+    coordinates: { latitude: 27.8803, longitude: 79.9060 },
+    district: 'Shahjahanpur'
+  }
+];
