@@ -49,36 +49,19 @@ const Home = () => {
 
   const requestLocationPermission = async () => {
     try {
-      // First attempt with high accuracy
+      // Try network-based location first (faster, more reliable)
       const locationData = await getLocation({
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 300000
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: 600000
       });
       setUserLocation(locationData);
       setSelectedLocationName('Current Location');
       setShowLocationDropdown(false);
       toast.success('Location detected! Showing nearby restaurants');
     } catch (err) {
-      console.error('High accuracy location failed, trying low accuracy:', err);
-      
-      // Fallback: Try with low accuracy (uses network/IP-based location)
-      try {
-        const locationData = await getLocation({
-          enableHighAccuracy: false,
-          timeout: 10000,
-          maximumAge: 600000
-        });
-        setUserLocation(locationData);
-        setSelectedLocationName('Current Location (Approximate)');
-        setShowLocationDropdown(false);
-        toast.success('Approximate location detected! Showing nearby restaurants');
-      } catch (fallbackErr) {
-        console.error('Location detection failed completely:', fallbackErr);
-        // Show location dropdown as fallback
-        setShowLocationDropdown(true);
-        toast.error('Unable to detect location. Please select a location from the list.');
-      }
+      // Silently show location dropdown without error toast
+      setShowLocationDropdown(true);
     }
   };
 

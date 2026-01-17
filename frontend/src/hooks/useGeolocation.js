@@ -15,9 +15,9 @@ export const useGeolocation = () => {
     setError(null);
 
     const defaultOptions = {
-      enableHighAccuracy: true,
-      timeout: 15000, // 15 seconds
-      maximumAge: 300000, // 5 minutes cache
+      enableHighAccuracy: false, // Changed to false by default to avoid GPS lock issues
+      timeout: 10000, // 10 seconds
+      maximumAge: 600000, // 10 minutes cache
       ...options
     };
 
@@ -41,13 +41,13 @@ export const useGeolocation = () => {
               errorMessage = 'Location permission denied. Please enable location access in your browser settings.';
               break;
             case err.POSITION_UNAVAILABLE:
-              errorMessage = 'Location information unavailable. Please check your device settings.';
+              errorMessage = 'Location information unavailable. Please select a location manually.';
               break;
             case err.TIMEOUT:
-              errorMessage = 'Location request timed out. Please try again.';
+              errorMessage = 'Location request timed out. Please select a location manually.';
               break;
             default:
-              errorMessage = 'An unknown error occurred while getting location.';
+              errorMessage = 'Unable to determine location. Please select manually.';
           }
           
           setError(errorMessage);
