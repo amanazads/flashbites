@@ -553,6 +553,7 @@ const Checkout = () => {
                 {loading ? 'Placing Order...' : subtotal < MINIMUM_ORDER_VALUE ? `Minimum Order ${formatCurrency(MINIMUM_ORDER_VALUE)}` : 'Place Order'}
               </button>
             </div>
+          </div>
         </div>
       </div>
 
