@@ -3,8 +3,15 @@ const Restaurant = require('../models/Restaurant');
 const MenuItem = require('../models/MenuItem');
 const Address = require('../models/Address');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
-const { notifyOrderStatus } = require('../utils/notificationService');
-const { notifyRestaurantNewOrder, notifyAdminNewOrder, notifyUserOrderUpdate } = require('../services/socketService');
+const { 
+  notifyOrderStatus, 
+  notifyRestaurantNewOrder, 
+  notifyUserOrderPlaced,
+  notifyOrderReadyForPickup,
+  notifyUserDeliveryAssigned,
+  notifyPaymentReminder
+} = require('../utils/notificationService');
+const { notifyRestaurantNewOrder: socketNotifyRestaurant, notifyAdminNewOrder, notifyUserOrderUpdate } = require('../services/socketService');
 const { calculateDistance, calculateDeliveryCharge } = require('../utils/calculateDistance');
 
 // Cancellation policy rules
@@ -268,11 +275,17 @@ exports.createOrder = async (req, res) => {
       console.log(`📧 Order details: ${orderItems.length} items, Total: ${total}`);
       console.log(`💳 Payment method: ${paymentMethod}`);
       
-      // Notify restaurant owner
-      notifyRestaurantNewOrder(restaurantId, populatedOrder);
+      // Socket notification to restaurant
+      socketNotifyRestaurant(restaurantId, populatedOrder);
       
-      // Notify all admins
+      // Socket notification to all admins
       notifyAdminNewOrder(populatedOrder);
+      
+      // Database + Push notification to restaurant owner
+      await notifyRestaurantNewOrder(populatedOrder, restaurant.ownerId);
+      
+      // Database + Push notification to user
+      await notifyUserOrderPlaced(populatedOrder);
       
       if (paymentMethod !== 'cod') {
         console.log(`⚠️ WARNING: Online payment not confirmed yet!`);
@@ -440,10 +453,23 @@ exports.updateOrderStatus = async (req, res) => {
           console.log('✓ [updateOrderStatus] Socket notification sent to user:', userIdStr);
         }
         
+        // Additional specific notifications
+        if (status === 'ready') {
+          // Notify delivery partner if assigned
+          if (populatedOrder.deliveryPartnerId) {
+            await notifyOrderReadyForPickup(populatedOrder, populatedOrder.deliveryPartnerId);
+          }
+        }
+        
+        if (status === 'out_for_delivery' && populatedOrder.paymentMethod === 'cod') {
+          // Send payment reminder for COD orders
+          await notifyPaymentReminder(populatedOrder);
+        }
+        
         // Also notify restaurant about the status change
         if (populatedOrder.restaurantId && ['confirmed', 'ready', 'delivered', 'cancelled'].includes(status)) {
           const restaurantIdStr = populatedOrder.restaurantId._id ? populatedOrder.restaurantId._id.toString() : populatedOrder.restaurantId.toString();
-          notifyRestaurantNewOrder(restaurantIdStr, {
+          socketNotifyRestaurant(restaurantIdStr, {
             ...populatedOrder.toObject(),
             message: `Order #${populatedOrder._id.toString().slice(-8)} status: ${status}`,
             type: 'ORDER_STATUS_UPDATE'

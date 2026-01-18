@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const User = require('../models/User');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
+const { notifyUserDeliveryAssigned } = require('../utils/notificationService');
 
 // @desc    Get all available orders for delivery partners
 // @route   GET /api/delivery/orders/available
@@ -79,6 +80,13 @@ exports.acceptOrder = async (req, res) => {
       .populate('userId', 'name phone')
       .populate('restaurantId', 'name address phone location')
       .populate('addressId');
+
+    // Notify user about delivery partner assignment
+    try {
+      await notifyUserDeliveryAssigned(updatedOrder, req.user);
+    } catch (notifyError) {
+      console.error('Failed to send delivery assignment notification:', notifyError);
+    }
 
     return successResponse(res, { order: updatedOrder }, 'Order accepted successfully');
   } catch (error) {

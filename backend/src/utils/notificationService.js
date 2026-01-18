@@ -207,11 +207,130 @@ const notifyCouponAvailable = async (userIds, coupon) => {
   await notifyMultipleUsers(userIds, notificationData);
 };
 
+// New order notification for restaurant
+const notifyRestaurantNewOrder = async (order, restaurantOwnerId) => {
+  try {
+    const orderRef = order.orderNumber || order._id.toString().slice(-8);
+    
+    await notifyUser(restaurantOwnerId, {
+      title: '🔔 New Order Received!',
+      message: `Order #${orderRef} - ${order.items?.length || 0} items - ₹${order.total}`,
+      type: 'new_order',
+      priority: 'high',
+      data: {
+        orderId: order._id,
+        orderNumber: orderRef,
+        total: order.total,
+        itemCount: order.items?.length || 0,
+        paymentMethod: order.paymentMethod
+      }
+    });
+  } catch (error) {
+    console.error('Error notifying restaurant:', error);
+  }
+};
+
+// Order confirmation for user
+const notifyUserOrderPlaced = async (order) => {
+  try {
+    const orderRef = order.orderNumber || order._id.toString().slice(-8);
+    
+    await notifyUser(order.userId._id || order.userId, {
+      title: '✅ Order Placed Successfully',
+      message: `Your order #${orderRef} has been placed at ${order.restaurantId?.name || 'the restaurant'}`,
+      type: 'order_placed',
+      priority: 'high',
+      data: {
+        orderId: order._id,
+        orderNumber: orderRef,
+        restaurantId: order.restaurantId?._id,
+        restaurantName: order.restaurantId?.name,
+        total: order.total
+      }
+    });
+  } catch (error) {
+    console.error('Error notifying user order placed:', error);
+  }
+};
+
+// Order ready for pickup notification
+const notifyOrderReadyForPickup = async (order, deliveryPartnerId) => {
+  try {
+    const orderRef = order.orderNumber || order._id.toString().slice(-8);
+    
+    if (deliveryPartnerId) {
+      await notifyUser(deliveryPartnerId, {
+        title: '📦 Order Ready for Pickup',
+        message: `Order #${orderRef} is ready at ${order.restaurantId?.name}`,
+        type: 'order_ready_pickup',
+        priority: 'high',
+        data: {
+          orderId: order._id,
+          orderNumber: orderRef,
+          restaurantId: order.restaurantId?._id,
+          restaurantName: order.restaurantId?.name,
+          restaurantAddress: order.restaurantId?.address
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error notifying delivery partner:', error);
+  }
+};
+
+// Delivery assigned notification for user
+const notifyUserDeliveryAssigned = async (order, deliveryPartner) => {
+  try {
+    const orderRef = order.orderNumber || order._id.toString().slice(-8);
+    
+    await notifyUser(order.userId._id || order.userId, {
+      title: '🚴 Delivery Partner Assigned',
+      message: `${deliveryPartner.name} will deliver your order #${orderRef}`,
+      type: 'delivery_assigned',
+      priority: 'medium',
+      data: {
+        orderId: order._id,
+        orderNumber: orderRef,
+        partnerName: deliveryPartner.name,
+        partnerPhone: deliveryPartner.phone
+      }
+    });
+  } catch (error) {
+    console.error('Error notifying user delivery assigned:', error);
+  }
+};
+
+// Payment reminder for COD
+const notifyPaymentReminder = async (order) => {
+  try {
+    const orderRef = order.orderNumber || order._id.toString().slice(-8);
+    
+    await notifyUser(order.userId._id || order.userId, {
+      title: '💰 Payment Reminder',
+      message: `Please keep ₹${order.total} ready for order #${orderRef}`,
+      type: 'payment_reminder',
+      priority: 'medium',
+      data: {
+        orderId: order._id,
+        orderNumber: orderRef,
+        amount: order.total
+      }
+    });
+  } catch (error) {
+    console.error('Error sending payment reminder:', error);
+  }
+};
+
 module.exports = {
   createNotification,
   sendPushNotification,
   notifyUser,
   notifyMultipleUsers,
   notifyOrderStatus,
-  notifyCouponAvailable
+  notifyCouponAvailable,
+  notifyRestaurantNewOrder,
+  notifyUserOrderPlaced,
+  notifyOrderReadyForPickup,
+  notifyUserDeliveryAssigned,
+  notifyPaymentReminder
 };
