@@ -18,6 +18,12 @@ export const getOrderById = async (id) => {
   return response.data;
 };
 
+// Get order tracking
+export const getOrderTracking = async (id) => {
+  const response = await axios.get(`/orders/${id}/tracking`);
+  return response.data;
+};
+
 // Update order status
 export const updateOrderStatus = async (id, status) => {
   const response = await axios.patch(`/orders/${id}/status`, { status });
@@ -34,4 +40,14 @@ export const cancelOrder = async (id, reason) => {
 export const getRestaurantOrders = async (restaurantId, params = {}) => {
   const response = await axios.get(`/orders/restaurant/${restaurantId}`, { params });
   return response.data;
+};
+
+export const orderApi = {
+  createOrder,
+  getUserOrders,
+  getOrderById,
+  getOrderTracking,
+  updateOrderStatus,
+  cancelOrder,
+  getRestaurantOrders
 };

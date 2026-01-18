@@ -94,11 +94,40 @@ const orderSchema = new mongoose.Schema({
   refundAmount: {
     type: Number,
     default: 0
-  }
+  },
+  // Live tracking data
+  deliveryPartnerLocation: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      default: [0, 0]
+    },
+    lastUpdated: Date
+  },
+  trackingHistory: [{
+    location: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point'
+      },
+      coordinates: [Number]
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now
+    },
+    status: String
+  }]
 }, { timestamps: true });
 
 orderSchema.index({ userId: 1, createdAt: -1 });
 orderSchema.index({ restaurantId: 1, status: 1 });
 orderSchema.index({ status: 1 });
+orderSchema.index({ 'deliveryPartnerLocation': '2dsphere' });
 
 module.exports = mongoose.model('Order', orderSchema);

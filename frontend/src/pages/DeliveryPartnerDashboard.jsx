@@ -8,6 +8,7 @@ import {
   markAsDelivered,
   getDeliveryStats
 } from '../api/deliveryPartnerApi';
+import { useLocationTracking } from '../hooks/useLocationTracking';
 import { formatCurrency } from '../utils/formatters';
 import toast from 'react-hot-toast';
 
@@ -20,6 +21,19 @@ const DeliveryPartnerDashboard = () => {
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
+  const [locationTrackingEnabled, setLocationTrackingEnabled] = useState(true);
+
+  // Get active order ID for location tracking
+  const activeOrderId = assignedOrders.find(order => 
+    order.status === 'out_for_delivery' || order.status === 'ready'
+  )?._id;
+
+  // Use location tracking hook
+  const { currentLocation, error: locationError, isTracking } = useLocationTracking(
+    activeOrderId,
+    locationTrackingEnabled,
+    10000 // Send location every 10 seconds
+  );
 
   useEffect(() => {
     if (!user || user.role !== 'delivery_partner') {
@@ -28,6 +42,12 @@ const DeliveryPartnerDashboard = () => {
     }
     fetchData();
   }, [user, navigate]);
+
+  useEffect(() => {
+    if (locationError) {
+      toast.error(locationError);
+    }
+  }, [locationError]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -185,10 +205,62 @@ const DeliveryPartnerDashboard = () => {
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Delivery Partner Dashboard
-          </h1>
-          <p className="text-gray-600">Welcome back, {user?.name}! 🚴</p>
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Delivery Partner Dashboard
+              </h1>
+              <p className="text-gray-600">Welcome back, {user?.name}! 🚴</p>
+            </div>
+            
+            {/* Location Tracking Status */}
+            <div className="bg-white rounded-lg shadow p-4 min-w-[250px]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-gray-700">Location Tracking</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={locationTrackingEnabled}
+                    onChange={(e) => setLocationTrackingEnabled(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                {isTracking && activeOrderId ? (
+                  <>
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs text-green-600 font-medium">
+                      Active - Tracking Order
+                    </span>
+                  </>
+                ) : locationTrackingEnabled ? (
+                  <>
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <span className="text-xs text-yellow-600 font-medium">
+                      Ready - No Active Order
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                    <span className="text-xs text-gray-600 font-medium">
+                      Disabled
+                    </span>
+                  </>
+                )}
+              </div>
+              {currentLocation && isTracking && (
+                <div className="mt-2 pt-2 border-t border-gray-200">
+                  <p className="text-xs text-gray-500">
+                    Lat: {currentLocation.latitude.toFixed(6)}<br/>
+                    Lng: {currentLocation.longitude.toFixed(6)}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Stats Cards */}

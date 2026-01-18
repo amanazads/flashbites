@@ -214,12 +214,13 @@ exports.getStats = async (req, res) => {
 // @access  Private (Delivery Partner)
 exports.updateLocation = async (req, res) => {
   try {
-    const { latitude, longitude } = req.body;
+    const { latitude, longitude, orderId } = req.body;
 
     if (!latitude || !longitude) {
       return errorResponse(res, 400, 'Latitude and longitude are required');
     }
 
+    // Update user location
     await User.findByIdAndUpdate(req.user._id, {
       $set: {
         'location.coordinates': [longitude, latitude],
@@ -227,7 +228,47 @@ exports.updateLocation = async (req, res) => {
       }
     });
 
-    return successResponse(res, null, 'Location updated successfully');
+    // If orderId provided, update order tracking
+    if (orderId) {
+      const order = await Order.findOne({
+        _id: orderId,
+        deliveryPartnerId: req.user._id,
+        status: 'out_for_delivery'
+      });
+
+      if (order) {
+        order.deliveryPartnerLocation = {
+          type: 'Point',
+          coordinates: [longitude, latitude],
+          lastUpdated: new Date()
+        };
+
+        // Add to tracking history
+        order.trackingHistory.push({
+          location: {
+            type: 'Point',
+            coordinates: [longitude, latitude]
+          },
+          timestamp: new Date(),
+          status: order.status
+        });
+
+        await order.save();
+
+        // Emit real-time update via socket
+        const io = req.app.get('io');
+        if (io) {
+          // Notify user tracking this order
+          io.to(`order_${orderId}`).emit('delivery_location_update', {
+            orderId,
+            location: { latitude, longitude },
+            timestamp: new Date()
+          });
+        }
+      }
+    }
+
+    return successResponse(res, { latitude, longitude }, 'Location updated successfully');
   } catch (error) {
     console.error('Update location error:', error);
     return errorResponse(res, 500, 'Failed to update location');

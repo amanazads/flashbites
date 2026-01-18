@@ -30,7 +30,11 @@ export const getDeliveryStats = async () => {
   return response.data;
 };
 
-export const updateDeliveryLocation = async (latitude, longitude) => {
-  const response = await axios.put('/api/delivery/location', { latitude, longitude });
+export const updateDeliveryLocation = async (latitude, longitude, orderId = null) => {
+  const response = await axios.put('/api/delivery/location', { 
+    latitude, 
+    longitude,
+    ...(orderId && { orderId })
+  });
   return response.data;
 };

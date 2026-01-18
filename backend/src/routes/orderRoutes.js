@@ -4,6 +4,7 @@ const {
   createOrder,
   getUserOrders,
   getOrderById,
+  getOrderTracking,
   updateOrderStatus,
   cancelOrder,
   getRestaurantOrders
@@ -17,6 +18,7 @@ router.post('/', createOrder);
 router.get('/my-orders', getUserOrders);
 router.get('/restaurant/:restaurantId', restrictTo('restaurant_owner', 'admin'), getRestaurantOrders);
 router.get('/:id', getOrderById);
+router.get('/:id/tracking', getOrderTracking);
 router.patch('/:id/status', restrictTo('restaurant_owner', 'admin'), updateOrderStatus);
 router.patch('/:id/cancel', cancelOrder);
 

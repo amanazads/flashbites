@@ -360,6 +360,68 @@ exports.getOrderById = async (req, res) => {
   }
 };
 
+// @desc    Get live tracking for order
+// @route   GET /api/orders/:id/tracking
+// @access  Private (User/Restaurant/Admin/Delivery Partner)
+exports.getOrderTracking = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate('userId', 'name phone')
+      .populate('restaurantId', 'name phone address location')
+      .populate('deliveryPartnerId', 'name phone')
+      .populate('addressId')
+      .select('status deliveryPartnerLocation trackingHistory deliveryAddress restaurantId userId deliveryPartnerId estimatedDelivery');
+
+    if (!order) {
+      return errorResponse(res, 404, 'Order not found');
+    }
+
+    // Check authorization
+    const userId = req.user._id.toString();
+    const isAuthorized = 
+      order.userId._id.toString() === userId ||
+      order.deliveryPartnerId?._id.toString() === userId ||
+      req.user.role === 'admin' ||
+      (req.user.role === 'restaurant_owner' && order.restaurantId._id.toString() === userId);
+
+    if (!isAuthorized) {
+      return errorResponse(res, 403, 'Not authorized to track this order');
+    }
+
+    const trackingData = {
+      orderId: order._id,
+      status: order.status,
+      estimatedDelivery: order.estimatedDelivery,
+      restaurant: {
+        name: order.restaurantId.name,
+        address: order.restaurantId.address,
+        location: order.restaurantId.location
+      },
+      deliveryAddress: order.deliveryAddress || order.addressId,
+      deliveryPartner: order.deliveryPartnerId ? {
+        name: order.deliveryPartnerId.name,
+        phone: order.deliveryPartnerId.phone
+      } : null,
+      currentLocation: order.deliveryPartnerLocation && order.deliveryPartnerLocation.coordinates[0] !== 0 ? {
+        latitude: order.deliveryPartnerLocation.coordinates[1],
+        longitude: order.deliveryPartnerLocation.coordinates[0],
+        lastUpdated: order.deliveryPartnerLocation.lastUpdated
+      } : null,
+      trackingHistory: order.trackingHistory.map(point => ({
+        latitude: point.location.coordinates[1],
+        longitude: point.location.coordinates[0],
+        timestamp: point.timestamp,
+        status: point.status
+      }))
+    };
+
+    successResponse(res, 200, 'Tracking data retrieved successfully', trackingData);
+  } catch (error) {
+    console.error('Get tracking error:', error);
+    errorResponse(res, 500, 'Failed to get tracking data', error.message);
+  }
+};
+
 // @desc    Update order status
 // @route   PATCH /api/orders/:id/status
 // @access  Private (Restaurant Owner/Admin)

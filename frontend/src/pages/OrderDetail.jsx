@@ -7,7 +7,9 @@ import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
 import { Loader } from '../components/common/Loader';
 import ReviewModal from '../components/common/ReviewModal';
 import CancellationModal from '../components/common/CancellationModal';
+import LiveTracking from '../components/tracking/LiveTracking';
 import toast from 'react-hot-toast';
+import { io } from 'socket.io-client';
 import {
   MapPinIcon,
   PhoneIcon,
@@ -30,6 +32,35 @@ const OrderDetail = () => {
   const [cancelling, setCancelling] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showCancellationModal, setShowCancellationModal] = useState(false);
+  const [showTracking, setShowTracking] = useState(false);
+  const [socket, setSocket] = useState(null);
+
+  // Initialize socket connection
+  useEffect(() => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const newSocket = io(API_URL, {
+      auth: {
+        token: localStorage.getItem('token')
+      }
+    });
+
+    newSocket.on('connect', () => {
+      console.log('Socket connected for order tracking');
+      // Join order room for real-time updates
+      newSocket.emit('join_order_room', id);
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+    });
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.emit('leave_order_room', id);
+      newSocket.close();
+    };
+  }, [id]);
 
   useEffect(() => {
     fetchOrderDetails();
@@ -166,6 +197,13 @@ const OrderDetail = () => {
                 </p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Live Tracking Section */}
+        {showTracking && socket && (order.status === 'out_for_delivery' || order.status === 'ready') && (
+          <div className="mb-6">
+            <LiveTracking orderId={id} socket={socket} />
           </div>
         )}
 
@@ -369,6 +407,17 @@ const OrderDetail = () => {
                   className="w-full btn-outline border-red-500 text-red-500 hover:bg-red-50 mb-3"
                 >
                   Cancel Order
+                </button>
+              )}
+
+              {/* Track Order Button */}
+              {(order.status === 'out_for_delivery' || order.status === 'ready') && (
+                <button
+                  onClick={() => setShowTracking(!showTracking)}
+                  className="w-full btn-primary flex items-center justify-center gap-2 mb-3"
+                >
+                  <TruckIcon className="w-5 h-5" />
+                  {showTracking ? 'Hide Tracking' : 'Track Order'}
                 </button>
               )}
 
