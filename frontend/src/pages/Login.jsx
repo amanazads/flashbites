@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 const Login = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { loading, error, isAuthenticated } = useSelector((state) => state.auth);
+  const { loading, error, isAuthenticated, user } = useSelector((state) => state.auth);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -15,10 +15,23 @@ const Login = () => {
   });
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/');
+    if (isAuthenticated && user) {
+      // Redirect based on user role
+      switch (user.role) {
+        case 'admin':
+          navigate('/admin');
+          break;
+        case 'restaurant_owner':
+          navigate('/dashboard');
+          break;
+        case 'delivery_partner':
+          navigate('/delivery-dashboard');
+          break;
+        default:
+          navigate('/');
+      }
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, user, navigate]);
 
   useEffect(() => {
     if (error) {

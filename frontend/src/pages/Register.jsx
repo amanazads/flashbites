@@ -9,7 +9,7 @@ import axios from '../api/axios';
 const Register = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { error, isAuthenticated } = useSelector((state) => state.auth);
+  const { error, isAuthenticated, user } = useSelector((state) => state.auth);
 
   const [step, setStep] = useState(1); // 1: details, 2: OTP verification
   const [loading, setLoading] = useState(false);
@@ -24,10 +24,23 @@ const Register = () => {
   });
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/');
+    if (isAuthenticated && user) {
+      // Redirect based on user role
+      switch (user.role) {
+        case 'admin':
+          navigate('/admin');
+          break;
+        case 'restaurant_owner':
+          navigate('/dashboard');
+          break;
+        case 'delivery_partner':
+          navigate('/delivery-dashboard');
+          break;
+        default:
+          navigate('/');
+      }
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, user, navigate]);
 
   useEffect(() => {
     if (error) {

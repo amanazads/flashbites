@@ -60,6 +60,12 @@ const Navbar = () => {
                   </Link>
                 )}
                 
+                {user?.role === 'delivery_partner' && (
+                  <Link to="/delivery-dashboard" className="text-gray-700 hover:text-primary-600 transition">
+                    Dashboard
+                  </Link>
+                )}
+                
                 {user?.role === 'admin' && (
                   <Link to="/admin" className="text-gray-700 hover:text-primary-600 transition">
                     Admin Panel
@@ -187,6 +193,16 @@ const Navbar = () => {
                   {user?.role === 'restaurant_owner' && (
                     <Link
                       to="/dashboard"
+                      className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                  )}
+                  
+                  {user?.role === 'delivery_partner' && (
+                    <Link
+                      to="/delivery-dashboard"
                       className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
                       onClick={() => setMobileMenuOpen(false)}
                     >
