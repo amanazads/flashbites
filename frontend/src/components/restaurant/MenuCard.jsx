@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { PlusIcon } from '@heroicons/react/24/solid';
+import { PlusIcon, CheckIcon } from '@heroicons/react/24/solid';
 import { addToCart } from '../../redux/slices/cartSlice';
 import { formatCurrency } from '../../utils/formatters';
-import toast from 'react-hot-toast';
 
 const MenuCard = ({ item, restaurant }) => {
   const dispatch = useDispatch();
   const [selectedVariant, setSelectedVariant] = useState(
     item.hasVariants && item.variants?.length > 0 ? item.variants[0] : null
   );
+  const [justAdded, setJustAdded] = useState(false);
 
   const handleAddToCart = () => {
     const cartItem = item.hasVariants 
@@ -22,7 +22,10 @@ const MenuCard = ({ item, restaurant }) => {
       : item;
 
     dispatch(addToCart({ item: cartItem, restaurant }));
-    toast.success(`${item.name}${selectedVariant ? ` (${selectedVariant.name})` : ''} added to cart!`);
+    
+    // Visual feedback without toast
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 800);
   };
 
   const currentPrice = item.hasVariants && selectedVariant 
@@ -103,10 +106,23 @@ const MenuCard = ({ item, restaurant }) => {
           ) : (
             <button
               onClick={handleAddToCart}
-              className="btn-primary flex items-center space-x-1 px-4 py-2"
+              className={`flex items-center space-x-1 px-4 py-2 rounded-lg font-semibold transition-all duration-300 ${
+                justAdded
+                  ? 'bg-green-500 text-white scale-105'
+                  : 'bg-orange-500 text-white hover:bg-orange-600'
+              }`}
             >
-              <PlusIcon className="h-4 w-4" />
-              <span>Add</span>
+              {justAdded ? (
+                <>
+                  <CheckIcon className="h-4 w-4" />
+                  <span>Added!</span>
+                </>
+              ) : (
+                <>
+                  <PlusIcon className="h-4 w-4" />
+                  <span>Add</span>
+                </>
+              )}
             </button>
           )}
         </div>
