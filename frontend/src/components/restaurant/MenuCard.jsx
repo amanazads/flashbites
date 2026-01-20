@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { PlusIcon } from '@heroicons/react/24/solid';
 import { addToCart } from '../../redux/slices/cartSlice';
@@ -7,11 +7,31 @@ import toast from 'react-hot-toast';
 
 const MenuCard = ({ item, restaurant }) => {
   const dispatch = useDispatch();
+  const [selectedVariant, setSelectedVariant] = useState(
+    item.hasVariants && item.variants?.length > 0 ? item.variants[0] : null
+  );
 
   const handleAddToCart = () => {
-    dispatch(addToCart({ item, restaurant }));
-    toast.success('Added to cart!');
+    const cartItem = item.hasVariants 
+      ? {
+          ...item,
+          selectedVariant: selectedVariant.name,
+          price: selectedVariant.price,
+          displayName: `${item.name} (${selectedVariant.name})`
+        }
+      : item;
+
+    dispatch(addToCart({ item: cartItem, restaurant }));
+    toast.success(`${item.name}${selectedVariant ? ` (${selectedVariant.name})` : ''} added to cart!`);
   };
+
+  const currentPrice = item.hasVariants && selectedVariant 
+    ? selectedVariant.price 
+    : item.price;
+
+  const isAvailable = item.hasVariants && selectedVariant
+    ? selectedVariant.isAvailable && item.isAvailable
+    : item.isAvailable;
 
   return (
     <div className="card p-4 flex">
@@ -44,14 +64,41 @@ const MenuCard = ({ item, restaurant }) => {
           </div>
         )}
 
+        {/* Variants Selection */}
+        {item.hasVariants && item.variants && item.variants.length > 0 && (
+          <div className="mb-3">
+            <div className="flex flex-wrap gap-2">
+              {item.variants.map((variant, index) => (
+                <button
+                  key={index}
+                  onClick={() => setSelectedVariant(variant)}
+                  disabled={!variant.isAvailable}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md border-2 transition-all ${
+                    selectedVariant?.name === variant.name
+                      ? 'bg-orange-500 text-white border-orange-500'
+                      : variant.isAvailable
+                      ? 'bg-white text-gray-700 border-gray-300 hover:border-orange-500'
+                      : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                  }`}
+                >
+                  <div className="flex flex-col items-center">
+                    <span>{variant.name}</span>
+                    <span className="font-semibold">{formatCurrency(variant.price)}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           <span className="text-lg font-bold text-primary-600">
-            {formatCurrency(item.price)}
+            {formatCurrency(currentPrice)}
           </span>
 
           {!restaurant.acceptingOrders ? (
             <span className="badge bg-red-100 text-red-800 border border-red-300">Closed</span>
-          ) : !item.isAvailable ? (
+          ) : !isAvailable ? (
             <span className="badge badge-danger">Not Available</span>
           ) : (
             <button
