@@ -141,7 +141,7 @@ exports.createOrder = async (req, res) => {
     const orderItems = [];
 
     for (const item of items) {
-      console.log('Processing item:', item.menuItemId);
+      console.log('Processing item:', item.menuItemId, 'Variant:', item.selectedVariant || 'none');
       const menuItem = await MenuItem.findById(item.menuItemId);
       
       if (!menuItem) {
@@ -152,14 +152,28 @@ exports.createOrder = async (req, res) => {
         return errorResponse(res, 400, `${menuItem.name} is not available`);
       }
 
-      const itemTotal = menuItem.price * item.quantity;
+      // Determine price based on variant selection
+      let itemPrice = menuItem.price;
+      if (item.selectedVariant && menuItem.hasVariants) {
+        const variant = menuItem.variants.find(v => v.name === item.selectedVariant);
+        if (!variant) {
+          return errorResponse(res, 400, `Variant "${item.selectedVariant}" not found for ${menuItem.name}`);
+        }
+        if (!variant.isAvailable) {
+          return errorResponse(res, 400, `${menuItem.name} (${item.selectedVariant}) is not available`);
+        }
+        itemPrice = variant.price;
+      }
+
+      const itemTotal = itemPrice * item.quantity;
       subtotal += itemTotal;
 
       orderItems.push({
         menuItemId: menuItem._id,
         name: menuItem.name,
         quantity: item.quantity,
-        price: menuItem.price,
+        price: itemPrice,
+        selectedVariant: item.selectedVariant || null,
         image: menuItem.image
       });
     }

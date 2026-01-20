@@ -19,16 +19,30 @@ const cartSlice = createSlice({
       // If cart is empty or same restaurant, add item
       if (!state.restaurant || state.restaurant._id === restaurant._id) {
         state.restaurant = restaurant;
-        const existingItem = state.items.find(i => i._id === item._id);
+        
+        // Generate unique cart ID based on item ID and selected variant
+        const cartId = item.selectedVariant 
+          ? `${item._id}_${item.selectedVariant}` 
+          : item._id;
+        
+        const existingItem = state.items.find(i => {
+          const existingCartId = i.selectedVariant 
+            ? `${i._id}_${i.selectedVariant}` 
+            : i._id;
+          return existingCartId === cartId;
+        });
         
         if (existingItem) {
           existingItem.quantity += 1;
         } else {
-          state.items.push({ ...item, quantity: 1 });
+          state.items.push({ ...item, quantity: 1, cartId });
         }
       } else {
         // Different restaurant - clear cart and add new item
-        state.items = [{ ...item, quantity: 1 }];
+        const cartId = item.selectedVariant 
+          ? `${item._id}_${item.selectedVariant}` 
+          : item._id;
+        state.items = [{ ...item, quantity: 1, cartId }];
         state.restaurant = restaurant;
       }
       
@@ -36,7 +50,12 @@ const cartSlice = createSlice({
     },
     
     removeFromCart: (state, action) => {
-      state.items = state.items.filter(item => item._id !== action.payload);
+      state.items = state.items.filter(item => {
+        const itemCartId = item.selectedVariant 
+          ? `${item._id}_${item.selectedVariant}` 
+          : item._id;
+        return itemCartId !== action.payload;
+      });
       
       if (state.items.length === 0) {
         state.restaurant = null;
@@ -47,13 +66,23 @@ const cartSlice = createSlice({
     
     updateQuantity: (state, action) => {
       const { itemId, quantity } = action.payload;
-      const item = state.items.find(i => i._id === itemId);
+      const item = state.items.find(i => {
+        const cartId = i.selectedVariant 
+          ? `${i._id}_${i.selectedVariant}` 
+          : i._id;
+        return cartId === itemId;
+      });
       
       if (item) {
         if (quantity > 0) {
           item.quantity = quantity;
         } else {
-          state.items = state.items.filter(i => i._id !== itemId);
+          state.items = state.items.filter(i => {
+            const cartId = i.selectedVariant 
+              ? `${i._id}_${i.selectedVariant}` 
+              : i._id;
+            return cartId !== itemId;
+          });
         }
       }
       

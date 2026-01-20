@@ -134,7 +134,8 @@ const Checkout = () => {
         addressId: selectedAddress,
         items: items.map(item => ({
           menuItemId: item._id,
-          quantity: item.quantity
+          quantity: item.quantity,
+          selectedVariant: item.selectedVariant || null
         })),
         paymentMethod: paymentMethod || 'cod',
         couponCode: appliedCoupon?.code || null
@@ -483,12 +484,16 @@ const Checkout = () => {
               <h2 className="text-xl font-bold mb-4">Order Summary</h2>
 
               <div className="space-y-3 mb-4">
-                {items.map((item) => (
-                  <div key={item._id} className="flex justify-between text-sm">
-                    <span>{item.name} x{item.quantity}</span>
-                    <span>{formatCurrency(item.price * item.quantity)}</span>
-                  </div>
-                ))}
+                {items.map((item) => {
+                  const itemKey = item.cartId || item._id;
+                  const displayName = item.displayName || item.name;
+                  return (
+                    <div key={itemKey} className="flex justify-between text-sm">
+                      <span>{displayName} x{item.quantity}</span>
+                      <span>{formatCurrency(item.price * item.quantity)}</span>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="border-t pt-3 space-y-2 text-sm">
