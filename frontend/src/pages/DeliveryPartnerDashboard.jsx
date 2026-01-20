@@ -567,27 +567,33 @@ const DeliveryPartnerDashboard = () => {
     );
   });
 
-  const OrderCard = ({ order, isAssigned }) => {
+  // Memoize OrderCard to prevent re-renders
+  const OrderCard = React.memo(({ order, isAssigned }) => {
     const restaurantLat = order.restaurantId?.location?.coordinates?.[1];
     const restaurantLng = order.restaurantId?.location?.coordinates?.[0];
     const customerLat = order.addressId?.location?.coordinates?.[1];
     const customerLng = order.addressId?.location?.coordinates?.[0];
 
-    const distance = restaurantLat && restaurantLng && customerLat && customerLng
-      ? getDistanceBetween(restaurantLat, restaurantLng, customerLat, customerLng)
-      : null;
+    // Memoize distance calculations
+    const distance = useMemo(() => {
+      if (!restaurantLat || !restaurantLng || !customerLat || !customerLng) return null;
+      return getDistanceBetween(restaurantLat, restaurantLng, customerLat, customerLng);
+    }, [restaurantLat, restaurantLng, customerLat, customerLng]);
 
-    const distanceFromMe = currentLocation && restaurantLat && restaurantLng
-      ? getDistanceBetween(currentLocation.latitude, currentLocation.longitude, restaurantLat, restaurantLng)
-      : null;
+    const distanceFromMe = useMemo(() => {
+      if (!currentLocation || !restaurantLat || !restaurantLng) return null;
+      return getDistanceBetween(currentLocation.latitude, currentLocation.longitude, restaurantLat, restaurantLng);
+    }, [currentLocation, restaurantLat, restaurantLng]);
+
+    const handleCardClick = useCallback(() => {
+      setSelectedOrder(order);
+      setShowOrderDetail(true);
+    }, [order]);
 
     return (
       <div 
         className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-200 overflow-hidden cursor-pointer border-2 border-transparent hover:border-orange-500"
-        onClick={() => {
-          setSelectedOrder(order);
-          setShowOrderDetail(true);
-        }}
+        onClick={handleCardClick}
       >
         {/* Header Bar */}
         <div className={`px-4 py-3 ${
@@ -701,7 +707,7 @@ const DeliveryPartnerDashboard = () => {
         </div>
       </div>
     );
-  };
+  });
 
   if (loading) {
     return (
