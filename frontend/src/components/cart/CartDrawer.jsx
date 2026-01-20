@@ -66,49 +66,53 @@ const CartDrawer = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {items.map((item) => (
-                <div key={item._id} className="flex items-start space-x-3 p-3 border rounded-lg">
-                  {/* Item Image */}
-                  {item.image && (
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-16 h-16 object-cover rounded"
-                    />
-                  )}
+              {items.map((item) => {
+                const itemId = item.cartId || item._id;
+                const displayName = item.displayName || item.name;
+                return (
+                  <div key={itemId} className="flex items-start space-x-3 p-3 border rounded-lg">
+                    {/* Item Image */}
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        alt={displayName}
+                        className="w-16 h-16 object-cover rounded"
+                      />
+                    )}
 
-                  {/* Item Details */}
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900">{item.name}</h4>
-                    <p className="text-sm text-gray-600">{formatCurrency(item.price)}</p>
+                    {/* Item Details */}
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900">{displayName}</h4>
+                      <p className="text-sm text-gray-600">{formatCurrency(item.price)}</p>
 
-                    {/* Quantity Controls */}
-                    <div className="flex items-center mt-2 space-x-2">
-                      <button
-                        onClick={() => dispatch(updateQuantity({ itemId: item._id, quantity: item.quantity - 1 }))}
-                        className="w-8 h-8 border rounded flex items-center justify-center hover:bg-gray-100"
-                      >
-                        -
-                      </button>
-                      <span className="w-8 text-center font-semibold">{item.quantity}</span>
-                      <button
-                        onClick={() => dispatch(updateQuantity({ itemId: item._id, quantity: item.quantity + 1 }))}
-                        className="w-8 h-8 border rounded flex items-center justify-center hover:bg-gray-100"
-                      >
-                        +
-                      </button>
+                      {/* Quantity Controls */}
+                      <div className="flex items-center mt-2 space-x-2">
+                        <button
+                          onClick={() => dispatch(updateQuantity({ itemId: itemId, quantity: item.quantity - 1 }))}
+                          className="w-8 h-8 border rounded flex items-center justify-center hover:bg-gray-100"
+                        >
+                          -
+                        </button>
+                        <span className="w-8 text-center font-semibold">{item.quantity}</span>
+                        <button
+                          onClick={() => dispatch(updateQuantity({ itemId: itemId, quantity: item.quantity + 1 }))}
+                          className="w-8 h-8 border rounded flex items-center justify-center hover:bg-gray-100"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Remove Button */}
-                  <button
-                    onClick={() => dispatch(removeFromCart(item._id))}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <TrashIcon className="h-5 w-5" />
-                  </button>
-                </div>
-              ))}
+                    {/* Remove Button */}
+                    <button
+                      onClick={() => dispatch(removeFromCart(itemId))}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <TrashIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                );
+              })}
 
               {/* Clear Cart Button */}
               <button
