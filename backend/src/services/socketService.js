@@ -92,6 +92,18 @@ const initializeSocket = (server) => {
       }
     });
 
+    // Join order room for tracking
+    socket.on('join_order_room', (orderId) => {
+      socket.join(`order_${orderId}`);
+      console.log(`📦 User ${socket.userId} joined order room: order_${orderId}`);
+    });
+
+    // Leave order room
+    socket.on('leave_order_room', (orderId) => {
+      socket.leave(`order_${orderId}`);
+      console.log(`📦 User ${socket.userId} left order room: order_${orderId}`);
+    });
+
     // Ping-pong for connection health
     socket.on('ping', () => {
       socket.emit('pong');

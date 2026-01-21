@@ -215,9 +215,48 @@ const sendPasswordResetSuccessEmail = async (email, name) => {
   }
 };
 
+// Generic send email function for custom messages
+const sendEmail = async (to, subject, html, text = '') => {
+  console.log(`📧 Sending email to ${to}: ${subject}`);
+  
+  try {
+    // Try Mailtrap API first
+    if (process.env.MAILTRAP_API_TOKEN) {
+      await sendMailtrapAPI(to, subject, html, text);
+      console.log(`✅ Email sent successfully via Mailtrap API to ${to}`);
+      return true;
+    }
+
+    // Fallback to SMTP
+    if (!transporter) {
+      console.warn('⚠️ Email service not configured. Email content logged.');
+      console.log(`Subject: ${subject}`);
+      console.log(`HTML: ${html.substring(0, 200)}...`);
+      return true; // Still return true to not block user flow
+    }
+
+    const mailOptions = {
+      from: process.env.MAILTRAP_FROM_EMAIL || 'FlashBites <noreply@flashbites.shop>',
+      to: to,
+      subject: subject,
+      html: html,
+      text: text
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Email sent successfully via SMTP to ${to}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Email error:', error.message);
+    console.log(`📧 Email for ${to} (${subject}) - Check console logs`);
+    return true; // Still return true to not block user flow
+  }
+};
+
 module.exports = {
   generateOTP,
   sendOTPEmail,
   sendWelcomeEmail,
-  sendPasswordResetSuccessEmail
+  sendPasswordResetSuccessEmail,
+  sendEmail
 };

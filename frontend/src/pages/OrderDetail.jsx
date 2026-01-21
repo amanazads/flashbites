@@ -39,10 +39,13 @@ const OrderDetail = () => {
   // Initialize socket connection
   useEffect(() => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const newSocket = io(API_URL, {
+    // Remove /api suffix for socket connection
+    const socketUrl = API_URL.replace('/api', '');
+    const newSocket = io(socketUrl, {
       auth: {
         token: localStorage.getItem('token')
-      }
+      },
+      transports: ['websocket', 'polling']
     });
 
     newSocket.on('connect', () => {

@@ -623,9 +623,52 @@ exports.updateOrderStatus = async (req, res) => {
           }
         }
         
-        if (status === 'out_for_delivery' && populatedOrder.paymentMethod === 'cod') {
+        if (status === 'out_for_delivery') {
+          // Send delivery OTP reminder to customer via Email and SMS
+          if (populatedOrder.deliveryOtp && populatedOrder.userId) {
+            try {
+              const { sendEmail } = require('../utils/emailService');
+              const { sendDeliveryOtpSMS } = require('../utils/smsService');
+              
+              // Send OTP reminder via email
+              if (populatedOrder.userId.email) {
+                await sendEmail(
+                  populatedOrder.userId.email,
+                  'Your Order is Out for Delivery - OTP Required',
+                  `<div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9fafb; border-radius: 8px;">
+                    <h2 style="color: #ea580c;">🚚 Order Out for Delivery!</h2>
+                    <p>Hello ${populatedOrder.userId.name},</p>
+                    <p>Your order <strong>#${populatedOrder._id.toString().slice(-8)}</strong> is on its way!</p>
+                    <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #ea580c;">
+                      <p style="margin: 0; font-size: 14px; color: #666;">Your Delivery OTP</p>
+                      <p style="margin: 10px 0; font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #ea580c;">${populatedOrder.deliveryOtp}</p>
+                      <p style="margin: 0; font-size: 12px; color: #999;">Share this OTP with the delivery partner upon delivery</p>
+                    </div>
+                    <p style="color: #666; font-size: 14px;">Please keep this OTP ready and share it only with the delivery partner when you receive your order.</p>
+                    <p style="color: #999; font-size: 12px; margin-top: 30px;">Thank you for ordering with FlashBites!</p>
+                  </div>`
+                );
+                console.log(`📧 Delivery OTP reminder sent to ${populatedOrder.userId.email}`);
+              }
+              
+              // Send OTP reminder via SMS
+              if (populatedOrder.userId.phone) {
+                await sendDeliveryOtpSMS(
+                  populatedOrder.userId.phone,
+                  populatedOrder._id.toString(),
+                  populatedOrder.deliveryOtp
+                );
+                console.log(`📱 Delivery OTP SMS reminder sent to ${populatedOrder.userId.phone}`);
+              }
+            } catch (otpError) {
+              console.error('Failed to send delivery OTP reminder:', otpError);
+            }
+          }
+          
           // Send payment reminder for COD orders
-          await notifyPaymentReminder(populatedOrder);
+          if (populatedOrder.paymentMethod === 'cod') {
+            await notifyPaymentReminder(populatedOrder);
+          }
         }
         
         // Also notify restaurant about the status change

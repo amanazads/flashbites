@@ -20,11 +20,15 @@ export const useLocationTracking = (orderId, isEnabled = true, interval = 10000)
 
   // Send location to backend
   const sendLocation = async (latitude, longitude) => {
+    if (!orderId) {
+      console.log('⚠️ Skipping location update - no active order');
+      return;
+    }
     try {
       await updateDeliveryLocation(latitude, longitude, orderId);
-      console.log('📍 Location updated:', { latitude, longitude, orderId: orderId || 'none' });
+      console.log('📍 Location sent to server:', { latitude, longitude, orderId });
     } catch (err) {
-      console.error('Failed to update location:', err);
+      console.error('❌ Failed to update location:', err);
       // Don't show toast for every failed update to avoid spam
     }
   };
