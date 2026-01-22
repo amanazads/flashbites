@@ -41,6 +41,7 @@ const DeliveryPartnerDashboard = () => {
   const [showOrderDetail, setShowOrderDetail] = useState(false);
   const [deliveryOtp, setDeliveryOtp] = useState('');
   const [socket, setSocket] = useState(null);
+  const [audioInitialized, setAudioInitialized] = useState(false);
   const autoRefreshInterval = useRef(null);
 
   // Get active order ID for location tracking
@@ -54,6 +55,15 @@ const DeliveryPartnerDashboard = () => {
     locationTrackingEnabled,
     10000 // Send location every 10 seconds
   );
+
+  // Initialize audio on user interaction
+  const initializeAudio = useCallback(() => {
+    if (!audioInitialized) {
+      playNotificationSound('success', true); // Force initialization
+      setAudioInitialized(true);
+      toast.success('🔔 Notifications enabled!', { duration: 2000 });
+    }
+  }, [audioInitialized]);
 
   // Initialize socket connection
   useEffect(() => {
@@ -79,7 +89,7 @@ const DeliveryPartnerDashboard = () => {
     // Listen for new order notifications
     newSocket.on('new-order-available', (data) => {
       console.log('🆕 New order available:', data);
-      playNotificationSound('new-order');
+      playNotificationSound('new-order', true); // Force play
       toast.success(
         <div>
           <strong>New Order Available!</strong>
@@ -96,7 +106,7 @@ const DeliveryPartnerDashboard = () => {
     // Listen for order assignment
     newSocket.on('order-assigned', (data) => {
       console.log('✅ Order assigned:', data);
-      playNotificationSound('order-update');
+      playNotificationSound('order-update', true); // Force play
       toast.success(
         <div>
           <strong>Order Assigned!</strong>
@@ -113,7 +123,7 @@ const DeliveryPartnerDashboard = () => {
     // Listen for order cancellation
     newSocket.on('order-cancelled', (data) => {
       console.log('❌ Order cancelled:', data);
-      playNotificationSound('alert');
+      playNotificationSound('alert', true); // Force play
       toast.error(
         <div>
           <strong>Order Cancelled</strong>
@@ -129,7 +139,7 @@ const DeliveryPartnerDashboard = () => {
     // Listen for order status updates
     newSocket.on('order-status-update', (data) => {
       console.log('📝 Order status updated:', data);
-      playNotificationSound('order-update');
+      playNotificationSound('order-update', true); // Force play
       toast.info(`Order #${data.order._id.slice(-8)} is now ${data.order.status}`);
       fetchData(); // Refresh orders
     });
@@ -303,20 +313,31 @@ const DeliveryPartnerDashboard = () => {
       itemsCount: order.items?.length
     });
 
-    const restaurantLat = order.restaurantId?.location?.coordinates?.[1];
-    const restaurantLng = order.restaurantId?.location?.coordinates?.[0];
-    const customerLat = order.addressId?.location?.coordinates?.[1];
-    const customerLng = order.addressId?.location?.coordinates?.[0];
+    // Memoize restaurant coordinates
+    const { restaurantLat, restaurantLng, customerLat, customerLng } = useMemo(() => ({
+      restaurantLat: order.restaurantId?.location?.coordinates?.[1],
+      restaurantLng: order.restaurantId?.location?.coordinates?.[0],
+      customerLat: order.addressId?.location?.coordinates?.[1],
+      customerLng: order.addressId?.location?.coordinates?.[0]
+    }), [order.restaurantId?.location?.coordinates, order.addressId?.location?.coordinates]);
 
-    const distanceToRestaurant = currentLocation && restaurantLat && restaurantLng
-      ? getDistanceBetween(currentLocation.latitude, currentLocation.longitude, restaurantLat, restaurantLng)
-      : null;
+    // Memoize distance calculations
+    const distanceToRestaurant = useMemo(() => 
+      currentLocation && restaurantLat && restaurantLng
+        ? getDistanceBetween(currentLocation.latitude, currentLocation.longitude, restaurantLat, restaurantLng)
+        : null,
+      [currentLocation, restaurantLat, restaurantLng]
+    );
 
-    const distanceToCustomer = currentLocation && customerLat && customerLng
-      ? getDistanceBetween(currentLocation.latitude, currentLocation.longitude, customerLat, customerLng)
-      : null;
+    const distanceToCustomer = useMemo(() =>
+      currentLocation && customerLat && customerLng
+        ? getDistanceBetween(currentLocation.latitude, currentLocation.longitude, customerLat, customerLng)
+        : null,
+      [currentLocation, customerLat, customerLng]
+    );
 
-    const timeline = getOrderTimeline(order);
+    // Memoize timeline
+    const timeline = useMemo(() => getOrderTimeline(order), [order.status]);
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
@@ -565,6 +586,10 @@ const DeliveryPartnerDashboard = () => {
         </div>
       </div>
     );
+  }, (prevProps, nextProps) => {
+    // Only re-render if order ID or status changes
+    return prevProps.order?._id === nextProps.order?._id && 
+           prevProps.order?.status === nextProps.order?.status;
   });
 
   // Memoize OrderCard to prevent re-renders
@@ -707,6 +732,11 @@ const DeliveryPartnerDashboard = () => {
         </div>
       </div>
     );
+  }, (prevProps, nextProps) => {
+    // Only re-render if order ID or status changes
+    return prevProps.order?._id === nextProps.order?._id && 
+           prevProps.order?.status === nextProps.order?.status &&
+           prevProps.isAssigned === nextProps.isAssigned;
   });
 
   if (loading) {
@@ -735,6 +765,16 @@ const DeliveryPartnerDashboard = () => {
             
             {/* Controls */}
             <div className="w-full lg:w-auto flex flex-col sm:flex-row gap-3">
+              {/* Enable Audio Button */}
+              {!audioInitialized && (
+                <button
+                  onClick={initializeAudio}
+                  className="bg-orange-600 text-white px-4 py-2 rounded-lg shadow hover:bg-orange-700 transition flex items-center justify-center gap-2 font-semibold"
+                >
+                  🔔 Enable Sounds
+                </button>
+              )}
+              
               {/* Auto-Refresh Toggle */}
               <div className="bg-white rounded-lg shadow p-4 flex-1 sm:flex-none">
                 <div className="flex items-center justify-between gap-3">
