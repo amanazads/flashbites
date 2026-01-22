@@ -780,7 +780,8 @@ const DeliveryPartnerDashboard = () => {
               {!audioInitialized && (
                 <button
                   onClick={initializeAudio}
-                  className="bg-orange-600 text-white px-4 py-2 rounded-lg shadow hover:bg-orange-700 transition flex items-center justify-center gap-2 font-semibold"
+                  disabled={audioInitialized}
+                  className="bg-orange-600 text-white px-4 py-2 rounded-lg shadow hover:bg-orange-700 transition flex items-center justify-center gap-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   🔔 Enable Sounds
                 </button>

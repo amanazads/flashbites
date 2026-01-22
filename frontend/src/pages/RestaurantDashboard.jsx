@@ -170,11 +170,32 @@ const RestaurantDashboard = () => {
       }
     };
 
+    // Listen for order updates (including delivery status)
+    const handleOrderUpdate = (data) => {
+      console.log('📦 Order update received:', data);
+      
+      // Show notification for delivered orders
+      if (data.order && data.order.status === 'delivered') {
+        playNotificationSound('order-update');
+        toast.success(`✅ Order #${data.order._id.slice(-8)} has been delivered!`, {
+          duration: 5000,
+          icon: '🎉'
+        });
+      }
+      
+      // Refresh orders list
+      if (activeTab === 'orders') {
+        fetchOrders();
+      }
+    };
+
     socketService.onNewOrder(handleNewOrder);
+    socketService.on('order-update', handleOrderUpdate);
 
     // Cleanup
     return () => {
       socketService.off('new-order');
+      socketService.off('order-update');
     };
   }, [restaurant, activeTab]);
 

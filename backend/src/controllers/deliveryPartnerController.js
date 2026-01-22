@@ -213,6 +213,21 @@ exports.markAsDelivered = async (req, res) => {
       .populate('restaurantId', 'name address phone location')
       .populate('addressId');
 
+    // Notify restaurant and user about delivery via socket
+    const { notifyRestaurantOrderUpdate, notifyUserOrderUpdate } = require('../services/socketService');
+    
+    // Notify restaurant that order has been delivered
+    if (updatedOrder.restaurantId && updatedOrder.restaurantId._id) {
+      notifyRestaurantOrderUpdate(updatedOrder.restaurantId._id.toString(), updatedOrder);
+      console.log(`✓ Notified restaurant ${updatedOrder.restaurantId._id} about delivery`);
+    }
+    
+    // Notify user that order has been delivered
+    if (updatedOrder.userId && updatedOrder.userId._id) {
+      notifyUserOrderUpdate(updatedOrder.userId._id.toString(), updatedOrder);
+      console.log(`✓ Notified user ${updatedOrder.userId._id} about delivery`);
+    }
+
     // Send SMS notification for delivered order
     try {
       if (updatedOrder.userId && updatedOrder.userId.phone) {

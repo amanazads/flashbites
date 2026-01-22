@@ -139,6 +139,19 @@ const notifyRestaurantNewOrder = (restaurantId, orderData) => {
   }
 };
 
+// Emit order status update to restaurant
+const notifyRestaurantOrderUpdate = (restaurantId, orderData) => {
+  if (io) {
+    io.to(`restaurant-${restaurantId}`).emit('order-update', {
+      type: 'ORDER_UPDATE',
+      order: orderData,
+      sound: true,
+      timestamp: new Date().toISOString()
+    });
+    console.log(`📢 Notified restaurant ${restaurantId} of order update ${orderData._id}`);
+  }
+};
+
 // Emit order status update to user
 const notifyUserOrderUpdate = (userId, orderData) => {
   if (io) {

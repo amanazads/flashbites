@@ -623,6 +623,25 @@ exports.updateOrderStatus = async (req, res) => {
           // Notify delivery partner if already assigned
           if (populatedOrder.deliveryPartnerId) {
             await notifyDeliveryPartnerOrderReady(populatedOrder, populatedOrder.deliveryPartnerId);
+            
+            // Also send socket notification to the specific delivery partner
+            const deliveryPartnerId = populatedOrder.deliveryPartnerId._id ? 
+              populatedOrder.deliveryPartnerId._id.toString() : 
+              populatedOrder.deliveryPartnerId.toString();
+            
+            if (io) {
+              io.to(`delivery-partner-${deliveryPartnerId}`).emit('order-status-update', {
+                type: 'ORDER_READY',
+                order: populatedOrder,
+                sound: true,
+                message: 'Order is ready for pickup',
+                timestamp: new Date().toISOString()
+              });
+              console.log(`✓ Notified delivery partner ${deliveryPartnerId} that order is ready`);
+            }
+          } else {
+            // Notify all delivery partners if no one assigned yet
+            notifyDeliveryPartnersNewOrder(populatedOrder);
           }
           
           // Send SMS to customer that order is ready
