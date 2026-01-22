@@ -263,11 +263,11 @@ const Checkout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-8 pb-32 sm:pb-8">
       <div className="max-w-4xl mx-auto px-4">
-        <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-8">Checkout</h1>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
           {/* Left Column */}
           <div className="md:col-span-2 space-y-6">
             {/* Delivery Address */}
@@ -480,35 +480,35 @@ const Checkout = () => {
 
           {/* Right Column - Order Summary */}
           <div>
-            <div className="bg-white rounded-lg shadow p-6 sticky top-24">
-              <h2 className="text-xl font-bold mb-4">Order Summary</h2>
+            <div className="bg-white rounded-lg shadow p-4 sm:p-6 md:sticky md:top-24">
+              <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Order Summary</h2>
 
-              <div className="space-y-3 mb-4">
+              <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
                 {items.map((item) => {
                   const itemKey = item.cartId || item._id;
                   const displayName = item.displayName || item.name;
                   return (
-                    <div key={itemKey} className="flex justify-between text-sm">
-                      <span>{displayName} x{item.quantity}</span>
-                      <span>{formatCurrency(item.price * item.quantity)}</span>
+                    <div key={itemKey} className="flex justify-between text-xs sm:text-sm">
+                      <span className="truncate pr-2">{displayName} x{item.quantity}</span>
+                      <span className="font-medium whitespace-nowrap">{formatCurrency(item.price * item.quantity)}</span>
                     </div>
                   );
                 })}
               </div>
 
-              <div className="border-t pt-3 space-y-2 text-sm">
+              <div className="border-t pt-2 sm:pt-3 space-y-2 text-xs sm:text-sm">
                 <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>{formatCurrency(subtotal)}</span>
+                  <span className="text-gray-600">Subtotal</span>
+                  <span className="font-medium">{formatCurrency(subtotal)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <div>
-                    <span>Delivery Fee</span>
+                    <span className="text-gray-600">Delivery Fee</span>
                     {deliveryDistance > 0 && (
                       <span className="text-xs text-gray-500 ml-1">({deliveryDistance.toFixed(1)} km)</span>
                     )}
                   </div>
-                  <span>{formatCurrency(deliveryFee)}</span>
+                  <span className="font-medium">{formatCurrency(deliveryFee)}</span>
                 </div>
                 {appliedCoupon && (
                   <div className="flex justify-between text-green-600 font-semibold">
@@ -517,10 +517,10 @@ const Checkout = () => {
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span>Tax (5%)</span>
-                  <span>{formatCurrency(tax)}</span>
+                  <span className="text-gray-600">Tax (5%)</span>
+                  <span className="font-medium">{formatCurrency(tax)}</span>
                 </div>
-                <div className="flex justify-between text-lg font-bold pt-2 border-t">
+                <div className="flex justify-between text-base sm:text-lg font-bold pt-2 border-t">
                   <span>Total</span>
                   <span className="text-primary-600">{formatCurrency(total)}</span>
                 </div>
@@ -538,24 +538,12 @@ const Checkout = () => {
                 </div>
               )}
 
-              {/* Minimum Order Warning */}
-              {subtotal < MINIMUM_ORDER_VALUE && (
-                <div className="mt-4 p-3 bg-red-50 rounded-lg border border-red-200">
-                  <p className="text-sm text-red-800 font-medium">
-                    ⚠️ Minimum order value is {formatCurrency(MINIMUM_ORDER_VALUE)}
-                  </p>
-                  <p className="text-xs text-red-600 mt-1">
-                    Add {formatCurrency(MINIMUM_ORDER_VALUE - subtotal)} more to place order
-                  </p>
-                </div>
-              )}
-
               <button
                 onClick={handlePlaceOrder}
                 disabled={loading || !selectedAddress || subtotal < MINIMUM_ORDER_VALUE}
-                className="w-full btn-primary py-3 mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full btn-primary py-3 sm:py-4 mt-4 sm:mt-6 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base font-semibold"
               >
-                {loading ? 'Placing Order...' : subtotal < MINIMUM_ORDER_VALUE ? `Minimum Order ${formatCurrency(MINIMUM_ORDER_VALUE)}` : 'Place Order'}
+                {loading ? 'Placing Order...' : subtotal < MINIMUM_ORDER_VALUE ? `Minimum Order ${formatCurrency(MINIMUM_ORDER_VALUE)}` : `Place Order • ${formatCurrency(total)}`}
               </button>
             </div>
           </div>
