@@ -2,6 +2,7 @@ const Order = require('../models/Order');
 const Restaurant = require('../models/Restaurant');
 const MenuItem = require('../models/MenuItem');
 const Address = require('../models/Address');
+const User = require('../models/User');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { 
   sendOrderConfirmationSMS, 
