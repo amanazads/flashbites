@@ -25,6 +25,7 @@ import {
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { playNotificationSound } from '../utils/notificationSound';
+import NotificationPanel from '../components/notifications/NotificationPanel';
 
 const DeliveryPartnerDashboard = () => {
   const navigate = useNavigate();
@@ -764,7 +765,10 @@ const DeliveryPartnerDashboard = () => {
             </div>
             
             {/* Controls */}
-            <div className="w-full lg:w-auto flex flex-col sm:flex-row gap-3">
+            <div className="w-full lg:w-auto flex flex-col sm:flex-row gap-3 items-center">
+              {/* Notification Panel */}
+              <NotificationPanel socket={socket} />
+              
               {/* Enable Audio Button */}
               {!audioInitialized && (
                 <button
