@@ -326,6 +326,18 @@ exports.createOrder = async (req, res) => {
       // Database + Push notification to user
       await notifyUserOrderPlaced(populatedOrder);
       
+      // Notify delivery partners about new order (for pending orders too)
+      try {
+        const orderData = await notifyDeliveryPartnerNewOrder(populatedOrder);
+        if (orderData) {
+          // Send socket notification to all delivery partners
+          notifyDeliveryPartnersNewOrder(populatedOrder);
+          console.log('✓ Delivery partners notified about new order');
+        }
+      } catch (dpError) {
+        console.error('Error notifying delivery partners:', dpError);
+      }
+      
       // Send delivery OTP to customer via Email and SMS
       try {
         const { sendEmail } = require('../utils/emailService');

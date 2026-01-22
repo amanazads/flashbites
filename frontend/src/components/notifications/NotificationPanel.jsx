@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { 
   BellIcon, 
   XMarkIcon,
@@ -18,6 +19,7 @@ import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 
 const NotificationPanel = ({ socket }) => {
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -114,7 +116,8 @@ const NotificationPanel = ({ socket }) => {
   };
 
   // Delete notification
-  const handleDelete = async (notificationId) => {
+  const handleDelete = async (notificationId, event) => {
+    event?.stopPropagation();
     try {
       await deleteNotification(notificationId);
       setNotifications(prev => prev.filter(notif => notif._id !== notificationId));
@@ -126,6 +129,25 @@ const NotificationPanel = ({ socket }) => {
     } catch (error) {
       toast.error('Failed to delete notification');
     }
+  };
+
+  // Handle notification click
+  const handleNotificationClick = async (notification) => {
+    // Mark as read
+    if (!notification.read) {
+      await handleMarkAsRead(notification._id);
+    }
+
+    // Navigate based on notification type and user role
+    if (user?.role === 'delivery_partner') {
+      // For delivery partners, go to dashboard
+      navigate('/delivery-dashboard');
+    } else if (notification.data?.orderId) {
+      // For customers, go to orders page
+      navigate('/orders');
+    }
+
+    setIsOpen(false);
   };
 
   // Get notification icon based on type
@@ -227,7 +249,8 @@ const NotificationPanel = ({ socket }) => {
                 {notifications.map((notification) => (
                   <div
                     key={notification._id}
-                    className={`p-4 hover:bg-gray-50 transition-colors ${
+                    onClick={() => handleNotificationClick(notification)}
+                    className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
                       !notification.read ? 'bg-blue-50' : ''
                     }`}
                   >
@@ -268,7 +291,10 @@ const NotificationPanel = ({ socket }) => {
                           <div className="flex items-center gap-1">
                             {!notification.read && (
                               <button
-                                onClick={() => handleMarkAsRead(notification._id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMarkAsRead(notification._id);
+                                }}
                                 className="p-1 hover:bg-green-100 rounded text-green-600"
                                 title="Mark as read"
                               >
@@ -276,7 +302,10 @@ const NotificationPanel = ({ socket }) => {
                               </button>
                             )}
                             <button
-                              onClick={() => handleDelete(notification._id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(notification._id);
+                              }}
                               className="p-1 hover:bg-red-100 rounded text-red-600"
                               title="Delete"
                             >
