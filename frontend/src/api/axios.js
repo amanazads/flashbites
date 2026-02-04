@@ -33,13 +33,21 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Handle network errors (DNS resolution, connection refused, etc.)
+    if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
+      console.error('❌ Network Error: Cannot connect to backend server');
+      console.error('🔗 Backend URL:', error.config?.baseURL);
+      console.error('💡 Make sure the backend server is running');
+    }
+    
     // Log the full error for debugging
     console.error('API Error:', {
       url: error.config?.url,
       method: error.config?.method,
       status: error.response?.status,
       message: error.response?.data?.message || error.message,
-      baseURL: error.config?.baseURL
+      baseURL: error.config?.baseURL,
+      code: error.code
     });
 
     if (error.response?.status === 401) {
