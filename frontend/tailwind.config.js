@@ -7,6 +7,21 @@ export default {
   theme: {
     extend: {
       colors: {
+        // FlashBites Brand Colors
+        flash: {
+          red: '#E23744',      // Primary CTA
+          orange: '#FF7A18',   // Gradients, icons, offers
+          charcoal: '#1C1C1C', // Main text
+          white: '#FFFFFF',    // Background
+          lightGrey: '#F6F6F6', // Cards
+          borderGrey: '#EAEAEA', // Dividers
+        },
+        status: {
+          success: '#2ECC71',   // Delivered
+          progress: '#F4C430',  // In Progress
+          error: '#E74C3C',     // Cancelled
+        },
+        // Legacy colors for backward compatibility
         primary: {
           50: '#fff7ed',
           100: '#ffedd5',
@@ -58,8 +73,32 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Poppins', 'Inter', 'system-ui', 'sans-serif'],
         display: ['Poppins', 'sans-serif'],
+        body: ['Poppins', 'sans-serif'],
+      },
+      fontSize: {
+        // Rural-friendly larger sizes
+        'xs': ['0.875rem', { lineHeight: '1.25rem' }],
+        'sm': ['0.9375rem', { lineHeight: '1.375rem' }],
+        'base': ['1rem', { lineHeight: '1.5rem' }],
+        'lg': ['1.125rem', { lineHeight: '1.75rem' }],
+        'xl': ['1.25rem', { lineHeight: '1.875rem' }],
+        '2xl': ['1.5rem', { lineHeight: '2rem' }],
+        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
+        '4xl': ['2.25rem', { lineHeight: '2.5rem' }],
+      },
+      borderRadius: {
+        'button': '14px',  // 12-16px for buttons
+        'card': '16px',    // 16px for cards
+      },
+      backgroundImage: {
+        'flash-gradient': 'linear-gradient(135deg, #E23744 0%, #FF7A18 100%)',
+        'flash-gradient-hover': 'linear-gradient(135deg, #C72F3A 0%, #E66915 100%)',
+      },
+      boxShadow: {
+        'card': '0 2px 8px rgba(0, 0, 0, 0.08)',
+        'card-hover': '0 4px 16px rgba(0, 0, 0, 0.12)',
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',

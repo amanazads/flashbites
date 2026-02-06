@@ -2,8 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&display=swap');
+/* Import Poppins Font */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap');
+
+/* Base Typography - Poppins everywhere */
+@layer base {
+  body {
+    font-family: 'Poppins', sans-serif;
+    @apply text-[#1C1C1C] bg-[#FFFFFF];
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+    @apply font-semibold text-[#1C1C1C];
+  }
+}
 
 /* Custom scrollbar */
 @layer utilities {
@@ -16,18 +29,19 @@
     scrollbar-width: none;
   }
   
-  /* Custom scrollbar with theme colors */
+  /* Custom scrollbar with FlashBites theme */
   .scrollbar-thin::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   
   .scrollbar-thin::-webkit-scrollbar-track {
-    @apply bg-dark-800;
+    @apply bg-gray-200;
   }
   
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-gradient-primary rounded-full;
+    background: linear-gradient(135deg, #E23744 0%, #FF7A18 100%);
+    @apply rounded-full;
   }
   
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
@@ -35,50 +49,59 @@
   }
 }
 
-/* Custom styles */
+/* FlashBites Button Styles - Rural Friendly */
 @layer components {
+  /* Primary CTA Button - Flash Red to Orange Gradient */
   .btn-primary {
-    @apply bg-gradient-to-r from-primary-500 to-accent-500 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/30 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
+    background: linear-gradient(135deg, #E23744 0%, #FF7A18 100%);
+    @apply text-white font-semibold py-3 px-6 rounded-button text-base transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
+  }
+  
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #C72F3A 0%, #E66915 100%);
   }
   
   .btn-secondary {
-    @apply bg-gray-100 hover:bg-white text-gray-900 font-semibold py-3 px-6 rounded-xl transition-all duration-300 border-2 border-gray-300 hover:border-primary-400 shadow-md hover:shadow-lg;
+    @apply bg-white text-[#1C1C1C] font-semibold py-3 px-6 rounded-button text-base transition-all duration-300 border-2 border-[#EAEAEA] hover:border-[#FF7A18] shadow-sm hover:shadow-md;
   }
   
   .btn-outline {
-    @apply border-2 border-primary-500 text-primary-600 hover:bg-gradient-to-r hover:from-primary-500 hover:to-accent-500 hover:text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105;
+    @apply border-2 border-[#E23744] text-[#E23744] hover:bg-flash-gradient hover:text-white font-semibold py-3 px-6 rounded-button text-base transition-all duration-300 transform hover:scale-[1.02];
   }
   
   .btn-ghost {
-    @apply text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium py-2 px-4 rounded-lg transition-all duration-200;
+    @apply text-[#1C1C1C] hover:bg-[#F6F6F6] font-medium py-2 px-4 rounded-button transition-all duration-200;
   }
   
+  /* Input Fields - Rural Friendly (larger, clear) */
   .input-field {
-    @apply w-full px-4 py-3 border-2 border-gray-300 bg-gray-50 text-gray-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:bg-white transition-all duration-200 placeholder-gray-400 shadow-sm;
+    @apply w-full px-4 py-3 border-2 border-[#EAEAEA] bg-white text-[#1C1C1C] rounded-button text-base focus:outline-none focus:ring-2 focus:ring-[#FF7A18] focus:border-[#FF7A18] transition-all duration-200 placeholder-gray-400 shadow-sm;
   }
   
+  /* Card Styles - 16px rounded, white bg, soft shadow */
   .card {
-    @apply bg-gray-50 rounded-2xl shadow-lg hover:shadow-2xl hover:bg-white transition-all duration-300 border border-gray-300 overflow-hidden;
+    @apply bg-white rounded-card shadow-card hover:shadow-card-hover transition-all duration-300 overflow-hidden;
   }
   
   .card-light {
-    @apply bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-300;
+    @apply bg-[#F6F6F6] rounded-card shadow-card hover:shadow-card-hover transition-all duration-300;
   }
   
+  /* Status Badges - Clear & Visible */
   .badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold;
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold;
   }
   
   .badge-success {
-    @apply bg-green-100 text-green-700 ring-1 ring-green-200;
+    @apply bg-[#2ECC71]/10 text-[#2ECC71] ring-1 ring-[#2ECC71]/20;
   }
   
   .badge-warning {
-    @apply bg-yellow-100 text-yellow-700 ring-1 ring-yellow-200;
+    @apply bg-[#F4C430]/10 text-[#F4C430] ring-1 ring-[#F4C430]/20;
   }
   
   .badge-danger {
-    @apply bg-red-100 text-red-700 ring-1 ring-red-200;
+    @apply bg-[#E74C3C]/10 text-[#E74C3C] ring-1 ring-[#E74C3C]/20;
   }
   
   .badge-info {
@@ -86,17 +109,19 @@
   }
   
   .badge-primary {
-    @apply bg-primary-100 text-primary-700 ring-1 ring-primary-200;
+    background: linear-gradient(135deg, #E23744 0%, #FF7A18 100%);
+    @apply text-white ring-0;
   }
   
-  /* Gradient text */
+  /* FlashBites Gradient Text */
   .gradient-text {
-    @apply bg-gradient-to-r from-primary-500 via-primary-600 to-accent-500 bg-clip-text text-transparent;
+    background: linear-gradient(135deg, #E23744 0%, #FF7A18 100%);
+    @apply bg-clip-text text-transparent;
   }
   
   /* Glass morphism */
   .glass {
-    @apply bg-gray-100/90 backdrop-blur-xl border border-gray-300/50 shadow-lg;
+    @apply bg-white/90 backdrop-blur-xl border border-[#EAEAEA] shadow-lg;
   }
   
   /* Hero section */
