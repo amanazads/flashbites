@@ -25,7 +25,11 @@ class SocketService {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 5
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5,
+      timeout: 20000,
+      autoConnect: true,
+      forceNew: false
     });
 
     this.socket.on('connect', () => {
@@ -37,7 +41,15 @@ class SocketService {
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error.message);
+      console.error('❌ Socket connection error:', error.message);
+      console.error('Error type:', error.type);
+      console.error('Error description:', error.description);
+      
+      // Fall back to polling if websocket fails
+      if (error.message.includes('websocket')) {
+        console.log('🔄 Falling back to polling transport');
+        this.socket.io.opts.transports = ['polling', 'websocket'];
+      }
     });
 
     this.socket.on('reconnect', (attemptNumber) => {

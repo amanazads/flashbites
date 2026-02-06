@@ -13,15 +13,20 @@ const initializeSocket = (server) => {
     cors: {
       origin: [
         'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:5173',
         'https://flashbites.vercel.app',
         'https://flashbites.shop',
         'https://www.flashbites.shop',
         process.env.FRONTEND_URL
-      ],
+      ].filter(Boolean),
       credentials: true,
       methods: ['GET', 'POST']
     },
-    transports: ['websocket', 'polling']
+    transports: ['websocket', 'polling'],
+    allowEIO3: true,
+    pingTimeout: 60000,
+    pingInterval: 25000
   });
 
   // Authentication middleware for socket connections
