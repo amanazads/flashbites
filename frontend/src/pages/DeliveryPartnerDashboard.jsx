@@ -26,6 +26,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { playNotificationSound } from '../utils/notificationSound';
 import NotificationPanel from '../components/notifications/NotificationPanel';
+import { StatsCardSkeleton, CardSkeleton, PageLoader } from '../components/common/LoadingSkeleton';
+import { StatsCardSkeleton, CardSkeleton, PageLoader } from '../components/common/LoadingSkeleton';
 
 const DeliveryPartnerDashboard = () => {
   const navigate = useNavigate();
@@ -748,28 +750,24 @@ const DeliveryPartnerDashboard = () => {
   });
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-orange-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader text="Loading dashboard..." />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="py-6 md:py-8">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
-            <div className="w-full lg:w-auto">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                Delivery Partner Dashboard
-              </h1>
-              <p className="text-gray-600">Welcome back, {user?.name}! 🚴</p>
-            </div>
+          <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-gray-100 animate-fade-in">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+              <div className="w-full lg:w-auto">
+                <h1 className="text-3xl sm:text-4xl font-extrabold mb-2">
+                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    Delivery Dashboard
+                  </span>
+                </h1>
+                <p className="text-gray-600 font-medium">Welcome back, {user?.name}! 🚴</p>
+              </div>
             
             {/* Controls */}
             <div className="w-full lg:w-auto flex flex-col sm:flex-row gap-3 items-center">
@@ -857,84 +855,90 @@ const DeliveryPartnerDashboard = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
-          <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border-l-4 border-blue-500">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1 truncate">Total Deliveries</p>
-                <p className="text-xl sm:text-3xl font-bold text-gray-900">{stats.totalDeliveries || 0}</p>
+          <div className="group bg-gradient-to-br from-blue-50 to-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-6 border border-blue-100 hover:scale-105 animate-fade-in">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                <span className="text-2xl">📦</span>
               </div>
-              <div className="bg-blue-100 p-2 sm:p-4 rounded-full flex-shrink-0 ml-2">
-                <span className="text-xl sm:text-3xl">📦</span>
-              </div>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-600 mb-1">Total Deliveries</p>
+              <p className="text-3xl font-extrabold text-gray-900">{stats.totalDeliveries || 0}</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border-l-4 border-green-500">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1 truncate">Today's Deliveries</p>
-                <p className="text-xl sm:text-3xl font-bold text-gray-900">{stats.todayDeliveries || 0}</p>
+          <div className="group bg-gradient-to-br from-green-50 to-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-6 border border-green-100 hover:scale-105 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                <CheckCircleIcon className="h-6 w-6 text-white" />
               </div>
-              <div className="bg-green-100 p-2 sm:p-4 rounded-full flex-shrink-0 ml-2">
-                <span className="text-xl sm:text-3xl">✅</span>
-              </div>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-600 mb-1">Today's Deliveries</p>
+              <p className="text-3xl font-extrabold text-gray-900">{stats.todayDeliveries || 0}</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border-l-4 border-orange-500">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1 truncate">Active Orders</p>
-                <p className="text-xl sm:text-3xl font-bold text-gray-900">{stats.activeOrders || 0}</p>
+          <div className="group bg-gradient-to-br from-orange-50 to-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-6 border border-orange-100 hover:scale-105 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                <TruckIcon className="h-6 w-6 text-white" />
               </div>
-              <div className="bg-orange-100 p-2 sm:p-4 rounded-full flex-shrink-0 ml-2">
-                <span className="text-xl sm:text-3xl">🚴</span>
-              </div>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-600 mb-1">Active Orders</p>
+              <p className="text-3xl font-extrabold text-gray-900">{stats.activeOrders || 0}</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border-l-4 border-green-600">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1 truncate">Total Earnings</p>
-                <p className="text-lg sm:text-2xl font-bold text-green-600">
-                  {formatCurrency(stats.totalEarnings || 0)}
-                </p>
+          <div className="group bg-gradient-to-br from-emerald-50 to-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-6 border border-emerald-100 hover:scale-105 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                <CurrencyDollarIcon className="h-6 w-6 text-white" />
               </div>
-              <div className="bg-green-100 p-2 sm:p-4 rounded-full flex-shrink-0 ml-2">
-                <span className="text-xl sm:text-3xl">💰</span>
-              </div>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-600 mb-1">Total Earnings</p>
+              <p className="text-2xl font-extrabold text-emerald-600">{formatCurrency(stats.totalEarnings || 0)}</p>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-md mb-6 overflow-hidden">
-          <div className="flex border-b">
-            <button
-              onClick={() => setActiveTab('available')}
-              className={`flex-1 py-3 sm:py-4 px-4 sm:px-6 font-semibold text-sm sm:text-base transition-colors ${
-                activeTab === 'available'
-                  ? 'border-b-4 border-orange-600 text-orange-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <span className="hidden sm:inline">Available Orders</span>
-              <span className="sm:hidden">Available</span>
-              <span className="ml-1">({availableOrders.length})</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('assigned')}
-              className={`flex-1 py-3 sm:py-4 px-4 sm:px-6 font-semibold text-sm sm:text-base transition-colors ${
-                activeTab === 'assigned'
-                  ? 'border-b-4 border-orange-600 text-orange-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <span className="hidden sm:inline">My Orders</span>
-              <span className="sm:hidden">My Orders</span>
-              <span className="ml-1">({assignedOrders.length})</span>
-            </button>
+        <div className="bg-white rounded-2xl shadow-lg mb-6 border border-gray-100 animate-fade-in">
+          <div className="border-b border-gray-200">
+            <nav className="flex">
+              <button
+                onClick={() => setActiveTab('available')}
+                className={`relative flex-1 py-4 px-6 font-bold text-sm transition-all ${
+                  activeTab === 'available'
+                    ? 'text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <span className="hidden sm:inline">Available Orders</span>
+                <span className="sm:hidden">Available</span>
+                <span className="ml-1">({availableOrders.length})</span>
+                {activeTab === 'available' && (
+                  <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-t-full"></span>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('assigned')}
+                className={`relative flex-1 py-4 px-6 font-bold text-sm transition-all ${
+                  activeTab === 'assigned'
+                    ? 'text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <span className="hidden sm:inline">My Orders</span>
+                <span className="sm:hidden">My Orders</span>
+                <span className="ml-1">({assignedOrders.length})</span>
+                {activeTab === 'assigned' && (
+                  <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-t-full"></span>
+                )}
+              </button>
+            </nav>
           </div>
         </div>
 

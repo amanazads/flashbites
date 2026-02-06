@@ -14,6 +14,7 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import { PageLoader, StatsCardSkeleton, TableSkeleton, CardSkeleton } from '../components/common/LoadingSkeleton';
 import {
   createRestaurant, 
   getMyRestaurant, 
@@ -547,21 +548,24 @@ const RestaurantDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50/30 to-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
+        <div className="bg-white rounded-2xl shadow-xl p-6 mb-8 border border-gray-100 animate-fade-in">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-4">
               {restaurant?.image && (
-                <img
-                  src={restaurant.image}
-                  alt={restaurant.name}
-                  className="h-12 w-12 sm:h-16 sm:w-16 rounded-full object-cover border-2 border-orange-500 flex-shrink-0"
-                />
+                <div className="relative">
+                  <img
+                    src={restaurant.image}
+                    alt={restaurant.name}
+                    className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover border-3 border-orange-500 shadow-lg flex-shrink-0"
+                  />
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white"></div>
+                </div>
               )}
               <div className="min-w-0">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent truncate">
                   {restaurant?.name || 'Restaurant Dashboard'}
                 </h1>
                 <p className="text-gray-600 mt-1 text-sm sm:text-base">
@@ -613,36 +617,52 @@ const RestaurantDashboard = () => {
 
         {/* Stats */}
         {restaurant && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6">
-            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-              <div className="flex items-center">
-                <ChartBarIcon className="h-8 w-8 sm:h-10 sm:w-10 text-orange-500 flex-shrink-0" />
-                <div className="ml-2 sm:ml-4 min-w-0">
-                  <p className="text-xs sm:text-sm text-gray-600">Menu Items</p>
-                  <p className="text-xl sm:text-2xl font-bold">{menuItems.length}</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+            <div className="group bg-gradient-to-br from-orange-50 to-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-6 border border-orange-100 hover:scale-105 animate-fade-in">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-red-500 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                  <ChartBarIcon className="h-6 w-6 text-white" />
                 </div>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-600 mb-1">Menu Items</p>
+                <p className="text-3xl font-extrabold text-gray-900">{menuItems.length}</p>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-              <div className="flex items-center">
-                <ClockIcon className="h-8 w-8 sm:h-10 sm:w-10 text-blue-500 flex-shrink-0" />
-                <div className="ml-2 sm:ml-4 min-w-0">
-                  <p className="text-xs sm:text-sm text-gray-600">Delivery Time</p>
-                  <p className="text-base sm:text-2xl font-bold truncate">{restaurant.deliveryTime}</p>
+            <div className="group bg-gradient-to-br from-blue-50 to-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-6 border border-blue-100 hover:scale-105 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                  <ClockIcon className="h-6 w-6 text-white" />
                 </div>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-600 mb-1">Delivery Time</p>
+                <p className="text-2xl font-extrabold text-gray-900">{restaurant.deliveryTime}</p>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-              <div className="flex items-center">
-                <BuildingStorefrontIcon className="h-8 w-8 sm:h-10 sm:w-10 text-purple-500 flex-shrink-0" />
-                <div className="ml-2 sm:ml-4 min-w-0">
-                  <p className="text-xs sm:text-sm text-gray-600">Status</p>
-                  <p className="text-base sm:text-lg font-bold truncate">
-                    {restaurant.isActive ? '🟢 Active' : '🔴 Inactive'}
-                  </p>
+            <div className="group bg-gradient-to-br from-purple-50 to-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-6 border border-purple-100 hover:scale-105 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                  <BuildingStorefrontIcon className="h-6 w-6 text-white" />
                 </div>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-600 mb-1">Status</p>
+                <p className="text-xl font-extrabold">
+                  {restaurant.isActive ? (
+                    <span className="text-green-600 flex items-center gap-2">
+                      <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
+                      Active
+                    </span>
+                  ) : (
+                    <span className="text-red-600 flex items-center gap-2">
+                      <span className="w-3 h-3 bg-red-500 rounded-full"></span>
+                      Inactive
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
           </div>
@@ -651,54 +671,66 @@ const RestaurantDashboard = () => {
         {/* Tabs */}
         {restaurant && (
           <>
-            <div className="bg-white rounded-lg shadow-md mb-6">
-              <div className="border-b border-gray-200 overflow-x-auto">
-                <nav className="flex space-x-4 sm:space-x-8 px-4 sm:px-6 min-w-max sm:min-w-0">
+            <div className="bg-white rounded-2xl shadow-lg mb-8 border border-gray-100 animate-fade-in">
+              <div className="border-b border-gray-200 overflow-x-auto scrollbar-hide">
+                <nav className="flex space-x-2 px-6 min-w-max sm:min-w-0">
                   <button
                     onClick={() => setActiveTab('overview')}
-                    className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                    className={`relative py-4 px-6 font-bold text-sm whitespace-nowrap transition-all ${
                       activeTab === 'overview'
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'text-orange-600'
+                        : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
                     Overview
+                    {activeTab === 'overview' && (
+                      <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-red-600 rounded-t-full"></span>
+                    )}
                   </button>
                   <button
                     onClick={() => setActiveTab('menu')}
-                    className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                    className={`relative py-4 px-6 font-bold text-sm whitespace-nowrap transition-all ${
                       activeTab === 'menu'
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'text-orange-600'
+                        : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
                     Menu Items
+                    {activeTab === 'menu' && (
+                      <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-red-600 rounded-t-full"></span>
+                    )}
                   </button>
                   <button
                     onClick={() => {
                       setActiveTab('orders');
                       fetchOrders();
                     }}
-                    className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                    className={`relative py-4 px-6 font-bold text-sm whitespace-nowrap transition-all ${
                       activeTab === 'orders'
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'text-orange-600'
+                        : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
                     Orders
+                    {activeTab === 'orders' && (
+                      <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-red-600 rounded-t-full"></span>
+                    )}
                   </button>
                   <button
                     onClick={() => {
                       setActiveTab('analytics');
                       fetchAnalytics();
                     }}
-                    className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                    className={`relative py-4 px-6 font-bold text-sm whitespace-nowrap transition-all ${
                       activeTab === 'analytics'
-                        ? 'border-orange-500 text-orange-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'text-orange-600'
+                        : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
                     Analytics
+                    {activeTab === 'analytics' && (
+                      <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-red-600 rounded-t-full"></span>
+                    )}
                   </button>
                 </nav>
               </div>

@@ -12,16 +12,8 @@ import CartDrawer from './components/cart/CartDrawer';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ScrollToTop from './components/common/ScrollToTop';
-
-// Loading Component
-const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-orange-600 mx-auto"></div>
-      <p className="mt-4 text-gray-600 font-medium">Loading...</p>
-    </div>
-  </div>
-);
+import PageTransition from './components/common/PageTransition';
+import { PageLoader } from './components/common/LoadingSkeleton';
 
 // Lazy load pages for better performance
 const Home = lazy(() => import('./pages/Home'));
@@ -93,20 +85,21 @@ function App() {
           
           <main className="flex-1">
             <Suspense fallback={<PageLoader />}>
-              <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
-              <Route path="/restaurants" element={<RestaurantPage />} />
-              <Route path="/restaurant/:id" element={<RestaurantDetail />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/partner" element={<Partner />} />
-              <Route path="/terms" element={<TermsPage />} />
-              <Route path="/privacy" element={<PrivacyPage />} />
-              <Route path="/track/:id" element={<TrackOrder />} />
+              <PageTransition>
+                <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
+                <Route path="/restaurants" element={<RestaurantPage />} />
+                <Route path="/restaurant/:id" element={<RestaurantDetail />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/partner" element={<Partner />} />
+                <Route path="/terms" element={<TermsPage />} />
+                <Route path="/privacy" element={<PrivacyPage />} />
+                <Route path="/track/:id" element={<TrackOrder />} />
 
               {/* Protected Routes */}
               <Route
@@ -177,6 +170,7 @@ function App() {
               {/* 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </PageTransition>
             </Suspense>
           </main>
 

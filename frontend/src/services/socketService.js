@@ -104,6 +104,22 @@ class SocketService {
     }
   }
 
+  // Listen for notifications (generic)
+  onNotification(callback) {
+    if (this.socket) {
+      this.socket.on('new-notification', callback);
+      this.listeners.set('new-notification', callback);
+    }
+  }
+
+  // Remove notification listener
+  offNotification(callback) {
+    if (this.socket) {
+      this.socket.off('new-notification', callback);
+      this.listeners.delete('new-notification');
+    }
+  }
+
   // Remove specific listener
   off(event) {
     if (this.socket && this.listeners.has(event)) {
