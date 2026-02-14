@@ -131,9 +131,9 @@ const Footer = () => {
             <p className="text-sm text-gray-600">
               &copy; {new Date().getFullYear()} FlashBites. All rights reserved.
             </p>
-            <p className="text-xs text-gray-500">
+            {/* <p className="text-xs text-gray-500">
               Made with <span className="text-accent-500 animate-pulse">❤️</span> for food lovers
-            </p>
+            </p> */}
           </div>
         </div>
       </div>
