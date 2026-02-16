@@ -2,16 +2,7 @@ const Order = require('../models/Order');
 const Restaurant = require('../models/Restaurant');
 const MenuItem = require('../models/MenuItem');
 const Address = require('../models/Address');
-const User = require('../models/User');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
-const { 
-  sendOrderConfirmationSMS, 
-  sendDeliveryOtpSMS,
-  sendOutForDeliverySMS,
-  sendOrderDeliveredSMS,
-  sendOrderCancelledSMS,
-  sendOrderReadySMS
-} = require('../utils/smsService');
 const { 
   notifyOrderStatus, 
   notifyRestaurantNewOrder, 
@@ -150,7 +141,7 @@ exports.createOrder = async (req, res) => {
     const orderItems = [];
 
     for (const item of items) {
-      console.log('Processing item:', item.menuItemId, 'Variant:', item.selectedVariant || 'none');
+      console.log('Processing item:', item.menuItemId);
       const menuItem = await MenuItem.findById(item.menuItemId);
       
       if (!menuItem) {
@@ -161,28 +152,14 @@ exports.createOrder = async (req, res) => {
         return errorResponse(res, 400, `${menuItem.name} is not available`);
       }
 
-      // Determine price based on variant selection
-      let itemPrice = menuItem.price;
-      if (item.selectedVariant && menuItem.hasVariants) {
-        const variant = menuItem.variants.find(v => v.name === item.selectedVariant);
-        if (!variant) {
-          return errorResponse(res, 400, `Variant "${item.selectedVariant}" not found for ${menuItem.name}`);
-        }
-        if (!variant.isAvailable) {
-          return errorResponse(res, 400, `${menuItem.name} (${item.selectedVariant}) is not available`);
-        }
-        itemPrice = variant.price;
-      }
-
-      const itemTotal = itemPrice * item.quantity;
+      const itemTotal = menuItem.price * item.quantity;
       subtotal += itemTotal;
 
       orderItems.push({
         menuItemId: menuItem._id,
         name: menuItem.name,
         quantity: item.quantity,
-        price: itemPrice,
-        selectedVariant: item.selectedVariant || null,
+        price: menuItem.price,
         image: menuItem.image
       });
     }
@@ -284,11 +261,6 @@ exports.createOrder = async (req, res) => {
     const order = await Order.create(orderDoc);
     console.log('Order created successfully:', order._id);
 
-    // Generate 4-digit delivery OTP
-    const deliveryOtp = Math.floor(1000 + Math.random() * 9000).toString();
-    order.deliveryOtp = deliveryOtp;
-    console.log(`🔐 Generated delivery OTP: ${deliveryOtp} for order ${order._id}`);
-
     // Set payment status based on payment method
     if (paymentMethod === 'cod') {
       // COD - payment pending until delivery
@@ -325,57 +297,6 @@ exports.createOrder = async (req, res) => {
       
       // Database + Push notification to user
       await notifyUserOrderPlaced(populatedOrder);
-      
-      // Notify delivery partners about new order (for pending orders too)
-      try {
-        const orderData = await notifyDeliveryPartnerNewOrder(populatedOrder);
-        if (orderData) {
-          // Send socket notification to all delivery partners
-          notifyDeliveryPartnersNewOrder(populatedOrder);
-          console.log('✓ Delivery partners notified about new order');
-        }
-      } catch (dpError) {
-        console.error('Error notifying delivery partners:', dpError);
-      }
-      
-      // Send delivery OTP to customer via Email and SMS
-      try {
-        const { sendEmail } = require('../utils/emailService');
-        const user = await User.findById(req.user._id);
-        if (user && user.email) {
-          await sendEmail(
-            user.email,
-            'Your Order Delivery OTP',
-            `<div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9fafb; border-radius: 8px;">
-              <h2 style="color: #ea580c;">🔐 Your Delivery OTP</h2>
-              <p>Hello ${user.name},</p>
-              <p>Your order <strong>#${order._id.toString().slice(-8)}</strong> has been confirmed!</p>
-              <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #ea580c;">
-                <p style="margin: 0; font-size: 14px; color: #666;">Your Delivery OTP</p>
-                <p style="margin: 10px 0; font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #ea580c;">${deliveryOtp}</p>
-                <p style="margin: 0; font-size: 12px; color: #999;">Share this OTP with the delivery partner upon delivery</p>
-              </div>
-              <p style="color: #666; font-size: 14px;">Please keep this OTP confidential and only share it with the delivery partner when you receive your order.</p>
-              <p style="color: #999; font-size: 12px; margin-top: 30px;">Thank you for ordering with FlashBites!</p>
-            </div>`
-          );
-          console.log(`📧 Delivery OTP sent to ${user.email}`);
-        }
-        
-        // Send SMS for order confirmation with OTP
-        if (user && user.phone) {
-          await sendOrderConfirmationSMS(
-            user.phone,
-            order._id.toString(),
-            restaurant.name,
-            total,
-            deliveryOtp
-          );
-          console.log(`📱 Order confirmation SMS sent to ${user.phone}`);
-        }
-      } catch (emailError) {
-        console.error('Failed to send delivery OTP email/SMS:', emailError);
-      }
       
       if (paymentMethod !== 'cod') {
         console.log(`⚠️ WARNING: Online payment not confirmed yet!`);
@@ -623,84 +544,12 @@ exports.updateOrderStatus = async (req, res) => {
           // Notify delivery partner if already assigned
           if (populatedOrder.deliveryPartnerId) {
             await notifyDeliveryPartnerOrderReady(populatedOrder, populatedOrder.deliveryPartnerId);
-            
-            // Also send socket notification to the specific delivery partner
-            const deliveryPartnerId = populatedOrder.deliveryPartnerId._id ? 
-              populatedOrder.deliveryPartnerId._id.toString() : 
-              populatedOrder.deliveryPartnerId.toString();
-            
-            if (io) {
-              io.to(`delivery-partner-${deliveryPartnerId}`).emit('order-status-update', {
-                type: 'ORDER_READY',
-                order: populatedOrder,
-                sound: true,
-                message: 'Order is ready for pickup',
-                timestamp: new Date().toISOString()
-              });
-              console.log(`✓ Notified delivery partner ${deliveryPartnerId} that order is ready`);
-            }
-          } else {
-            // Notify all delivery partners if no one assigned yet
-            notifyDeliveryPartnersNewOrder(populatedOrder);
-          }
-          
-          // Send SMS to customer that order is ready
-          if (populatedOrder.userId && populatedOrder.userId.phone && populatedOrder.restaurantId) {
-            await sendOrderReadySMS(
-              populatedOrder.userId.phone,
-              populatedOrder._id.toString(),
-              populatedOrder.restaurantId.name
-            );
-            console.log(`📱 Order ready SMS sent to ${populatedOrder.userId.phone}`);
           }
         }
         
-        if (status === 'out_for_delivery') {
-          // Send delivery OTP reminder to customer via Email and SMS
-          if (populatedOrder.deliveryOtp && populatedOrder.userId) {
-            try {
-              const { sendEmail } = require('../utils/emailService');
-              const { sendDeliveryOtpSMS } = require('../utils/smsService');
-              
-              // Send OTP reminder via email
-              if (populatedOrder.userId.email) {
-                await sendEmail(
-                  populatedOrder.userId.email,
-                  'Your Order is Out for Delivery - OTP Required',
-                  `<div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9fafb; border-radius: 8px;">
-                    <h2 style="color: #ea580c;">🚚 Order Out for Delivery!</h2>
-                    <p>Hello ${populatedOrder.userId.name},</p>
-                    <p>Your order <strong>#${populatedOrder._id.toString().slice(-8)}</strong> is on its way!</p>
-                    <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #ea580c;">
-                      <p style="margin: 0; font-size: 14px; color: #666;">Your Delivery OTP</p>
-                      <p style="margin: 10px 0; font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #ea580c;">${populatedOrder.deliveryOtp}</p>
-                      <p style="margin: 0; font-size: 12px; color: #999;">Share this OTP with the delivery partner upon delivery</p>
-                    </div>
-                    <p style="color: #666; font-size: 14px;">Please keep this OTP ready and share it only with the delivery partner when you receive your order.</p>
-                    <p style="color: #999; font-size: 12px; margin-top: 30px;">Thank you for ordering with FlashBites!</p>
-                  </div>`
-                );
-                console.log(`📧 Delivery OTP reminder sent to ${populatedOrder.userId.email}`);
-              }
-              
-              // Send OTP reminder via SMS
-              if (populatedOrder.userId.phone) {
-                await sendDeliveryOtpSMS(
-                  populatedOrder.userId.phone,
-                  populatedOrder._id.toString(),
-                  populatedOrder.deliveryOtp
-                );
-                console.log(`📱 Delivery OTP SMS reminder sent to ${populatedOrder.userId.phone}`);
-              }
-            } catch (otpError) {
-              console.error('Failed to send delivery OTP reminder:', otpError);
-            }
-          }
-          
+        if (status === 'out_for_delivery' && populatedOrder.paymentMethod === 'cod') {
           // Send payment reminder for COD orders
-          if (populatedOrder.paymentMethod === 'cod') {
-            await notifyPaymentReminder(populatedOrder);
-          }
+          await notifyPaymentReminder(populatedOrder);
         }
         
         // Also notify restaurant about the status change
@@ -802,16 +651,6 @@ exports.cancelOrder = async (req, res) => {
         const userIdStr = populatedOrder.userId._id ? populatedOrder.userId._id.toString() : populatedOrder.userId.toString();
         notifyUserOrderUpdate(userIdStr, populatedOrder);
         console.log('✓ [cancelOrder] User notified');
-      }
-      
-      // Send SMS to customer about cancellation
-      if (populatedOrder.userId && populatedOrder.userId.phone) {
-        await sendOrderCancelledSMS(
-          populatedOrder.userId.phone,
-          populatedOrder._id.toString(),
-          order.cancellationReason
-        );
-        console.log(`📱 Order cancellation SMS sent to ${populatedOrder.userId.phone}`);
       }
       
       // Notify restaurant about cancellation

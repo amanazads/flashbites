@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Flashbites</string>
+    <string name="title_activity_main">Flashbites</string>
+    <string name="package_name">com.flashbites.app</string>
+    <string name="custom_url_scheme">com.flashbites.app</string>
+</resources>

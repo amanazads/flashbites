@@ -52,7 +52,7 @@ const RestaurantDetail = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Restaurant Header */}
-      <div className="relative h-80 bg-gray-900">
+      <div className="relative h-64 sm:h-72 lg:h-80 bg-gray-900">
         <img
           src={restaurant.image}
           alt={restaurant.name}
@@ -60,15 +60,15 @@ const RestaurantDetail = () => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent" />
         
-        <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
+        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 lg:p-8 text-white">
           <div className="max-w-7xl mx-auto">
-            <div className="flex items-start justify-between">
-              <div>
-                <h1 className="text-4xl font-bold mb-2">{restaurant.name}</h1>
-                <p className="text-lg mb-3">{restaurant.description}</p>
+            <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 break-words">{restaurant.name}</h1>
+                <p className="text-sm sm:text-base lg:text-lg mb-2 sm:mb-3 line-clamp-2 sm:line-clamp-none">{restaurant.description}</p>
                 <p className="text-sm mb-4">{restaurant.cuisines.join(' • ')}</p>
                 
-                <div className="flex items-center space-x-6 text-sm">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm">
                   <div className="flex items-center">
                     <StarIcon className="h-5 w-5 text-yellow-400 mr-1" />
                     <span className="font-semibold">{restaurant.rating}</span>
@@ -85,14 +85,14 @@ const RestaurantDetail = () => {
               </div>
               
               {/* Open/Closed Status Badge */}
-              <div className="flex flex-col items-end">
+              <div className="flex flex-col items-start sm:items-end">
                 {restaurant.acceptingOrders ? (
-                  <span className="px-6 py-2 bg-green-500 text-white text-sm font-bold rounded-full shadow-lg mb-2 flex items-center gap-2">
+                  <span className="px-4 sm:px-6 py-2 bg-green-500 text-white text-xs sm:text-sm font-bold rounded-full shadow-lg mb-2 flex items-center gap-2">
                     <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
                     OPEN NOW
                   </span>
                 ) : (
-                  <span className="px-6 py-2 bg-red-500 text-white text-sm font-bold rounded-full shadow-lg mb-2">
+                  <span className="px-4 sm:px-6 py-2 bg-red-500 text-white text-xs sm:text-sm font-bold rounded-full shadow-lg mb-2">
                     CLOSED
                   </span>
                 )}
@@ -116,7 +116,7 @@ const RestaurantDetail = () => {
       {/* Menu Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Restaurant Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8">
           <div className="bg-white rounded-lg p-4 text-center shadow-sm">
             <div className="text-2xl font-bold text-orange-600">{menuItems?.length || 0}</div>
             <div className="text-sm text-gray-600">Menu Items</div>
@@ -135,7 +135,7 @@ const RestaurantDetail = () => {
           </div>
         </div>
 
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
           <div>
             <h2 className="text-2xl font-bold">Our Menu</h2>
             <p className="text-gray-600 text-sm mt-1">
@@ -144,20 +144,20 @@ const RestaurantDetail = () => {
           </div>
           
           {!restaurant.acceptingOrders && (
-            <span className="bg-red-100 text-red-800 px-4 py-2 rounded-full text-sm font-medium">Currently Not Accepting Orders</span>
+            <span className="bg-red-100 text-red-800 px-4 py-2 rounded-full text-xs sm:text-sm font-medium">Currently Not Accepting Orders</span>
           )}
         </div>
 
         {/* Category Filter */}
         <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-3">Browse by Category</h3>
+          <h3 className="text-base sm:text-lg font-semibold mb-3">Browse by Category</h3>
           <div className="overflow-x-auto">
-            <div className="flex space-x-2 pb-2">
+            <div className="flex space-x-2 pb-2 min-w-max">
               {categories.map((category) => (
                 <button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
-                  className={`px-6 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition-all shadow-sm ${
+                  className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm font-medium whitespace-nowrap transition-all shadow-sm ${
                     selectedCategory === category
                       ? 'bg-orange-500 text-white shadow-md scale-105'
                       : 'bg-white text-gray-700 hover:bg-orange-50 hover:text-orange-600'

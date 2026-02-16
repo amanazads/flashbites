@@ -43,10 +43,6 @@ const orderSchema = new mongoose.Schema({
       type: Number,
       required: true
     },
-    selectedVariant: {
-      type: String,
-      default: null
-    },
     image: String
   }],
   subtotal: {
@@ -98,10 +94,6 @@ const orderSchema = new mongoose.Schema({
   refundAmount: {
     type: Number,
     default: 0
-  },
-  deliveryOtp: {
-    type: String,
-    default: null
   },
   // Live tracking data
   deliveryPartnerLocation: {

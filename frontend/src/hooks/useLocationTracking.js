@@ -12,181 +12,82 @@ export const useLocationTracking = (orderId, isEnabled = true, interval = 10000)
   const [currentLocation, setCurrentLocation] = useState(null);
   const [error, setError] = useState(null);
   const [isTracking, setIsTracking] = useState(false);
-  const [permissionStatus, setPermissionStatus] = useState('prompt'); // 'granted', 'denied', 'prompt'
   const watchIdRef = useRef(null);
   const intervalIdRef = useRef(null);
-  const lastErrorRef = useRef(null);
-  const errorToastShownRef = useRef(false);
 
   // Send location to backend
   const sendLocation = async (latitude, longitude) => {
-    if (!orderId) {
-      console.log('⚠️ Skipping location update - no active order');
-      return;
-    }
     try {
       await updateDeliveryLocation(latitude, longitude, orderId);
-      console.log('📍 Location sent to server:', { latitude, longitude, orderId });
+      console.log('Location updated:', { latitude, longitude, orderId });
     } catch (err) {
-      console.error('❌ Failed to update location:', err);
+      console.error('Failed to update location:', err);
       // Don't show toast for every failed update to avoid spam
     }
   };
 
-  // Check geolocation permission status
-  const checkPermission = async () => {
-    if (!navigator.permissions) {
-      console.warn('Permissions API not supported');
-      return;
-    }
-
-    try {
-      const result = await navigator.permissions.query({ name: 'geolocation' });
-      setPermissionStatus(result.state);
-      
-      result.addEventListener('change', () => {
-        setPermissionStatus(result.state);
-        if (result.state === 'granted') {
-          errorToastShownRef.current = false;
-          setError(null);
-        }
-      });
-    } catch (err) {
-      console.warn('Could not check geolocation permission:', err);
-    }
-  };
-
   useEffect(() => {
-    checkPermission();
-  }, []);
-
-  useEffect(() => {
-    // Clear any existing tracking
-    if (watchIdRef.current) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-    if (intervalIdRef.current) {
-      clearInterval(intervalIdRef.current);
-      intervalIdRef.current = null;
-    }
-
     if (!isEnabled || !orderId) {
+      // Stop tracking if disabled or no active order
+      if (watchIdRef.current) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      if (intervalIdRef.current) {
+        clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null;
+      }
       setIsTracking(false);
       return;
     }
 
     // Check if geolocation is supported
     if (!navigator.geolocation) {
-      const errorMsg = 'Geolocation is not supported by your browser';
-      setError(errorMsg);
-      if (!errorToastShownRef.current) {
-        toast.error(errorMsg);
-        errorToastShownRef.current = true;
-      }
-      return;
-    }
-
-    // If permission is denied, show error and don't attempt tracking
-    if (permissionStatus === 'denied') {
-      const errorMsg = 'Location permission denied. Please enable location access in your browser settings.';
-      setError(errorMsg);
-      if (!errorToastShownRef.current) {
-        toast.error(errorMsg, { duration: 5000 });
-        errorToastShownRef.current = true;
-      }
+      setError('Geolocation is not supported by your browser');
+      toast.error('Geolocation not supported');
       return;
     }
 
     setIsTracking(true);
-    console.log('🎯 Starting location tracking for order:', orderId);
 
     // Success callback
     const onSuccess = (position) => {
-      const { latitude, longitude, accuracy } = position.coords;
-      setCurrentLocation({ latitude, longitude, accuracy });
+      const { latitude, longitude } = position.coords;
+      setCurrentLocation({ latitude, longitude });
       setError(null);
-      errorToastShownRef.current = false;
-      lastErrorRef.current = null;
-      console.log('✅ Location obtained:', { latitude, longitude, accuracy: `${accuracy}m` });
     };
 
     // Error callback
     const onError = (err) => {
       let errorMessage = 'Failed to get location';
-      let shouldShowToast = false;
       
       switch (err.code) {
         case err.PERMISSION_DENIED:
-          errorMessage = 'Location permission denied. Enable location in browser settings.';
-          shouldShowToast = true;
-          setPermissionStatus('denied');
+          errorMessage = 'Location permission denied';
           break;
         case err.POSITION_UNAVAILABLE:
-          errorMessage = 'Location currently unavailable. GPS signal may be weak.';
-          // Only show toast if this is a new error - don't spam
-          shouldShowToast = false; // Changed to never show toast for this
+          errorMessage = 'Location unavailable';
           break;
         case err.TIMEOUT:
-          errorMessage = 'Location request timed out. Retrying...';
-          // Don't show toast for timeout, just log it
-          shouldShowToast = false;
+          errorMessage = 'Location request timeout';
           break;
         default:
-          errorMessage = err.message || 'Unknown location error';
-          shouldShowToast = true;
+          errorMessage = err.message;
       }
       
       setError(errorMessage);
-      
-      // Only log position unavailable and timeout as debug info, not warnings
-      if (err.code === err.POSITION_UNAVAILABLE || err.code === err.TIMEOUT) {
-        console.log('ℹ️ Location update:', errorMessage);
-      } else {
-        console.warn('⚠️ Geolocation error:', errorMessage, 'Code:', err.code);
-      }
-      
-      // Only show toast for critical errors and if not shown recently
-      if (shouldShowToast && !errorToastShownRef.current) {
-        toast.error(errorMessage, { duration: 5000 });
-        errorToastShownRef.current = true;
-        setTimeout(() => { errorToastShownRef.current = false; }, 30000); // Reset after 30s
-      }
-      
-      lastErrorRef.current = err.code === err.PERMISSION_DENIED ? 'PERMISSION_DENIED' :
-                             err.code === err.POSITION_UNAVAILABLE ? 'POSITION_UNAVAILABLE' :
-                             err.code === err.TIMEOUT ? 'TIMEOUT' : 'UNKNOWN';
+      console.error('Geolocation error:', errorMessage);
     };
 
-    // Options for geolocation
-    const geoOptions = {
-      enableHighAccuracy: true, // Use GPS if available
-      timeout: 30000, // Increased timeout to 30 seconds
-      maximumAge: 10000 // Accept cached position up to 10 seconds old
-    };
-
-    // Try to get initial location first
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setCurrentLocation({ latitude, longitude });
-        sendLocation(latitude, longitude);
-        console.log('📍 Initial location obtained:', { latitude, longitude });
-      },
-      (err) => {
-        // Silent failure - watchPosition will handle continuous tracking
-        if (err.code !== 2) { // Only log if not POSITION_UNAVAILABLE
-          console.log('ℹ️ Initial location fetch skipped, using continuous tracking');
-        }
-      },
-      geoOptions
-    );
-
-    // Watch position for continuous updates
+    // Watch position for real-time updates
     watchIdRef.current = navigator.geolocation.watchPosition(
       onSuccess,
       onError,
-      geoOptions
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 5000
+      }
     );
 
     // Set up interval to send location updates
@@ -196,24 +97,36 @@ export const useLocationTracking = (orderId, isEnabled = true, interval = 10000)
       }
     }, interval);
 
+    // Initial location send
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        sendLocation(latitude, longitude);
+      },
+      (err) => console.error('Initial location fetch failed:', err)
+    );
+
     // Cleanup
     return () => {
-      console.log('🛑 Stopping location tracking');
       if (watchIdRef.current) {
         navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
       }
       if (intervalIdRef.current) {
         clearInterval(intervalIdRef.current);
-        intervalIdRef.current = null;
       }
     };
-  }, [orderId, isEnabled, interval, permissionStatus]);
+  }, [orderId, isEnabled, interval]);
+
+  // Send location whenever currentLocation changes
+  useEffect(() => {
+    if (currentLocation && orderId && isEnabled) {
+      sendLocation(currentLocation.latitude, currentLocation.longitude);
+    }
+  }, [currentLocation, orderId, isEnabled]);
 
   return {
     currentLocation,
     error,
-    isTracking,
-    permissionStatus
+    isTracking
   };
 };

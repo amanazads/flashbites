@@ -1,56 +1,61 @@
-import React, { useEffect, Suspense, lazy } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
+import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { getCurrentUser } from './redux/slices/authSlice';
 import { useNotifications } from './hooks/useNotifications';
 
-// Layout Components (not lazy loaded for critical rendering)
+// Layout Components
 import Navbar from './components/common/Navbar';
 import Footer from './components/common/Footer';
 import CartDrawer from './components/cart/CartDrawer';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ScrollToTop from './components/common/ScrollToTop';
-import PageTransition from './components/common/PageTransition';
-import { PageLoader } from './components/common/LoadingSkeleton';
 
-// Lazy load pages for better performance
-const Home = lazy(() => import('./pages/Home'));
-const Login = lazy(() => import('./pages/Login'));
-const Register = lazy(() => import('./pages/Register'));
-const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
-const RestaurantPage = lazy(() => import('./pages/RestaurantPage'));
-const RestaurantDetail = lazy(() => import('./pages/RestaurantDetail'));
-const RestaurantDashboard = lazy(() => import('./pages/RestaurantDashboard'));
-const DeliveryPartnerDashboard = lazy(() => import('./pages/DeliveryPartnerDashboard'));
-const AdminPanel = lazy(() => import('./pages/AdminPanel'));
-const Checkout = lazy(() => import('./pages/Checkout'));
-const Orders = lazy(() => import('./pages/Orders'));
-const OrderDetail = lazy(() => import('./pages/OrderDetail'));
-const TrackOrder = lazy(() => import('./pages/TrackOrder'));
-const Profile = lazy(() => import('./pages/Profile'));
-const About = lazy(() => import('./pages/About'));
-const Partner = lazy(() => import('./pages/Partner'));
-const TermsPage = lazy(() => import('./pages/TermsPage'));
-const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
-const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
-const NotFound = lazy(() => import('./pages/NotFound'));
+// Pages
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import RestaurantPage from './pages/RestaurantPage';
+import RestaurantDetail from './pages/RestaurantDetail';
+import RestaurantDashboard from './pages/RestaurantDashboard';
+import DeliveryPartnerDashboard from './pages/DeliveryPartnerDashboard';
+import AdminPanel from './pages/AdminPanel';
+import Checkout from './pages/Checkout';
+import Orders from './pages/Orders';
+import OrderDetail from './pages/OrderDetail';
+import Profile from './pages/Profile';
+import About from './pages/About';
+import Partner from './pages/Partner';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
+import NotificationsPage from './pages/NotificationsPage';
+import NotFound from './pages/NotFound';
 
 // Google OAuth Success Handler
 const GoogleAuthSuccess = () => {
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    const refreshToken = params.get('refresh');
+    const handleAuth = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      const refreshToken = params.get('refresh');
 
-    if (token && refreshToken) {
-      localStorage.setItem('accessToken', token);
-      localStorage.setItem('refreshToken', refreshToken);
-      window.location.href = '/';
-    } else {
-      window.location.href = '/login?error=Authentication failed';
-    }
+      if (token && refreshToken) {
+        // Use Preferences instead of localStorage
+        const { Preferences } = await import('@capacitor/preferences');
+        await Preferences.set({ key: 'accessToken', value: token });
+        await Preferences.set({ key: 'refreshToken', value: refreshToken });
+        window.location.href = '/';
+      } else {
+        window.location.href = '/login?error=Authentication failed';
+      }
+    };
+
+    handleAuth();
   }, []);
 
   return (
@@ -70,6 +75,33 @@ function App() {
   // Initialize notification system
   useNotifications();
 
+  // Check platform
+  const isNative = Capacitor.getPlatform() !== 'web';
+
+  // Initialize status bar for native platforms
+  useEffect(() => {
+    const initializeStatusBar = async () => {
+      try {
+        if (isNative && Capacitor.isPluginAvailable('StatusBar')) {
+          // Set status bar to transparent or match app color
+          await StatusBar.setStyle({ style: Style.Light });
+          await StatusBar.setBackgroundColor({ color: '#e11d48' }); // Your primary color (rose-600)
+          console.log('Status bar initialized successfully');
+        }
+      } catch (error) {
+        console.warn('Error setting status bar (non-critical):', error);
+        // Don't throw - this is non-critical
+      }
+    };
+
+    // Add delay to ensure app is fully loaded
+    const timer = setTimeout(() => {
+      initializeStatusBar();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [isNative]);
+
   useEffect(() => {
     if (isAuthenticated) {
       dispatch(getCurrentUser());
@@ -83,23 +115,20 @@ function App() {
         <div className="flex flex-col min-h-screen">
           <Navbar />
           
-          <main className="flex-1">
-            <Suspense fallback={<PageLoader />}>
-              <PageTransition>
-                <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<Home />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
-                <Route path="/restaurants" element={<RestaurantPage />} />
-                <Route path="/restaurant/:id" element={<RestaurantDetail />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/partner" element={<Partner />} />
-                <Route path="/terms" element={<TermsPage />} />
-                <Route path="/privacy" element={<PrivacyPage />} />
-                <Route path="/track/:id" element={<TrackOrder />} />
+          <main className="flex-1 pb-[calc(86px+var(--safe-area-inset-bottom))] md:pb-0">
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
+              <Route path="/restaurants" element={<RestaurantPage />} />
+              <Route path="/restaurant/:id" element={<RestaurantDetail />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/partner" element={<Partner />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
 
               {/* Protected Routes */}
               <Route
@@ -170,8 +199,6 @@ function App() {
               {/* 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-            </PageTransition>
-            </Suspense>
           </main>
 
           <Footer />
@@ -180,12 +207,15 @@ function App() {
 
         {/* Toast Notifications */}
         <Toaster
-          position="top-right"
+          position="top-center"
+          containerStyle={{ top: 16 }}
           toastOptions={{
             duration: 3000,
             style: {
               background: '#363636',
               color: '#fff',
+              maxWidth: '90vw',
+              fontSize: '14px',
             },
             success: {
               duration: 3000,

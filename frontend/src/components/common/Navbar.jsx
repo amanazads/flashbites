@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   ShoppingCartIcon,
   UserCircleIcon,
-  Bars3Icon,
+  HomeIcon,
+  MapPinIcon,
+  ShoppingBagIcon,
 } from '@heroicons/react/24/outline';
 import { logout } from '../../redux/slices/authSlice';
 import { toggleCart } from '../../redux/slices/uiSlice';
@@ -14,11 +16,11 @@ import NotificationBell from './NotificationBell';
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const { items } = useSelector((state) => state.cart);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -28,72 +30,68 @@ const Navbar = () => {
 
   const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
 
+  const isActive = (path) => {
+    if (path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(path);
+  };
+
   return (
-    <nav className="bg-gray-50 shadow-lg sticky top-0 z-50 border-b-2 border-gray-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16 md:h-20">
+    <nav className="bg-white z-50">
+      {/* Mobile header (no dropdown/cart) */}
+      <div className="md:hidden sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
+        <div className="px-4 h-14 flex items-center justify-center">
+          <Link to="/" className="flex items-center gap-2 min-w-0">
+            <img
+              src={logo}
+              alt="FlashBites Logo"
+              className="h-9 w-9 object-contain rounded-full"
+            />
+            <span className="text-lg font-bold text-primary-600 truncate">FlashBites</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* Desktop / tablet header */}
+      <div className="hidden md:block shadow-md sticky top-0">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2 md:space-x-3 group">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary-500 to-accent-500 rounded-full blur-md opacity-30 group-hover:opacity-50 transition-opacity"></div>
-              <img 
-                src={logo} 
-                alt="FlashBites Logo" 
-                className="relative h-10 w-10 md:h-12 md:w-12 object-contain rounded-full ring-2 ring-primary-400 group-hover:ring-primary-500 transition-all transform group-hover:scale-105"
-              />
-            </div>
-            <span className="text-xl md:text-2xl font-bold bg-gradient-to-r from-primary-600 via-primary-500 to-accent-500 bg-clip-text text-transparent">
-              FlashBites
-            </span>
+          <Link to="/" className="flex items-center space-x-2">
+            <img 
+              src={logo} 
+              alt="FlashBites Logo" 
+              className="h-12 w-12 object-contain rounded-full"
+            />
+            <span className="text-2xl font-bold text-primary-600">FlashBites</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center space-x-4 xl:space-x-8">
-            <Link 
-              to="/restaurants" 
-              className="relative text-gray-700 hover:text-primary-600 transition-all duration-300 font-medium group px-2"
-            >
-              <span>Restaurants</span>
-              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-primary-500 to-accent-500 group-hover:w-full transition-all duration-300"></span>
+          <div className="hidden md:flex items-center space-x-6">
+            <Link to="/restaurants" className="text-gray-700 hover:text-primary-600 transition">
+              Restaurants
             </Link>
             
             {isAuthenticated ? (
               <>
-                <Link 
-                  to="/orders" 
-                  className="relative text-gray-700 hover:text-primary-600 transition-all duration-300 font-medium group px-2"
-                >
-                  <span>Orders</span>
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-primary-500 to-accent-500 group-hover:w-full transition-all duration-300"></span>
+                <Link to="/orders" className="text-gray-700 hover:text-primary-600 transition">
+                  Orders
                 </Link>
                 
                 {user?.role === 'restaurant_owner' && (
-                  <Link 
-                    to="/dashboard" 
-                    className="relative text-gray-700 hover:text-primary-600 transition-all duration-300 font-medium group px-2"
-                  >
-                    <span>Dashboard</span>
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-primary-500 to-accent-500 group-hover:w-full transition-all duration-300"></span>
+                  <Link to="/dashboard" className="text-gray-700 hover:text-primary-600 transition">
+                    Dashboard
                   </Link>
                 )}
                 
                 {user?.role === 'delivery_partner' && (
-                  <Link 
-                    to="/delivery-dashboard" 
-                    className="relative text-gray-700 hover:text-primary-600 transition-all duration-300 font-medium group px-2"
-                  >
-                    <span>Dashboard</span>
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-primary-500 to-accent-500 group-hover:w-full transition-all duration-300"></span>
+                  <Link to="/delivery-dashboard" className="text-gray-700 hover:text-primary-600 transition">
+                    Dashboard
                   </Link>
                 )}
                 
                 {user?.role === 'admin' && (
-                  <Link 
-                    to="/admin" 
-                    className="relative text-gray-700 hover:text-primary-600 transition-all duration-300 font-medium group px-2"
-                  >
-                    <span>Admin Panel</span>
-                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-primary-500 to-accent-500 group-hover:w-full transition-all duration-300"></span>
+                  <Link to="/admin" className="text-gray-700 hover:text-primary-600 transition">
+                    Admin Panel
                   </Link>
                 )}
 
@@ -103,56 +101,48 @@ const Navbar = () => {
                 {/* Cart */}
                 <button
                   onClick={() => dispatch(toggleCart())}
-                  className="relative p-2 text-gray-700 hover:text-primary-600 transition-all duration-300 group"
+                  className="relative p-2 text-gray-700 hover:text-primary-600 transition"
                 >
-                  <ShoppingCartIcon className="h-6 w-6 group-hover:scale-110 transition-transform" />
+                  <ShoppingCartIcon className="h-6 w-6" />
                   {cartItemCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-gradient-to-r from-accent-500 to-accent-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-pulse shadow-lg">
+                    <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                       {cartItemCount}
                     </span>
                   )}
                 </button>
 
                 {/* Profile Dropdown */}
-                <div className="relative">
-                  <button 
-                    onClick={() => setShowDropdown(!showDropdown)}
-                    className="relative z-10 flex items-center space-x-2 text-gray-700 hover:text-primary-600 transition-all duration-300 bg-gray-100 hover:bg-primary-50 px-4 py-2 rounded-lg border-2 border-gray-300 hover:border-primary-400"
-                  >
-                    <UserCircleIcon className="h-5 w-5" />
-                    <span className="hidden xl:block font-medium">{user?.name}</span>
+                <div 
+                  className="relative"
+                  onMouseEnter={() => setShowDropdown(true)}
+                  onMouseLeave={() => setShowDropdown(false)}
+                >
+                  <button className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 transition">
+                    <UserCircleIcon className="h-6 w-6" />
+                    <span>{user?.name}</span>
                   </button>
                   
                   {showDropdown && isAuthenticated && (
-                    <>
-                      {/* Backdrop to close dropdown when clicking outside */}
-                      <div 
-                        className="fixed inset-0 z-30" 
-                        onClick={() => setShowDropdown(false)}
-                      />
-                      
-                      {/* Dropdown menu */}
-                      <div className="absolute right-0 mt-2 w-48 z-40 animate-slide-down">
-                        <div className="bg-gray-50 rounded-xl shadow-2xl py-2 border-2 border-gray-300 overflow-hidden">
-                          <Link
-                            to="/profile"
-                            className="block px-4 py-3 text-gray-700 hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 hover:text-primary-600 transition-all font-medium"
-                            onClick={() => setShowDropdown(false)}
-                          >
-                            Profile
-                          </Link>
-                          <button
-                            onClick={() => {
-                              setShowDropdown(false);
-                              handleLogout();
-                            }}
-                            className="block w-full text-left px-4 py-3 text-gray-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-accent-50 hover:text-accent-600 transition-all font-medium"
-                          >
-                            Logout
-                          </button>
-                        </div>
+                    <div className="absolute right-0 mt-0 pt-2 w-48 z-50">
+                      <div className="bg-white rounded-lg shadow-lg py-2 border border-gray-100">
+                        <Link
+                          to="/profile"
+                          className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                          onClick={() => setShowDropdown(false)}
+                        >
+                          Profile
+                        </Link>
+                        <button
+                          onClick={() => {
+                            setShowDropdown(false);
+                            handleLogout();
+                          }}
+                          className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100"
+                        >
+                          Logout
+                        </button>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               </>
@@ -160,141 +150,83 @@ const Navbar = () => {
               <>
                 <Link
                   to="/login"
-                  className="text-gray-700 hover:text-primary-600 transition-all duration-300 font-medium px-4 py-2 rounded-lg hover:bg-primary-50"
+                  className="text-gray-700 hover:text-primary-600 transition"
                 >
                   Login
                 </Link>
                 <Link
                   to="/register"
-                  className="bg-gradient-to-r from-primary-500 to-accent-500 text-white px-6 py-2.5 rounded-lg font-semibold hover:shadow-xl hover:shadow-primary-500/30 transform hover:scale-105 transition-all duration-300"
+                  className="btn-primary"
                 >
                   Sign Up
                 </Link>
               </>
             )}
           </div>
-
-          {/* Mobile menu button */}
-          <div className="lg:hidden flex items-center space-x-2 md:space-x-3">
-            {/* Notification Bell for Mobile */}
-            {isAuthenticated && <NotificationBell />}
-            
-            {/* Cart Icon for Mobile */}
-            {isAuthenticated && (
-              <button
-                onClick={() => dispatch(toggleCart())}
-                className="relative p-2 text-gray-700 hover:text-primary-600 transition-all"
-              >
-                <ShoppingCartIcon className="h-6 w-6" />
-                {cartItemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-accent-500 to-accent-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-pulse shadow-lg">
-                    {cartItemCount}
-                  </span>
-                )}
-              </button>
-            )}
-            
-            {/* Hamburger Menu */}
-            <button 
-              className="p-2 text-gray-700 hover:text-primary-600 transition-all hover:bg-primary-50 rounded-lg"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              <Bars3Icon className="h-6 w-6" />
-            </button>
-          </div>
         </div>
+      </div>
 
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden border-t-2 border-gray-300 animate-slide-down bg-gray-50">
-            <div className="px-2 pt-2 pb-3 space-y-1">
-              <Link
-                to="/restaurants"
-                className="block px-4 py-3 text-gray-700 hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 hover:text-primary-600 rounded-lg transition-all font-medium"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Restaurants
-              </Link>
-              
-              {isAuthenticated ? (
-                <>
-                  <Link
-                    to="/orders"
-                    className="block px-4 py-3 text-gray-700 hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 hover:text-primary-600 rounded-lg transition-all font-medium"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Orders
-                  </Link>
-                  
-                  {user?.role === 'restaurant_owner' && (
-                    <Link
-                      to="/dashboard"
-                      className="block px-4 py-3 text-gray-700 hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 hover:text-primary-600 rounded-lg transition-all font-medium"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Dashboard
-                    </Link>
-                  )}
-                  
-                  {user?.role === 'delivery_partner' && (
-                    <Link
-                      to="/delivery-dashboard"
-                      className="block px-4 py-3 text-gray-700 hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 hover:text-primary-600 rounded-lg transition-all font-medium"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Dashboard
-                    </Link>
-                  )}
-                  
-                  {user?.role === 'admin' && (
-                    <Link
-                      to="/admin"
-                      className="block px-4 py-3 text-gray-700 hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 hover:text-primary-600 rounded-lg transition-all font-medium"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Admin Panel
-                    </Link>
-                  )}
-                  
-                  <Link
-                    to="/profile"
-                    className="block px-4 py-3 text-gray-700 hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 hover:text-primary-600 rounded-lg transition-all font-medium"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Profile
-                  </Link>
-                  
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      handleLogout();
-                    }}
-                    className="block w-full text-left px-4 py-3 text-gray-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-accent-50 hover:text-accent-600 rounded-lg transition-all font-medium"
-                  >
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    to="/login"
-                    className="block px-4 py-3 text-gray-700 hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 hover:text-primary-600 rounded-lg transition-all font-medium"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Login
-                  </Link>
-                  <Link
-                    to="/register"
-                    className="block px-4 py-3 bg-gradient-to-r from-primary-500 to-accent-500 text-white hover:shadow-xl hover:shadow-primary-500/30 rounded-lg text-center font-semibold transition-all"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Sign Up
-                  </Link>
-                </>
-              )}
+      {/* Close desktop wrapper */}
+      </div>
+
+      {/* ── Bottom tab bar – small screens ── */}
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 shadow-[0_-4px_16px_-8px_rgba(0,0,0,0.25)] z-30"
+        style={{ paddingBottom: 'calc(6px + var(--safe-area-inset-bottom))' }}
+      >
+        <div className="grid grid-cols-5 pt-1.5 pb-1 text-[11px] text-gray-500">
+          <Link
+            to="/"
+            className={`flex flex-col items-center gap-0.5 py-1 touch-feedback ${isActive('/') ? 'text-primary-600' : ''}`}
+          >
+            <HomeIcon className="h-6 w-6" />
+            <span className="font-medium">Home</span>
+            {isActive('/') && <span className="w-4 h-0.5 bg-primary-600 rounded-full" />}
+          </Link>
+
+          <Link
+            to="/restaurants"
+            className={`flex flex-col items-center gap-0.5 py-1 touch-feedback ${isActive('/restaurants') || isActive('/restaurant') ? 'text-primary-600' : ''}`}
+          >
+            <MapPinIcon className="h-6 w-6" />
+            <span className="font-medium">Discover</span>
+            {(isActive('/restaurants') || isActive('/restaurant')) && <span className="w-4 h-0.5 bg-primary-600 rounded-full" />}
+          </Link>
+
+          <button
+            onClick={() => dispatch(toggleCart())}
+            className="flex flex-col items-center gap-0.5 py-1 relative touch-feedback"
+            aria-label="Cart"
+          >
+            <div className={cartItemCount > 0 ? 'text-primary-600' : ''}>
+              <ShoppingCartIcon className="h-6 w-6" />
             </div>
-          </div>
-        )}
+            <span className="font-medium">Cart</span>
+            {cartItemCount > 0 && (
+              <span className="absolute top-0 right-1/4 bg-primary-600 text-white text-[9px] rounded-full h-4 min-w-[1rem] px-0.5 flex items-center justify-center font-bold">
+                {cartItemCount}
+              </span>
+            )}
+          </button>
+
+          <Link
+            to={isAuthenticated ? '/orders' : '/login'}
+            className={`flex flex-col items-center gap-0.5 py-1 touch-feedback ${isActive('/orders') ? 'text-primary-600' : ''}`}
+          >
+            <ShoppingBagIcon className="h-6 w-6" />
+            <span className="font-medium">Orders</span>
+            {isActive('/orders') && <span className="w-4 h-0.5 bg-primary-600 rounded-full" />}
+          </Link>
+
+          <Link
+            to={isAuthenticated ? '/profile' : '/login'}
+            className={`flex flex-col items-center gap-0.5 py-1 touch-feedback ${isActive('/profile') ? 'text-primary-600' : ''}`}
+          >
+            <UserCircleIcon className="h-6 w-6" />
+            <span className="font-medium">{isAuthenticated ? 'Profile' : 'Login'}</span>
+            {isActive('/profile') && <span className="w-4 h-0.5 bg-primary-600 rounded-full" />}
+          </Link>
+        </div>
       </div>
     </nav>
   );

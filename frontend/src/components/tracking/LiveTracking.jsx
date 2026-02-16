@@ -87,17 +87,10 @@ const LiveTracking = ({ orderId, socket }) => {
 
   // Listen for real-time location updates
   useEffect(() => {
-    if (!socket) {
-      console.log('⚠️ Socket not available for tracking');
-      return;
-    }
-
-    console.log('🎧 Setting up delivery location listener for order:', orderId);
+    if (!socket) return;
 
     const handleLocationUpdate = (data) => {
-      console.log('📍 Received location update:', data);
       if (data.orderId === orderId) {
-        console.log('✅ Location update matches current order, updating map');
         setDeliveryPartnerPosition([
           data.location.latitude,
           data.location.longitude
@@ -121,16 +114,12 @@ const LiveTracking = ({ orderId, socket }) => {
             }
           ]
         }));
-      } else {
-        console.log('⚠️ Location update for different order:', data.orderId);
       }
     };
 
     socket.on('delivery_location_update', handleLocationUpdate);
-    console.log('✅ Location update listener registered');
 
     return () => {
-      console.log('🔇 Removing location update listener');
       socket.off('delivery_location_update', handleLocationUpdate);
     };
   }, [socket, orderId]);

@@ -2,11 +2,6 @@ const Order = require('../models/Order');
 const User = require('../models/User');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { 
-  sendOutForDeliverySMS,
-  sendOrderDeliveredSMS
-} = require('../utils/smsService');
-const { sendEmail } = require('../utils/emailService');
-const { 
   notifyUserDeliveryAssigned,
   notifyDeliveryPartnerAssignment
 } = require('../utils/notificationService');
@@ -108,55 +103,6 @@ exports.acceptOrder = async (req, res) => {
         const userIdStr = updatedOrder.userId._id ? updatedOrder.userId._id.toString() : updatedOrder.userId.toString();
         notifyUserOrderUpdate(userIdStr, updatedOrder);
       }
-      
-      // Send SMS to customer about out for delivery status
-      if (updatedOrder.userId && updatedOrder.userId.phone) {
-        await sendOutForDeliverySMS(
-          updatedOrder.userId.phone,
-          updatedOrder._id.toString(),
-          req.user.name,
-          req.user.phone
-        );
-        console.log(`📱 Out for delivery SMS sent to ${updatedOrder.userId.phone}`);
-      }
-      
-      // Send delivery OTP reminder to customer via Email and SMS
-      if (updatedOrder.deliveryOtp && updatedOrder.userId) {
-        const { sendEmail } = require('../utils/emailService');
-        const { sendDeliveryOtpSMS } = require('../utils/smsService');
-        
-        // Send OTP reminder via email
-        if (updatedOrder.userId.email) {
-          await sendEmail(
-            updatedOrder.userId.email,
-            'Your Order is Out for Delivery - OTP Required',
-            `<div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9fafb; border-radius: 8px;">
-              <h2 style="color: #ea580c;">🚚 Order Out for Delivery!</h2>
-              <p>Hello ${updatedOrder.userId.name},</p>
-              <p>Your order <strong>#${updatedOrder._id.toString().slice(-8)}</strong> is on its way!</p>
-              <p><strong>Delivery Partner:</strong> ${req.user.name} (${req.user.phone})</p>
-              <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #ea580c;">
-                <p style="margin: 0; font-size: 14px; color: #666;">Your Delivery OTP</p>
-                <p style="margin: 10px 0; font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #ea580c;">${updatedOrder.deliveryOtp}</p>
-                <p style="margin: 0; font-size: 12px; color: #999;">Share this OTP with the delivery partner upon delivery</p>
-              </div>
-              <p style="color: #666; font-size: 14px;">Please keep this OTP ready and share it only with the delivery partner when you receive your order.</p>
-              <p style="color: #999; font-size: 12px; margin-top: 30px;">Thank you for ordering with FlashBites!</p>
-            </div>`
-          );
-          console.log(`📧 Delivery OTP reminder sent to ${updatedOrder.userId.email}`);
-        }
-        
-        // Send OTP reminder via SMS
-        if (updatedOrder.userId.phone) {
-          await sendDeliveryOtpSMS(
-            updatedOrder.userId.phone,
-            updatedOrder._id.toString(),
-            updatedOrder.deliveryOtp
-          );
-          console.log(`📱 Delivery OTP SMS reminder sent to ${updatedOrder.userId.phone}`);
-        }
-      }
     } catch (notifyError) {
       console.error('Failed to send delivery assignment notification:', notifyError);
     }
@@ -190,18 +136,6 @@ exports.markAsDelivered = async (req, res) => {
       return errorResponse(res, 400, 'Order is not out for delivery');
     }
 
-    // Verify delivery OTP
-    if (!otp) {
-      return errorResponse(res, 400, 'Delivery OTP is required');
-    }
-
-    if (otp !== order.deliveryOtp) {
-      console.log(`❌ Invalid OTP attempt: Expected ${order.deliveryOtp}, Got ${otp}`);
-      return errorResponse(res, 400, 'Invalid delivery OTP. Please ask the customer for the correct OTP.');
-    }
-
-    console.log(`✅ OTP verified successfully for order ${orderId}`);
-
     // Mark as delivered
     order.status = 'delivered';
     order.deliveredAt = new Date();
@@ -212,71 +146,6 @@ exports.markAsDelivered = async (req, res) => {
       .populate('userId', 'name phone')
       .populate('restaurantId', 'name address phone location')
       .populate('addressId');
-
-    // Notify restaurant and user about delivery via socket
-    const { notifyRestaurantOrderUpdate, notifyUserOrderUpdate } = require('../services/socketService');
-    
-    // Notify restaurant that order has been delivered
-    if (updatedOrder.restaurantId && updatedOrder.restaurantId._id) {
-      notifyRestaurantOrderUpdate(updatedOrder.restaurantId._id.toString(), updatedOrder);
-      console.log(`✓ Notified restaurant ${updatedOrder.restaurantId._id} about delivery`);
-    }
-    
-    // Notify user that order has been delivered
-    if (updatedOrder.userId && updatedOrder.userId._id) {
-      notifyUserOrderUpdate(updatedOrder.userId._id.toString(), updatedOrder);
-      console.log(`✓ Notified user ${updatedOrder.userId._id} about delivery`);
-    }
-
-    // Send SMS notification for delivered order
-    try {
-      if (updatedOrder.userId && updatedOrder.userId.phone) {
-        await sendOrderDeliveredSMS(
-          updatedOrder.userId.phone,
-          updatedOrder._id.toString()
-        );
-        console.log(`📱 Order delivered SMS sent to ${updatedOrder.userId.phone}`);
-      }
-    } catch (smsError) {
-      console.error('Failed to send delivery SMS:', smsError);
-    }
-
-    // Send email notification for delivered order
-    try {
-      if (updatedOrder.userId && updatedOrder.userId.email) {
-        await sendEmail({
-          to: updatedOrder.userId.email,
-          subject: '🎉 Your Order Has Been Delivered!',
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #f97316;">Order Delivered Successfully! 🎉</h2>
-              <p>Dear ${updatedOrder.userId.name},</p>
-              <p>Great news! Your order has been delivered successfully.</p>
-              
-              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="margin-top: 0;">Order Details:</h3>
-                <p><strong>Order ID:</strong> #${updatedOrder._id.toString().slice(-8)}</p>
-                <p><strong>Restaurant:</strong> ${updatedOrder.restaurantId?.name}</p>
-                <p><strong>Total Amount:</strong> ₹${updatedOrder.total}</p>
-                <p><strong>Delivered At:</strong> ${new Date(updatedOrder.deliveredAt).toLocaleString('en-IN')}</p>
-              </div>
-              
-              <p>We hope you enjoyed your meal! 🍕</p>
-              <p>Thank you for ordering with FlashBites.</p>
-              
-              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-                <p style="color: #6b7280; font-size: 12px;">
-                  If you have any questions or concerns, please contact our support team.
-                </p>
-              </div>
-            </div>
-          `
-        });
-        console.log(`📧 Order delivered email sent to ${updatedOrder.userId.email}`);
-      }
-    } catch (emailError) {
-      console.error('Failed to send delivery email:', emailError);
-    }
 
     return successResponse(res, 200, 'Order marked as delivered successfully', { order: updatedOrder });
   } catch (error) {
@@ -409,13 +278,11 @@ exports.updateLocation = async (req, res) => {
         const io = req.app.get('io');
         if (io) {
           // Notify user tracking this order
-          const locationUpdate = {
+          io.to(`order_${orderId}`).emit('delivery_location_update', {
             orderId,
             location: { latitude, longitude },
             timestamp: new Date()
-          };
-          io.to(`order_${orderId}`).emit('delivery_location_update', locationUpdate);
-          console.log(`📍 Broadcasting location update to order_${orderId}:`, { latitude, longitude });
+          });
         }
       }
     }

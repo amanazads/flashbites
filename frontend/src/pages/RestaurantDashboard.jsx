@@ -14,7 +14,6 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
-import { PageLoader, StatsCardSkeleton, TableSkeleton, CardSkeleton } from '../components/common/LoadingSkeleton';
 import {
   createRestaurant, 
   getMyRestaurant, 
@@ -83,17 +82,8 @@ const RestaurantDashboard = () => {
     description: '',
     price: '',
     category: '',
-    subCategory: '',
     isVeg: true,
     isAvailable: true,
-    hasVariants: false,
-    variants: []
-  });
-  
-  const [currentVariant, setCurrentVariant] = useState({
-    name: '',
-    price: '',
-    isAvailable: true
   });
 
   useEffect(() => {
@@ -171,32 +161,11 @@ const RestaurantDashboard = () => {
       }
     };
 
-    // Listen for order updates (including delivery status)
-    const handleOrderUpdate = (data) => {
-      console.log('📦 Order update received:', data);
-      
-      // Show notification for delivered orders
-      if (data.order && data.order.status === 'delivered') {
-        playNotificationSound('order-update');
-        toast.success(`✅ Order #${data.order._id.slice(-8)} has been delivered!`, {
-          duration: 5000,
-          icon: '🎉'
-        });
-      }
-      
-      // Refresh orders list
-      if (activeTab === 'orders') {
-        fetchOrders();
-      }
-    };
-
     socketService.onNewOrder(handleNewOrder);
-    socketService.onOrderUpdate(handleOrderUpdate);
 
     // Cleanup
     return () => {
       socketService.off('new-order');
-      socketService.off('order-update');
     };
   }, [restaurant, activeTab]);
 
@@ -267,35 +236,15 @@ const RestaurantDashboard = () => {
   const handleMenuItemSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Validation for variants
-      if (menuItemData.hasVariants && menuItemData.variants.length === 0) {
-        toast.error('Please add at least one variant');
-        return;
-      }
-
       const formData = new FormData();
       
       // Append menu item data
       formData.append('name', menuItemData.name);
       formData.append('description', menuItemData.description);
+      formData.append('price', menuItemData.price);
       formData.append('category', menuItemData.category);
-      if (menuItemData.subCategory) {
-        formData.append('subCategory', menuItemData.subCategory);
-      }
       formData.append('isVeg', menuItemData.isVeg);
       formData.append('isAvailable', menuItemData.isAvailable);
-      formData.append('hasVariants', menuItemData.hasVariants);
-      
-      // Handle variants or single price
-      if (menuItemData.hasVariants) {
-        formData.append('variants', JSON.stringify(menuItemData.variants));
-        // Set a default price (first variant's price)
-        if (menuItemData.variants.length > 0) {
-          formData.append('price', menuItemData.variants[0].price);
-        }
-      } else {
-        formData.append('price', menuItemData.price);
-      }
       
       // Append image if selected
       if (menuImageFile) {
@@ -320,16 +269,8 @@ const RestaurantDashboard = () => {
         description: '',
         price: '',
         category: '',
-        subCategory: '',
         isVeg: true,
         isAvailable: true,
-        hasVariants: false,
-        variants: []
-      });
-      setCurrentVariant({
-        name: '',
-        price: '',
-        isAvailable: true
       });
       
       // Immediately refresh menu items
@@ -338,53 +279,6 @@ const RestaurantDashboard = () => {
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to save menu item');
     }
-  };
-
-  // Variant Management Functions
-  const handleAddVariant = () => {
-    if (!currentVariant.name || !currentVariant.price) {
-      toast.error('Please enter variant name and price');
-      return;
-    }
-
-    const newVariant = {
-      name: currentVariant.name,
-      price: parseFloat(currentVariant.price),
-      isAvailable: currentVariant.isAvailable
-    };
-
-    setMenuItemData({
-      ...menuItemData,
-      variants: [...menuItemData.variants, newVariant]
-    });
-
-    // Reset current variant
-    setCurrentVariant({
-      name: '',
-      price: '',
-      isAvailable: true
-    });
-
-    toast.success('Variant added');
-  };
-
-  const handleRemoveVariant = (index) => {
-    const updatedVariants = menuItemData.variants.filter((_, i) => i !== index);
-    setMenuItemData({
-      ...menuItemData,
-      variants: updatedVariants
-    });
-    toast.success('Variant removed');
-  };
-
-  const handleToggleVariants = (enabled) => {
-    console.log('Toggling variants:', enabled);
-    setMenuItemData(prev => ({
-      ...prev,
-      hasVariants: enabled,
-      variants: enabled ? prev.variants : [],
-      price: enabled ? '' : prev.price
-    }));
   };
 
   const handleDeleteMenuItem = async (itemId) => {
@@ -477,13 +371,10 @@ const RestaurantDashboard = () => {
     setMenuItemData({
       name: item.name,
       description: item.description,
-      price: item.price || '',
+      price: item.price,
       category: item.category,
-      subCategory: item.subCategory || '',
       isVeg: item.isVeg,
       isAvailable: item.isAvailable,
-      hasVariants: item.hasVariants || false,
-      variants: item.variants || []
     });
     setMenuImagePreview(item.image);
     setShowMenuForm(true);
@@ -548,24 +439,21 @@ const RestaurantDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50/30 to-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 mb-8 border border-gray-100 animate-fade-in">
+        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               {restaurant?.image && (
-                <div className="relative">
-                  <img
-                    src={restaurant.image}
-                    alt={restaurant.name}
-                    className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover border-3 border-orange-500 shadow-lg flex-shrink-0"
-                  />
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white"></div>
-                </div>
+                <img
+                  src={restaurant.image}
+                  alt={restaurant.name}
+                  className="h-12 w-12 sm:h-16 sm:w-16 rounded-full object-cover border-2 border-orange-500 flex-shrink-0"
+                />
               )}
               <div className="min-w-0">
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent truncate">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">
                   {restaurant?.name || 'Restaurant Dashboard'}
                 </h1>
                 <p className="text-gray-600 mt-1 text-sm sm:text-base">
@@ -617,52 +505,36 @@ const RestaurantDashboard = () => {
 
         {/* Stats */}
         {restaurant && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
-            <div className="group bg-gradient-to-br from-orange-50 to-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-6 border border-orange-100 hover:scale-105 animate-fade-in">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-red-500 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-                  <ChartBarIcon className="h-6 w-6 text-white" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6">
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <div className="flex items-center">
+                <ChartBarIcon className="h-8 w-8 sm:h-10 sm:w-10 text-orange-500 flex-shrink-0" />
+                <div className="ml-2 sm:ml-4 min-w-0">
+                  <p className="text-xs sm:text-sm text-gray-600">Menu Items</p>
+                  <p className="text-xl sm:text-2xl font-bold">{menuItems.length}</p>
                 </div>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1">Menu Items</p>
-                <p className="text-3xl font-extrabold text-gray-900">{menuItems.length}</p>
               </div>
             </div>
 
-            <div className="group bg-gradient-to-br from-blue-50 to-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-6 border border-blue-100 hover:scale-105 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-                  <ClockIcon className="h-6 w-6 text-white" />
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <div className="flex items-center">
+                <ClockIcon className="h-8 w-8 sm:h-10 sm:w-10 text-blue-500 flex-shrink-0" />
+                <div className="ml-2 sm:ml-4 min-w-0">
+                  <p className="text-xs sm:text-sm text-gray-600">Delivery Time</p>
+                  <p className="text-base sm:text-2xl font-bold truncate">{restaurant.deliveryTime}</p>
                 </div>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1">Delivery Time</p>
-                <p className="text-2xl font-extrabold text-gray-900">{restaurant.deliveryTime}</p>
               </div>
             </div>
 
-            <div className="group bg-gradient-to-br from-purple-50 to-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-6 border border-purple-100 hover:scale-105 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-                  <BuildingStorefrontIcon className="h-6 w-6 text-white" />
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <div className="flex items-center">
+                <BuildingStorefrontIcon className="h-8 w-8 sm:h-10 sm:w-10 text-purple-500 flex-shrink-0" />
+                <div className="ml-2 sm:ml-4 min-w-0">
+                  <p className="text-xs sm:text-sm text-gray-600">Status</p>
+                  <p className="text-base sm:text-lg font-bold truncate">
+                    {restaurant.isActive ? '🟢 Active' : '🔴 Inactive'}
+                  </p>
                 </div>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1">Status</p>
-                <p className="text-xl font-extrabold">
-                  {restaurant.isActive ? (
-                    <span className="text-green-600 flex items-center gap-2">
-                      <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-                      Active
-                    </span>
-                  ) : (
-                    <span className="text-red-600 flex items-center gap-2">
-                      <span className="w-3 h-3 bg-red-500 rounded-full"></span>
-                      Inactive
-                    </span>
-                  )}
-                </p>
               </div>
             </div>
           </div>
@@ -671,66 +543,54 @@ const RestaurantDashboard = () => {
         {/* Tabs */}
         {restaurant && (
           <>
-            <div className="bg-white rounded-2xl shadow-lg mb-8 border border-gray-100 animate-fade-in">
-              <div className="border-b border-gray-200 overflow-x-auto scrollbar-hide">
-                <nav className="flex space-x-2 px-6 min-w-max sm:min-w-0">
+            <div className="bg-white rounded-lg shadow-md mb-6">
+              <div className="border-b border-gray-200 overflow-x-auto">
+                <nav className="flex space-x-4 sm:space-x-8 px-4 sm:px-6 min-w-max sm:min-w-0">
                   <button
                     onClick={() => setActiveTab('overview')}
-                    className={`relative py-4 px-6 font-bold text-sm whitespace-nowrap transition-all ${
+                    className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'overview'
-                        ? 'text-orange-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                        ? 'border-orange-500 text-orange-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
                     Overview
-                    {activeTab === 'overview' && (
-                      <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-red-600 rounded-t-full"></span>
-                    )}
                   </button>
                   <button
                     onClick={() => setActiveTab('menu')}
-                    className={`relative py-4 px-6 font-bold text-sm whitespace-nowrap transition-all ${
+                    className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'menu'
-                        ? 'text-orange-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                        ? 'border-orange-500 text-orange-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
                     Menu Items
-                    {activeTab === 'menu' && (
-                      <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-red-600 rounded-t-full"></span>
-                    )}
                   </button>
                   <button
                     onClick={() => {
                       setActiveTab('orders');
                       fetchOrders();
                     }}
-                    className={`relative py-4 px-6 font-bold text-sm whitespace-nowrap transition-all ${
+                    className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'orders'
-                        ? 'text-orange-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                        ? 'border-orange-500 text-orange-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
                     Orders
-                    {activeTab === 'orders' && (
-                      <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-red-600 rounded-t-full"></span>
-                    )}
                   </button>
                   <button
                     onClick={() => {
                       setActiveTab('analytics');
                       fetchAnalytics();
                     }}
-                    className={`relative py-4 px-6 font-bold text-sm whitespace-nowrap transition-all ${
+                    className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'analytics'
-                        ? 'text-orange-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                        ? 'border-orange-500 text-orange-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
                     Analytics
-                    {activeTab === 'analytics' && (
-                      <span className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-red-600 rounded-t-full"></span>
-                    )}
                   </button>
                 </nav>
               </div>
@@ -1646,69 +1506,22 @@ const RestaurantDashboard = () => {
                   />
                 </div>
 
-                {/* Variants Toggle */}
-                <div className="border-t pt-4">
-                  <label className="flex items-center cursor-pointer">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Price (₹) *
+                    </label>
                     <input
-                      type="checkbox"
-                      checked={menuItemData.hasVariants}
-                      onChange={(e) => handleToggleVariants(e.target.checked)}
-                      className="mr-3 w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                      type="number"
+                      required
+                      value={menuItemData.price}
+                      onChange={(e) =>
+                        setMenuItemData({ ...menuItemData, price: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                     />
-                    <div>
-                      <span className="text-sm font-medium text-gray-900">Enable Variants</span>
-                      <p className="text-xs text-gray-500">Add multiple sizes or portions (e.g., Half/Full, Regular/Medium/Large)</p>
-                    </div>
-                  </label>
-                </div>
-
-                {/* Price or Variants Section */}
-                {!menuItemData.hasVariants ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">
-                        Price (₹) *
-                      </label>
-                      <input
-                        type="number"
-                        required={!menuItemData.hasVariants}
-                        value={menuItemData.price}
-                        onChange={(e) =>
-                          setMenuItemData({ ...menuItemData, price: e.target.value })
-                        }
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">
-                        Category *
-                      </label>
-                      <select
-                        required
-                        value={menuItemData.category}
-                        onChange={(e) =>
-                          setMenuItemData({
-                            ...menuItemData,
-                            category: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      >
-                        <option value="">Select category</option>
-                        <option value="Starters">Starters</option>
-                        <option value="Main Course">Main Course</option>
-                        <option value="Desserts">Desserts</option>
-                        <option value="Beverages">Beverages</option>
-                        <option value="Breads">Breads</option>
-                        <option value="Rice">Rice</option>
-                        <option value="Snacks">Snacks</option>
-                        <option value="Pizza">Pizza</option>
-                        <option value="Pizza Mania">Pizza Mania</option>
-                      </select>
-                    </div>
                   </div>
-                ) : (
-                  <div className="border rounded-lg p-4 bg-gray-50">
+                  <div>
                     <label className="block text-sm font-medium mb-1">
                       Category *
                     </label>
@@ -1721,7 +1534,7 @@ const RestaurantDashboard = () => {
                           category: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 mb-4"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                     >
                       <option value="">Select category</option>
                       <option value="Starters">Starters</option>
@@ -1731,101 +1544,8 @@ const RestaurantDashboard = () => {
                       <option value="Breads">Breads</option>
                       <option value="Rice">Rice</option>
                       <option value="Snacks">Snacks</option>
-                      <option value="Pizza">Pizza</option>
-                      <option value="Pizza Mania">Pizza Mania</option>
                     </select>
-
-                    <div className="mb-3">
-                      <label className="block text-sm font-medium mb-2 text-orange-600">
-                        Add Variants (e.g., Half/Full or Regular/Medium/Large)
-                      </label>
-                      
-                      <div className="grid grid-cols-3 gap-2 mb-2">
-                        <div>
-                          <input
-                            type="text"
-                            placeholder="Name (e.g., Half)"
-                            value={currentVariant.name}
-                            onChange={(e) =>
-                              setCurrentVariant({ ...currentVariant, name: e.target.value })
-                            }
-                            className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                          />
-                        </div>
-                        <div>
-                          <input
-                            type="number"
-                            placeholder="Price (₹)"
-                            value={currentVariant.price}
-                            onChange={(e) =>
-                              setCurrentVariant({ ...currentVariant, price: e.target.value })
-                            }
-                            className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                          />
-                        </div>
-                        <div>
-                          <button
-                            type="button"
-                            onClick={handleAddVariant}
-                            className="w-full px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600"
-                          >
-                            + Add
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Display Added Variants */}
-                    {menuItemData.variants.length > 0 && (
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Added Variants ({menuItemData.variants.length})
-                        </label>
-                        {menuItemData.variants.map((variant, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between bg-white p-3 rounded-lg border"
-                          >
-                            <div className="flex-1">
-                              <span className="font-medium text-gray-900">{variant.name}</span>
-                              <span className="ml-3 text-orange-600 font-semibold">
-                                ₹{variant.price}
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveVariant(index)}
-                              className="text-red-600 hover:text-red-800 text-sm font-medium"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {menuItemData.variants.length === 0 && (
-                      <p className="text-xs text-gray-500 italic">
-                        No variants added yet. Add at least one variant to continue.
-                      </p>
-                    )}
                   </div>
-                )}
-
-                {/* Sub Category (Optional) */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Sub Category <span className="text-gray-400 text-xs">(Optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., North Indian, Chinese, etc."
-                    value={menuItemData.subCategory}
-                    onChange={(e) =>
-                      setMenuItemData({ ...menuItemData, subCategory: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
                 </div>
 
                 <div className="flex items-center space-x-6">

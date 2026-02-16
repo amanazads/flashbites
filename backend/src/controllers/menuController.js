@@ -13,23 +13,11 @@ exports.addMenuItem = async (req, res) => {
     console.log('Request file:', req.file ? 'File present' : 'No file');
     console.log('User:', req.user ? req.user._id : 'No user');
     
-    const { name, description, price, category, subCategory, isVeg, tags, prepTime, isAvailable, hasVariants, variants } = req.body;
+    const { name, description, price, category, isVeg, tags, prepTime, isAvailable } = req.body;
 
     // Validate required fields
-    if (!name || !description || !category) {
-      return errorResponse(res, 400, 'Missing required fields: name, description, category');
-    }
-
-    // Validate variants if hasVariants is true
-    if (hasVariants === 'true' || hasVariants === true) {
-      if (!variants) {
-        return errorResponse(res, 400, 'Variants are required when hasVariants is true');
-      }
-    } else {
-      // Price is required for non-variant items
-      if (!price) {
-        return errorResponse(res, 400, 'Price is required for non-variant items');
-      }
+    if (!name || !description || !price || !category) {
+      return errorResponse(res, 400, 'Missing required fields: name, description, price, category');
     }
 
     // Handle image upload
@@ -48,31 +36,14 @@ exports.addMenuItem = async (req, res) => {
       restaurantId: req.params.restaurantId,
       name,
       description,
+      price: parseFloat(price),
       category,
       image: imageUrl,
       isVeg: isVeg === 'true' || isVeg === true,
       isAvailable: isAvailable === 'true' || isAvailable === true || isAvailable === undefined,
       tags: tags ? (Array.isArray(tags) ? tags : [tags]) : [],
-      prepTime: prepTime ? parseInt(prepTime) : 20,
-      hasVariants: hasVariants === 'true' || hasVariants === true
+      prepTime: prepTime ? parseInt(prepTime) : 20
     };
-
-    // Add subCategory if provided
-    if (subCategory) {
-      menuItemData.subCategory = subCategory;
-    }
-
-    // Handle variants or single price
-    if (menuItemData.hasVariants) {
-      const parsedVariants = typeof variants === 'string' ? JSON.parse(variants) : variants;
-      menuItemData.variants = parsedVariants;
-      // Set default price to first variant's price
-      if (parsedVariants && parsedVariants.length > 0) {
-        menuItemData.price = parseFloat(parsedVariants[0].price);
-      }
-    } else {
-      menuItemData.price = parseFloat(price);
-    }
 
     console.log('Creating menu item with data:', menuItemData);
     const menuItem = await MenuItem.create(menuItemData);
@@ -127,31 +98,6 @@ exports.updateMenuItem = async (req, res) => {
         await deleteFromCloudinary(menuItem.image);
       }
       req.body.image = await uploadToCloudinary(req.file.buffer, 'flashbites/menu-items');
-    }
-
-    // Parse variants if it's a string
-    if (req.body.variants && typeof req.body.variants === 'string') {
-      req.body.variants = JSON.parse(req.body.variants);
-    }
-
-    // Handle hasVariants conversion
-    if (req.body.hasVariants !== undefined) {
-      req.body.hasVariants = req.body.hasVariants === 'true' || req.body.hasVariants === true;
-    }
-
-    // Handle boolean conversions
-    if (req.body.isVeg !== undefined) {
-      req.body.isVeg = req.body.isVeg === 'true' || req.body.isVeg === true;
-    }
-    if (req.body.isAvailable !== undefined) {
-      req.body.isAvailable = req.body.isAvailable === 'true' || req.body.isAvailable === true;
-    }
-
-    // If hasVariants is true and variants are provided, set price to first variant
-    if (req.body.hasVariants && req.body.variants && req.body.variants.length > 0) {
-      req.body.price = parseFloat(req.body.variants[0].price);
-    } else if (req.body.price) {
-      req.body.price = parseFloat(req.body.price);
     }
 
     const updatedMenuItem = await MenuItem.findByIdAndUpdate(

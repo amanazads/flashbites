@@ -1,22 +1,5 @@
 const mongoose = require('mongoose');
 
-const variantSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  price: {
-    type: Number,
-    required: true,
-    min: [0, 'Price cannot be negative']
-  },
-  isAvailable: {
-    type: Boolean,
-    default: true
-  }
-}, { _id: false });
-
 const menuItemSchema = new mongoose.Schema({
   restaurantId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -35,16 +18,13 @@ const menuItemSchema = new mongoose.Schema({
   },
   price: {
     type: Number,
+    required: [true, 'Please provide item price'],
     min: [0, 'Price cannot be negative']
   },
   category: {
     type: String,
     required: true,
-    enum: ['Starters', 'Main Course', 'Desserts', 'Beverages', 'Breads', 'Rice', 'Snacks', 'Pizza', 'Pizza Mania']
-  },
-  subCategory: {
-    type: String,
-    trim: true
+    enum: ['Starters', 'Main Course', 'Desserts', 'Beverages', 'Breads', 'Rice', 'Snacks']
   },
   image: {
     type: String,
@@ -67,13 +47,7 @@ const menuItemSchema = new mongoose.Schema({
     type: String,
     enum: ['Mild', 'Medium', 'Hot', 'Extra Hot'],
     default: 'Medium'
-  },
-  // Variants for items with multiple sizes/portions
-  hasVariants: {
-    type: Boolean,
-    default: false
-  },
-  variants: [variantSchema]
+  }
 }, { timestamps: true });
 
 menuItemSchema.index({ restaurantId: 1, isAvailable: 1 });

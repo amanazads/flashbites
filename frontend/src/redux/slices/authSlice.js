@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import * as authApi from '../../api/authApi';
+import { Preferences } from '@capacitor/preferences';
 
 // Thunks
 export const login = createAsyncThunk(
@@ -8,10 +9,10 @@ export const login = createAsyncThunk(
     try {
       const apiResponse = await authApi.login(credentials);
       // apiResponse is { success, message, data: { user, accessToken, refreshToken } }
-      // Store tokens in localStorage
+      // Store tokens in Preferences
       if (apiResponse.success && apiResponse.data) {
-        localStorage.setItem('token', apiResponse.data.accessToken);
-        localStorage.setItem('refreshToken', apiResponse.data.refreshToken);
+        await Preferences.set({ key: 'token', value: apiResponse.data.accessToken });
+        await Preferences.set({ key: 'refreshToken', value: apiResponse.data.refreshToken });
       }
       // Return the nested data object which contains user, accessToken, refreshToken
       return apiResponse.data;
@@ -27,10 +28,10 @@ export const register = createAsyncThunk(
     try {
       const apiResponse = await authApi.register(userData);
       // apiResponse is { success, message, data: { user, accessToken, refreshToken } }
-      // Store tokens in localStorage
+      // Store tokens in Preferences
       if (apiResponse.success && apiResponse.data) {
-        localStorage.setItem('token', apiResponse.data.accessToken);
-        localStorage.setItem('refreshToken', apiResponse.data.refreshToken);
+        await Preferences.set({ key: 'token', value: apiResponse.data.accessToken });
+        await Preferences.set({ key: 'refreshToken', value: apiResponse.data.refreshToken });
       }
       // Return the nested data object which contains user, accessToken, refreshToken
       return apiResponse.data;
@@ -67,9 +68,10 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
-      localStorage.removeItem('token');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      // Clear tokens from Preferences
+      Preferences.remove({ key: 'token' });
+      Preferences.remove({ key: 'accessToken' });
+      Preferences.remove({ key: 'refreshToken' });
     },
     clearError: (state) => {
       state.error = null;

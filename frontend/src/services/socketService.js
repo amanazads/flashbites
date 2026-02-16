@@ -25,11 +25,7 @@ class SocketService {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-      timeout: 20000,
-      autoConnect: true,
-      forceNew: false
+      reconnectionAttempts: 5
     });
 
     this.socket.on('connect', () => {
@@ -41,15 +37,7 @@ class SocketService {
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('❌ Socket connection error:', error.message);
-      console.error('Error type:', error.type);
-      console.error('Error description:', error.description);
-      
-      // Fall back to polling if websocket fails
-      if (error.message.includes('websocket')) {
-        console.log('🔄 Falling back to polling transport');
-        this.socket.io.opts.transports = ['polling', 'websocket'];
-      }
+      console.error('Socket connection error:', error.message);
     });
 
     this.socket.on('reconnect', (attemptNumber) => {
@@ -113,22 +101,6 @@ class SocketService {
     if (this.socket) {
       this.socket.on('delivery-update', callback);
       this.listeners.set('delivery-update', callback);
-    }
-  }
-
-  // Listen for notifications (generic)
-  onNotification(callback) {
-    if (this.socket) {
-      this.socket.on('new-notification', callback);
-      this.listeners.set('new-notification', callback);
-    }
-  }
-
-  // Remove notification listener
-  offNotification(callback) {
-    if (this.socket) {
-      this.socket.off('new-notification', callback);
-      this.listeners.delete('new-notification');
     }
   }
 
