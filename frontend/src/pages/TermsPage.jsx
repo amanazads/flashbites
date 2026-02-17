@@ -253,8 +253,8 @@ const TermsAndConditions = () => {
             <p className="mb-2">For questions about these Terms, please contact us:</p>
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="mb-1"><strong>FlashBites</strong></p>
-              <p className="mb-1">Email: info.flashbites.shop@gmail.com</p>
-              <p className="mb-1">Customer Support: info.flashbites.shop@gmail.com</p>
+              <p className="mb-1">Email: legal@flashbites.com</p>
+              <p className="mb-1">Customer Support: support@flashbites.com</p>
               <p>Phone: +91-XXXX-XXXXXX</p>
             </div>
           </section>

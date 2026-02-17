@@ -1,43 +1,20 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useDispatch } from 'react-redux';
-import { PlusIcon, CheckIcon } from '@heroicons/react/24/solid';
+import { PlusIcon } from '@heroicons/react/24/solid';
 import { addToCart } from '../../redux/slices/cartSlice';
 import { formatCurrency } from '../../utils/formatters';
+import toast from 'react-hot-toast';
 
 const MenuCard = ({ item, restaurant }) => {
   const dispatch = useDispatch();
-  const [selectedVariant, setSelectedVariant] = useState(
-    item.hasVariants && item.variants?.length > 0 ? item.variants[0] : null
-  );
-  const [justAdded, setJustAdded] = useState(false);
 
   const handleAddToCart = () => {
-    const cartItem = item.hasVariants 
-      ? {
-          ...item,
-          selectedVariant: selectedVariant.name,
-          price: selectedVariant.price,
-          displayName: `${item.name} (${selectedVariant.name})`
-        }
-      : item;
-
-    dispatch(addToCart({ item: cartItem, restaurant }));
-    
-    // Visual feedback without toast
-    setJustAdded(true);
-    setTimeout(() => setJustAdded(false), 800);
+    dispatch(addToCart({ item, restaurant }));
+    toast.success('Added to cart!');
   };
 
-  const currentPrice = item.hasVariants && selectedVariant 
-    ? selectedVariant.price 
-    : item.price;
-
-  const isAvailable = item.hasVariants && selectedVariant
-    ? selectedVariant.isAvailable && item.isAvailable
-    : item.isAvailable;
-
   return (
-    <div className="card p-4 flex">
+    <div className="card p-4 flex flex-col sm:flex-row">
       {/* Item Info */}
       <div className="flex-1">
         {/* Veg/Non-veg Indicator */}
@@ -53,7 +30,7 @@ const MenuCard = ({ item, restaurant }) => {
           )}
         </div>
 
-        <h3 className="text-lg font-bold text-gray-900 mb-1">{item.name}</h3>
+        <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1">{item.name}</h3>
         <p className="text-gray-600 text-sm mb-2 line-clamp-2">{item.description}</p>
         
         {/* Tags */}
@@ -67,62 +44,22 @@ const MenuCard = ({ item, restaurant }) => {
           </div>
         )}
 
-        {/* Variants Selection */}
-        {item.hasVariants && item.variants && item.variants.length > 0 && (
-          <div className="mb-3">
-            <div className="flex flex-wrap gap-2">
-              {item.variants.map((variant, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedVariant(variant)}
-                  disabled={!variant.isAvailable}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md border-2 transition-all ${
-                    selectedVariant?.name === variant.name
-                      ? 'bg-orange-500 text-white border-orange-500'
-                      : variant.isAvailable
-                      ? 'bg-white text-gray-700 border-gray-300 hover:border-orange-500'
-                      : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                  }`}
-                >
-                  <div className="flex flex-col items-center">
-                    <span>{variant.name}</span>
-                    <span className="font-semibold">{formatCurrency(variant.price)}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <span className="text-lg font-bold text-primary-600">
-            {formatCurrency(currentPrice)}
+            {formatCurrency(item.price)}
           </span>
 
           {!restaurant.acceptingOrders ? (
             <span className="badge bg-red-100 text-red-800 border border-red-300">Closed</span>
-          ) : !isAvailable ? (
+          ) : !item.isAvailable ? (
             <span className="badge badge-danger">Not Available</span>
           ) : (
             <button
               onClick={handleAddToCart}
-              className={`flex items-center space-x-1 px-4 py-2 rounded-lg font-semibold transition-all duration-300 ${
-                justAdded
-                  ? 'bg-green-500 text-white scale-105'
-                  : 'bg-orange-500 text-white hover:bg-orange-600'
-              }`}
+              className="btn-primary flex items-center space-x-1 px-4 py-2"
             >
-              {justAdded ? (
-                <>
-                  <CheckIcon className="h-4 w-4" />
-                  <span>Added!</span>
-                </>
-              ) : (
-                <>
-                  <PlusIcon className="h-4 w-4" />
-                  <span>Add</span>
-                </>
-              )}
+              <PlusIcon className="h-4 w-4" />
+              <span>Add</span>
             </button>
           )}
         </div>
@@ -130,11 +67,11 @@ const MenuCard = ({ item, restaurant }) => {
 
       {/* Item Image */}
       {item.image && (
-        <div className="ml-4">
+        <div className="mt-3 sm:mt-0 sm:ml-4 self-end sm:self-auto">
           <img
             src={item.image}
             alt={item.name}
-            className="w-24 h-24 object-cover rounded-lg"
+            className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg"
           />
         </div>
       )}

@@ -7,18 +7,17 @@ export const useGeolocation = () => {
 
   const getLocation = useCallback((options = {}) => {
     if (!navigator.geolocation) {
-      const errorMsg = 'Geolocation is not supported by your browser';
-      setError(errorMsg);
-      return Promise.reject(new Error(errorMsg));
+      setError('Geolocation is not supported by your browser');
+      return Promise.reject(new Error('Geolocation not supported'));
     }
 
     setLoading(true);
     setError(null);
 
     const defaultOptions = {
-      enableHighAccuracy: false, // Use network location for faster response
-      timeout: 15000, // Increased to 15 seconds
-      maximumAge: 300000, // Accept cached position up to 5 minutes old
+      enableHighAccuracy: false, // Changed to false by default to avoid GPS lock issues
+      timeout: 10000, // 10 seconds
+      maximumAge: 600000, // 10 minutes cache
       ...options
     };
 
@@ -31,9 +30,7 @@ export const useGeolocation = () => {
             accuracy: position.coords.accuracy
           };
           setLocation(locationData);
-          setError(null);
           setLoading(false);
-          console.log('📍 Location obtained:', locationData);
           resolve(locationData);
         },
         (err) => {
@@ -42,19 +39,15 @@ export const useGeolocation = () => {
           switch(err.code) {
             case err.PERMISSION_DENIED:
               errorMessage = 'Location permission denied. Please enable location access in your browser settings.';
-              console.error('⛔ Location permission denied');
               break;
             case err.POSITION_UNAVAILABLE:
               errorMessage = 'Location information unavailable. Please select a location manually.';
-              console.warn('⚠️ Location unavailable - using manual selection fallback');
               break;
             case err.TIMEOUT:
               errorMessage = 'Location request timed out. Please select a location manually.';
-              console.warn('⏱️ Location timeout - using manual selection fallback');
               break;
             default:
               errorMessage = 'Unable to determine location. Please select manually.';
-              console.error('❌ Unknown location error:', err.message);
           }
           
           setError(errorMessage);

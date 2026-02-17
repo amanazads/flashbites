@@ -4,7 +4,10 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="apple-touch-icon" href="/logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#e11d48" />
     <meta name="description" content="FlashBites - Fast Food Delivery App" />
     <link rel="manifest" href="/manifest.json" />
@@ -12,9 +15,9 @@
     <!-- Razorpay SDK -->
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   </head>
-  <body>
+  <body style="margin: 0; padding: 0;">
     <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <div id="root" style="width: 100%; min-height: 100vh; display: flex; flex-direction: column;"></div>
     <script type="module" src="/src/index.js"></script>
   </body>
 </html>

@@ -112,12 +112,12 @@ const Home = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
           <div className="text-center">
-            <h1 className="text-5xl font-bold mb-4">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 leading-tight">
               Order Your Favorite Food
             </h1>
-            <p className="text-xl mb-4 text-orange-100">
+            <p className="text-base sm:text-lg lg:text-xl mb-4 text-orange-100 px-2 sm:px-0">
               Get your food delivered fast from top restaurants
             </p>
             
@@ -146,20 +146,20 @@ const Home = () => {
               <div className="mb-6 relative">
                 <button
                   onClick={requestLocationPermission}
-                  className="inline-flex items-center gap-2 text-sm text-orange-100 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-all"
+                  className="inline-flex items-center gap-2 text-sm text-orange-100 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-all w-full sm:w-auto justify-center"
                 >
                   📍 Find restaurants near me
                 </button>
                 <button
                   onClick={() => setShowLocationDropdown(!showLocationDropdown)}
-                  className="ml-3 inline-flex items-center gap-2 text-sm text-orange-100 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-all"
+                  className="mt-2 sm:mt-0 sm:ml-3 inline-flex items-center gap-2 text-sm text-orange-100 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-all w-full sm:w-auto justify-center"
                 >
                   📌 Select Location
                 </button>
 
                 {/* Location Dropdown */}
                 {showLocationDropdown && (
-                  <div ref={dropdownRef} className="absolute top-full mt-2 left-0 bg-white rounded-lg shadow-xl border border-gray-200 z-10 w-72 max-h-96 overflow-y-auto">
+                  <div ref={dropdownRef} className="absolute top-full mt-2 left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 bg-white rounded-lg shadow-xl border border-gray-200 z-10 w-full sm:w-72 max-h-96 overflow-y-auto">
                     <div className="p-3 border-b border-gray-200">
                       <p className="text-sm font-semibold text-gray-700">Choose your location</p>
                     </div>
@@ -205,7 +205,7 @@ const Home = () => {
             )}
             
             <div>
-              <Link to="/restaurants" className="bg-white text-orange-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition inline-block">
+              <Link to="/restaurants" className="bg-white text-orange-600 px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition inline-block w-full sm:w-auto">
                 Explore Restaurants
               </Link>
             </div>
@@ -215,7 +215,7 @@ const Home = () => {
 
       {/* Cuisines Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">What's on your mind?</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">What's on your mind?</h2>
         <p className="text-gray-600 mb-8">Explore cuisines that excite your taste buds</p>
         
         {/* Horizontal Scrolling Container */}
@@ -336,11 +336,11 @@ const Home = () => {
 
       {/* Featured Restaurants */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">
+        <div className="flex items-start sm:items-center justify-between gap-3 mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
             {userLocation && nearbyRestaurants.length > 0 ? 'Restaurants Near You' : 'Top Restaurants'}
           </h2>
-          <Link to="/restaurants" className="text-orange-600 hover:text-orange-700 font-semibold">
+          <Link to="/restaurants" className="text-orange-600 hover:text-orange-700 font-semibold text-sm sm:text-base whitespace-nowrap">
             View All →
           </Link>
         </div>
@@ -348,7 +348,7 @@ const Home = () => {
         {loading ? (
           <Loader />
         ) : displayRestaurants.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {displayRestaurants.slice(0, 8).map((restaurant) => (
               <div key={restaurant._id}>
                 <RestaurantCard restaurant={restaurant} />
@@ -374,7 +374,7 @@ const Home = () => {
       {/* Features Section */}
       <div className="bg-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-10 sm:mb-12 text-center">
             Why Choose FlashBites?
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

@@ -1206,26 +1206,26 @@ const Partner = () => {
                     <div className="space-y-1">
                       <div>
                         <span className="text-sm text-gray-600">Restaurant Partnership: </span>
-                        <a href="mailto:info.flashbites.shop@gmail.com" className="text-orange-600 hover:text-orange-700">
-                          info.flashbites.shop@gmail.com
+                        <a href="mailto:restaurants@flashbites.com" className="text-orange-600 hover:text-orange-700">
+                          restaurants@flashbites.com
                         </a>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600">Delivery Partnership: </span>
-                        <a href="mailto:info.flashbites.shop@gmail.com" className="text-orange-600 hover:text-orange-700">
-                          info.flashbites.shop@gmail.com
+                        <a href="mailto:delivery@flashbites.com" className="text-orange-600 hover:text-orange-700">
+                          delivery@flashbites.com
                         </a>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600">Careers: </span>
-                        <a href="mailto:info.flashbites.shop@gmail.com" className="text-orange-600 hover:text-orange-700">
-                          info.flashbites.shop@gmail.com
+                        <a href="mailto:careers@flashbites.com" className="text-orange-600 hover:text-orange-700">
+                          careers@flashbites.com
                         </a>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600">General: </span>
-                        <a href="mailto:info.flashbites.shop@gmail.com" className="text-orange-600 hover:text-orange-700">
-                          info.flashbites.shop@gmail.com
+                        <a href="mailto:flashbites@gmail.com" className="text-orange-600 hover:text-orange-700">
+                          flashbites@gmail.com
                         </a>
                       </div>
                     </div>

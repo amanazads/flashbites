@@ -194,11 +194,11 @@ const Register = () => {
   // };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-6 sm:space-y-8">
+        <div className="bg-white rounded-2xl shadow-xl p-5 sm:p-8">
           <div className="text-center">
-            <h2 className="text-3xl font-extrabold text-gray-900 mb-2">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2">
               Create your account
             </h2>
             <p className="text-sm text-gray-600">

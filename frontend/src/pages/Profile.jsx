@@ -75,17 +75,17 @@ const Profile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-6 sm:py-8">
       <div className="max-w-4xl mx-auto px-4">
-        <h1 className="text-3xl font-bold mb-8">My Profile</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">My Profile</h1>
 
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow mb-6">
-          <div className="border-b">
-            <div className="flex">
+          <div className="border-b overflow-x-auto">
+            <div className="flex min-w-max">
               <button
                 onClick={() => setActiveTab('profile')}
-                className={`px-6 py-4 font-medium ${
+                className={`px-4 sm:px-6 py-3 sm:py-4 font-medium whitespace-nowrap ${
                   activeTab === 'profile'
                     ? 'text-primary-600 border-b-2 border-primary-600'
                     : 'text-gray-600 hover:text-gray-900'
@@ -95,7 +95,7 @@ const Profile = () => {
               </button>
               <button
                 onClick={() => setActiveTab('addresses')}
-                className={`px-6 py-4 font-medium ${
+                className={`px-4 sm:px-6 py-3 sm:py-4 font-medium whitespace-nowrap ${
                   activeTab === 'addresses'
                     ? 'text-primary-600 border-b-2 border-primary-600'
                     : 'text-gray-600 hover:text-gray-900'
@@ -106,12 +106,12 @@ const Profile = () => {
             </div>
           </div>
 
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {/* Profile Tab */}
             {activeTab === 'profile' && (
               <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold">Personal Information</h2>
+                <div className="flex justify-between items-center gap-3 mb-6">
+                  <h2 className="text-lg sm:text-xl font-bold">Personal Information</h2>
                   <button
                     onClick={() => setIsEditing(!isEditing)}
                     className="btn-outline flex items-center space-x-2"
@@ -172,8 +172,8 @@ const Profile = () => {
             {/* Addresses Tab */}
             {activeTab === 'addresses' && (
               <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold">Saved Addresses</h2>
+                <div className="flex justify-between items-center gap-3 mb-6">
+                  <h2 className="text-lg sm:text-xl font-bold">Saved Addresses</h2>
                   <button
                     onClick={() => setShowAddressForm(!showAddressForm)}
                     className="btn-primary flex items-center space-x-2"
@@ -186,7 +186,7 @@ const Profile = () => {
                 {/* Add Address Form */}
                 {showAddressForm && (
                   <form onSubmit={handleAddAddress} className="bg-gray-50 p-4 rounded-lg mb-6 space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium mb-1">Type</label>
                         <select
@@ -212,7 +212,7 @@ const Profile = () => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium mb-1">City</label>
                         <input
@@ -266,7 +266,7 @@ const Profile = () => {
                     <p className="text-gray-600 text-center py-8">No saved addresses</p>
                   ) : (
                     addresses.map((address) => (
-                      <div key={address._id} className="border rounded-lg p-4 flex justify-between">
+                      <div key={address._id} className="border rounded-lg p-4 flex items-start justify-between gap-3">
                         <div>
                           <span className="badge badge-info mb-2 capitalize">{address.type}</span>
                           <p className="font-medium">{address.street}</p>

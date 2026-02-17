@@ -397,10 +397,10 @@ const PrivacyPolicy = () => {
             </p>
             <div className="bg-gray-50 p-6 rounded-lg space-y-3">
               <p><strong className="text-gray-900">FlashBites Privacy Team</strong></p>
-              <p><strong>Email:</strong> info.flashbites.shop@gmail.com</p>
-              <p><strong>Customer Support:</strong> info.flashbites.shop@gmail.com</p>
+              <p><strong>Email:</strong> privacy@flashbites.com</p>
+              <p><strong>Customer Support:</strong> support@flashbites.com</p>
               <p><strong>Phone:</strong> +91-XXXX-XXXXXX</p>
-              <p><strong>Data Protection Officer:</strong> info.flashbites.shop@gmail.com</p>
+              <p><strong>Data Protection Officer:</strong> dpo@flashbites.com</p>
               <p className="pt-2 border-t border-gray-200">
                 <strong>Address:</strong><br />
                 FlashBites Pvt. Ltd.<br />

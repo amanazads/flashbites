@@ -47,9 +47,9 @@ const Orders = () => {
   if (loading) return <Loader />;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-6 sm:py-8">
       <div className="max-w-4xl mx-auto px-4">
-        <h1 className="text-3xl font-bold mb-8">My Orders</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">My Orders</h1>
 
         {uniqueOrders.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
@@ -66,11 +66,11 @@ const Orders = () => {
               <Link
                 key={order._id}
                 to={`/orders/${order._id}`}
-                className="block bg-white rounded-lg shadow hover:shadow-lg transition p-6"
+                className="block bg-white rounded-lg shadow hover:shadow-lg transition p-4 sm:p-6"
               >
-                <div className="flex justify-between items-start mb-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4">
                   <div>
-                    <h3 className="text-lg font-bold">{order.restaurantId?.name}</h3>
+                    <h3 className="text-base sm:text-lg font-bold">{order.restaurantId?.name}</h3>
                     <p className="text-sm text-gray-600">{formatDateTime(order.createdAt)}</p>
                   </div>
                   <span className={`badge ${ORDER_STATUS_COLORS[order.status]}`}>
@@ -78,7 +78,7 @@ const Orders = () => {
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-end sm:items-center gap-3">
                   <div>
                     <p className="text-sm text-gray-600">
                       {order.items.length} item{order.items.length > 1 ? 's' : ''}

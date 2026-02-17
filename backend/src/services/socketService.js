@@ -1,6 +1,5 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
-const Notification = require('../models/Notification');
 
 let io;
 const userSockets = new Map(); // Map userId to socket IDs
@@ -13,20 +12,15 @@ const initializeSocket = (server) => {
     cors: {
       origin: [
         'http://localhost:3000',
-        'http://localhost:3001',
-        'http://localhost:5173',
         'https://flashbites.vercel.app',
         'https://flashbites.shop',
         'https://www.flashbites.shop',
         process.env.FRONTEND_URL
-      ].filter(Boolean),
+      ],
       credentials: true,
       methods: ['GET', 'POST']
     },
-    transports: ['websocket', 'polling'],
-    allowEIO3: true,
-    pingTimeout: 60000,
-    pingInterval: 25000
+    transports: ['websocket', 'polling']
   });
 
   // Authentication middleware for socket connections
@@ -98,18 +92,6 @@ const initializeSocket = (server) => {
       }
     });
 
-    // Join order room for tracking
-    socket.on('join_order_room', (orderId) => {
-      socket.join(`order_${orderId}`);
-      console.log(`📦 User ${socket.userId} joined order room: order_${orderId}`);
-    });
-
-    // Leave order room
-    socket.on('leave_order_room', (orderId) => {
-      socket.leave(`order_${orderId}`);
-      console.log(`📦 User ${socket.userId} left order room: order_${orderId}`);
-    });
-
     // Ping-pong for connection health
     socket.on('ping', () => {
       socket.emit('pong');
@@ -118,17 +100,6 @@ const initializeSocket = (server) => {
 
   console.log('✅ Socket.IO initialized');
   return io;
-};
-
-// Emit notification to specific user
-const emitNotificationToUser = (userId, notification) => {
-  if (io) {
-    io.to(`user-${userId}`).emit('new-notification', {
-      notification,
-      timestamp: new Date().toISOString()
-    });
-    console.log(`🔔 Sent notification to user ${userId}`);
-  }
 };
 
 // Emit new order notification to restaurant
@@ -141,19 +112,6 @@ const notifyRestaurantNewOrder = (restaurantId, orderData) => {
       timestamp: new Date().toISOString()
     });
     console.log(`📢 Notified restaurant ${restaurantId} of new order ${orderData._id}`);
-  }
-};
-
-// Emit order status update to restaurant
-const notifyRestaurantOrderUpdate = (restaurantId, orderData) => {
-  if (io) {
-    io.to(`restaurant-${restaurantId}`).emit('order-update', {
-      type: 'ORDER_UPDATE',
-      order: orderData,
-      sound: true,
-      timestamp: new Date().toISOString()
-    });
-    console.log(`📢 Notified restaurant ${restaurantId} of order update ${orderData._id}`);
   }
 };
 
@@ -209,7 +167,7 @@ const getOnlineStats = () => {
 };
 
 // Notify all delivery partners about new order
-const notifyDeliveryPartnersNewOrder = async (orderData) => {
+const notifyDeliveryPartnersNewOrder = (orderData) => {
   if (io) {
     io.to('all-delivery-partners').emit('new-order-available', {
       type: 'NEW_ORDER_AVAILABLE',
@@ -218,39 +176,11 @@ const notifyDeliveryPartnersNewOrder = async (orderData) => {
       timestamp: new Date().toISOString()
     });
     console.log(`📢 Notified all delivery partners of new order ${orderData._id}`);
-    
-    // Get all active delivery partners and create notifications
-    try {
-      const User = require('../models/User');
-      const deliveryPartners = await User.find({ role: 'delivery_partner', isActive: true });
-      
-      const notifications = deliveryPartners.map(partner => ({
-        recipient: partner._id,
-        type: 'new_order',
-        title: 'New Order Available',
-        message: `New order #${orderData._id.toString().slice(-6)} - Earn ₹${orderData.deliveryFee}`,
-        data: {
-          orderId: orderData._id,
-          restaurantId: orderData.restaurantId?._id || orderData.restaurantId,
-          amount: orderData.deliveryFee
-        },
-        priority: 'high'
-      }));
-      
-      const createdNotifications = await Notification.insertMany(notifications);
-      
-      // Emit notification to each delivery partner
-      createdNotifications.forEach((notification, index) => {
-        emitNotificationToUser(deliveryPartners[index]._id, notification);
-      });
-    } catch (error) {
-      console.error('Error creating delivery partner notifications:', error);
-    }
   }
 };
 
 // Notify specific delivery partner
-const notifyDeliveryPartner = async (deliveryPartnerId, eventType, data) => {
+const notifyDeliveryPartner = (deliveryPartnerId, eventType, data) => {
   if (io) {
     io.to(`delivery-partner-${deliveryPartnerId}`).emit(eventType, {
       type: eventType.toUpperCase(),
@@ -263,7 +193,7 @@ const notifyDeliveryPartner = async (deliveryPartnerId, eventType, data) => {
 };
 
 // Notify delivery partner about order assignment
-const notifyDeliveryPartnerOrderAssigned = async (deliveryPartnerId, orderData) => {
+const notifyDeliveryPartnerOrderAssigned = (deliveryPartnerId, orderData) => {
   if (io) {
     io.to(`delivery-partner-${deliveryPartnerId}`).emit('order-assigned', {
       type: 'ORDER_ASSIGNED',
@@ -272,32 +202,11 @@ const notifyDeliveryPartnerOrderAssigned = async (deliveryPartnerId, orderData) 
       timestamp: new Date().toISOString()
     });
     console.log(`📢 Notified delivery partner ${deliveryPartnerId} of order assignment ${orderData._id}`);
-    
-    // Create notification in database
-    try {
-      const notification = await Notification.create({
-        recipient: deliveryPartnerId,
-        type: 'delivery_assigned',
-        title: 'Order Assigned to You',
-        message: `You have been assigned order #${orderData._id.toString().slice(-6)}`,
-        data: {
-          orderId: orderData._id,
-          restaurantId: orderData.restaurantId?._id || orderData.restaurantId,
-          amount: orderData.deliveryFee
-        },
-        priority: 'high'
-      });
-      
-      // Emit notification update
-      emitNotificationToUser(deliveryPartnerId, notification);
-    } catch (error) {
-      console.error('Error creating order assigned notification:', error);
-    }
   }
 };
 
 // Notify delivery partner about order cancellation
-const notifyDeliveryPartnerOrderCancelled = async (deliveryPartnerId, orderData) => {
+const notifyDeliveryPartnerOrderCancelled = (deliveryPartnerId, orderData) => {
   if (io) {
     io.to(`delivery-partner-${deliveryPartnerId}`).emit('order-cancelled', {
       type: 'ORDER_CANCELLED',
@@ -306,26 +215,6 @@ const notifyDeliveryPartnerOrderCancelled = async (deliveryPartnerId, orderData)
       timestamp: new Date().toISOString()
     });
     console.log(`📢 Notified delivery partner ${deliveryPartnerId} of order cancellation ${orderData._id}`);
-    
-    // Create notification in database
-    try {
-      const notification = await Notification.create({
-        recipient: deliveryPartnerId,
-        type: 'order_cancelled',
-        title: 'Order Cancelled',
-        message: `Order #${orderData._id.toString().slice(-6)} has been cancelled`,
-        data: {
-          orderId: orderData._id,
-          restaurantId: orderData.restaurantId?._id || orderData.restaurantId
-        },
-        priority: 'medium'
-      });
-      
-      // Emit notification update
-      emitNotificationToUser(deliveryPartnerId, notification);
-    } catch (error) {
-      console.error('Error creating order cancelled notification:', error);
-    }
   }
 };
 
@@ -339,6 +228,5 @@ module.exports = {
   notifyDeliveryPartner,
   notifyDeliveryPartnerOrderAssigned,
   notifyDeliveryPartnerOrderCancelled,
-  emitNotificationToUser,
   getOnlineStats
 };

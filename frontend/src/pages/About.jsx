@@ -15,13 +15,13 @@ const About = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white py-16 sm:py-20">
+      <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white py-12 sm:py-16 lg:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
               About FlashBites
             </h1>
-            <p className="text-xl sm:text-2xl text-orange-100 max-w-3xl mx-auto">
+            <p className="text-lg sm:text-xl lg:text-2xl text-orange-100 max-w-3xl mx-auto px-2 sm:px-0">
               Bringing the joy of online food delivery to rural and semi-urban India
             </p>
           </div>
