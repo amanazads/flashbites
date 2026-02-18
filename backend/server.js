@@ -76,6 +76,10 @@ const allowedOrigins = [
   'https://flashbites.vercel.app',
   'https://flashbites.shop',
   'https://www.flashbites.shop',
+  // Capacitor iOS/Android origins
+  'capacitor://localhost',
+  'ionic://localhost',
+  'http://localhost',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
@@ -83,6 +87,11 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, Postman, or server-to-server)
     if (!origin) return callback(null, true);
+    
+    // Allow Capacitor schemes
+    if (origin && (origin.startsWith('capacitor://') || origin.startsWith('ionic://'))) {
+      return callback(null, true);
+    }
     
     if (allowedOrigins.includes(origin)) {
       callback(null, true);

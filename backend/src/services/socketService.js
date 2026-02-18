@@ -15,6 +15,9 @@ const initializeSocket = (server) => {
         'https://flashbites.vercel.app',
         'https://flashbites.shop',
         'https://www.flashbites.shop',
+        'capacitor://localhost',
+        'ionic://localhost',
+        'http://localhost',
         process.env.FRONTEND_URL
       ],
       credentials: true,
