@@ -27,7 +27,6 @@ class SocketService {
     
     const socketIns = io(SOCKET_URL, {
       auth: { token },
-      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5

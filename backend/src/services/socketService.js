@@ -22,8 +22,7 @@ const initializeSocket = (server) => {
       ],
       credentials: true,
       methods: ['GET', 'POST']
-    },
-    transports: ['websocket', 'polling']
+    }
   });
 
   // Authentication middleware for socket connections
