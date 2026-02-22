@@ -132,30 +132,11 @@ const RestaurantDashboard = () => {
   useEffect(() => {
     if (!restaurant) return;
 
-    // Listen for new orders
+    // Listen for new orders (Data Refresh Only)
     const handleNewOrder = (data) => {
-      console.log('🔔 New order received:', data);
+      console.log('🔄 Dashboard: Auto-refreshing data on order event:', data.type);
       
-      // Play notification sound
-      playNotificationSound('new-order');
-      
-      // Show toast notification
-      if (data.type === 'NEW_ORDER') {
-        toast.success(`🔔 New Order! Total: ${formatCurrency(data.order.total)}`, {
-          duration: 5000,
-          icon: '🛎️'
-        });
-      } else if (data.type === 'ORDER_CANCELLED') {
-        toast.error(data.message || 'Order was cancelled', {
-          duration: 5000
-        });
-      } else if (data.type === 'ORDER_STATUS_UPDATE') {
-        toast.info(data.message || 'Order status updated', {
-          duration: 4000
-        });
-      }
-      
-      // Refresh orders list
+      // Refresh orders list silently, global useNotifications handles UI
       if (activeTab === 'orders') {
         fetchOrders();
       }
@@ -408,7 +389,7 @@ const RestaurantDashboard = () => {
   if (!authChecked || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
       </div>
     );
   }
@@ -416,7 +397,7 @@ const RestaurantDashboard = () => {
   if (!restaurant && !showRestaurantForm) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
-        <div className="max-w-4xl mx-auto px-4">
+        <div className="max-w-4xl mx-auto container-px">
           <div className="bg-white rounded-lg shadow-lg p-8 text-center">
             <BuildingStorefrontIcon className="h-16 w-16 mx-auto text-gray-400 mb-4" />
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
@@ -440,7 +421,7 @@ const RestaurantDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto container-px">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
@@ -449,7 +430,7 @@ const RestaurantDashboard = () => {
                 <img
                   src={restaurant.image}
                   alt={restaurant.name}
-                  className="h-12 w-12 sm:h-16 sm:w-16 rounded-full object-cover border-2 border-orange-500 flex-shrink-0"
+                  className="h-12 w-12 sm:h-16 sm:w-16 rounded-full object-cover border-2 border-primary-500 flex-shrink-0"
                 />
               )}
               <div className="min-w-0">
@@ -508,7 +489,7 @@ const RestaurantDashboard = () => {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6">
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
               <div className="flex items-center">
-                <ChartBarIcon className="h-8 w-8 sm:h-10 sm:w-10 text-orange-500 flex-shrink-0" />
+                <ChartBarIcon className="h-8 w-8 sm:h-10 sm:w-10 text-primary-500 flex-shrink-0" />
                 <div className="ml-2 sm:ml-4 min-w-0">
                   <p className="text-xs sm:text-sm text-gray-600">Menu Items</p>
                   <p className="text-xl sm:text-2xl font-bold">{menuItems.length}</p>
@@ -550,7 +531,7 @@ const RestaurantDashboard = () => {
                     onClick={() => setActiveTab('overview')}
                     className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'overview'
-                        ? 'border-orange-500 text-orange-600'
+                        ? 'border-primary-500 text-primary-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
@@ -560,7 +541,7 @@ const RestaurantDashboard = () => {
                     onClick={() => setActiveTab('menu')}
                     className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'menu'
-                        ? 'border-orange-500 text-orange-600'
+                        ? 'border-primary-500 text-primary-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
@@ -573,7 +554,7 @@ const RestaurantDashboard = () => {
                     }}
                     className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'orders'
-                        ? 'border-orange-500 text-orange-600'
+                        ? 'border-primary-500 text-primary-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
@@ -586,7 +567,7 @@ const RestaurantDashboard = () => {
                     }}
                     className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'analytics'
-                        ? 'border-orange-500 text-orange-600'
+                        ? 'border-primary-500 text-primary-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
@@ -600,7 +581,7 @@ const RestaurantDashboard = () => {
             {activeTab === 'overview' && (
               <div className="bg-white rounded-lg shadow-md p-6">
                 {/* Restaurant Status Toggle */}
-                <div className="mb-6 p-4 border-2 border-orange-200 rounded-lg bg-orange-50">
+                <div className="mb-6 p-4 border-2 border-primary-200 rounded-lg bg-primary-50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`w-4 h-4 rounded-full ${restaurant.acceptingOrders ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
@@ -631,7 +612,7 @@ const RestaurantDashboard = () => {
                         }}
                         className="sr-only peer"
                       />
-                      <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-green-500"></div>
+                      <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-green-500"></div>
                       <span className="ml-3 text-sm font-medium text-gray-900">
                         {restaurant.acceptingOrders ? 'Open' : 'Closed'}
                       </span>
@@ -778,7 +759,7 @@ const RestaurantDashboard = () => {
                             </p>
                             
                             <div className="flex justify-between items-center mb-2">
-                              <span className="font-bold text-xl text-orange-600">
+                              <span className="font-bold text-xl text-primary-600">
                                 ₹{item.price}
                               </span>
                               <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
@@ -817,7 +798,7 @@ const RestaurantDashboard = () => {
                         type="checkbox"
                         checked={autoRefreshOrders}
                         onChange={(e) => setAutoRefreshOrders(e.target.checked)}
-                        className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
+                        className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
                       />
                       <span className="text-sm text-gray-700">
                         Auto-refresh {autoRefreshOrders && '(30s)'}
@@ -835,7 +816,7 @@ const RestaurantDashboard = () => {
 
                 {ordersLoading ? (
                   <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto"></div>
                   </div>
                 ) : orders.length === 0 ? (
                   <div className="text-center py-12">
@@ -1010,7 +991,7 @@ const RestaurantDashboard = () => {
                       setAnalyticsPeriod(e.target.value);
                       fetchAnalytics(e.target.value);
                     }}
-                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="7">Last 7 Days</option>
                     <option value="30">Last 30 Days</option>
@@ -1020,7 +1001,7 @@ const RestaurantDashboard = () => {
 
                 {analyticsLoading ? (
                   <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
                     <p className="mt-4 text-gray-600">Loading analytics...</p>
                   </div>
                 ) : analytics ? (
@@ -1153,7 +1134,7 @@ const RestaurantDashboard = () => {
                               <div key={hour} className="flex flex-col items-center">
                                 <div className="w-full bg-gray-200 rounded-t" style={{ height: '100px', display: 'flex', alignItems: 'flex-end' }}>
                                   <div
-                                    className="w-full bg-orange-500 rounded-t transition-all"
+                                    className="w-full bg-primary-500 rounded-t transition-all"
                                     style={{ height: `${height}%` }}
                                     title={`${hour}:00 - ${count} orders`}
                                   />
@@ -1196,7 +1177,7 @@ const RestaurantDashboard = () => {
                     onChange={(e) =>
                       setRestaurantData({ ...restaurantData, name: e.target.value })
                     }
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -1213,7 +1194,7 @@ const RestaurantDashboard = () => {
                           email: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                   <div>
@@ -1228,7 +1209,7 @@ const RestaurantDashboard = () => {
                           phone: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                 </div>
@@ -1246,7 +1227,7 @@ const RestaurantDashboard = () => {
                       })
                     }
                     rows="3"
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -1264,7 +1245,7 @@ const RestaurantDashboard = () => {
                       })
                     }
                     placeholder="e.g., Indian, Chinese, Italian"
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -1283,7 +1264,7 @@ const RestaurantDashboard = () => {
                           },
                         })
                       }
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                   <div>
@@ -1300,7 +1281,7 @@ const RestaurantDashboard = () => {
                           },
                         })
                       }
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                   <div>
@@ -1317,7 +1298,7 @@ const RestaurantDashboard = () => {
                           },
                         })
                       }
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                   <div>
@@ -1336,7 +1317,7 @@ const RestaurantDashboard = () => {
                           },
                         })
                       }
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                 </div>
@@ -1358,7 +1339,7 @@ const RestaurantDashboard = () => {
                           },
                         })
                       }
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                   <div>
@@ -1377,7 +1358,7 @@ const RestaurantDashboard = () => {
                           },
                         })
                       }
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                 </div>
@@ -1396,7 +1377,7 @@ const RestaurantDashboard = () => {
                       })
                     }
                     placeholder="e.g., 30-40 min"
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -1409,7 +1390,7 @@ const RestaurantDashboard = () => {
                     type="file"
                     accept="image/*"
                     onChange={handleRestaurantImageChange}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   {restaurantImagePreview && (
                     <div className="mt-3">
@@ -1461,7 +1442,7 @@ const RestaurantDashboard = () => {
                     onChange={(e) =>
                       setMenuItemData({ ...menuItemData, name: e.target.value })
                     }
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -1473,7 +1454,7 @@ const RestaurantDashboard = () => {
                     type="file"
                     accept="image/*"
                     onChange={handleMenuImageChange}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   {menuImagePreview && (
                     <div className="mt-2">
@@ -1502,7 +1483,7 @@ const RestaurantDashboard = () => {
                       })
                     }
                     rows="3"
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -1518,7 +1499,7 @@ const RestaurantDashboard = () => {
                       onChange={(e) =>
                         setMenuItemData({ ...menuItemData, price: e.target.value })
                       }
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                   <div>
@@ -1534,7 +1515,7 @@ const RestaurantDashboard = () => {
                           category: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
                       <option value="">Select category</option>
                       <option value="Starters">Starters</option>

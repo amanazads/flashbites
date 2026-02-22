@@ -17,7 +17,7 @@ const NotificationBell = () => {
       {/* Bell Icon with Connection Indicator */}
       <button
         onClick={() => setShowMenu(!showMenu)}
-        className="relative p-2 text-gray-600 hover:text-orange-500 transition-colors"
+        className="relative p-2 text-gray-600 hover:text-primary-500 transition-colors"
         aria-label="Notifications"
       >
         <BellIcon className="h-6 w-6" />
@@ -71,7 +71,7 @@ const NotificationBell = () => {
                     toggleSound();
                   }}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    soundEnabled ? 'bg-orange-500' : 'bg-gray-300'
+                    soundEnabled ? 'bg-primary-500' : 'bg-gray-300'
                   }`}
                 >
                   <span

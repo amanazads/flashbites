@@ -71,8 +71,9 @@ app.use('/api/', limiter);
 // CORS configuration
 const allowedOrigins = [
   'http://localhost:3000',
-  'http://localhost:3001', 
+  'http://localhost:3001',
   'http://localhost:5173',
+  'http://localhost:5174',
   'https://flashbites.vercel.app',
   'https://flashbites.shop',
   'https://www.flashbites.shop',
@@ -80,30 +81,30 @@ const allowedOrigins = [
   'capacitor://localhost',
   'ionic://localhost',
   'http://localhost',
+  'https://flash-bite-go.base44.app',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, Postman, or server-to-server)
+    // Allow requests with no origin (mobile apps, Postman, server-to-server)
     if (!origin) return callback(null, true);
-    
     // Allow Capacitor schemes
     if (origin && (origin.startsWith('capacitor://') || origin.startsWith('ionic://'))) {
       return callback(null, true);
     }
-    
     if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      // In development, allow all origins
-      if (process.env.NODE_ENV !== 'production') {
-        callback(null, true);
-      } else {
-        console.warn(`⚠️  Blocked by CORS: ${origin}`);
-        callback(null, false);
-      }
+      return callback(null, true);
     }
+
+    // In development, allow all localhost origins
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+
+    console.warn(`⚠️  Blocked by CORS: ${origin}`);
+    // Use null, false — NOT new Error() — to avoid generating 500 responses
+    callback(null, false);
   },
   credentials: function(req, callback) {
     // Disable credentials for Capacitor apps

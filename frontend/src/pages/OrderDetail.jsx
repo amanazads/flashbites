@@ -124,7 +124,7 @@ const OrderDetail = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-6 sm:py-8">
-      <div className="max-w-6xl mx-auto px-4">
+      <div className="max-w-6xl mx-auto container-px">
         {/* Header */}
         <div className="mb-6">
           <button
@@ -458,7 +458,7 @@ const OrderDetail = () => {
                 </p>
                 <div className="space-y-2">
                   <div className="flex items-center text-gray-900">
-                    <BuildingStorefrontIcon className="h-4 w-4 mr-2 text-orange-500" />
+                    <BuildingStorefrontIcon className="h-4 w-4 mr-2 text-primary-500" />
                     <span className="font-medium">{order.restaurantId?.name}</span>
                   </div>
                   {order.restaurantId?.phone && (
@@ -489,7 +489,7 @@ const OrderDetail = () => {
                 </p>
                 <div className="space-y-2">
                   <div className="flex items-center text-gray-900">
-                    <span className="font-medium text-orange-600">FlashBites Support</span>
+                    <span className="font-medium text-primary-600">FlashBites Support</span>
                   </div>
                   <div className="flex items-center text-primary-600">
                     <PhoneIcon className="h-4 w-4 mr-2" />

@@ -20,7 +20,6 @@ import { formatCurrency, formatDateTime } from '../utils/formatters';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
 import axios from '../api/axios';
 import socketService from '../services/socketService';
-import { playNotificationSound } from '../utils/notificationSound';
 
 const AdminPanel = () => {
   const { user } = useSelector((state) => state.auth);
@@ -66,18 +65,9 @@ const AdminPanel = () => {
     if (user?.role !== 'admin') return;
 
     const handleNewOrder = (data) => {
-      console.log('🔔 Admin: New order received:', data);
+      console.log('🔄 Admin: Auto-refreshing data on order event:', data.type);
       
-      // Play notification sound
-      playNotificationSound('new-order');
-      
-      // Show toast notification
-      toast.success(`🔔 New Order! Restaurant: ${data.order.restaurantId?.name || 'Unknown'}, Total: ${formatCurrency(data.order.total)}`, {
-        duration: 5000,
-        icon: '🛎️'
-      });
-      
-      // Refresh data if on orders tab
+      // Refresh data silently, global useNotifications handles UI
       if (activeTab === 'orders') {
         fetchData();
       }
@@ -222,14 +212,14 @@ const AdminPanel = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto container-px">
         {/* Header */}
         <div className="mb-8 flex justify-between items-center">
           <div>
@@ -240,7 +230,7 @@ const AdminPanel = () => {
           </div>
           <button
             onClick={fetchData}
-            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
           >
             Refresh Now
           </button>
@@ -251,13 +241,13 @@ const AdminPanel = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <BuildingStorefrontIcon className="h-8 w-8 text-orange-500" />
+                <BuildingStorefrontIcon className="h-8 w-8 text-primary-500" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Restaurants</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.totalRestaurants}</p>
                 {stats.pendingApprovals > 0 && (
-                  <p className="text-xs text-orange-600">{stats.pendingApprovals} pending approval</p>
+                  <p className="text-xs text-primary-600">{stats.pendingApprovals} pending approval</p>
                 )}
               </div>
             </div>
@@ -308,7 +298,7 @@ const AdminPanel = () => {
                 onClick={() => setActiveTab('overview')}
                 className={`px-6 py-3 text-sm font-medium ${
                   activeTab === 'overview'
-                    ? 'border-b-2 border-orange-500 text-orange-600'
+                    ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -318,7 +308,7 @@ const AdminPanel = () => {
                 onClick={() => setActiveTab('restaurants')}
                 className={`px-6 py-3 text-sm font-medium ${
                   activeTab === 'restaurants'
-                    ? 'border-b-2 border-orange-500 text-orange-600'
+                    ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -328,7 +318,7 @@ const AdminPanel = () => {
                 onClick={() => setActiveTab('users')}
                 className={`px-6 py-3 text-sm font-medium ${
                   activeTab === 'users'
-                    ? 'border-b-2 border-orange-500 text-orange-600'
+                    ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -338,7 +328,7 @@ const AdminPanel = () => {
                 onClick={() => setActiveTab('orders')}
                 className={`px-6 py-3 text-sm font-medium ${
                   activeTab === 'orders'
-                    ? 'border-b-2 border-orange-500 text-orange-600'
+                    ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -348,7 +338,7 @@ const AdminPanel = () => {
                 onClick={() => setActiveTab('partners')}
                 className={`px-6 py-3 text-sm font-medium ${
                   activeTab === 'partners'
-                    ? 'border-b-2 border-orange-500 text-orange-600'
+                    ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -361,7 +351,7 @@ const AdminPanel = () => {
                 }}
                 className={`px-6 py-3 text-sm font-medium ${
                   activeTab === 'analytics'
-                    ? 'border-b-2 border-orange-500 text-orange-600'
+                    ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -379,13 +369,13 @@ const AdminPanel = () => {
                     Welcome to the admin panel. Monitor and manage all aspects of the FlashBites platform.
                   </p>
                   {stats.pendingApprovals > 0 && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                      <p className="text-orange-800 font-medium">
+                    <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+                      <p className="text-primary-800 font-medium">
                         ⚠️ {stats.pendingApprovals} restaurant(s) awaiting approval
                       </p>
                       <button
                         onClick={() => setActiveTab('restaurants')}
-                        className="mt-2 text-orange-600 hover:text-orange-800 font-medium"
+                        className="mt-2 text-primary-600 hover:text-primary-800 font-medium"
                       >
                         Review Now →
                       </button>
@@ -753,7 +743,7 @@ const AdminPanel = () => {
                       setAnalyticsPeriod(e.target.value);
                       fetchAnalytics(e.target.value);
                     }}
-                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="7">Last 7 Days</option>
                     <option value="30">Last 30 Days</option>
@@ -763,7 +753,7 @@ const AdminPanel = () => {
 
                 {analyticsLoading ? (
                   <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
                     <p className="mt-4 text-gray-600">Loading analytics...</p>
                   </div>
                 ) : analytics ? (
@@ -803,13 +793,13 @@ const AdminPanel = () => {
                         </div>
                       </div>
 
-                      <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-6">
+                      <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-lg p-6">
                         <div className="flex items-center">
-                          <TruckIcon className="h-10 w-10 text-orange-600" />
+                          <TruckIcon className="h-10 w-10 text-primary-600" />
                           <div className="ml-4">
-                            <p className="text-sm text-orange-800">Delivery Partners</p>
-                            <p className="text-3xl font-bold text-orange-900">{analytics.overview.totalDeliveryPartners}</p>
-                            <p className="text-xs text-orange-600 mt-1">Active fleet</p>
+                            <p className="text-sm text-primary-800">Delivery Partners</p>
+                            <p className="text-3xl font-bold text-primary-900">{analytics.overview.totalDeliveryPartners}</p>
+                            <p className="text-xs text-primary-600 mt-1">Active fleet</p>
                           </div>
                         </div>
                       </div>
@@ -831,14 +821,14 @@ const AdminPanel = () => {
                             </div>
                           </div>
 
-                          <div className="p-4 bg-orange-50 rounded-lg">
+                          <div className="p-4 bg-primary-50 rounded-lg">
                             <div className="flex justify-between items-center mb-2">
-                              <span className="font-semibold text-orange-900">💵 Cash on Delivery</span>
-                              <span className="text-sm text-orange-600">{analytics.paymentBreakdown.cash.percentage}%</span>
+                              <span className="font-semibold text-primary-900">💵 Cash on Delivery</span>
+                              <span className="text-sm text-primary-600">{analytics.paymentBreakdown.cash.percentage}%</span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-sm text-orange-700">{analytics.paymentBreakdown.cash.count} orders</span>
-                              <span className="text-lg font-bold text-orange-900">{formatCurrency(analytics.paymentBreakdown.cash.amount)}</span>
+                              <span className="text-sm text-primary-700">{analytics.paymentBreakdown.cash.count} orders</span>
+                              <span className="text-lg font-bold text-primary-900">{formatCurrency(analytics.paymentBreakdown.cash.amount)}</span>
                             </div>
                           </div>
                         </div>
@@ -859,9 +849,9 @@ const AdminPanel = () => {
                             <span className="font-medium text-gray-700">⚫ Inactive</span>
                             <span className="text-xl font-bold text-gray-900">{analytics.restaurantStatus.inactive}</span>
                           </div>
-                          <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
-                            <span className="font-medium text-orange-700">⏳ Pending Approval</span>
-                            <span className="text-xl font-bold text-orange-900">{analytics.restaurantStatus.pending}</span>
+                          <div className="flex justify-between items-center p-3 bg-primary-50 rounded-lg">
+                            <span className="font-medium text-primary-700">⏳ Pending Approval</span>
+                            <span className="text-xl font-bold text-primary-900">{analytics.restaurantStatus.pending}</span>
                           </div>
                         </div>
                       </div>
@@ -959,7 +949,7 @@ const AdminPanel = () => {
                                       <p className="text-xs text-gray-500">{order.deliveryPartnerPhone}</p>
                                     </div>
                                   </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-orange-600">
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-primary-600">
                                     {formatCurrency(order.amount)}
                                   </td>
                                 </tr>

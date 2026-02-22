@@ -18,72 +18,47 @@ class NotificationSound {
     }
   }
 
-  // Play notification sound (synthesized beep)
+  // Play notification sound (HTML5 Audio)
   async playNotification(type = 'new-order') {
-    // Auto-initialize if not initialized
-    if (!this.initialized) {
-      this.init();
-    }
-
-    if (!this.audioContext) {
-      console.warn('Audio context not available - trying to initialize...');
-      this.init();
-      if (!this.audioContext) {
-        console.error('Failed to initialize audio context');
-        return;
-      }
-    }
+    if (!this.initialized) this.init();
 
     try {
-      // Resume audio context if suspended (browser autoplay policy)
-      if (this.audioContext.state === 'suspended') {
-        console.log('Resuming suspended audio context...');
-        await this.audioContext.resume();
-      }
+      // Play a premium mp3 sound
+      const audioUrl = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
+      const audio = new Audio(audioUrl);
+      audio.volume = 0.8;
+      await audio.play();
+      console.log(`🔔 Played notification sound (${type}) via MP3`);
+    } catch (mp3Error) {
+      console.warn('MP3 playback failed, falling back to oscillator...', mp3Error);
+      
+      // Fallback to synthesized beep
+      try {
+        if (!this.audioContext) return;
+        if (this.audioContext.state === 'suspended') {
+          await this.audioContext.resume();
+        }
 
-      const now = this.audioContext.currentTime;
-      const oscillator = this.audioContext.createOscillator();
-      const gainNode = this.audioContext.createGain();
+        const now = this.audioContext.currentTime;
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
 
-      oscillator.connect(gainNode);
-      gainNode.connect(this.audioContext.destination);
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
 
-      // Different sounds for different notification types
-      if (type === 'new-order') {
-        // Two-tone alert sound
+        // Quick modern chirp
+        oscillator.type = 'sine';
         oscillator.frequency.setValueAtTime(800, now);
-        oscillator.frequency.setValueAtTime(1000, now + 0.15);
-        oscillator.frequency.setValueAtTime(800, now + 0.3);
+        oscillator.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
         
         gainNode.gain.setValueAtTime(0.3, now);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-        
-        oscillator.start(now);
-        oscillator.stop(now + 0.5);
-      } else if (type === 'order-update') {
-        // Single pleasant tone
-        oscillator.frequency.setValueAtTime(600, now);
-        
-        gainNode.gain.setValueAtTime(0.2, now);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-        
-        oscillator.start(now);
-        oscillator.stop(now + 0.3);
-      } else if (type === 'delivery-update') {
-        // Quick chirp
-        oscillator.frequency.setValueAtTime(700, now);
-        oscillator.frequency.exponentialRampToValueAtTime(900, now + 0.1);
-        
-        gainNode.gain.setValueAtTime(0.15, now);
         gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
         
         oscillator.start(now);
         oscillator.stop(now + 0.2);
+      } catch (oscError) {
+        console.error('Synthesizer fallback failed:', oscError);
       }
-
-      console.log(`🔔 Played ${type} notification sound`);
-    } catch (error) {
-      console.error('Failed to play notification sound:', error);
     }
   }
 

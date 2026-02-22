@@ -305,13 +305,13 @@ const TermsAndConditions = () => {
         <div className="mt-12 pt-8 border-t border-gray-200 flex flex-col sm:flex-row gap-4 justify-between items-center">
           <Link 
             to="/privacy" 
-            className="text-orange-600 hover:text-orange-700 font-medium"
+            className="text-primary-600 hover:text-primary-700 font-medium"
           >
             View Privacy Policy →
           </Link>
           <Link 
             to="/" 
-            className="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition"
+            className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition"
           >
             Back to Home
           </Link>

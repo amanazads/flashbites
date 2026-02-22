@@ -79,7 +79,7 @@ const RestaurantDetail = () => {
                     <span>{restaurant.deliveryTime} mins</span>
                   </div>
                   <div>
-                    Delivery: {restaurant.deliveryFee === 0 ? 'FREE' : formatCurrency(restaurant.deliveryFee)}
+                    Delivery: {(Number(restaurant.deliveryFee) || 0) === 0 ? 'FREE' : formatCurrency(Number(restaurant.deliveryFee))}
                   </div>
                 </div>
               </div>
@@ -104,7 +104,7 @@ const RestaurantDetail = () => {
 
       {/* Closed Restaurant Alert */}
       {!restaurant.acceptingOrders && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 mb-6">
+        <div className="max-w-7xl mx-auto container-px -mt-4 mb-6">
           <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
             <p className="text-red-800 font-semibold text-center">
               ⚠️ This restaurant is currently closed and not accepting orders. Please check back later.
@@ -114,11 +114,11 @@ const RestaurantDetail = () => {
       )}
 
       {/* Menu Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto container-px py-8">
         {/* Restaurant Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8">
           <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-orange-600">{menuItems?.length || 0}</div>
+            <div className="text-2xl font-bold text-primary-600">{menuItems?.length || 0}</div>
             <div className="text-sm text-gray-600">Menu Items</div>
           </div>
           <div className="bg-white rounded-lg p-4 text-center shadow-sm">
@@ -130,7 +130,7 @@ const RestaurantDetail = () => {
             <div className="text-sm text-gray-600">Delivery Time</div>
           </div>
           <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-purple-600">{restaurant.deliveryFee === 0 ? 'Free' : `₹${restaurant.deliveryFee}`}</div>
+            <div className="text-2xl font-bold text-purple-600">{(Number(restaurant.deliveryFee) || 0) === 0 ? 'Free' : formatCurrency(Number(restaurant.deliveryFee))}</div>
             <div className="text-sm text-gray-600">Delivery Fee</div>
           </div>
         </div>
@@ -159,8 +159,8 @@ const RestaurantDetail = () => {
                   onClick={() => setSelectedCategory(category)}
                   className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-sm font-medium whitespace-nowrap transition-all shadow-sm ${
                     selectedCategory === category
-                      ? 'bg-orange-500 text-white shadow-md scale-105'
-                      : 'bg-white text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                      ? 'bg-primary-500 text-white shadow-md scale-105'
+                      : 'bg-white text-gray-700 hover:bg-primary-50 hover:text-primary-600'
                   }`}
                 >
                   {category}
@@ -191,14 +191,14 @@ const RestaurantDetail = () => {
 
       {/* Restaurant Info */}
       <div className="bg-white border-t py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto container-px">
           <h3 className="text-2xl font-bold mb-8">Restaurant Information</h3>
           
           <div className="grid md:grid-cols-3 gap-8">
             {/* Address */}
             <div className="bg-gray-50 rounded-lg p-6">
               <div className="flex items-center mb-4">
-                <MapPinIcon className="h-6 w-6 text-orange-600 mr-2" />
+                <MapPinIcon className="h-6 w-6 text-primary-600 mr-2" />
                 <h4 className="font-semibold text-lg">Location</h4>
               </div>
               <p className="text-gray-600">
@@ -236,7 +236,7 @@ const RestaurantDetail = () => {
             {/* Timings */}
             <div className="bg-gray-50 rounded-lg p-6">
               <div className="flex items-center mb-4">
-                <ClockIcon className="h-6 w-6 text-orange-600 mr-2" />
+                <ClockIcon className="h-6 w-6 text-primary-600 mr-2" />
                 <h4 className="font-semibold text-lg">Operating Hours</h4>
               </div>
               <div className="text-sm space-y-2">
@@ -282,7 +282,7 @@ const RestaurantDetail = () => {
               <ul className="space-y-2 text-gray-700">
                 <li>• Rating: {restaurant.rating}/5 ({restaurant.reviewCount} reviews)</li>
                 <li>• Average delivery time: {restaurant.deliveryTime} minutes</li>
-                <li>• {restaurant.deliveryFee === 0 ? 'FREE delivery' : `Delivery fee: ${formatCurrency(restaurant.deliveryFee)}`}</li>
+                <li>• {(Number(restaurant.deliveryFee) || 0) === 0 ? 'FREE delivery' : `Delivery fee: ${formatCurrency(Number(restaurant.deliveryFee))}`}</li>
                 <li>• Quality checked and hygienic</li>
                 <li>• Safe packaging and contactless delivery</li>
               </ul>

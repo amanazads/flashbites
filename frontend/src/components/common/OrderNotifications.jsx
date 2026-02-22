@@ -62,7 +62,7 @@ const OrderNotifications = ({ restaurantId }) => {
       title="Order Notifications"
     >
       {newOrdersCount > 0 ? (
-        <BellAlertIcon className="h-6 w-6 text-orange-500 animate-pulse" />
+        <BellAlertIcon className="h-6 w-6 text-primary-500 animate-pulse" />
       ) : (
         <BellIcon className="h-6 w-6 text-gray-600" />
       )}

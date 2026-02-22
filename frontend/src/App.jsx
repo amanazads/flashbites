@@ -34,6 +34,7 @@ import Partner from './pages/Partner';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import NotificationsPage from './pages/NotificationsPage';
+import HelpPage from './pages/HelpPage';
 import NotFound from './pages/NotFound';
 
 // Google OAuth Success Handler
@@ -61,7 +62,7 @@ const GoogleAuthSuccess = () => {
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
         <p className="mt-4 text-gray-600">Completing authentication...</p>
       </div>
     </div>
@@ -115,7 +116,7 @@ function App() {
         <div className="flex flex-col min-h-screen">
           <Navbar />
           
-          <main className="flex-1 pb-[calc(86px+var(--safe-area-inset-bottom))] md:pb-0">
+          <main className="flex-1 w-full relative z-0 pb-20 lg:pb-0">
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Home />} />
@@ -129,6 +130,7 @@ function App() {
               <Route path="/partner" element={<Partner />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/help" element={<HelpPage />} />
 
               {/* Protected Routes */}
               <Route
@@ -201,7 +203,10 @@ function App() {
             </Routes>
           </main>
 
-          <Footer />
+          {/* Footer: desktop only — mobile users see footer links in Profile */}
+          <footer className="hidden lg:block">
+            <Footer />
+          </footer>
           <CartDrawer />
         </div>
 

@@ -127,7 +127,7 @@ const LiveTracking = ({ orderId, socket }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -175,7 +175,7 @@ const LiveTracking = ({ orderId, socket }) => {
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${
             trackingData.status === 'delivered' ? 'bg-green-100 text-green-800' :
             trackingData.status === 'out_for_delivery' ? 'bg-blue-100 text-blue-800' :
-            'bg-orange-100 text-orange-800'
+            'bg-primary-100 text-primary-800'
           }`}>
             {trackingData.status.replace(/_/g, ' ').toUpperCase()}
           </span>
@@ -291,7 +291,7 @@ const LiveTracking = ({ orderId, socket }) => {
                     Lng: {point.location.coordinates[0].toFixed(6)}
                   </span>
                   {point.status && (
-                    <span className="ml-2 text-orange-600 font-medium">
+                    <span className="ml-2 text-primary-600 font-medium">
                       ({point.status})
                     </span>
                   )}

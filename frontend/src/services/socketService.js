@@ -12,15 +12,20 @@ class SocketService {
       return;
     }
 
-    // Get backend URL and remove /api path for Socket.IO
-    let BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    // Determine the socket URL
+    let SOCKET_URL;
+    if (import.meta.env.DEV) {
+      // In development, connect directly to the backend
+      SOCKET_URL = 'http://localhost:8080';
+    } else {
+      // In production, derive from the API URL by removing /api path
+      let backendUrl = import.meta.env.VITE_API_URL || '';
+      SOCKET_URL = backendUrl.replace(/\/api\/?$/, '') || window.location.origin;
+    }
     
-    // Remove /api suffix if present (Socket.IO connects to root)
-    BACKEND_URL = BACKEND_URL.replace(/\/api\/?$/, '');
+    console.log('🔌 Connecting to Socket.IO:', SOCKET_URL);
     
-    console.log('🔌 Connecting to Socket.IO:', BACKEND_URL);
-    
-    this.socket = io(BACKEND_URL, {
+    const socketIns = io(SOCKET_URL, {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -28,22 +33,23 @@ class SocketService {
       reconnectionAttempts: 5
     });
 
-    this.socket.on('connect', () => {
-      console.log('✅ Socket connected:', this.socket.id);
+    socketIns.on('connect', () => {
+      console.log('✅ Socket connected:', socketIns.id);
     });
 
-    this.socket.on('disconnect', (reason) => {
+    socketIns.on('disconnect', (reason) => {
       console.log('❌ Socket disconnected:', reason);
     });
 
-    this.socket.on('connect_error', (error) => {
+    socketIns.on('connect_error', (error) => {
       console.error('Socket connection error:', error.message);
     });
 
-    this.socket.on('reconnect', (attemptNumber) => {
+    socketIns.on('reconnect', (attemptNumber) => {
       console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
     });
 
+    this.socket = socketIns;
     // Setup default listeners
     this.setupDefaultListeners();
   }
@@ -65,7 +71,11 @@ class SocketService {
 
   disconnect() {
     if (this.socket) {
-      this.socket.disconnect();
+      if (this.socket.connected) {
+        this.socket.disconnect();
+      } else {
+        this.socket.close(); // forcefully close pending connections
+      }
       this.socket = null;
       this.listeners.clear();
       console.log('Socket disconnected manually');
@@ -101,6 +111,14 @@ class SocketService {
     if (this.socket) {
       this.socket.on('delivery-update', callback);
       this.listeners.set('delivery-update', callback);
+    }
+  }
+
+  // Generic generic listener
+  on(event, callback) {
+    if (this.socket) {
+      this.socket.on(event, callback);
+      this.listeners.set(event, callback);
     }
   }
 

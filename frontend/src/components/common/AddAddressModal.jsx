@@ -73,8 +73,8 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
                   key={type}
                   className={`flex-1 p-3 border rounded-lg cursor-pointer text-center transition ${
                     formData.type === type
-                      ? 'border-orange-500 bg-orange-50 text-orange-700'
-                      : 'border-gray-300 hover:border-orange-300'
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-gray-300 hover:border-primary-300'
                   }`}
                 >
                   <input
@@ -101,7 +101,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
               value={formData.street}
               onChange={(e) => setFormData({ ...formData, street: e.target.value })}
               placeholder="House/Flat No., Street name"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               required
             />
           </div>
@@ -116,7 +116,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
               value={formData.landmark}
               onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
               placeholder="Nearby landmark"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
 
@@ -131,7 +131,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                 placeholder="City"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 required
               />
             </div>
@@ -144,7 +144,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
                 value={formData.state}
                 onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                 placeholder="State"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 required
               />
             </div>
@@ -162,7 +162,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
               placeholder="6-digit PIN code"
               maxLength={6}
               pattern="[0-9]{6}"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               required
             />
           </div>
@@ -180,7 +180,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               {loading ? 'Adding...' : 'Add Address'}
             </button>

@@ -171,29 +171,29 @@ const Partner = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white py-16 px-4 sm:px-6 lg:px-8">
+      <div className="bg-gradient-to-r from-primary-500 to-primary-600 text-white py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Partner With FlashBites</h1>
-          <p className="text-xl text-orange-100 max-w-3xl mx-auto mb-8">
+          <p className="text-xl text-primary-100 max-w-3xl mx-auto mb-8">
             Join us in revolutionizing food delivery in rural and semi-urban India. 
             Whether you're a restaurant owner, delivery partner, or looking for a career, we have opportunities for you.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <button
               onClick={() => setActiveSection('restaurant')}
-              className="bg-white text-orange-600 px-6 py-3 rounded-lg font-semibold hover:bg-orange-50 transition-colors"
+              className="bg-white text-primary-600 px-6 py-3 rounded-lg font-semibold hover:bg-primary-50 transition-colors"
             >
               Restaurant Partner
             </button>
             <button
               onClick={() => setActiveSection('delivery')}
-              className="bg-white text-orange-600 px-6 py-3 rounded-lg font-semibold hover:bg-orange-50 transition-colors"
+              className="bg-white text-primary-600 px-6 py-3 rounded-lg font-semibold hover:bg-primary-50 transition-colors"
             >
               Delivery Partner
             </button>
             <button
               onClick={() => setActiveSection('career')}
-              className="bg-orange-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-800 transition-colors"
+              className="bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-800 transition-colors"
             >
               Careers
             </button>
@@ -218,8 +218,8 @@ const Partner = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
               {/* Restaurant Partner */}
               <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-shadow">
-                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                  <BuildingStorefrontIcon className="h-8 w-8 text-orange-600" />
+                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <BuildingStorefrontIcon className="h-8 w-8 text-primary-600" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-3 text-center">Restaurant Partner</h3>
                 <p className="text-gray-600 mb-6 text-center">
@@ -245,7 +245,7 @@ const Partner = () => {
                 </ul>
                 <button
                   onClick={() => setActiveSection('restaurant')}
-                  className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 transition-colors font-semibold"
+                  className="w-full bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
                 >
                   Learn More
                 </button>
@@ -253,8 +253,8 @@ const Partner = () => {
 
               {/* Delivery Partner */}
               <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-shadow">
-                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                  <TruckIcon className="h-8 w-8 text-orange-600" />
+                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <TruckIcon className="h-8 w-8 text-primary-600" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-3 text-center">Delivery Partner</h3>
                 <p className="text-gray-600 mb-6 text-center">
@@ -280,7 +280,7 @@ const Partner = () => {
                 </ul>
                 <button
                   onClick={() => setActiveSection('delivery')}
-                  className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 transition-colors font-semibold"
+                  className="w-full bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
                 >
                   Apply Now
                 </button>
@@ -288,8 +288,8 @@ const Partner = () => {
 
               {/* Career */}
               <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-shadow">
-                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                  <BriefcaseIcon className="h-8 w-8 text-orange-600" />
+                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <BriefcaseIcon className="h-8 w-8 text-primary-600" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-3 text-center">Career Opportunities</h3>
                 <p className="text-gray-600 mb-6 text-center">
@@ -315,7 +315,7 @@ const Partner = () => {
                 </ul>
                 <button
                   onClick={() => setActiveSection('career')}
-                  className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 transition-colors font-semibold"
+                  className="w-full bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
                 >
                   Explore Jobs
                 </button>
@@ -323,23 +323,23 @@ const Partner = () => {
             </div>
 
             {/* Stats */}
-            <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-8 text-white">
+            <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl p-8 text-white">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
                 <div>
                   <div className="text-4xl font-bold mb-2">500+</div>
-                  <div className="text-orange-100">Restaurant Partners</div>
+                  <div className="text-primary-100">Restaurant Partners</div>
                 </div>
                 <div>
                   <div className="text-4xl font-bold mb-2">50+</div>
-                  <div className="text-orange-100">Delivery Partners</div>
+                  <div className="text-primary-100">Delivery Partners</div>
                 </div>
                 <div>
                   <div className="text-4xl font-bold mb-2">10,000+</div>
-                  <div className="text-orange-100">Happy Customers</div>
+                  <div className="text-primary-100">Happy Customers</div>
                 </div>
                 <div>
                   <div className="text-4xl font-bold mb-2">15+</div>
-                  <div className="text-orange-100">Cities</div>
+                  <div className="text-primary-100">Cities</div>
                 </div>
               </div>
             </div>
@@ -351,7 +351,7 @@ const Partner = () => {
           <div className="max-w-4xl mx-auto">
             <button
               onClick={() => setActiveSection('overview')}
-              className="flex items-center text-orange-600 hover:text-orange-700 mb-6"
+              className="flex items-center text-primary-600 hover:text-primary-700 mb-6"
             >
               <ArrowRightIcon className="h-5 w-5 mr-2 rotate-180" />
               Back to Overview
@@ -359,7 +359,7 @@ const Partner = () => {
 
             <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
               <div className="flex items-center mb-6">
-                <BuildingStorefrontIcon className="h-12 w-12 text-orange-600 mr-4" />
+                <BuildingStorefrontIcon className="h-12 w-12 text-primary-600 mr-4" />
                 <div>
                   <h2 className="text-3xl font-bold text-gray-900">Partner Your Restaurant</h2>
                   <p className="text-gray-600">Grow your business with FlashBites</p>
@@ -405,28 +405,28 @@ const Partner = () => {
                   <h3 className="text-xl font-semibold text-gray-900 mb-4">How It Works</h3>
                   <div className="space-y-4">
                     <div className="flex items-start">
-                      <div className="w-8 h-8 bg-orange-600 text-white rounded-full flex items-center justify-center mr-4 flex-shrink-0 font-bold">1</div>
+                      <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center mr-4 flex-shrink-0 font-bold">1</div>
                       <div>
                         <h4 className="font-semibold text-gray-900">Register Your Restaurant</h4>
                         <p className="text-sm text-gray-600">Create an account and provide basic details about your restaurant.</p>
                       </div>
                     </div>
                     <div className="flex items-start">
-                      <div className="w-8 h-8 bg-orange-600 text-white rounded-full flex items-center justify-center mr-4 flex-shrink-0 font-bold">2</div>
+                      <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center mr-4 flex-shrink-0 font-bold">2</div>
                       <div>
                         <h4 className="font-semibold text-gray-900">Menu Upload</h4>
                         <p className="text-sm text-gray-600">Upload your menu with photos, descriptions, and prices.</p>
                       </div>
                     </div>
                     <div className="flex items-start">
-                      <div className="w-8 h-8 bg-orange-600 text-white rounded-full flex items-center justify-center mr-4 flex-shrink-0 font-bold">3</div>
+                      <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center mr-4 flex-shrink-0 font-bold">3</div>
                       <div>
                         <h4 className="font-semibold text-gray-900">Admin Approval</h4>
                         <p className="text-sm text-gray-600">Our team reviews and approves your restaurant within 24-48 hours.</p>
                       </div>
                     </div>
                     <div className="flex items-start">
-                      <div className="w-8 h-8 bg-orange-600 text-white rounded-full flex items-center justify-center mr-4 flex-shrink-0 font-bold">4</div>
+                      <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center mr-4 flex-shrink-0 font-bold">4</div>
                       <div>
                         <h4 className="font-semibold text-gray-900">Start Receiving Orders</h4>
                         <p className="text-sm text-gray-600">Your restaurant goes live and you start receiving orders!</p>
@@ -435,7 +435,7 @@ const Partner = () => {
                   </div>
                 </div>
 
-                <div className="bg-orange-50 rounded-lg p-6">
+                <div className="bg-primary-50 rounded-lg p-6">
                   <h3 className="text-xl font-semibold text-gray-900 mb-4">Ready to Partner?</h3>
                   <p className="text-gray-600 mb-4">
                     Already have an account? Login and create your restaurant profile from the dashboard.
@@ -443,13 +443,13 @@ const Partner = () => {
                   <div className="flex flex-wrap gap-4">
                     <button
                       onClick={() => navigate('/register')}
-                      className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors font-semibold"
+                      className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
                     >
                       Register as Restaurant Owner
                     </button>
                     <button
                       onClick={() => navigate('/login')}
-                      className="bg-white text-orange-600 border-2 border-orange-600 px-6 py-3 rounded-lg hover:bg-orange-50 transition-colors font-semibold"
+                      className="bg-white text-primary-600 border-2 border-primary-600 px-6 py-3 rounded-lg hover:bg-primary-50 transition-colors font-semibold"
                     >
                       Login to Dashboard
                     </button>
@@ -465,15 +465,15 @@ const Partner = () => {
           <div className="max-w-4xl mx-auto">
             <button
               onClick={() => setActiveSection('overview')}
-              className="flex items-center text-orange-600 hover:text-orange-700 mb-6"
+              className="flex items-center text-primary-600 hover:text-primary-700 mb-6"
             >
               <ArrowRightIcon className="h-5 w-5 mr-2 rotate-180" />
               Back to Overview
             </button>
 
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full mb-4">
-                <TruckIcon className="h-8 w-8 text-orange-600" />
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
+                <TruckIcon className="h-8 w-8 text-primary-600" />
               </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 Become a Delivery Partner
@@ -488,15 +488,15 @@ const Partner = () => {
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Why Join Us?</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center">
-                  <div className="text-orange-600 font-bold text-2xl mb-1">₹15,000 - ₹30,000</div>
+                  <div className="text-primary-600 font-bold text-2xl mb-1">₹15,000 - ₹30,000</div>
                   <div className="text-sm text-gray-600">Monthly Earnings</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-orange-600 font-bold text-2xl mb-1">Flexible</div>
+                  <div className="text-primary-600 font-bold text-2xl mb-1">Flexible</div>
                   <div className="text-sm text-gray-600">Working Hours</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-orange-600 font-bold text-2xl mb-1">Weekly</div>
+                  <div className="text-primary-600 font-bold text-2xl mb-1">Weekly</div>
                   <div className="text-sm text-gray-600">Payment Cycle</div>
                 </div>
               </div>
@@ -507,7 +507,7 @@ const Partner = () => {
           {/* Personal Information */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <UserIcon className="h-5 w-5 mr-2 text-orange-600" />
+              <UserIcon className="h-5 w-5 mr-2 text-primary-600" />
               Personal Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -521,7 +521,7 @@ const Partner = () => {
                   value={formData.fullName}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="Enter your full name"
                 />
               </div>
@@ -537,7 +537,7 @@ const Partner = () => {
                   onChange={handleChange}
                   required
                   max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
 
@@ -551,7 +551,7 @@ const Partner = () => {
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="your.email@example.com"
                 />
               </div>
@@ -568,7 +568,7 @@ const Partner = () => {
                   required
                   pattern="[0-9]{10}"
                   maxLength="10"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="10-digit mobile number"
                 />
               </div>
@@ -585,7 +585,7 @@ const Partner = () => {
                   required
                   pattern="[0-9]{10}"
                   maxLength="10"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="Alternate contact number"
                 />
               </div>
@@ -602,7 +602,7 @@ const Partner = () => {
                   required
                   pattern="[0-9]{12}"
                   maxLength="12"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="12-digit Aadhar number"
                 />
               </div>
@@ -612,7 +612,7 @@ const Partner = () => {
           {/* Address */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <MapPinIcon className="h-5 w-5 mr-2 text-orange-600" />
+              <MapPinIcon className="h-5 w-5 mr-2 text-primary-600" />
               Address
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -626,7 +626,7 @@ const Partner = () => {
                   value={formData.address.street}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="House/Flat number, Street name"
                 />
               </div>
@@ -641,7 +641,7 @@ const Partner = () => {
                   value={formData.address.city}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="City"
                 />
               </div>
@@ -656,7 +656,7 @@ const Partner = () => {
                   value={formData.address.state}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="State"
                 />
               </div>
@@ -673,7 +673,7 @@ const Partner = () => {
                   required
                   pattern="[0-9]{6}"
                   maxLength="6"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="6-digit PIN code"
                 />
               </div>
@@ -683,7 +683,7 @@ const Partner = () => {
           {/* Vehicle Information */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <TruckIcon className="h-5 w-5 mr-2 text-orange-600" />
+              <TruckIcon className="h-5 w-5 mr-2 text-primary-600" />
               Vehicle Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -696,7 +696,7 @@ const Partner = () => {
                   value={formData.vehicleType}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
                   <option value="bike">Bike/Scooter</option>
                   <option value="bicycle">Bicycle</option>
@@ -714,7 +714,7 @@ const Partner = () => {
                   value={formData.vehicleNumber}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="e.g., UP12AB1234"
                 />
               </div>
@@ -729,7 +729,7 @@ const Partner = () => {
                   value={formData.vehicleModel}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="e.g., Honda Activa"
                 />
               </div>
@@ -744,7 +744,7 @@ const Partner = () => {
                   value={formData.licenseNumber}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="DL number"
                 />
               </div>
@@ -754,7 +754,7 @@ const Partner = () => {
           {/* Bank Details */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <DocumentTextIcon className="h-5 w-5 mr-2 text-orange-600" />
+              <DocumentTextIcon className="h-5 w-5 mr-2 text-primary-600" />
               Bank Details
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -768,7 +768,7 @@ const Partner = () => {
                   value={formData.bankAccount.accountHolderName}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="As per bank records"
                 />
               </div>
@@ -783,7 +783,7 @@ const Partner = () => {
                   value={formData.bankAccount.accountNumber}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="Bank account number"
                 />
               </div>
@@ -799,7 +799,7 @@ const Partner = () => {
                   onChange={handleChange}
                   required
                   pattern="[A-Z]{4}0[A-Z0-9]{6}"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="e.g., SBIN0001234"
                 />
               </div>
@@ -809,7 +809,7 @@ const Partner = () => {
           {/* Emergency Contact */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <PhoneIcon className="h-5 w-5 mr-2 text-orange-600" />
+              <PhoneIcon className="h-5 w-5 mr-2 text-primary-600" />
               Emergency Contact
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -823,7 +823,7 @@ const Partner = () => {
                   value={formData.emergencyContact.name}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="Contact person name"
                 />
               </div>
@@ -840,7 +840,7 @@ const Partner = () => {
                   required
                   pattern="[0-9]{10}"
                   maxLength="10"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="10-digit number"
                 />
               </div>
@@ -855,7 +855,7 @@ const Partner = () => {
                   value={formData.emergencyContact.relation}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="e.g., Father, Mother"
                 />
               </div>
@@ -865,7 +865,7 @@ const Partner = () => {
           {/* Document Upload */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <CameraIcon className="h-5 w-5 mr-2 text-orange-600" />
+              <CameraIcon className="h-5 w-5 mr-2 text-primary-600" />
               Upload Documents
             </h3>
             <p className="text-sm text-gray-600 mb-4">
@@ -878,7 +878,7 @@ const Partner = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Your Photo <span className="text-red-500">*</span>
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-orange-500 transition-colors">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary-500 transition-colors">
                   {photoPreview ? (
                     <div className="relative">
                       <img src={photoPreview} alt="Preview" className="w-full h-40 object-cover rounded" />
@@ -898,7 +898,7 @@ const Partner = () => {
                   ) : (
                     <>
                       <CameraIcon className="h-12 w-12 mx-auto text-gray-400 mb-2" />
-                      <label className="cursor-pointer text-orange-600 hover:text-orange-700">
+                      <label className="cursor-pointer text-primary-600 hover:text-primary-700">
                         Click to upload
                         <input
                           type="file"
@@ -918,7 +918,7 @@ const Partner = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Driving License <span className="text-red-500">*</span>
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-orange-500 transition-colors">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary-500 transition-colors">
                   {licensePreview ? (
                     <div className="relative">
                       <img src={licensePreview} alt="Preview" className="w-full h-40 object-cover rounded" />
@@ -938,7 +938,7 @@ const Partner = () => {
                   ) : (
                     <>
                       <DocumentTextIcon className="h-12 w-12 mx-auto text-gray-400 mb-2" />
-                      <label className="cursor-pointer text-orange-600 hover:text-orange-700">
+                      <label className="cursor-pointer text-primary-600 hover:text-primary-700">
                         Click to upload
                         <input
                           type="file"
@@ -958,7 +958,7 @@ const Partner = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Aadhar Card <span className="text-red-500">*</span>
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-orange-500 transition-colors">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary-500 transition-colors">
                   {aadharPreview ? (
                     <div className="relative">
                       <img src={aadharPreview} alt="Preview" className="w-full h-40 object-cover rounded" />
@@ -978,7 +978,7 @@ const Partner = () => {
                   ) : (
                     <>
                       <DocumentTextIcon className="h-12 w-12 mx-auto text-gray-400 mb-2" />
-                      <label className="cursor-pointer text-orange-600 hover:text-orange-700">
+                      <label className="cursor-pointer text-primary-600 hover:text-primary-700">
                         Click to upload
                         <input
                           type="file"
@@ -1007,7 +1007,7 @@ const Partner = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-orange-600 text-white py-3 px-6 rounded-lg hover:bg-orange-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold text-lg"
+              className="w-full bg-primary-600 text-white py-3 px-6 rounded-lg hover:bg-primary-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold text-lg"
             >
               {loading ? 'Submitting...' : 'Submit Application'}
             </button>
@@ -1021,7 +1021,7 @@ const Partner = () => {
           <div className="max-w-4xl mx-auto mt-8">
             <button
               onClick={() => setActiveSection('overview')}
-              className="flex items-center text-orange-600 hover:text-orange-700 mb-6"
+              className="flex items-center text-primary-600 hover:text-primary-700 mb-6"
             >
               <ArrowRightIcon className="h-5 w-5 mr-2 rotate-180" />
               Back to Overview
@@ -1029,7 +1029,7 @@ const Partner = () => {
 
             <div className="bg-white rounded-xl shadow-lg p-8">
               <div className="flex items-center mb-6">
-                <BriefcaseIcon className="h-12 w-12 text-orange-600 mr-4" />
+                <BriefcaseIcon className="h-12 w-12 text-primary-600 mr-4" />
                 <div>
                   <h2 className="text-3xl font-bold text-gray-900">Career Opportunities</h2>
                   <p className="text-gray-600">Join our team and make an impact</p>
@@ -1094,7 +1094,7 @@ const Partner = () => {
                       </div>
                       <button
                         onClick={() => setActiveSection('contact')}
-                        className="text-orange-600 hover:text-orange-700 font-semibold text-sm"
+                        className="text-primary-600 hover:text-primary-700 font-semibold text-sm"
                       >
                         Apply Now →
                       </button>
@@ -1119,7 +1119,7 @@ const Partner = () => {
                       </div>
                       <button
                         onClick={() => setActiveSection('contact')}
-                        className="text-orange-600 hover:text-orange-700 font-semibold text-sm"
+                        className="text-primary-600 hover:text-primary-700 font-semibold text-sm"
                       >
                         Apply Now →
                       </button>
@@ -1144,7 +1144,7 @@ const Partner = () => {
                       </div>
                       <button
                         onClick={() => setActiveSection('contact')}
-                        className="text-orange-600 hover:text-orange-700 font-semibold text-sm"
+                        className="text-primary-600 hover:text-primary-700 font-semibold text-sm"
                       >
                         Apply Now →
                       </button>
@@ -1152,14 +1152,14 @@ const Partner = () => {
                   </div>
                 </div>
 
-                <div className="bg-orange-50 rounded-lg p-6">
+                <div className="bg-primary-50 rounded-lg p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Don't See Your Role?</h3>
                   <p className="text-gray-600 mb-4">
                     We're always looking for talented individuals. Send us your resume and we'll keep you in mind for future opportunities.
                   </p>
                   <button
                     onClick={() => setActiveSection('contact')}
-                    className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors font-semibold"
+                    className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
                   >
                     Send Resume
                   </button>
@@ -1174,7 +1174,7 @@ const Partner = () => {
           <div className="max-w-2xl mx-auto mt-8">
             <button
               onClick={() => setActiveSection('overview')}
-              className="flex items-center text-orange-600 hover:text-orange-700 mb-6"
+              className="flex items-center text-primary-600 hover:text-primary-700 mb-6"
             >
               <ArrowRightIcon className="h-5 w-5 mr-2 rotate-180" />
               Back to Overview
@@ -1182,17 +1182,17 @@ const Partner = () => {
 
             <div className="bg-white rounded-xl shadow-lg p-8">
               <div className="text-center mb-8">
-                <EnvelopeIcon className="h-12 w-12 text-orange-600 mx-auto mb-4" />
+                <EnvelopeIcon className="h-12 w-12 text-primary-600 mx-auto mb-4" />
                 <h2 className="text-3xl font-bold text-gray-900 mb-2">Get in Touch</h2>
                 <p className="text-gray-600">We'd love to hear from you. Reach out for any partnership inquiries or career opportunities.</p>
               </div>
 
               <div className="space-y-6">
                 <div className="flex items-start">
-                  <PhoneIcon className="h-6 w-6 text-orange-600 mr-4 mt-1 flex-shrink-0" />
+                  <PhoneIcon className="h-6 w-6 text-primary-600 mr-4 mt-1 flex-shrink-0" />
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1">Phone</h3>
-                    <a href="tel:+917068247779" className="text-orange-600 hover:text-orange-700">
+                    <a href="tel:+917068247779" className="text-primary-600 hover:text-primary-700">
                       +91 70682 47779
                     </a>
                     <p className="text-sm text-gray-500 mt-1">Mon-Sat, 9 AM - 6 PM</p>
@@ -1200,31 +1200,31 @@ const Partner = () => {
                 </div>
 
                 <div className="flex items-start">
-                  <EnvelopeIcon className="h-6 w-6 text-orange-600 mr-4 mt-1 flex-shrink-0" />
+                  <EnvelopeIcon className="h-6 w-6 text-primary-600 mr-4 mt-1 flex-shrink-0" />
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1">Email</h3>
                     <div className="space-y-1">
                       <div>
                         <span className="text-sm text-gray-600">Restaurant Partnership: </span>
-                        <a href="mailto:restaurants@flashbites.com" className="text-orange-600 hover:text-orange-700">
+                        <a href="mailto:restaurants@flashbites.com" className="text-primary-600 hover:text-primary-700">
                           restaurants@flashbites.com
                         </a>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600">Delivery Partnership: </span>
-                        <a href="mailto:delivery@flashbites.com" className="text-orange-600 hover:text-orange-700">
+                        <a href="mailto:delivery@flashbites.com" className="text-primary-600 hover:text-primary-700">
                           delivery@flashbites.com
                         </a>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600">Careers: </span>
-                        <a href="mailto:careers@flashbites.com" className="text-orange-600 hover:text-orange-700">
+                        <a href="mailto:careers@flashbites.com" className="text-primary-600 hover:text-primary-700">
                           careers@flashbites.com
                         </a>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600">General: </span>
-                        <a href="mailto:flashbites@gmail.com" className="text-orange-600 hover:text-orange-700">
+                        <a href="mailto:flashbites@gmail.com" className="text-primary-600 hover:text-primary-700">
                           flashbites@gmail.com
                         </a>
                       </div>
@@ -1233,7 +1233,7 @@ const Partner = () => {
                 </div>
 
                 <div className="flex items-start">
-                  <MapPinIcon className="h-6 w-6 text-orange-600 mr-4 mt-1 flex-shrink-0" />
+                  <MapPinIcon className="h-6 w-6 text-primary-600 mr-4 mt-1 flex-shrink-0" />
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1">Office</h3>
                     <p className="text-gray-600">
@@ -1250,14 +1250,14 @@ const Partner = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <button
                     onClick={() => setActiveSection('restaurant')}
-                    className="flex items-center justify-center px-4 py-3 border-2 border-orange-600 text-orange-600 rounded-lg hover:bg-orange-50 transition-colors font-semibold"
+                    className="flex items-center justify-center px-4 py-3 border-2 border-primary-600 text-primary-600 rounded-lg hover:bg-primary-50 transition-colors font-semibold"
                   >
                     <BuildingStorefrontIcon className="h-5 w-5 mr-2" />
                     Restaurant Partner
                   </button>
                   <button
                     onClick={() => setActiveSection('delivery')}
-                    className="flex items-center justify-center px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
+                    className="flex items-center justify-center px-4 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold"
                   >
                     <TruckIcon className="h-5 w-5 mr-2" />
                     Delivery Partner

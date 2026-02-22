@@ -13,6 +13,8 @@ export const login = createAsyncThunk(
       if (apiResponse.success && apiResponse.data) {
         await Preferences.set({ key: 'token', value: apiResponse.data.accessToken });
         await Preferences.set({ key: 'refreshToken', value: apiResponse.data.refreshToken });
+        localStorage.setItem('token', apiResponse.data.accessToken);
+        localStorage.setItem('refreshToken', apiResponse.data.refreshToken);
       }
       // Return the nested data object which contains user, accessToken, refreshToken
       return apiResponse.data;
@@ -32,6 +34,8 @@ export const register = createAsyncThunk(
       if (apiResponse.success && apiResponse.data) {
         await Preferences.set({ key: 'token', value: apiResponse.data.accessToken });
         await Preferences.set({ key: 'refreshToken', value: apiResponse.data.refreshToken });
+        localStorage.setItem('token', apiResponse.data.accessToken);
+        localStorage.setItem('refreshToken', apiResponse.data.refreshToken);
       }
       // Return the nested data object which contains user, accessToken, refreshToken
       return apiResponse.data;
@@ -72,6 +76,11 @@ const authSlice = createSlice({
       Preferences.remove({ key: 'token' });
       Preferences.remove({ key: 'accessToken' });
       Preferences.remove({ key: 'refreshToken' });
+      
+      // Clear tokens from synchronous Web Storage
+      localStorage.removeItem('token');
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
     },
     clearError: (state) => {
       state.error = null;

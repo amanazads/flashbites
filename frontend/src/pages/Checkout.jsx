@@ -263,7 +263,7 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-6 sm:py-8">
-      <div className="max-w-4xl mx-auto px-4">
+      <div className="max-w-4xl mx-auto container-px">
         <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Checkout</h1>
 
         <div className="grid md:grid-cols-3 gap-6">
@@ -275,7 +275,7 @@ const Checkout = () => {
                 <h2 className="text-lg sm:text-xl font-bold">Delivery Address</h2>
                 <button
                   onClick={() => setShowAddAddressModal(true)}
-                  className="text-orange-600 hover:text-orange-700 font-semibold text-sm"
+                  className="text-primary-600 hover:text-primary-700 font-semibold text-sm"
                 >
                   + Add New Address
                 </button>
@@ -486,7 +486,7 @@ const Checkout = () => {
                 {items.map((item) => (
                   <div key={item._id} className="flex justify-between text-sm">
                     <span>{item.name} x{item.quantity}</span>
-                    <span>{formatCurrency(item.price * item.quantity)}</span>
+                    <span>{formatCurrency((Number(item.price) || 0) * (item.quantity || 1))}</span>
                   </div>
                 ))}
               </div>

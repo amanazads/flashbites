@@ -46,7 +46,7 @@ const MenuCard = ({ item, restaurant }) => {
 
         <div className="flex items-center justify-between gap-3">
           <span className="text-lg font-bold text-primary-600">
-            {formatCurrency(item.price)}
+            {formatCurrency(Number(item.price) || 0)}
           </span>
 
           {!restaurant.acceptingOrders ? (

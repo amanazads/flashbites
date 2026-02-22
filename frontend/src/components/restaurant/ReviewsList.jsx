@@ -37,7 +37,7 @@ const ReviewsList = ({ restaurantId }) => {
         <div className="mb-8 pb-6 border-b">
           <div className="flex items-center gap-6">
             <div className="text-center">
-              <div className="text-5xl font-bold text-orange-500">{stats.averageRating.toFixed(1)}</div>
+              <div className="text-5xl font-bold text-primary-500">{stats.averageRating.toFixed(1)}</div>
               <StarRating rating={stats.averageRating} readonly size="md" />
               <p className="text-sm text-gray-600 mt-1">{stats.totalReviews} reviews</p>
             </div>
@@ -51,7 +51,7 @@ const ReviewsList = ({ restaurantId }) => {
                     <span className="text-sm w-8">{star} ★</span>
                     <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-orange-500 transition-all"
+                        className="h-full bg-primary-500 transition-all"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
@@ -76,7 +76,7 @@ const ReviewsList = ({ restaurantId }) => {
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <div className="flex items-center gap-3 mb-1">
-                    <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-semibold">
+                    <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold">
                       {review.userId?.name?.charAt(0).toUpperCase() || 'U'}
                     </div>
                     <div>

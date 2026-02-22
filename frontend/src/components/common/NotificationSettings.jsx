@@ -48,8 +48,8 @@ const NotificationSettings = () => {
           </div>
           <button
             onClick={toggleSound}
-            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${
-              soundEnabled ? 'bg-orange-500' : 'bg-gray-300'
+            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
+              soundEnabled ? 'bg-primary-500' : 'bg-gray-300'
             }`}
           >
             <span
@@ -80,7 +80,7 @@ const NotificationSettings = () => {
             {notificationPermission === 'default' && (
               <button
                 onClick={requestNotificationPermission}
-                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition text-sm font-medium"
+                className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition text-sm font-medium"
               >
                 Enable
               </button>

@@ -106,10 +106,10 @@ const CartDrawer = () => {
                       {item.name}
                     </h4>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {formatCurrency(item.price)} each
+                      {formatCurrency(Number(item.price) || 0)} each
                     </p>
                     <p className="text-xs text-primary-600 font-semibold mt-0.5">
-                      {formatCurrency(item.price * item.quantity)}
+                      {formatCurrency((Number(item.price) || 0) * (item.quantity || 1))}
                     </p>
 
                     {/* Quantity Controls */}

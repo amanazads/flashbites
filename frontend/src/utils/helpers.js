@@ -1,5 +1,5 @@
 export const calculateCartTotal = (items) => {
-  return items.reduce((total, item) => total + item.price * item.quantity, 0);
+  return items.reduce((total, item) => total + (Number(item.price) || 0) * (item.quantity || 1), 0);
 };
 
 export const calculateOrderTotal = (subtotal, deliveryFee, tax, discount) => {

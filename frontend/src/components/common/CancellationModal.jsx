@@ -59,7 +59,7 @@ const CancellationModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
           <div className="mb-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600">Order #{order._id?.slice(-8)}</p>
             <p className="font-semibold text-lg">{order.restaurantId?.name}</p>
-            <p className="text-orange-600 font-bold">{formatCurrency(order.total)}</p>
+            <p className="text-primary-600 font-bold">{formatCurrency(order.total)}</p>
           </div>
 
           {/* Cancellation Status */}
@@ -139,7 +139,7 @@ const CancellationModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                           value={reason.value}
                           checked={selectedReason === reason.value}
                           onChange={(e) => setSelectedReason(e.target.value)}
-                          className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                          className="w-4 h-4 text-primary-600 focus:ring-primary-500"
                         />
                         <span className="ml-3 text-sm text-gray-900">{reason.label}</span>
                       </label>
@@ -151,7 +151,7 @@ const CancellationModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                       value={otherReason}
                       onChange={(e) => setOtherReason(e.target.value)}
                       placeholder="Please specify your reason..."
-                      className="mt-3 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+                      className="mt-3 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
                       rows={3}
                       required
                     />
@@ -166,7 +166,7 @@ const CancellationModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                         type="checkbox"
                         checked={agreedToPolicy}
                         onChange={(e) => setAgreedToPolicy(e.target.checked)}
-                        className="mt-1 w-4 h-4 text-orange-600 focus:ring-orange-500 rounded"
+                        className="mt-1 w-4 h-4 text-primary-600 focus:ring-primary-500 rounded"
                         required
                       />
                       <span className="text-sm text-gray-700">
