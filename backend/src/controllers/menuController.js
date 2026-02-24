@@ -1,18 +1,13 @@
 const MenuItem = require('../models/MenuItem');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/imageUpload');
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // @desc    Add menu item
 // @route   POST /api/restaurants/:restaurantId/menu
 // @access  Private (Owner)
 exports.addMenuItem = async (req, res) => {
   try {
-    console.log('===== ADD MENU ITEM DEBUG =====');
-    console.log('Request params:', req.params);
-    console.log('Request body:', req.body);
-    console.log('Request file:', req.file ? 'File present' : 'No file');
-    console.log('User:', req.user ? req.user._id : 'No user');
-    
     const { name, description, price, category, isVeg, tags, prepTime, isAvailable } = req.body;
 
     // Validate required fields
@@ -25,9 +20,10 @@ exports.addMenuItem = async (req, res) => {
     if (req.file) {
       try {
         imageUrl = await uploadToCloudinary(req.file.buffer, 'flashbites/menu-items');
-        console.log('Image uploaded:', imageUrl);
       } catch (uploadError) {
-        console.error('Image upload failed:', uploadError);
+        if (process.env.NODE_ENV !== 'production') {
+          console.error('Image upload failed:', uploadError);
+        }
         // Continue with default image if upload fails
       }
     }
@@ -45,14 +41,14 @@ exports.addMenuItem = async (req, res) => {
       prepTime: prepTime ? parseInt(prepTime) : 20
     };
 
-    console.log('Creating menu item with data:', menuItemData);
     const menuItem = await MenuItem.create(menuItemData);
-    console.log('Menu item created successfully:', menuItem._id);
 
     successResponse(res, 201, 'Menu item added successfully', { menuItem });
   } catch (error) {
-    console.error('Add menu item error:', error);
-    console.error('Error stack:', error.stack);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Add menu item error:', error);
+      console.error('Error stack:', error.stack);
+    }
     errorResponse(res, 500, 'Failed to add menu item', error.message);
   }
 };
@@ -62,14 +58,19 @@ exports.addMenuItem = async (req, res) => {
 // @access  Public
 exports.getMenuByRestaurant = async (req, res) => {
   try {
-    const { category, isVeg, search } = req.query;
+    const { category, isVeg, search, limit = 200 } = req.query;
     let query = { restaurantId: req.params.restaurantId };
 
     if (category) query.category = category;
     if (isVeg) query.isVeg = isVeg === 'true';
-    if (search) query.name = { $regex: search, $options: 'i' };
+    if (search) query.name = { $regex: escapeRegex(search), $options: 'i' };
 
-    const menuItems = await MenuItem.find(query).sort('category');
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 200, 1), 500);
+
+    const menuItems = await MenuItem.find(query)
+      .sort('category')
+      .limit(safeLimit)
+      .lean();
 
     successResponse(res, 200, 'Menu retrieved successfully', {
       count: menuItems.length,

@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+mongoose.set('bufferCommands', false);
+
 const connectDB = async () => {
   try {
     // Check if MONGO_URI is defined
@@ -22,9 +24,12 @@ const connectDB = async () => {
     const conn = await mongoose.connect(process.env.MONGO_URI, {
       // Options for better connection handling
       maxPoolSize: 10,
+      minPoolSize: 2,
       serverSelectionTimeoutMS: 30000, // Increased to 30 seconds
       socketTimeoutMS: 45000,
       connectTimeoutMS: 30000,
+      maxIdleTimeMS: 30000,
+      autoIndex: process.env.NODE_ENV !== 'production',
       family: 4 // Force IPv4
     });
 

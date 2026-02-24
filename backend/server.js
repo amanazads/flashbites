@@ -40,6 +40,7 @@ const errorHandler = require('./src/middleware/errorHandler');
 
 // Initialize Express app
 const app = express();
+app.disable('x-powered-by');
 
 // Trust proxy - Required for Railway, Heroku, etc.
 app.set('trust proxy', 1);
@@ -106,15 +107,7 @@ const corsOptions = {
     // Use null, false — NOT new Error() — to avoid generating 500 responses
     callback(null, false);
   },
-  credentials: function(req, callback) {
-    // Disable credentials for Capacitor apps
-    const origin = req.headers.origin;
-    if (origin && (origin.startsWith('capacitor://') || origin.startsWith('ionic://'))) {
-      callback(null, false);
-    } else {
-      callback(null, true);
-    }
-  },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
@@ -128,20 +121,22 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Session configuration for passport
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'flashbites-secret-key-change-in-production',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
-
-// Initialize Passport
+// Initialize Passport (JWT-only app; sessions are optional for OAuth flows)
 app.use(passport.initialize());
-app.use(passport.session());
+
+const sessionsEnabled = process.env.ENABLE_SESSIONS === 'true';
+if (sessionsEnabled) {
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'flashbites-secret-key-change-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+  }));
+  app.use(passport.session());
+}
 
 // Compression middleware
 app.use(compression());

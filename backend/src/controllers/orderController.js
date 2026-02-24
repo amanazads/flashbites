@@ -102,10 +102,6 @@ const checkCancellationEligibility = (order) => {
 // @access  Private (User)
 exports.createOrder = async (req, res) => {
   try {
-    console.log('===== CREATE ORDER DEBUG =====');
-    console.log('User:', req.user?._id);
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
-    
     const { restaurantId, addressId, deliveryAddress, items, deliveryInstructions, couponCode, paymentMethod } = req.body;
 
     if (!restaurantId) {
@@ -121,8 +117,9 @@ exports.createOrder = async (req, res) => {
     }
 
     // Verify restaurant exists and is active
-    const restaurant = await Restaurant.findById(restaurantId);
-    console.log('Restaurant found:', restaurant ? restaurant.name : 'NOT FOUND');
+    const restaurant = await Restaurant.findById(restaurantId)
+      .select('name ownerId isActive isApproved acceptingOrders location deliveryTime')
+      .lean();
     
     if (!restaurant) {
       return errorResponse(res, 404, 'Restaurant not found');
@@ -140,25 +137,41 @@ exports.createOrder = async (req, res) => {
     let subtotal = 0;
     const orderItems = [];
 
+    const menuItemIds = items.map((item) => item.menuItemId);
+    const uniqueMenuItemIds = [...new Set(menuItemIds.map((id) => String(id)))];
+
+    const menuItems = await MenuItem.find({
+      _id: { $in: uniqueMenuItemIds },
+      restaurantId,
+    })
+      .select('_id name price image isAvailable')
+      .lean();
+
+    const menuItemMap = new Map(menuItems.map((menuItem) => [String(menuItem._id), menuItem]));
+
     for (const item of items) {
-      console.log('Processing item:', item.menuItemId);
-      const menuItem = await MenuItem.findById(item.menuItemId);
-      
+      const menuItem = menuItemMap.get(String(item.menuItemId));
+
       if (!menuItem) {
         return errorResponse(res, 404, `Menu item ${item.menuItemId} not found`);
       }
-      
+
       if (!menuItem.isAvailable) {
         return errorResponse(res, 400, `${menuItem.name} is not available`);
       }
 
-      const itemTotal = menuItem.price * item.quantity;
+      const quantity = Number(item.quantity);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        return errorResponse(res, 400, `Invalid quantity for ${menuItem.name}`);
+      }
+
+      const itemTotal = menuItem.price * quantity;
       subtotal += itemTotal;
 
       orderItems.push({
         menuItemId: menuItem._id,
         name: menuItem.name,
-        quantity: item.quantity,
+        quantity,
         price: menuItem.price,
         image: menuItem.image
       });
@@ -169,9 +182,6 @@ exports.createOrder = async (req, res) => {
     if (subtotal < MINIMUM_ORDER_VALUE) {
       return errorResponse(res, 400, `Minimum order value is ₹${MINIMUM_ORDER_VALUE}`);
     }
-
-    console.log('Order items processed:', orderItems.length);
-    console.log('Subtotal:', subtotal);
 
     // Calculate distance-based delivery fee (platform-controlled)
     let deliveryFee = 30; // Default ₹30
@@ -184,7 +194,6 @@ exports.createOrder = async (req, res) => {
         const [restLng, restLat] = restaurant.location.coordinates;
         const distance = calculateDistance(restLat, restLng, addrLat, addrLng);
         deliveryFee = calculateDeliveryCharge(distance);
-        console.log(`Distance: ${distance.toFixed(1)} km, Delivery Fee: ₹${deliveryFee}`);
       }
     }
 
@@ -218,8 +227,6 @@ exports.createOrder = async (req, res) => {
     }
 
     const total = subtotal + deliveryFee + tax - discount;
-    console.log('Total calculated:', total);
-
     // Calculate estimated delivery time
     const estimatedDelivery = new Date();
     const deliveryMinutes = parseInt(restaurant.deliveryTime) || 30;
@@ -243,8 +250,6 @@ exports.createOrder = async (req, res) => {
       estimatedDelivery
     };
     
-    console.log('Creating order document:', JSON.stringify(orderDoc, null, 2));
-    
     // Check if an identical order was just created (within last 5 seconds)
     const recentOrder = await Order.findOne({
       userId: req.user._id,
@@ -254,25 +259,21 @@ exports.createOrder = async (req, res) => {
     });
 
     if (recentOrder) {
-      console.log('⚠️ DUPLICATE ORDER DETECTED - Returning existing order:', recentOrder._id);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('⚠️ DUPLICATE ORDER DETECTED - Returning existing order:', recentOrder._id);
+      }
       return successResponse(res, 201, 'Order created successfully', { order: recentOrder });
     }
-    
-    const order = await Order.create(orderDoc);
-    console.log('Order created successfully:', order._id);
 
-    // Set payment status based on payment method
-    if (paymentMethod === 'cod') {
-      // COD - payment pending until delivery
-      order.paymentStatus = 'pending';
-    } else if (paymentMethod === 'card' || paymentMethod === 'upi') {
-      // Online payments - mark as pending until gateway confirms
-      order.paymentStatus = 'pending';
+    const order = await Order.create(orderDoc);
+
+    if (paymentMethod === 'card' || paymentMethod === 'upi') {
       // NOTE: Restaurant should NOT process order until payment is confirmed
-      console.log(`⚠️ PAYMENT PENDING: Order ${order._id} requires payment confirmation`);
-      console.log(`⚠️ Payment method: ${paymentMethod} - Gateway integration required`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`⚠️ PAYMENT PENDING: Order ${order._id} requires payment confirmation`);
+        console.log(`⚠️ Payment method: ${paymentMethod} - Gateway integration required`);
+      }
     }
-    await order.save();
 
     // Populate order details for notifications
     const populatedOrder = await Order.findById(order._id)
@@ -282,10 +283,6 @@ exports.createOrder = async (req, res) => {
 
     // Send real-time notifications with sound
     try {
-      console.log(`📧 Notification: New order ${order._id} for restaurant ${restaurant.name}`);
-      console.log(`📧 Order details: ${orderItems.length} items, Total: ${total}`);
-      console.log(`💳 Payment method: ${paymentMethod}`);
-      
       // Socket notification to restaurant
       socketNotifyRestaurant(restaurantId, populatedOrder);
       
@@ -297,8 +294,8 @@ exports.createOrder = async (req, res) => {
       
       // Database + Push notification to user
       await notifyUserOrderPlaced(populatedOrder);
-      
-      if (paymentMethod !== 'cod') {
+
+      if (paymentMethod !== 'cod' && process.env.NODE_ENV !== 'production') {
         console.log(`⚠️ WARNING: Online payment not confirmed yet!`);
       }
     } catch (notifyError) {
@@ -307,7 +304,9 @@ exports.createOrder = async (req, res) => {
 
     successResponse(res, 201, 'Order created successfully', { order: populatedOrder });
   } catch (error) {
-    console.error('CREATE ORDER ERROR:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('CREATE ORDER ERROR:', error);
+    }
     errorResponse(res, 500, 'Failed to create order', error.message);
   }
 };

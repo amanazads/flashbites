@@ -55,7 +55,17 @@ exports.createRestaurant = async (req, res) => {
 // @access  Public
 exports.getAllRestaurants = async (req, res) => {
   try {
-    const { cuisine, search, lat, lng, radius = 5000, minRating, sortBy = '-rating' } = req.query;
+    const {
+      cuisine,
+      search,
+      lat,
+      lng,
+      radius = 5000,
+      minRating,
+      sortBy = '-rating',
+      page = 1,
+      limit = 30
+    } = req.query;
 
     let query = { isActive: true, isApproved: true };
 
@@ -74,6 +84,15 @@ exports.getAllRestaurants = async (req, res) => {
       query.rating = { $gte: parseFloat(minRating) };
     }
 
+    const safePage = Math.max(parseInt(page, 10) || 1, 1);
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 30, 1), 100);
+    const skip = (safePage - 1) * safeLimit;
+
+    const allowedSort = new Set(['-rating', 'rating', '-createdAt', 'createdAt', 'name', '-name']);
+    const effectiveSort = allowedSort.has(sortBy) ? sortBy : '-rating';
+
+    const projection = '-documents -bankDetails -__v';
+
     let restaurants;
 
     // Geospatial search
@@ -89,14 +108,22 @@ exports.getAllRestaurants = async (req, res) => {
             $maxDistance: parseInt(radius)
           }
         }
-      }).select('-documents');
+      })
+        .select(projection)
+        .limit(safeLimit)
+        .lean();
     } else {
       restaurants = await Restaurant.find(query)
-        .sort(sortBy)
-        .select('-documents');
+        .sort(effectiveSort)
+        .skip(skip)
+        .limit(safeLimit)
+        .select(projection)
+        .lean();
     }
 
     successResponse(res, 200, 'Restaurants retrieved successfully', {
+      page: safePage,
+      limit: safeLimit,
       count: restaurants.length,
       restaurants
     });
@@ -111,7 +138,8 @@ exports.getAllRestaurants = async (req, res) => {
 exports.getRestaurantById = async (req, res) => {
   try {
     const restaurant = await Restaurant.findById(req.params.id)
-      .select('-documents');
+      .select('-documents -bankDetails -__v')
+      .lean();
 
     if (!restaurant) {
       return errorResponse(res, 404, 'Restaurant not found');
@@ -185,7 +213,7 @@ exports.toggleRestaurantStatus = async (req, res) => {
 // @access  Private (Restaurant Owner)
 exports.getMyRestaurant = async (req, res) => {
   try {
-    const restaurant = await Restaurant.findOne({ ownerId: req.user._id });
+    const restaurant = await Restaurant.findOne({ ownerId: req.user._id }).lean();
     
     if (!restaurant) {
       return errorResponse(res, 404, 'No restaurant found for this owner');

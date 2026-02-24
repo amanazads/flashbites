@@ -53,16 +53,24 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // Log the full error for debugging
-    console.error('API Error:', {
-      url: error.config?.url,
-      method: error.config?.method,
-      status: error.response?.status,
-      message: error.response?.data?.message || error.message,
-      baseURL: error.config?.baseURL
-    });
+    const status = error.response?.status;
+    const url = error.config?.url || '';
 
-    if (error.response?.status === 401) {
+    // Skip noisy logs for expected auth-check failures
+    const isExpectedAuthCheckFailure = status === 401 && url.includes('/auth/me');
+
+    // Log the full error for debugging
+    if (!isExpectedAuthCheckFailure) {
+      console.error('API Error:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        status,
+        message: error.response?.data?.message || error.message,
+        baseURL: error.config?.baseURL,
+      });
+    }
+
+    if (status === 401) {
       if (isCapacitor) {
         // Clear Capacitor Preferences
         await Preferences.remove({ key: 'token' });
