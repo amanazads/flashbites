@@ -38,6 +38,7 @@ const Navbar = () => {
   const [locationLabel, setLocationLabel] = useState('Select Area');
   const [mobileSearch, setMobileSearch] = useState('');
   const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const isProfilePage = location.pathname === '/profile';
   const locationRef = useRef(null);
   const dropdownRef = useRef(null);
 
@@ -86,6 +87,7 @@ const Navbar = () => {
       {/* ═══════════════════════════════════════
           MOBILE TOP BAR
       ═══════════════════════════════════════ */}
+      {!isProfilePage && (
       <div
         className="lg:hidden sticky top-0 z-40 bg-white"
         style={{ 
@@ -195,10 +197,12 @@ const Navbar = () => {
           </div>
         )}
       </div>
+      )}
 
       {/* ═══════════════════════════════════════
           DESKTOP TOP NAV
       ═══════════════════════════════════════ */}
+      {!isProfilePage && (
       <div
         className="hidden lg:block sticky top-0 z-40 bg-white"
         style={{ boxShadow: '0 1px 0 #E5E7EB' }}
@@ -324,69 +328,102 @@ const Navbar = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* ═══════════════════════════════════════
           MOBILE FLOATING BOTTOM NAV
       ═══════════════════════════════════════ */}
-      <div
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-50"
-        style={{
-          paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
-          paddingLeft: '12px',
-          paddingRight: '12px',
-          background: 'transparent',
-        }}
-      >
+      {isProfilePage ? (
         <div
-          className="bg-white flex items-center gap-1 rounded-[28px] px-2 py-2"
+          className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200"
+          style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}
+        >
+          <div className="grid grid-cols-4 px-2 py-2">
+            {tabs.filter((tab) => !tab.isCart).map((tab) => {
+              const active = isActive(tab.path);
+              const Icon = active ? tab.IconS : tab.Icon;
+              return (
+                <button
+                  key={tab.path}
+                  onClick={() => navigate(tab.path === '/profile' && !isAuthenticated ? '/login' : tab.path)}
+                  className="flex flex-col items-center justify-center gap-1 py-1"
+                >
+                  <Icon
+                    className="h-5 w-5"
+                    style={active ? { color: '#F97316' } : { color: '#94A3B8' }}
+                  />
+                  <span
+                    className="text-[10px] leading-none font-medium"
+                    style={active ? { color: '#F97316' } : { color: '#94A3B8' }}
+                  >
+                    {tab.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div
+          className="lg:hidden fixed bottom-0 left-0 right-0 z-50"
           style={{
-            boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
+            paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+            paddingLeft: '12px',
+            paddingRight: '12px',
+            background: 'transparent',
           }}
         >
-          {tabs.map((tab) => {
-            const active = tab.isCart ? false : isActive(tab.path);
-            const Icon = active ? tab.IconS : tab.Icon;
-            return (
-              <button
-                key={tab.path}
-                onClick={() => {
-                  if (tab.isCart) dispatch(toggleCart());
-                  else navigate(tab.path === '/profile' && !isAuthenticated ? '/login' : tab.path);
-                }}
-                className={`flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-2xl transition-all duration-200 touch-feedback ${
-                  tab.isCart ? '' : active ? '' : ''
-                }`}
-                style={tab.isCart ? {} : active ? { background: '#fcf0f3' } : {}}
-              >
-                {tab.isCart ? (
-                  /* Cart — branded circle */
-                  <div className="relative flex items-center justify-center w-11 h-11 rounded-2xl" style={{ background: BRAND }}>
-                    <ShoppingCartIcon className="h-5 w-5 text-white stroke-2" />
-                    {cartCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-white text-gray-900 text-[8px] rounded-full h-4 min-w-[16px] px-0.5 flex items-center justify-center font-bold border border-primary-100">
-                        {cartCount}
+          <div
+            className="bg-white flex items-center gap-1 rounded-[28px] px-2 py-2"
+            style={{
+              boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
+            }}
+          >
+            {tabs.map((tab) => {
+              const active = tab.isCart ? false : isActive(tab.path);
+              const Icon = active ? tab.IconS : tab.Icon;
+              return (
+                <button
+                  key={tab.path}
+                  onClick={() => {
+                    if (tab.isCart) dispatch(toggleCart());
+                    else navigate(tab.path === '/profile' && !isAuthenticated ? '/login' : tab.path);
+                  }}
+                  className={`flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-2xl transition-all duration-200 touch-feedback ${
+                    tab.isCart ? '' : active ? '' : ''
+                  }`}
+                  style={tab.isCart ? {} : active ? { background: '#fcf0f3' } : {}}
+                >
+                  {tab.isCart ? (
+                    /* Cart — branded circle */
+                    <div className="relative flex items-center justify-center w-11 h-11 rounded-2xl" style={{ background: BRAND }}>
+                      <ShoppingCartIcon className="h-5 w-5 text-white stroke-2" />
+                      {cartCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-white text-gray-900 text-[8px] rounded-full h-4 min-w-[16px] px-0.5 flex items-center justify-center font-bold border border-primary-100">
+                          {cartCount}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <Icon
+                        className="h-5 w-5 transition-all"
+                        style={active ? { color: BRAND } : { color: '#9CA3AF' }}
+                      />
+                      <span
+                        className="text-[10px] font-semibold leading-none"
+                        style={active ? { color: BRAND } : { color: '#9CA3AF' }}
+                      >
+                        {tab.label}
                       </span>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <Icon
-                      className="h-5 w-5 transition-all"
-                      style={active ? { color: BRAND } : { color: '#9CA3AF' }}
-                    />
-                    <span
-                      className="text-[10px] font-semibold leading-none"
-                      style={active ? { color: BRAND } : { color: '#9CA3AF' }}
-                    >
-                      {tab.label}
-                    </span>
-                  </>
-                )}
-              </button>
-            );
-          })}
+                    </>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 };

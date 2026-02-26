@@ -4,15 +4,22 @@ import { useDispatch, useSelector } from 'react-redux';
 import { updateProfile, getAddresses, addAddress, deleteAddress } from '../api/userApi';
 import { logout } from '../redux/slices/authSlice';
 import {
-  PencilIcon,
-  TrashIcon,
-  PlusIcon,
-  ChevronRightIcon,
-  ArrowRightOnRectangleIcon,
-} from '@heroicons/react/24/outline';
+  FiArrowLeft,
+  FiBell,
+  FiHome,
+  FiSearch,
+  FiShoppingBag,
+  FiCreditCard,
+  FiMapPin,
+  FiTag,
+  FiSettings,
+  FiHelpCircle,
+  FiEdit2,
+  FiLogOut,
+  FiChevronRight,
+  FiUser
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
-
-const BRAND = '#96092B';
 
 const Profile = () => {
   const dispatch = useDispatch();
@@ -22,16 +29,34 @@ const Profile = () => {
   const [addresses, setAddresses] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [avatarLetter, setAvatarLetter] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const [profileData, setProfileData] = useState({
-    name: user?.name || '',
-    phone: user?.phone || '',
-  });
-  const [addressData, setAddressData] = useState({
-    type: 'home', street: '', city: '', state: '', zipCode: '', landmark: '',
-  });
+  useEffect(() => {
+    if (user === undefined) return; // Wait for Redux to resolve
 
-  useEffect(() => { fetchAddresses(); }, []);
+    const hasToken = !!(localStorage.getItem('accessToken') || localStorage.getItem('token'));
+    if (!user && !hasToken) {
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    if (!user && hasToken) {
+      // Keep loading while auth state rehydrates after refresh
+      setLoading(true);
+      return;
+    }
+
+    setAvatarLetter(user.name ? user.name[0] : '');
+    setLoading(false);
+  }, [user, navigate]);
+
+  useEffect(() => {
+    if (!loading && user) {
+      fetchAddresses();
+    }
+    // eslint-disable-next-line
+  }, [loading, user]);
 
   const fetchAddresses = async () => {
     try {
@@ -115,202 +140,222 @@ const Profile = () => {
     },
   ];
 
-  const TABS = [
-    { id: 'profile', label: 'Profile' },
-    { id: 'addresses', label: 'Addresses' },
-  ];
+  const menuItems = {
+    activity: [
+      {
+        icon: <FiShoppingBag className="w-5 h-5" />,
+        label: 'My Orders',
+        path: '/orders',
+        iconBg: 'bg-orange-50',
+        iconColor: 'text-orange-500'
+      },
+      {
+        icon: <FiCreditCard className="w-5 h-5" />,
+        label: 'Payment Methods',
+        path: '/payment-methods',
+        iconBg: 'bg-orange-50',
+        iconColor: 'text-orange-500'
+      },
+      {
+        icon: <FiMapPin className="w-5 h-5" />,
+        label: 'Delivery Addresses',
+        path: '/addresses',
+        iconBg: 'bg-orange-50',
+        iconColor: 'text-orange-500'
+      }
+    ],
+    preferences: [
+      {
+        icon: <FiTag className="w-5 h-5" />,
+        label: 'Promos & Coupons',
+        path: '/promos',
+        badge: '2 NEW',
+        iconBg: 'bg-orange-50',
+        iconColor: 'text-orange-500'
+      },
+      {
+        icon: <FiSettings className="w-5 h-5" />,
+        label: 'Settings',
+        path: '/settings',
+        iconBg: 'bg-orange-50',
+        iconColor: 'text-orange-500'
+      }
+    ],
+    support: [
+      {
+        icon: <FiHelpCircle className="w-5 h-5" />,
+        label: 'Help Center',
+        path: '/help',
+        iconBg: 'bg-orange-50',
+        iconColor: 'text-orange-500'
+      }
+    ]
+  };
+
+  const MenuItem = ({ item }) => (
+    <button
+      onClick={() => navigate(item.path)}
+      className="w-full flex items-center justify-between py-3.5 transition-colors active:opacity-80"
+    >
+      <div className="flex items-center gap-4 min-w-0">
+        <div className={`${item.iconBg} ${item.iconColor} w-11 h-11 rounded-2xl flex items-center justify-center shrink-0`}>
+          {item.icon}
+        </div>
+        <span className="text-slate-900 font-medium text-[16px] leading-6 truncate">{item.label}</span>
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        {item.badge && (
+          <span className="bg-orange-500 text-white text-[10px] font-semibold px-2 py-1 rounded-full leading-none">
+            {item.badge}
+          </span>
+        )}
+        <FiChevronRight className="w-5 h-5 text-slate-400" />
+      </div>
+    </button>
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="flex flex-col items-center">
+          <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+          </svg>
+          <span className="mt-4 text-orange-500 font-semibold">Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="page-wrapper">
-      <div className="max-w-2xl mx-auto px-4 pt-6 pb-8">
-
-        {/* Avatar header */}
-        <div className="flex items-center gap-4 mb-6">
-          <div
-            className="h-16 w-16 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-md"
-            style={{ background: `linear-gradient(135deg, ${BRAND}, #333333)` }}
+    <div className="bg-[#f3f4f6]">
+      {/* Header */}
+      <div className="bg-[#f3f4f6]">
+        <div className="max-w-md mx-auto px-5 pt-6 pb-2 flex items-center justify-between">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-9 h-9 rounded-full bg-[#e8edf2] flex items-center justify-center transition-colors active:bg-slate-200"
           >
-            {user?.name?.[0]?.toUpperCase() || 'U'}
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">{user?.name || 'User'}</h1>
-            <p className="text-sm text-gray-400">{user?.email}</p>
-          </div>
+            <FiArrowLeft className="w-5 h-5 text-slate-700" />
+          </button>
+          <h1 className="text-[22px] font-semibold text-slate-900">Profile</h1>
+          <button
+            onClick={() => navigate('/notifications')}
+            className="w-9 h-9 rounded-full bg-[#e8edf2] flex items-center justify-center transition-colors active:bg-slate-200"
+          >
+            <FiBell className="w-5 h-5 text-slate-700" />
+          </button>
         </div>
+      </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-5">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              className="flex-1 py-2.5 rounded-2xl text-sm font-semibold transition-all"
-              style={activeTab === t.id
-                ? { background: BRAND, color: 'white' }
-                : { background: 'white', color: '#6B7280', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
-            >
-              {t.label}
+      {/* Profile Section */}
+      <div className="max-w-md mx-auto px-5 pt-6 pb-32">
+        <div className="flex flex-col items-center">
+          {/* Avatar */}
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full bg-[#f6d9cf] flex items-center justify-center">
+              <div className="w-[88px] h-[88px] rounded-full border-[3px] border-white bg-[#e7d1ae] flex items-center justify-center">
+                <div className="w-7 h-9 rounded-[2px] bg-[#f7f7f4] shadow-[2px_2px_0px_#9c8f7e]"></div>
+              </div>
+            </div>
+            <button className="absolute -bottom-1 -right-1 bg-orange-500 text-white p-2 rounded-full shadow-md active:bg-orange-600 transition-colors">
+              <FiEdit2 className="w-4 h-4" />
             </button>
-          ))}
+          </div>
+
+          {/* User Info */}
+          <h2 className="mt-4 text-[30px] leading-tight font-semibold text-slate-900 text-center">
+            {user?.name}
+          </h2>
+          <p className="mt-1 text-slate-500 text-[15px] text-center break-all">
+            {user?.email}
+          </p>
         </div>
 
-        {/* ─── Profile tab ─── */}
-        {activeTab === 'profile' && (
-          <div className="card p-5 sm:p-6 mb-4">
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="font-bold text-gray-900">Personal Info</h2>
-              <button
-                onClick={() => setIsEditing(!isEditing)}
-                className="flex items-center gap-1 text-sm font-semibold transition-colors"
-                style={{ color: BRAND }}
-              >
-                <PencilIcon className="h-4 w-4" />
-                {isEditing ? 'Cancel' : 'Edit'}
-              </button>
-            </div>
-            <form onSubmit={handleProfileUpdate} className="space-y-4">
-              {[
-                { label: 'Name', key: 'name', type: 'text', value: profileData.name || '', disabled: !isEditing },
-                { label: 'Email', key: 'email', type: 'email', value: user?.email || '', disabled: true },
-                { label: 'Phone', key: 'phone', type: 'tel', value: profileData.phone || '', disabled: !isEditing },
-              ].map((f) => (
-                <div key={f.key}>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{f.label}</label>
-                  <input
-                    type={f.type}
-                    value={f.value}
-                    disabled={f.disabled}
-                    onChange={f.disabled ? undefined : (e) => setProfileData({ ...profileData, [f.key]: e.target.value })}
-                    className="input-field"
-                    style={f.disabled ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
-                  />
-                </div>
-              ))}
-              {isEditing && (
-                <button type="submit" className="btn-primary w-full">Save changes</button>
-              )}
-            </form>
-          </div>
-        )}
-
-        {/* ─── Addresses tab ─── */}
-        {activeTab === 'addresses' && (
-          <div className="mb-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="font-bold text-gray-900">Saved Addresses</h2>
-              <button
-                onClick={() => setShowAddressForm(!showAddressForm)}
-                className="flex items-center gap-1 text-sm font-semibold"
-                style={{ color: BRAND }}
-              >
-                <PlusIcon className="h-4 w-4" />
-                Add
-              </button>
-            </div>
-
-            {showAddressForm && (
-              <form onSubmit={handleAddAddress} className="card p-5 mb-4 space-y-3">
-                <select
-                  value={addressData.type}
-                  onChange={(e) => setAddressData({ ...addressData, type: e.target.value })}
-                  className="input-field"
-                >
-                  <option value="home">🏠 Home</option>
-                  <option value="work">💼 Work</option>
-                  <option value="other">📌 Other</option>
-                </select>
-                <input type="text" placeholder="Street address" className="input-field" required
-                  value={addressData.street} onChange={(e) => setAddressData({ ...addressData, street: e.target.value })} />
-                <div className="grid grid-cols-2 gap-3">
-                  <input type="text" placeholder="City" className="input-field" required
-                    value={addressData.city} onChange={(e) => setAddressData({ ...addressData, city: e.target.value })} />
-                  <input type="text" placeholder="State" className="input-field" required
-                    value={addressData.state} onChange={(e) => setAddressData({ ...addressData, state: e.target.value })} />
-                </div>
-                <input type="text" placeholder="ZIP Code" className="input-field" required
-                  value={addressData.zipCode} onChange={(e) => setAddressData({ ...addressData, zipCode: e.target.value })} />
-                <div className="flex gap-3">
-                  <button type="submit" className="btn-primary flex-1 py-2.5 text-sm">Save</button>
-                  <button type="button" onClick={() => setShowAddressForm(false)} className="btn-secondary flex-1 py-2.5 text-sm">Cancel</button>
-                </div>
-              </form>
-            )}
-
-            {addresses.length === 0 ? (
-              <div className="card p-8 text-center">
-                <p className="text-4xl mb-3">📍</p>
-                <p className="text-gray-400 text-sm">No saved addresses yet</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {addresses.map((a) => (
-                  <div key={a._id} className="card p-4 flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <span className="badge badge-brand capitalize mb-1">{a.type}</span>
-                      <p className="font-semibold text-sm text-gray-900 mt-1">{a.street}</p>
-                      <p className="text-xs text-gray-400">{a.city}, {a.state} {a.zipCode}</p>
-                    </div>
-                    <button onClick={() => handleDeleteAddress(a._id)} className="p-1.5 text-red-400 hover:text-red-600 transition-colors">
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ─── Quick Links (footer content on mobile) ─── */}
-        <div className="mt-6">
-          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3">Quick Links</h3>
-          <div className="card overflow-hidden">
-            {quickLinks.map((lnk, i) => (
-              <Link
-                key={lnk.to}
-                to={lnk.to}
-                className="flex items-center gap-3 px-4 py-3.5 hover:bg-primary-50 transition-colors"
-                style={{ borderBottom: i < quickLinks.length - 1 ? '1px solid #F3F4F6' : 'none' }}
-              >
-                <span className="text-base">{lnk.icon}</span>
-                <span className="flex-1 text-sm font-medium text-gray-700">{lnk.label}</span>
-                <ChevronRightIcon className="h-4 w-4 text-gray-300" />
-              </Link>
+        {/* Activity Section */}
+        <div className="mt-7">
+          <h3 className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.1em] mb-2">
+            Activity
+          </h3>
+          <div className="space-y-1">
+            {menuItems.activity.map((item, index) => (
+              <MenuItem key={index} item={item} />
             ))}
           </div>
         </div>
 
-        {/* ─── Social ─── */}
-        <div className="mt-4">
-          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3">Follow Us</h3>
-          <div className="card p-4 flex items-center gap-4">
-            {socialLinks.map((s) => (
-              <a
-                key={s.label}
-                href={s.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors text-sm font-medium"
-              >
-                {s.icon}
-                {s.label}
-              </a>
+        {/* Offers & Preferences Section */}
+        <div className="mt-5">
+          <h3 className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.1em] mb-2">
+            Offers & Preferences
+          </h3>
+          <div className="space-y-1">
+            {menuItems.preferences.map((item, index) => (
+              <MenuItem key={index} item={item} />
             ))}
           </div>
         </div>
 
-        {/* ─── Sign out ─── */}
-        <button
-          onClick={handleLogout}
-          className="mt-4 w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold text-red-500 bg-red-50 hover:bg-red-100 transition-colors"
-        >
-          <ArrowRightOnRectangleIcon className="h-5 w-5" />
-          Sign Out
-        </button>
+        {/* Support Section */}
+        <div className="mt-5">
+          <h3 className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.1em] mb-2">
+            Support
+          </h3>
+          <div className="space-y-1">
+            {menuItems.support.map((item, index) => (
+              <MenuItem key={index} item={item} />
+            ))}
+          </div>
+        </div>
 
-        {/* ─── Copyright ─── */}
-        <p className="text-center text-xs text-gray-300 mt-6">
-          © {new Date().getFullYear()} FlashBites. All rights reserved.
-        </p>
+        {/* Logout Button */}
+        <div className="mt-8">
+          <button
+            onClick={handleLogout}
+            className="w-full h-12 flex items-center justify-center gap-2 rounded-[18px] bg-slate-200/80 active:bg-slate-300 transition-colors"
+          >
+            <FiLogOut className="w-5 h-5 text-slate-700" />
+            <span className="text-slate-700 font-semibold text-[17px] leading-none">Logout</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Bottom Navigation (design match) */}
+      <div
+        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 bg-white border-t border-gray-200"
+        style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}
+      >
+        <div className="grid grid-cols-4 px-2 py-2">
+          <button
+            onClick={() => navigate('/')}
+            className="flex flex-col items-center justify-center gap-1 py-1"
+          >
+            <FiHome className="w-5 h-5 text-slate-400" />
+            <span className="text-[10px] leading-none font-medium text-slate-400">Home</span>
+          </button>
+          <button
+            onClick={() => navigate('/restaurants')}
+            className="flex flex-col items-center justify-center gap-1 py-1"
+          >
+            <FiSearch className="w-5 h-5 text-slate-400" />
+            <span className="text-[10px] leading-none font-medium text-slate-400">Search</span>
+          </button>
+          <button
+            onClick={() => navigate('/orders')}
+            className="flex flex-col items-center justify-center gap-1 py-1"
+          >
+            <FiShoppingBag className="w-5 h-5 text-slate-400" />
+            <span className="text-[10px] leading-none font-medium text-slate-400">Orders</span>
+          </button>
+          <button
+            onClick={() => navigate('/profile')}
+            className="flex flex-col items-center justify-center gap-1 py-1"
+          >
+            <FiUser className="w-5 h-5 text-orange-500" />
+            <span className="text-[10px] leading-none font-medium text-orange-500">Profile</span>
+          </button>
+        </div>
       </div>
     </div>
   );
