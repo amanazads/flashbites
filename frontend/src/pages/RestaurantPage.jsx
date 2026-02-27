@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchRestaurants, setFilters } from '../redux/slices/restaurantSlice';
 import RestaurantCard from '../components/restaurant/RestaurantCard';
 import { Loader } from '../components/common/Loader';
@@ -28,6 +28,7 @@ const BRAND = '#96092B';
 
 const RestaurantPage = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { restaurants, loading, filters } = useSelector((s) => s.restaurant);
   const [selectedCuisine, setSelectedCuisine] = useState('All');
   const [activeSort, setActiveSort] = useState(null);
@@ -117,10 +118,28 @@ const RestaurantPage = () => {
           <h1 className="text-xl font-bold text-gray-900">Restaurants near you</h1>
           {!loading && (
             <p className="text-sm text-gray-400 mt-0.5">
-              {restaurants.length} restaurants{selectedCuisine !== 'All' ? ` · ${selectedCuisine}` : ''}
+              {restaurants.length + 1} restaurants{selectedCuisine !== 'All' ? ` · ${selectedCuisine}` : ''}
             </p>
           )}
         </div>
+
+        {!loading && (
+          <div className="mb-5 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 to-white p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-orange-500">Frontend Demo</p>
+                <h3 className="text-lg font-bold text-slate-900">Demo Restaurant</h3>
+                <p className="text-sm text-slate-500">Use this to preview the Track Order page without backend data.</p>
+              </div>
+              <button
+                onClick={() => navigate('/orders/demo/track')}
+                className="shrink-0 h-10 px-4 rounded-xl bg-orange-500 text-white text-sm font-semibold"
+              >
+                Track Demo
+              </button>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <Loader />
