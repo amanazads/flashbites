@@ -1,0 +1,27 @@
+{
+  "name": "flashbites",
+  "version": "1.0.0",
+  "description": "Full-stack food delivery application built with MERN stack",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install --prefix server && npm install --prefix client",
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "seed": "node server/seeder.js",
+    "seed:destroy": "node server/seeder.js -d"
+  },
+  "keywords": [
+    "mern",
+    "food-delivery",
+    "react",
+    "nodejs",
+    "mongodb",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
