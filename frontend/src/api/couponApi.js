@@ -1,7 +1,7 @@
 import axios from './axios';
 
 export const validateCoupon = async (couponCode, orderValue) => {
-  const response = await axios.post('/api/coupons/validate', {
+  const response = await axios.post('/coupons/validate', {
     code: couponCode,
     orderValue
   });
@@ -9,6 +9,6 @@ export const validateCoupon = async (couponCode, orderValue) => {
 };
 
 export const getAvailableCoupons = async (orderValue) => {
-  const response = await axios.get(`/api/coupons/available?orderValue=${orderValue}`);
+  const response = await axios.get(`/coupons/available?orderValue=${orderValue}`);
   return response.data;
 };
