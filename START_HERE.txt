@@ -1,0 +1,211 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║   ███████╗██╗      █████╗ ███████╗██╗  ██╗██████╗ ██╗████████╗███████╗   ║
+║   ██╔════╝██║     ██╔══██╗██╔════╝██║  ██║██╔══██╗██║╚══██╔══╝██╔════╝   ║
+║   █████╗  ██║     ███████║███████╗███████║██████╔╝██║   ██║   █████╗     ║
+║   ██╔══╝  ██║     ██╔══██║╚════██║██╔══██║██╔══██╗██║   ██║   ██╔══╝     ║
+║   ██║     ███████╗██║  ██║███████║██║  ██║██████╔╝██║   ██║   ███████╗   ║
+║   ╚═╝     ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═════╝ ╚═╝   ╚═╝   ╚══════╝   ║
+║                                                               ║
+║              🍔 Fast Food Delivery - MERN Stack 🍕            ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────┐
+│  🚀 START THE APPLICATION                                    │
+└─────────────────────────────────────────────────────────────┘
+
+STEP 1: SETUP MONGODB
+━━━━━━━━━━━━━━━━━━━━━━
+
+Option A - Use the default local MongoDB:
+  The .env file is already configured for: mongodb://localhost:27017/flashbites
+  ✓ Just make sure MongoDB is running on your system
+
+Option B - Use MongoDB Atlas (Cloud):
+  1. Go to: https://www.mongodb.com/cloud/atlas
+  2. Create a free cluster
+  3. Get your connection string
+  4. Edit: server/.env
+  5. Replace MONGODB_URI with your connection string
+
+
+STEP 2: SEED THE DATABASE
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+Open Terminal 1:
+┌─────────────────────────────────────────────────────────────┐
+│  cd server                                                   │
+│  node seeder.js                                              │
+└─────────────────────────────────────────────────────────────┘
+
+You should see: ✅ Data Imported Successfully
+This creates 8 sample restaurants in your database.
+
+
+STEP 3: START THE BACKEND SERVER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Continue in Terminal 1:
+┌─────────────────────────────────────────────────────────────┐
+│  npm run dev                                                 │
+└─────────────────────────────────────────────────────────────┘
+
+You should see:
+  ✅ MongoDB Connected: ...
+  🚀 Server running in development mode on port 5000
+
+
+STEP 4: START THE FRONTEND
+━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Open Terminal 2:
+┌─────────────────────────────────────────────────────────────┐
+│  cd client                                                   │
+│  npm run dev                                                 │
+└─────────────────────────────────────────────────────────────┘
+
+You should see:
+  VITE ready in XXX ms
+  ➜  Local:   http://localhost:3000/
+
+
+STEP 5: OPEN THE APP
+━━━━━━━━━━━━━━━━━━━━
+
+Open your web browser and visit:
+┌─────────────────────────────────────────────────────────────┐
+│                                                              │
+│        http://localhost:3000                                │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────┐
+│  ✨ WHAT YOU'LL SEE                                          │
+└─────────────────────────────────────────────────────────────┘
+
+✓ Beautiful orange-themed UI
+✓ Location header: "Deliver to New York, NY"
+✓ Search bar
+✓ Category filters (Pizza, Burger, Sushi, Tacos, Noodles)
+✓ 50% Discount banner
+✓ 8 restaurant cards with:
+  • Beautiful food images
+  • Star ratings
+  • Delivery time
+  • Price range
+  • Heart icon for wishlist
+✓ Bottom navigation bar
+
+
+┌─────────────────────────────────────────────────────────────┐
+│  🎮 TRY THESE FEATURES                                       │
+└─────────────────────────────────────────────────────────────┘
+
+1. Click "Pizza" category → See only pizza restaurants
+2. Click "Burger" category → See only burger places
+3. Type "sushi" in search bar → Find sushi restaurants
+4. Click ❤️ heart icon → Add to wishlist
+5. Click any restaurant card → View full details
+6. Use bottom navigation → Explore different pages
+
+
+┌─────────────────────────────────────────────────────────────┐
+│  🛑 STOP THE APPLICATION                                     │
+└─────────────────────────────────────────────────────────────┘
+
+Press Ctrl + C in both terminal windows
+
+
+┌─────────────────────────────────────────────────────────────┐
+│  🔧 TROUBLESHOOTING                                          │
+└─────────────────────────────────────────────────────────────┘
+
+Problem: "Address already in use" on port 5000
+Solution: Edit server/.env and change PORT=5001
+
+Problem: "Address already in use" on port 3000
+Solution: Edit client/vite.config.js and change port to 3001
+
+Problem: "Cannot connect to MongoDB"
+Solution: 
+  • Check if MongoDB is running
+  • Verify connection string in server/.env
+  • For Atlas, check IP whitelist
+
+Problem: No restaurants showing
+Solution: Make sure you ran: node seeder.js
+
+
+┌─────────────────────────────────────────────────────────────┐
+│  📚 DOCUMENTATION                                            │
+└─────────────────────────────────────────────────────────────┘
+
+• README.md         - Full project documentation
+• QUICKSTART.md     - Quick setup guide (you are here!)
+• DEPLOYMENT.md     - Deploy to production
+• FEATURES.md       - Complete feature list
+• PROJECT_SUMMARY.md - What was built
+
+
+┌─────────────────────────────────────────────────────────────┐
+│  🎯 PROJECT STRUCTURE                                        │
+└─────────────────────────────────────────────────────────────┘
+
+flashbites/
+├── server/          Backend (Express + MongoDB)
+│   ├── models/      Database schemas
+│   ├── controllers/ Business logic
+│   ├── routes/      API endpoints
+│   └── config/      Database connection
+│
+├── client/          Frontend (React + Vite)
+│   ├── components/  Reusable UI components
+│   ├── pages/       Page components
+│   └── context/     Global state management
+│
+└── Documentation files
+
+
+┌─────────────────────────────────────────────────────────────┐
+│  🌐 URLs TO REMEMBER                                         │
+└─────────────────────────────────────────────────────────────┘
+
+Frontend:  http://localhost:3000
+Backend:   http://localhost:5000
+API Test:  http://localhost:5000/api/restaurants
+
+
+┌─────────────────────────────────────────────────────────────┐
+│  🎨 TECH STACK                                               │
+└─────────────────────────────────────────────────────────────┘
+
+Frontend:  React 18, Vite, Tailwind CSS, React Router, Axios
+Backend:   Node.js, Express.js, MongoDB, Mongoose
+State:     Context API
+Styling:   Tailwind CSS
+Icons:     React Icons
+
+
+┌─────────────────────────────────────────────────────────────┐
+│  ✅ CHECKLIST                                                │
+└─────────────────────────────────────────────────────────────┘
+
+□ MongoDB is running ✓
+□ Dependencies installed (npm install in both folders) ✓
+□ Database seeded (node seeder.js) □
+□ Backend running (npm run dev in server/) □
+□ Frontend running (npm run dev in client/) □
+□ Browser open at localhost:3000 □
+
+
+┌─────────────────────────────────────────────────────────────┐
+│  🚀 YOU'RE ALL SET!                                          │
+│                                                              │
+│  Happy coding! Build something amazing! 🎉                   │
+└─────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════
+Need help? Check the documentation files or review the code!
+═══════════════════════════════════════════════════════════════
