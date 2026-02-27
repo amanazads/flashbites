@@ -14,6 +14,8 @@ import {
   FiTag,
   FiSettings,
   FiHelpCircle,
+  FiUsers,
+  FiInfo,
   FiEdit2,
   FiLogOut,
   FiChevronRight,
@@ -189,6 +191,22 @@ const Profile = () => {
         iconBg: 'bg-orange-50',
         iconColor: 'text-orange-500'
       }
+    ],
+    quickLinks: [
+      {
+        icon: <FiUsers className="w-5 h-5" />,
+        label: 'Partner With Us',
+        path: '/partner',
+        iconBg: 'bg-orange-50',
+        iconColor: 'text-orange-500'
+      },
+      {
+        icon: <FiInfo className="w-5 h-5" />,
+        label: 'About FlashBites',
+        path: '/about',
+        iconBg: 'bg-orange-50',
+        iconColor: 'text-orange-500'
+      }
     ]
   };
 
@@ -256,7 +274,9 @@ const Profile = () => {
           <div className="relative">
             <div className="w-24 h-24 rounded-full bg-[#f6d9cf] flex items-center justify-center">
               <div className="w-[88px] h-[88px] rounded-full border-[3px] border-white bg-[#e7d1ae] flex items-center justify-center">
-                <div className="w-7 h-9 rounded-[2px] bg-[#f7f7f4] shadow-[2px_2px_0px_#9c8f7e]"></div>
+                <span className="text-3xl font-semibold text-slate-700">
+                  {avatarLetter || 'U'}
+                </span>
               </div>
             </div>
             <button className="absolute -bottom-1 -right-1 bg-orange-500 text-white p-2 rounded-full shadow-md active:bg-orange-600 transition-colors">
@@ -304,6 +324,18 @@ const Profile = () => {
           </h3>
           <div className="space-y-1">
             {menuItems.support.map((item, index) => (
+              <MenuItem key={index} item={item} />
+            ))}
+          </div>
+        </div>
+
+        {/* Quick Links Section */}
+        <div className="mt-5">
+          <h3 className="text-[12px] font-semibold text-slate-400 uppercase tracking-[0.1em] mb-2">
+            Quick Links
+          </h3>
+          <div className="space-y-1">
+            {menuItems.quickLinks.map((item, index) => (
               <MenuItem key={index} item={item} />
             ))}
           </div>
