@@ -154,6 +154,11 @@ const Orders = () => {
     setReviewOrder(order);
   };
 
+  const handleViewDetails = (order) => {
+    if (!order?._id) return;
+    navigate(`/orders/${order._id}`);
+  };
+
   if (loading) return <Loader />;
 
   return (
@@ -243,6 +248,13 @@ const Orders = () => {
                     </Link>
                     <button
                       type="button"
+                      onClick={() => handleViewDetails(currentOrder)}
+                      className="px-3 py-3 rounded-full border border-slate-200 bg-white text-[12px] font-semibold text-slate-600"
+                    >
+                      View Details
+                    </button>
+                    <button
+                      type="button"
                       className="w-12 h-12 rounded-full border border-slate-200 bg-slate-50 inline-flex items-center justify-center text-slate-500"
                     >
                       <PhoneIcon className="w-5 h-5" />
@@ -302,15 +314,13 @@ const Orders = () => {
                               </button>
                             )
                           ) : (
-                            <Link
-                              to={order.__isMock ? '#' : `/orders/${order._id}`}
-                              onClick={(e) => {
-                                if (order.__isMock) e.preventDefault();
-                              }}
+                            <button
+                              type="button"
+                              onClick={() => handleViewDetails(order)}
                               className="px-4 py-2 rounded-full border border-slate-200 text-[13px] font-semibold text-slate-500"
                             >
-                              View Receipt
-                            </Link>
+                              View Details
+                            </button>
                           )}
                           {canReorder && (
                             <button
