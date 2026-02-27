@@ -120,7 +120,7 @@ const Addresses = () => {
         <div className="flex items-center justify-between">
           <button
             onClick={() => navigate(-1)}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-700"
+            className="w-9 h-9 rounded-full bg-[#e8edf2] flex items-center justify-center text-slate-700 transition-colors active:bg-slate-200"
           >
             <FiArrowLeft className="w-5 h-5" />
           </button>

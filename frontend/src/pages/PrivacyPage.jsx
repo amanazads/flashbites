@@ -1,6 +1,6 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiFileText } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { FiArrowLeft } from 'react-icons/fi';
 
 const PrivacyPage = () => {
   const navigate = useNavigate();
@@ -11,22 +11,23 @@ const PrivacyPage = () => {
 
   return (
     <div className="min-h-screen bg-[#f3f4f6]">
-      <div className="max-w-md mx-auto px-4 pt-4 pb-8">
-        <div className="rounded-3xl border border-slate-200 bg-white px-4 py-5">
-          <div className="flex items-center justify-between mb-2">
+      <div className="w-full max-w-md mx-auto min-h-screen">
+        <div className="sticky top-0 z-10 bg-[#f3f4f6] border-b border-slate-200 px-4 py-4">
+          <div className="relative flex items-center justify-center">
             <button
               onClick={() => navigate(-1)}
-              className="w-9 h-9 rounded-full bg-[#fff0ea] text-orange-500 flex items-center justify-center"
+              className="absolute left-0 w-9 h-9 rounded-full bg-[#e8edf2] text-slate-700 flex items-center justify-center transition-colors active:bg-slate-200"
             >
               <FiArrowLeft className="w-5 h-5" />
             </button>
             <h1 className="text-[20px] font-semibold text-slate-900">Privacy Policy</h1>
-            <div className="w-9 h-9" />
           </div>
-          <p className="text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-orange-500">FlashBites Legal</p>
+          <p className="mt-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-orange-500">FlashBites Legal</p>
           <p className="mt-1 text-center text-[12px] text-slate-400">Last Updated: January 9, 2026</p>
+        </div>
 
-          <div className="mt-5 space-y-4">
+        <div className="px-4 pt-5 pb-8">
+          <div className="space-y-4">
             <section>
               <h2 className={heading}>1. Introduction</h2>
               <p className={paragraph}>
@@ -377,12 +378,6 @@ const PrivacyPage = () => {
             </p>
           </div>
 
-          <div className="mt-4 space-y-2">
-            <Link to="/terms" className="flex items-center gap-2 text-[14px] font-semibold text-orange-500">
-              <FiFileText className="w-4 h-4" />
-              View Terms &amp; Conditions
-            </Link>
-          </div>
         </div>
       </div>
     </div>

@@ -9,10 +9,7 @@ import {
   FiCreditCard,
   FiBriefcase,
   FiInfo,
-  FiHome,
   FiSearch,
-  FiShoppingBag,
-  FiUser,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { getAvailableCoupons, validateCoupon } from '../api/couponApi';
@@ -131,13 +128,19 @@ const Promos = () => {
 
   return (
     <div className="bg-[#f3f4f6] min-h-screen">
-      <div className="max-w-md mx-auto px-4 pt-5 pb-32">
+      <div className="max-w-md mx-auto px-4 pt-5 pb-8">
         <div className="flex items-center justify-between">
-          <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full flex items-center justify-center text-slate-700">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-9 h-9 rounded-full bg-[#e8edf2] flex items-center justify-center text-slate-700 transition-colors active:bg-slate-200"
+          >
             <FiArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-[20px] font-semibold text-slate-900">Offers & Coupons</h1>
-          <button className="w-9 h-9 rounded-full flex items-center justify-center text-slate-700">
+          <button
+            onClick={() => navigate('/help')}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-700"
+          >
             <FiHelpCircle className="w-5 h-5" />
           </button>
         </div>
@@ -323,29 +326,6 @@ const Promos = () => {
         </section>
       </div>
 
-      <div
-        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50 bg-white border-t border-gray-200"
-        style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}
-      >
-        <div className="grid grid-cols-4 px-2 py-2">
-          <button onClick={() => navigate('/')} className="flex flex-col items-center justify-center gap-1 py-1">
-            <FiHome className="w-5 h-5 text-slate-400" />
-            <span className="text-[10px] leading-none font-medium text-slate-400">Home</span>
-          </button>
-          <button onClick={() => navigate('/orders')} className="flex flex-col items-center justify-center gap-1 py-1">
-            <FiShoppingBag className="w-5 h-5 text-slate-400" />
-            <span className="text-[10px] leading-none font-medium text-slate-400">Orders</span>
-          </button>
-          <button onClick={() => navigate('/restaurants')} className="flex flex-col items-center justify-center gap-1 py-1">
-            <FiSearch className="w-5 h-5 text-slate-400" />
-            <span className="text-[10px] leading-none font-medium text-slate-400">Search</span>
-          </button>
-          <button onClick={() => navigate('/profile')} className="flex flex-col items-center justify-center gap-1 py-1">
-            <FiUser className="w-5 h-5 text-orange-500" />
-            <span className="text-[10px] leading-none font-medium text-orange-500">Profile</span>
-          </button>
-        </div>
-      </div>
     </div>
   );
 };

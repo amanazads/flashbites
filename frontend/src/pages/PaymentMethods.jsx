@@ -202,7 +202,10 @@ const PaymentMethods = () => {
     <div className="bg-[#f3f4f6] min-h-screen">
       <div className="max-w-md mx-auto px-5 pt-5 pb-28">
         <div className="flex items-center justify-between">
-          <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full flex items-center justify-center text-slate-700">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-9 h-9 rounded-full bg-[#e8edf2] flex items-center justify-center text-slate-700 transition-colors active:bg-slate-200"
+          >
             <FiArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-[22px] font-semibold text-slate-900">Payment Methods</h1>
