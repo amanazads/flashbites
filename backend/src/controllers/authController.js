@@ -18,9 +18,7 @@ exports.register = async (req, res) => {
     }
 
     // Verify Firebase ID token
-    console.log('[register] Verifying Firebase token, length:', firebaseToken?.length);
     const decoded = await verifyFirebaseToken(firebaseToken);
-    console.log('[register] Token verification result:', decoded ? 'SUCCESS uid=' + decoded.uid : 'FAILED');
     if (!decoded) {
       return errorResponse(res, 401, 'Phone verification failed. Please try again.');
     }
@@ -98,7 +96,17 @@ exports.register = async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Registration error:', error.message, error.stack);
+    console.error('Registration error:', error);
+    // Handle MongoDB duplicate key error
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0] || 'field';
+      const message = field === 'email'
+        ? 'This email is already registered. Please use a different email or log in.'
+        : field === 'phone'
+          ? 'This phone number is already registered. Please log in.'
+          : 'An account with this information already exists.';
+      return errorResponse(res, 400, message);
+    }
     errorResponse(res, 500, 'Registration failed', error.message);
   }
 };
