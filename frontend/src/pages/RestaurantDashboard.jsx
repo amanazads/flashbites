@@ -1472,9 +1472,10 @@ const RestaurantDashboard = () => {
 
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Description
+                    Description *
                   </label>
                   <textarea
+                    required
                     value={menuItemData.description}
                     onChange={(e) =>
                       setMenuItemData({
@@ -1525,6 +1526,12 @@ const RestaurantDashboard = () => {
                       <option value="Breads">Breads</option>
                       <option value="Rice">Rice</option>
                       <option value="Snacks">Snacks</option>
+                      <option value="Fast Food">Fast Food</option>
+                      <option value="Pizza">Pizza</option>
+                      <option value="Burger">Burger</option>
+                      <option value="South Indian">South Indian</option>
+                      <option value="North Indian">North Indian</option>
+                      <option value="Chinese">Chinese</option>
                     </select>
                   </div>
                 </div>
