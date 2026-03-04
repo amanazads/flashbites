@@ -65,11 +65,12 @@ instance.interceptors.response.use(
     const status = error.response?.status;
     const url = error.config?.url || '';
 
-    // Skip noisy logs for expected auth-check failures
+    // Skip noisy logs for expected auth-check failures and simple coupon validation
     const isExpectedAuthCheckFailure = status === 401 && url.includes('/auth/me');
+    const isExpectedCouponFailure = (status === 404 || status === 400) && url.includes('/coupons/validate');
 
     // Log the full error for debugging
-    if (!isExpectedAuthCheckFailure) {
+    if (!isExpectedAuthCheckFailure && !isExpectedCouponFailure) {
       console.error('API Error:', {
         url: error.config?.url,
         method: error.config?.method,
