@@ -9,8 +9,9 @@ export const validatePhone = (phone) => {
 };
 
 export const validatePassword = (password) => {
-  // At least 6 characters
-  return password.length >= 6;
+  // At least 6 characters, 1 uppercase, 1 lowercase, 1 special character
+  const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{6,}$/;
+  return regex.test(password);
 };
 
 export const validateForm = (formData, rules) => {

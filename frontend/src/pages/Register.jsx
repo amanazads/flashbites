@@ -67,7 +67,7 @@ const Register = () => {
       return;
     }
     if (!validatePassword(formData.password)) {
-      toast.error('Password must be at least 6 characters');
+      toast.error('Password must be at least 6 characters, with one uppercase, one lowercase, and one special character');
       return;
     }
     if (formData.password !== formData.confirmPassword) {

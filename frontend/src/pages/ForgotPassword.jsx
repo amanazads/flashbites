@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from '../api/axios';
 import { setupRecaptcha, sendPhoneOTP, verifyPhoneOTP } from '../firebase';
+import { validatePassword } from '../utils/validators';
 
 const BRAND = '#FF523B';
 
@@ -75,8 +76,8 @@ const ForgotPassword = () => {
   const handleResetPassword = async (e) => {
     e.preventDefault();
 
-    if (!formData.newPassword || formData.newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    if (!validatePassword(formData.newPassword)) {
+      toast.error('Password must be at least 6 characters, with one uppercase, one lowercase, and one special character');
       return;
     }
 
