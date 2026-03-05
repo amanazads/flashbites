@@ -268,7 +268,7 @@ const About = () => {
               Order Now
             </Link>
             <Link
-              to="/restaurant/dashboard"
+              to="/partner"
               className="px-8 py-3 bg-white text-primary-600 border-2 border-primary-600 rounded-lg hover:bg-primary-50 font-semibold text-lg transition-colors"
             >
               Partner With Us
