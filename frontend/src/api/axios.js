@@ -13,7 +13,7 @@ console.log('🌍 Environment:', import.meta.env.MODE);
 
 const instance = axios.create({
   baseURL: apiUrl,
-  timeout: 30000, // Increased to 30 seconds for slower connections
+  timeout: isCapacitor ? 60000 : 30000, // 60s on mobile (Render cold start), 30s on web
   headers: {
     'Content-Type': 'application/json',
   },

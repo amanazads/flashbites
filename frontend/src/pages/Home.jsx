@@ -163,7 +163,12 @@ const hasRealCoords = (r) => {
 const reverseGeocode = async (lat, lng) => {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10&accept-language=en`;
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'FlashBites/1.0 (info.flashbites@gmail.com)',
+        'Accept-Language': 'en',
+      },
+    });
     const data = await res.json();
     return (
       data?.address?.city ||
@@ -182,7 +187,12 @@ const reverseGeocode = async (lat, lng) => {
 const geocodeAddress = async (query) => {
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', India')}&format=json&limit=1`;
-    const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'FlashBites/1.0 (info.flashbites@gmail.com)',
+        'Accept-Language': 'en',
+      },
+    });
     const data = await res.json();
     if (data && data.length > 0) {
       return { latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon), displayName: data[0].display_name.split(',')[0] };
@@ -217,6 +227,11 @@ const Home = () => {
   /* ── Category + search ── */
   const [activeCat, setActiveCat] = useState('all');
   const [searchQ, setSearchQ] = useState('');
+
+  // Wake up the backend on mount to avoid cold-start delays on Render free tier
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL?.replace('/api', '')}/api/health`).catch(() => {});
+  }, []);
 
   // Fetch restaurants on mount
   useEffect(() => { dispatch(fetchRestaurants({})); }, [dispatch]);
@@ -268,7 +283,7 @@ const Home = () => {
         setGpsDenied(true);
         if (err.code === 1) toast('Location permission denied. Use the address picker instead.', { icon: '📍' });
       },
-      { timeout: 10000, maximumAge: 60000 }
+      { timeout: 20000, maximumAge: 120000 }
     );
   }, []);
 
