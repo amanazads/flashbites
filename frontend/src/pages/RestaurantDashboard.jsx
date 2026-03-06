@@ -14,6 +14,7 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 import {
   createRestaurant, 
   getMyRestaurant, 
@@ -277,7 +278,16 @@ const RestaurantDashboard = () => {
   };
 
   const handleDeleteMenuItem = async (itemId) => {
-    if (!window.confirm('Are you sure you want to delete this item?')) return;
+    const result = await Swal.fire({
+      title: 'Delete this menu item?',
+      text: 'This action cannot be undone.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#9CA3AF',
+      confirmButtonText: 'Yes, delete it',
+    });
+    if (!result.isConfirmed) return;
 
     try {
       await deleteMenuItem(restaurant._id, itemId);
@@ -301,20 +311,22 @@ const RestaurantDashboard = () => {
   };
 
   const handleDeleteRestaurant = async () => {
-    const confirmed = window.confirm(
-      'Are you sure you want to delete your restaurant? This action cannot be undone and will delete all menu items and order history.'
-    );
-    
-    if (!confirmed) return;
-
-    const doubleConfirm = window.prompt(
-      'Type "DELETE" to confirm deletion:'
-    );
-
-    if (doubleConfirm !== 'DELETE') {
-      toast.error('Deletion cancelled');
-      return;
-    }
+    const result = await Swal.fire({
+      title: 'Delete your restaurant?',
+      html: 'This will permanently delete <strong>all menu items and order history</strong>. This action cannot be undone.',
+      icon: 'error',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#9CA3AF',
+      confirmButtonText: 'Yes, delete everything',
+      input: 'text',
+      inputLabel: 'Type DELETE to confirm',
+      inputPlaceholder: 'DELETE',
+      inputValidator: (value) => {
+        if (value !== 'DELETE') return 'Please type DELETE exactly to confirm';
+      },
+    });
+    if (!result.isConfirmed) return;
 
     try {
       await deleteRestaurant(restaurant._id);

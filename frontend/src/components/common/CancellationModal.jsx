@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { CANCELLATION_POLICY } from '../../utils/cancellationPolicy';
 import { formatCurrency } from '../../utils/formatters';
+import toast from 'react-hot-toast';
 
 const CancellationModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
   const [selectedReason, setSelectedReason] = useState('');
@@ -18,17 +19,17 @@ const CancellationModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
     e.preventDefault();
     
     if (!selectedReason) {
-      alert('Please select a reason for cancellation');
+      toast.error('Please select a reason for cancellation');
       return;
     }
 
     if (selectedReason === 'other' && !otherReason.trim()) {
-      alert('Please specify your reason');
+      toast.error('Please specify your reason');
       return;
     }
 
     if (!agreedToPolicy && !cancellationCheck.canCancel) {
-      alert('Please acknowledge the cancellation policy');
+      toast.error('Please acknowledge the cancellation policy');
       return;
     }
 

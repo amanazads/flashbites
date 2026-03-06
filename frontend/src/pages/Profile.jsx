@@ -21,6 +21,7 @@ import {
   UserCircleIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 
 const BRAND = '#E23744';
 const BRAND_BG = '#FEF2F3';
@@ -219,7 +220,18 @@ const Profile = () => {
   };
 
   const handleDeleteAddress = async (id) => {
-    if (!window.confirm('Remove this address?')) return;
+    const result = await Swal.fire({
+      title: 'Remove this address?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#E23744',
+      cancelButtonColor: '#9CA3AF',
+      confirmButtonText: 'Yes, remove it',
+      borderRadius: '1rem',
+    });
+    if (!result.isConfirmed) return;
+    
     try {
       await deleteAddress(id);
       toast.success('Address removed');

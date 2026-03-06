@@ -223,27 +223,47 @@ function App() {
         {/* Toast Notifications */}
         <Toaster
           position="top-center"
-          containerStyle={{ top: 16 }}
+          containerStyle={{ top: 20 }}
           toastOptions={{
-            duration: 3000,
+            duration: 3500,
             style: {
-              background: '#363636',
-              color: '#fff',
-              maxWidth: '90vw',
+              background: '#1C1C1E',
+              color: '#F5F5F7',
+              maxWidth: '92vw',
               fontSize: '14px',
+              fontWeight: '500',
+              borderRadius: '14px',
+              padding: '12px 16px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15)',
             },
             success: {
               duration: 3000,
               iconTheme: {
-                primary: '#10b981',
-                secondary: '#fff',
+                primary: '#34D399',
+                secondary: '#1C1C1E',
+              },
+              style: {
+                background: '#0D1F18',
+                color: '#D1FAE5',
+                border: '1px solid #065F46',
               },
             },
             error: {
-              duration: 4000,
+              duration: 4500,
               iconTheme: {
-                primary: '#ef4444',
-                secondary: '#fff',
+                primary: '#F87171',
+                secondary: '#1C1C1E',
+              },
+              style: {
+                background: '#1F0D0D',
+                color: '#FEE2E2',
+                border: '1px solid #7F1D1D',
+              },
+            },
+            loading: {
+              iconTheme: {
+                primary: '#FF6B35',
+                secondary: '#1C1C1E',
               },
             },
           }}

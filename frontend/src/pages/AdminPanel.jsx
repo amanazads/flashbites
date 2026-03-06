@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 import {
   CheckCircleIcon,
   XCircleIcon,
@@ -170,7 +171,16 @@ const AdminPanel = () => {
   };
 
   const handleRejectRestaurant = async (restaurantId) => {
-    if (!window.confirm('Are you sure you want to reject this restaurant?')) return;
+    const result = await Swal.fire({
+      title: 'Reject this restaurant?',
+      text: 'The restaurant owner will be notified.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#9CA3AF',
+      confirmButtonText: 'Yes, reject it',
+    });
+    if (!result.isConfirmed) return;
     
     try {
       await axios.patch(`/admin/restaurants/${restaurantId}/approve`, {
@@ -196,8 +206,22 @@ const AdminPanel = () => {
   };
 
   const handleRejectPartner = async (partnerId) => {
-    const reason = window.prompt('Please provide a reason for rejection:');
-    if (!reason) return;
+    const result = await Swal.fire({
+      title: 'Reject Partner Application',
+      input: 'textarea',
+      inputLabel: 'Reason for rejection',
+      inputPlaceholder: 'Enter your reason here...',
+      inputAttributes: { 'aria-label': 'Reason for rejection' },
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#9CA3AF',
+      confirmButtonText: 'Reject',
+      inputValidator: (value) => {
+        if (!value) return 'Please provide a rejection reason!';
+      },
+    });
+    if (!result.isConfirmed) return;
+    const reason = result.value;
     
     try {
       await rejectPartner(partnerId, reason);

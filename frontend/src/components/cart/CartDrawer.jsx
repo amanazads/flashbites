@@ -6,6 +6,7 @@ import { toggleCart } from '../../redux/slices/uiSlice';
 import { removeFromCart, updateQuantity, clearCart } from '../../redux/slices/cartSlice';
 import { formatCurrency } from '../../utils/formatters';
 import { calculateCartTotal } from '../../utils/helpers';
+import Swal from 'sweetalert2';
 
 const BRAND = '#E23744';
 
@@ -161,10 +162,18 @@ const CartDrawer = () => {
 
               {/* Clear Cart Button */}
               <button
-                onClick={() => {
-                  if (window.confirm('Clear entire cart?')) {
-                    dispatch(clearCart());
-                  }
+                onClick={async () => {
+                  const result = await Swal.fire({
+                    title: 'Clear your cart?',
+                    text: 'All items will be removed.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#E23744',
+                    cancelButtonColor: '#9CA3AF',
+                    confirmButtonText: 'Yes, clear it',
+                    cancelButtonText: 'Keep items',
+                  });
+                  if (result.isConfirmed) dispatch(clearCart());
                 }}
                 className="w-full mt-4 py-2 px-4 text-red-600 hover:text-red-700 hover:bg-red-50 text-sm font-medium rounded-lg transition-colors"
               >
