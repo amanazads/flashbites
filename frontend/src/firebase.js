@@ -45,7 +45,8 @@ export const getFCMToken = async () => {
 
     // Register the service worker
     if ('serviceWorker' in navigator) {
-      await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      const swUrl = `/firebase-messaging-sw.js?apiKey=${firebaseConfig.apiKey}&authDomain=${firebaseConfig.authDomain}&projectId=${firebaseConfig.projectId}&storageBucket=${firebaseConfig.storageBucket}&messagingSenderId=${firebaseConfig.messagingSenderId}&appId=${firebaseConfig.appId}`;
+      await navigator.serviceWorker.register(swUrl);
     }
 
     const token = await getToken(messaging, {

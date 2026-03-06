@@ -3,13 +3,15 @@
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
+const params = new URL(location).searchParams;
+
 firebase.initializeApp({
-  apiKey: "AIzaSyDarvJay2_Bk1TOeDe0IWbNveOGlfZWYB0",
-  authDomain: "flashbites-shop.firebaseapp.com",
-  projectId: "flashbites-shop",
-  storageBucket: "flashbites-shop.firebasestorage.app",
-  messagingSenderId: "815364103694",
-  appId: "1:815364103694:web:f6431fa301d5676ab1e65f"
+  apiKey: params.get('apiKey'),
+  authDomain: params.get('authDomain'),
+  projectId: params.get('projectId'),
+  storageBucket: params.get('storageBucket'),
+  messagingSenderId: params.get('messagingSenderId'),
+  appId: params.get('appId')
 });
 
 const messaging = firebase.messaging();
