@@ -15,6 +15,17 @@
       "has": [
         {
           "type": "host",
+          "value": "www.flashbites.in"
+        }
+      ],
+      "destination": "https://flashbites.in/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
           "value": "(.*)flashbites\\.shop"
         }
       ],
