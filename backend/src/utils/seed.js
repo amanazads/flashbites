@@ -22,17 +22,17 @@ const seedData = async () => {
       password: process.env.ADMIN_PASSWORD || 'Admin@123',
       phone: '9999999999',
       role: 'admin',
-      isVerified: true
+      isPhoneVerified: true
     });
 
     // Create test restaurant owner
     const owner = await User.create({
       name: 'Restaurant Owner',
       email: 'owner@example.com',
-      password: 'password123',
+      password: 'Owner@123',
       phone: '8888888888',
       role: 'restaurant_owner',
-      isVerified: true
+      isPhoneVerified: true
     });
 
     // Create test restaurant
