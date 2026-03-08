@@ -40,17 +40,25 @@ const getMessagingInstance = async () => {
  */
 export const getFCMToken = async () => {
   try {
+    // Guard: if Firebase config is incomplete, skip FCM entirely
+    if (!firebaseConfig.projectId || firebaseConfig.projectId === 'undefined') {
+      console.warn('FCM skipped — Firebase projectId not configured in env vars');
+      return null;
+    }
+
     const messaging = await getMessagingInstance();
     if (!messaging) return null;
 
-    // Register the service worker
+    let swRegistration;
+    // Register the service worker and pass registration handle to getToken
     if ('serviceWorker' in navigator) {
       const swUrl = `/firebase-messaging-sw.js?apiKey=${firebaseConfig.apiKey}&authDomain=${firebaseConfig.authDomain}&projectId=${firebaseConfig.projectId}&storageBucket=${firebaseConfig.storageBucket}&messagingSenderId=${firebaseConfig.messagingSenderId}&appId=${firebaseConfig.appId}`;
-      await navigator.serviceWorker.register(swUrl);
+      swRegistration = await navigator.serviceWorker.register(swUrl);
     }
 
     const token = await getToken(messaging, {
       vapidKey: FCM_VAPID_KEY,
+      ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {}),
     });
 
     if (token) {
@@ -65,6 +73,7 @@ export const getFCMToken = async () => {
     return null;
   }
 };
+
 
 /**
  * Listen for foreground FCM messages (when app is open/focused).

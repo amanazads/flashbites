@@ -143,3 +143,26 @@ exports.setDefaultAddress = async (req, res) => {
     errorResponse(res, 500, 'Failed to set default address', error.message);
   }
 };
+
+// @desc    Save FCM token for push notifications
+// @route   POST /api/users/fcm-token
+// @access  Private
+exports.saveFcmToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return errorResponse(res, 400, 'FCM token is required');
+    }
+
+    await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: { fcmToken: token } },
+      { new: true }
+    );
+
+    successResponse(res, 200, 'FCM token saved successfully');
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to save FCM token', error.message);
+  }
+};

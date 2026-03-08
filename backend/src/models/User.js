@@ -89,10 +89,15 @@ const userSchema = new mongoose.Schema({
   passwordChangedAt: {
     type: Date,
     default: null
+  },
+  fcmToken: {
+    type: String,
+    default: null
   }
 }, { 
   timestamps: true 
 });
+
 
 // Hash password before saving
 userSchema.pre('save', async function() {
