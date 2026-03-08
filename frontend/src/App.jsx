@@ -123,13 +123,17 @@ function App() {
   }, [isNative]);
 
   useEffect(() => {
-    // Always try to restore the user on app mount if a token is in storage.
-    // This keeps the user logged in across page refreshes / app restarts.
-    const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
-    if (token) {
-      dispatch(getCurrentUser());
+    // Restore session on page refresh/app restart.
+    // Skip if Redux already has a user (e.g. right after login/register via setAuthUser).
+    // This prevents a needless /auth/me call that can race against a freshly stored token.
+    if (!isAuthenticated) {
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+      if (token) {
+        dispatch(getCurrentUser());
+      }
     }
-  }, [dispatch]);
+  }, [dispatch, isAuthenticated]);
+
 
   return (
     <ErrorBoundary>

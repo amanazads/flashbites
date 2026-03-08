@@ -81,28 +81,32 @@ instance.interceptors.response.use(
     }
 
     if (status === 401) {
-      // Routes that require authentication — redirect to login on 401
+      // Only treat as a real session expiry if the user is explicitly on/navigating to a protected page.
+      // Background calls (FCM token, /auth/me, socket setup, etc.) should NOT wipe the session.
       const protectedRoutes = ['/checkout', '/orders', '/profile', '/auth/logout', '/notifications', '/users/addresses'];
       const isProtectedRequest = protectedRoutes.some(route => url.includes(route));
 
-      // Clear tokens on 401 regardless
-      if (isCapacitor) {
-        await Preferences.remove({ key: 'token' });
-        await Preferences.remove({ key: 'accessToken' });
-        await Preferences.remove({ key: 'refreshToken' });
-      } else {
-        localStorage.removeItem('token');
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-      }
+      // Only clear tokens + redirect when this is a user-facing protected action, not a background call.
+      // This prevents register/login flows from being disrupted by background 401s (e.g. FCM token, /auth/me)
+      if (isProtectedRequest) {
+        if (isCapacitor) {
+          await Preferences.remove({ key: 'token' });
+          await Preferences.remove({ key: 'accessToken' });
+          await Preferences.remove({ key: 'refreshToken' });
+        } else {
+          localStorage.removeItem('token');
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+        }
 
-      // Only redirect to login for protected actions — NOT for routine /auth/me checks or public browsing
-      if (isProtectedRequest && !window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);
   }
 );
+
 
 export default instance;
