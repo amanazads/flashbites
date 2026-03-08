@@ -123,16 +123,34 @@ function App() {
   }, [isNative]);
 
   useEffect(() => {
-    // Restore session on page refresh/app restart.
-    // Skip if Redux already has a user (e.g. right after login/register via setAuthUser).
-    // This prevents a needless /auth/me call that can race against a freshly stored token.
+    // Restore session on app restart / page refresh.
+    // Skip if Redux already has a user (right after login/register).
     if (!isAuthenticated) {
-      const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
-      if (token) {
-        dispatch(getCurrentUser());
-      }
+      const restoreSession = async () => {
+        let token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+
+        // On Capacitor, also check Preferences (the native persistent store)
+        if (!token && window.Capacitor) {
+          try {
+            const { value } = await Preferences.get({ key: 'token' });
+            token = value;
+            if (!token) {
+              const { value: v2 } = await Preferences.get({ key: 'accessToken' });
+              token = v2;
+            }
+          } catch (e) {
+            // Preferences unavailable — fall through
+          }
+        }
+
+        if (token) {
+          dispatch(getCurrentUser());
+        }
+      };
+      restoreSession();
     }
   }, [dispatch, isAuthenticated]);
+
 
 
   return (

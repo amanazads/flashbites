@@ -125,13 +125,26 @@ const Register = () => {
       // Destructure tokens and user data from the response
       const { accessToken, refreshToken, user: userData } = response.data.data;
 
-      // Store tokens in both keys for compatibility
+      // Store in localStorage (web) — always set for compatibility
       localStorage.setItem('token', accessToken);
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
 
+      // Also store in Capacitor Preferences so native app sessions persist
+      if (window.Capacitor) {
+        try {
+          const { Preferences: P } = await import('@capacitor/preferences');
+          await P.set({ key: 'token', value: accessToken });
+          await P.set({ key: 'accessToken', value: accessToken });
+          await P.set({ key: 'refreshToken', value: refreshToken });
+        } catch (e) {
+          // Non-critical — localStorage fallback is already set
+        }
+      }
+
       // Immediately update Redux auth state — user is now logged in
       dispatch(setAuthUser({ user: userData, token: accessToken }));
+
 
       toast.success('Welcome to FlashBites! 🎉');
 

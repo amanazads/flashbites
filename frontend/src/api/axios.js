@@ -26,12 +26,24 @@ instance.interceptors.request.use(
     let token;
     
     if (isCapacitor) {
-      // Use Capacitor Preferences for mobile
-      const { value } = await Preferences.get({ key: 'token' });
-      token = value;
+      // On Capacitor, try Preferences first (the correct native store)
+      const { value: prefToken } = await Preferences.get({ key: 'token' });
+      token = prefToken;
       if (!token) {
-        const { value: accessToken } = await Preferences.get({ key: 'accessToken' });
-        token = accessToken;
+        const { value: prefAccess } = await Preferences.get({ key: 'accessToken' });
+        token = prefAccess;
+      }
+
+      // Fallback: token may have been saved to localStorage (web session, or Register flow)
+      // Migrate it to Preferences so all future requests work correctly
+      if (!token) {
+        const lsToken = localStorage.getItem('token') || localStorage.getItem('accessToken');
+        if (lsToken) {
+          token = lsToken;
+          // Migrate to Preferences so next request finds it there
+          await Preferences.set({ key: 'token', value: lsToken });
+          console.log('🔄 Token migrated from localStorage → Preferences');
+        }
       }
     } else {
       // Use localStorage for web
@@ -57,6 +69,7 @@ instance.interceptors.request.use(
     return Promise.reject(error);
   }
 );
+
 
 // Response interceptor for handling errors
 instance.interceptors.response.use(
