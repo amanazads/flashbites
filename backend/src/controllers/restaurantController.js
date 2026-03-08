@@ -121,6 +121,8 @@ exports.getAllRestaurants = async (req, res) => {
         .lean();
     }
 
+    // Cache public restaurant list for 30 seconds on CDN/browser
+    res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     successResponse(res, 200, 'Restaurants retrieved successfully', {
       page: safePage,
       limit: safeLimit,
@@ -149,11 +151,14 @@ exports.getRestaurantById = async (req, res) => {
       return errorResponse(res, 403, 'Restaurant is not available');
     }
 
+    // Cache individual restaurant page for 60 seconds
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
     successResponse(res, 200, 'Restaurant retrieved successfully', { restaurant });
   } catch (error) {
     errorResponse(res, 500, 'Failed to get restaurant', error.message);
   }
 };
+
 
 // @desc    Update restaurant
 // @route   PUT /api/restaurants/:id
