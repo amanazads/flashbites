@@ -3,9 +3,10 @@
   "appName": "Flashbites",
   "webDir": "dist",
   "server": {
-    "hostname": "localhost",
+    "hostname": "flashbites-shop.firebaseapp.com",
     "androidScheme": "https",
     "iosScheme": "https"
   }
 }
+
 
