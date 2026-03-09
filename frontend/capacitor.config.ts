@@ -5,6 +5,7 @@ const config: CapacitorConfig = {
   appName: 'FlashBites',
   webDir: 'dist',
   server: {
+    hostname: 'flashbites.shop',
     androidScheme: 'https',
     iosScheme: 'https',
   }
