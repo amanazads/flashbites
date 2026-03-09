@@ -14,7 +14,13 @@ const menuItemSchema = new mongoose.Schema({
   description: {
     type: String,
     required: [true, 'Please provide item description'],
-    maxlength: [200, 'Description cannot exceed 200 characters']
+    validate: {
+      validator: function(v) {
+        // Allow up to 500 words
+        return !v || v.trim().split(/\s+/).length <= 500;
+      },
+      message: 'Description cannot exceed 500 words'
+    }
   },
   price: {
     type: Number,
