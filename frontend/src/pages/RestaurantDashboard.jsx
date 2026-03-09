@@ -220,9 +220,21 @@ const RestaurantDashboard = () => {
   const handleMenuItemSubmit = async (e) => {
     e.preventDefault();
     
-    // Manual validation to bypass hidden HTML5 tooltip block on description
-    if (!menuItemData.description) {
+    // Client-side validation
+    if (!menuItemData.name?.trim()) {
+      toast.error('Please enter the item name');
+      return;
+    }
+    if (!menuItemData.description?.trim()) {
       toast.error('Please enter a description for the item!');
+      return;
+    }
+    if (!menuItemData.price || parseFloat(menuItemData.price) <= 0) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+    if (!menuItemData.category) {
+      toast.error('Please select a category');
       return;
     }
     
@@ -230,8 +242,8 @@ const RestaurantDashboard = () => {
       const formData = new FormData();
       
       // Append menu item data
-      formData.append('name', menuItemData.name);
-      formData.append('description', menuItemData.description);
+      formData.append('name', menuItemData.name.trim());
+      formData.append('description', menuItemData.description.trim());
       formData.append('price', menuItemData.price);
       formData.append('category', menuItemData.category);
       formData.append('isVeg', menuItemData.isVeg);
@@ -273,9 +285,13 @@ const RestaurantDashboard = () => {
       await fetchMenuItems(restaurant._id);
       console.log('Menu items refreshed after add/update');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to save menu item');
+      // Show the exact server error message for easy debugging
+      const msg = error.response?.data?.message || error.message || 'Failed to save menu item';
+      toast.error(msg);
+      console.error('Menu item save error:', error.response?.data || error.message);
     }
   };
+
 
   const handleDeleteMenuItem = async (itemId) => {
     const result = await Swal.fire({

@@ -10,9 +10,21 @@ exports.addMenuItem = async (req, res) => {
   try {
     const { name, description, price, category, isVeg, tags, prepTime, isAvailable, variants } = req.body;
 
-    // Validate required fields
-    if (!name || !description || !price || !category) {
-      return errorResponse(res, 400, 'Missing required fields: name, description, price, category');
+    // Validate required fields with detailed errors
+    const missing = [];
+    if (!name) missing.push('name');
+    if (!description) missing.push('description');
+    if (!price) missing.push('price');
+    if (!category) missing.push('category');
+
+    if (missing.length > 0) {
+      return errorResponse(res, 400, `Missing required fields: ${missing.join(', ')}`);
+    }
+
+    // Validate category is in allowed enum
+    const allowedCategories = ['Starters', 'Main Course', 'Desserts', 'Beverages', 'Breads', 'Rice', 'Snacks', 'Fast Food', 'Pizza', 'Burger', 'South Indian', 'North Indian', 'Chinese'];
+    if (!allowedCategories.includes(category)) {
+      return errorResponse(res, 400, `Invalid category "${category}". Must be one of: ${allowedCategories.join(', ')}`);
     }
 
     // Handle image upload
@@ -21,17 +33,15 @@ exports.addMenuItem = async (req, res) => {
       try {
         imageUrl = await uploadToCloudinary(req.file.buffer, 'flashbites/menu-items');
       } catch (uploadError) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.error('Image upload failed:', uploadError);
-        }
+        console.error('Image upload failed, using default:', uploadError.message);
         // Continue with default image if upload fails
       }
     }
 
     const menuItemData = {
       restaurantId: req.params.restaurantId,
-      name,
-      description,
+      name: name.trim(),
+      description: description.trim(),
       price: parseFloat(price),
       category,
       image: imageUrl,
@@ -46,10 +56,12 @@ exports.addMenuItem = async (req, res) => {
 
     successResponse(res, 201, 'Menu item added successfully', { menuItem });
   } catch (error) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('Add menu item error:', error);
-      console.error('Error stack:', error.stack);
+    // Return detailed Mongoose validation errors to help debug
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(e => e.message).join(', ');
+      return errorResponse(res, 400, `Validation failed: ${messages}`);
     }
+    console.error('Add menu item error:', error.message);
     errorResponse(res, 500, 'Failed to add menu item', error.message);
   }
 };
@@ -106,7 +118,6 @@ exports.updateMenuItem = async (req, res) => {
       try {
         const parsedVariants = JSON.parse(req.body.variants);
         if (Array.isArray(parsedVariants)) {
-          // Filter out variants with empty name or strictly invalid price
           req.body.variants = parsedVariants.filter(v => v.name && v.name.trim() !== '' && v.price !== '' && v.price !== null);
         }
       } catch (e) {
@@ -114,9 +125,10 @@ exports.updateMenuItem = async (req, res) => {
       }
     }
 
+    // Use $set to only update provided fields — never wipe existing data
     const updatedMenuItem = await MenuItem.findByIdAndUpdate(
       req.params.itemId,
-      req.body,
+      { $set: req.body },
       { new: true, runValidators: true }
     );
 
@@ -124,11 +136,13 @@ exports.updateMenuItem = async (req, res) => {
   } catch (error) {
     console.error('Update Menu Item Error:', error);
     if (error.name === 'ValidationError') {
-      console.error('Validation Errors:', Object.keys(error.errors).map(k => error.errors[k].message));
+      const messages = Object.values(error.errors).map(e => e.message).join(', ');
+      return errorResponse(res, 400, `Validation failed: ${messages}`);
     }
     errorResponse(res, 500, 'Failed to update menu item', error.message);
   }
 };
+
 
 // @desc    Delete menu item
 // @route   DELETE /api/restaurants/:restaurantId/menu/:itemId
