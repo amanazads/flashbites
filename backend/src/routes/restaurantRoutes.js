@@ -31,6 +31,9 @@ router.get('/my-restaurant', protect, restrictTo('restaurant_owner'), getMyResta
 
 router.get('/:id', getRestaurantById);
 
+// Public Menu route nested under restaurant
+router.get('/:restaurantId/menu', getMenuByRestaurant);
+
 router.use(protect); // All routes below require authentication
 
 router.route('/:id')
@@ -41,9 +44,8 @@ router.patch('/:id/toggle-status', checkRestaurantOwnership, toggleRestaurantSta
 router.get('/:id/dashboard', checkRestaurantOwnership, getRestaurantDashboard);
 router.get('/:id/analytics', checkRestaurantOwnership, getRestaurantAnalytics);
 
-// Menu routes nested under restaurant
+// Protected Menu routes nested under restaurant
 router.route('/:restaurantId/menu')
-  .get(getMenuByRestaurant)
   .post(checkRestaurantOwnership, upload.single('image'), addMenuItem);
 
 router.route('/:restaurantId/menu/:itemId')

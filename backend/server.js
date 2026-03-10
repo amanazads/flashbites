@@ -45,8 +45,9 @@ app.disable('x-powered-by');
 // Trust proxy - Required for Railway, Heroku, etc.
 app.set('trust proxy', 1);
 
-// Connect to database
-connectDB();
+// Bootstrap: connect DB first, then start server
+(async () => {
+  await connectDB();
 
 // Security middleware
 app.use(helmet()); // Set security headers
@@ -83,6 +84,7 @@ const allowedOrigins = [
   'ionic://localhost',
   'http://localhost',
   'https://flash-bite-go.base44.app',
+  'https://api.razorpay.com',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
@@ -181,40 +183,34 @@ app.use((req, res) => {
 // Global error handler (must be last)
 app.use(errorHandler);
 
-// Start server
-const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
-  console.log(`
-  ╔═══════════════════════════════════════════╗
+  // Start server
+  const PORT = process.env.PORT || 5000;
+  const server = app.listen(PORT, () => {
+    console.log(`
+  ╬═══════════════════════════════════════════╪
   ║   FlashBites Server Running              ║
   ║   Port: ${PORT}                            ║
   ║   Environment: ${process.env.NODE_ENV || 'development'}              ║
   ║   Time: ${new Date().toLocaleString()}   ║
   ╚═══════════════════════════════════════════╝
   `);
-  
-  // Initialize Socket.IO after server starts
-  initializeSocket(server);
-});
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err) => {
-  console.error('UNHANDLED REJECTION! ⚠️');
-  console.error(err.name, err.message);
-  // Don't exit in production - log and continue
-  if (process.env.NODE_ENV !== 'production') {
-    server.close(() => {
-      process.exit(1);
-    });
-  }
-});
-
-// Handle SIGTERM
-process.on('SIGTERM', () => {
-  console.log('👋 SIGTERM RECEIVED. Shutting down gracefully');
-  server.close(() => {
-    console.log('💥 Process terminated!');
+    initializeSocket(server);
   });
-});
+
+  // Handle unhandled promise rejections
+  process.on('unhandledRejection', (err) => {
+    console.error('UNHANDLED REJECTION! ⚠️');
+    console.error(err.name, err.message);
+    if (process.env.NODE_ENV !== 'production') {
+      server.close(() => process.exit(1));
+    }
+  });
+
+  process.on('SIGTERM', () => {
+    console.log('👋 SIGTERM RECEIVED. Shutting down gracefully');
+    server.close(() => console.log('💥 Process terminated!'));
+  });
+
+})();
 
 module.exports = app;

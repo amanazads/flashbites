@@ -89,11 +89,21 @@ const authSlice = createSlice({
       state.token = null;
       state.refreshToken = null;
       state.isAuthenticated = false;
+      Preferences.remove({ key: 'token' });
+      Preferences.remove({ key: 'accessToken' });
+      Preferences.remove({ key: 'refreshToken' });
       localStorage.removeItem('token');
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
     },
     clearError: (state) => {
+      state.error = null;
+    },
+    setAuthUser: (state, action) => {
+      state.user = action.payload.user;
+      state.token = action.payload.token;
+      state.isAuthenticated = true;
+      state.loading = false;
       state.error = null;
     },
   },
@@ -139,7 +149,7 @@ const authSlice = createSlice({
       .addCase(getCurrentUser.fulfilled, (state, action) => {
         state.user = action.payload?.data?.user || action.payload?.user || null;
         state.loading = false;
-        state.isAuthenticated = true;
+        if (state.user) state.isAuthenticated = true;
       })
       .addCase(getCurrentUser.rejected, (state) => {
         state.loading = false;
@@ -148,5 +158,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError, setCredentials } = authSlice.actions;
+export const { logout, clearError, setCredentials, setAuthUser } = authSlice.actions;
 export default authSlice.reducer;

@@ -1,7 +1,7 @@
 import React from 'react';
-import { useDispatch } from 'react-redux';
-import { PlusIcon } from '@heroicons/react/24/solid';
-import { addToCart } from '../../redux/slices/cartSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { PlusIcon, MinusIcon } from '@heroicons/react/24/solid';
+import { addToCart, updateQuantity } from '../../redux/slices/cartSlice';
 import { formatCurrency } from '../../utils/formatters';
 import toast from 'react-hot-toast';
 
@@ -9,6 +9,11 @@ const BRAND = '#FF523B';
 
 const MenuCard = ({ item, restaurant, disabled = false }) => {
   const dispatch = useDispatch();
+  
+  // Find if this item is already in cart to get its quantity
+  const cartItems = useSelector(state => state.cart.items);
+  const cartItem = cartItems.find(i => i._id === item._id);
+  const quantity = cartItem ? cartItem.quantity : 0;
 
   const handleAddToCart = () => {
     if (disabled) {
@@ -17,6 +22,14 @@ const MenuCard = ({ item, restaurant, disabled = false }) => {
     }
     dispatch(addToCart({ item, restaurant }));
     toast.success('Added to cart!');
+  };
+
+  const handleIncrement = () => {
+    dispatch(updateQuantity({ itemId: item._id, quantity: quantity + 1 }));
+  };
+
+  const handleDecrement = () => {
+    dispatch(updateQuantity({ itemId: item._id, quantity: quantity - 1 }));
   };
 
   return (
@@ -59,6 +72,24 @@ const MenuCard = ({ item, restaurant, disabled = false }) => {
             <span className="badge bg-red-100 text-red-800 border border-red-300">Closed</span>
           ) : !item.isAvailable ? (
             <span className="badge badge-danger">Not Available</span>
+          ) : quantity > 0 ? (
+            <div className="flex items-center gap-3 bg-red-50 rounded-xl px-2 py-1.5 border" style={{ borderColor: BRAND }}>
+              <button 
+                onClick={handleDecrement}
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white shadow-sm transition-colors hover:bg-gray-50"
+                style={{ color: BRAND }}
+              >
+                <MinusIcon className="h-4 w-4" />
+              </button>
+              <span className="font-bold w-4 text-center text-[15px]">{quantity}</span>
+              <button 
+                onClick={handleIncrement}
+                className="w-7 h-7 flex items-center justify-center rounded-lg shadow-sm transition-colors"
+                style={{ background: BRAND, color: 'white' }}
+              >
+                <PlusIcon className="h-4 w-4" />
+              </button>
+            </div>
           ) : (
             <button
               onClick={handleAddToCart}

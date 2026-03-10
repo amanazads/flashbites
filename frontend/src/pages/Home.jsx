@@ -1,21 +1,23 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchRestaurants } from '../redux/slices/restaurantSlice';
+import { getAddresses } from '../api/userApi';
 import RestaurantCard from '../components/restaurant/RestaurantCard';
 import { Loader } from '../components/common/Loader';
-import { NEARBY_LOCATIONS } from '../utils/constants';
 import { calculateDistance } from '../utils/helpers';
-import { useGeolocation } from '../hooks/useGeolocation';
+import SEO from '../components/common/SEO';
 import toast from 'react-hot-toast';
 import {
   MagnifyingGlassIcon,
   FireIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
+  MapPinIcon,
+  ChevronDownIcon,
+  XMarkIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline';
 
-const BRAND = '#FF523B';
+const BRAND = '#E23744';
 
 /* ───── Category definitions with SVG icon paths ───── */
 const CATEGORIES = [
@@ -112,65 +114,263 @@ const CATEGORIES = [
 const PROMOS = [
   {
     id: 1,
-    tag: 'LIMITED TIME OFFER',
-    bold: '50% Discount on your first 3 orders!',
-    sub: 'Taste the difference with FlashBites speed and quality.',
-    cta: 'Claim Now',
-    bg: 'linear-gradient(135deg, #2A9D8F 0%, #264653 100%)',
+    tag: 'LIMITED TIME',
+    bold: '50% off your first 3 orders',
+    sub: 'Use code WELCOME50 at checkout.',
+    cta: 'Claim Offer',
+    bg: 'linear-gradient(135deg, #0F2027 0%, #203A43 50%, #2C5364 100%)',
     img: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=280&q=80',
   },
   {
     id: 2,
-    tag: 'Orders above ₹199',
-    bold: 'Free Delivery',
-    sub: 'No minimum order. Just great food.',
+    tag: 'FREE DELIVERY',
+    bold: 'Free delivery on orders above ₹199',
+    sub: 'No minimum fuss. Just great food delivered.',
     cta: 'Order Now',
-    bg: 'linear-gradient(135deg, #FF523B 0%, #FF7A5C 100%)',
+    bg: 'linear-gradient(135deg, #E23744 0%, #C92535 100%)',
     img: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=280&q=80',
   },
   {
     id: 3,
-    tag: 'Late Night Special',
-    bold: 'Meals < ₹250',
-    sub: 'Midnight cravings served hot.',
-    cta: 'Explore',
-    bg: 'linear-gradient(135deg, #1A1A1A 0%, #333333 100%)',
+    tag: 'NIGHT SPECIAL',
+    bold: 'Late night meals under ₹250',
+    sub: 'Open late. Delivering hot until midnight.',
+    cta: 'Explore Menu',
+    bg: 'linear-gradient(135deg, #1A1A2E 0%, #16213E 100%)',
     img: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=280&q=80',
   },
 ];
+
+const DELIVERY_RADIUS_KM = 20;
+
+/* Known city clusters: restaurants in the same cluster are shown together */
+const KNOWN_CLUSTERS = [
+  ['ataria', 'sidhauli', 'sitapur', 'kamlapur', 'misrikh', 'mahmudabad', 'biswan', 'hargaon', 'khairabad'],
+];
+
+const findCluster = (city = '') => {
+  const c = city.toLowerCase().trim();
+  return KNOWN_CLUSTERS.find(cl => cl.some(k => c.includes(k) || k.includes(c))) || null;
+};
+
+/* Returns true only if the restaurant has real (non-zero) GPS coordinates */
+const hasRealCoords = (r) => {
+  const coords = r.location?.coordinates;
+  return Array.isArray(coords) && coords.length === 2 && (coords[0] !== 0 || coords[1] !== 0);
+};
+
+/* Reverse-geocode lat/lng to city name using Nominatim */
+const reverseGeocode = async (lat, lng) => {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10&accept-language=en`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return (
+      data?.address?.city ||
+      data?.address?.town ||
+      data?.address?.village ||
+      data?.address?.county ||
+      data?.display_name?.split(',')[0] ||
+      null
+    );
+  } catch {
+    return null;
+  }
+};
+
+/* Geocode a typed address/city string */
+const geocodeAddress = async (query) => {
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', India')}&format=json&limit=1`;
+    const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+    const data = await res.json();
+    if (data && data.length > 0) {
+      return { latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon), displayName: data[0].display_name.split(',')[0] };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
 
 const Home = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { restaurants, loading } = useSelector((s) => s.restaurant);
-  const { location: geoLoc, loading: geoLoading, getLocation, clearLocation } = useGeolocation();
-  const [userLocation, setUserLocation] = useState(null);
+  const { isAuthenticated } = useSelector((s) => s.auth);
+
+  /* ── Delivery address state ── */
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [showAddressPicker, setShowAddressPicker] = useState(false);
+  const [manualInput, setManualInput] = useState('');
+  const [geocoding, setGeocoding] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsDenied, setGpsDenied] = useState(false);
+  const [showGpsBanner, setShowGpsBanner] = useState(true);
+  const pickerRef = useRef(null);
+
+  /* ── Filtered restaurants ── */
   const [nearbyRests, setNearbyRests] = useState([]);
-  const [locationName, setLocationName] = useState('');
+  const [noServiceArea, setNoServiceArea] = useState(false);
+
+  /* ── Category + search ── */
   const [activeCat, setActiveCat] = useState('all');
   const [searchQ, setSearchQ] = useState('');
 
   // Fetch restaurants on mount
   useEffect(() => { dispatch(fetchRestaurants({})); }, [dispatch]);
 
-  // Filter by location
+  // Load saved addresses if authenticated
   useEffect(() => {
-    if (userLocation && restaurants.length) filterByDistance();
-  }, [userLocation, restaurants]);
+    if (isAuthenticated) {
+      getAddresses().then((res) => {
+        const addrs = res?.data?.addresses || [];
+        setSavedAddresses(addrs);
+      }).catch(() => {});
+    }
+  }, [isAuthenticated]);
 
-  const filterByDistance = () => {
-    const MAX = 50;
-    const list = restaurants
-      .map((r) => {
-        if (r.location?.coordinates?.length === 2) {
-          const [lng, lat] = r.location.coordinates;
-          return { ...r, distance: calculateDistance(userLocation.latitude, userLocation.longitude, lat, lng) };
+  // Close picker on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target)) {
+        setShowAddressPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  /* ─────────────────────────────────────────────
+     GPS PERMISSION — request on mount, auto-fill
+  ────────────────────────────────────────────── */
+  const requestGps = useCallback(() => {
+    if (!navigator.geolocation) { setGpsDenied(true); return; }
+    setGpsLoading(true);
+    setShowGpsBanner(false);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const city = await reverseGeocode(latitude, longitude);
+        setGpsLoading(false);
+        if (city) {
+          setSelectedAddress({ label: city, city, latitude, longitude, fromGps: true });
+          toast.success(`Location detected: ${city}`);
+        } else {
+          // GPS coords obtained but city unknown — still use them for distance
+          setSelectedAddress({ label: 'Current Location', city: '', latitude, longitude, fromGps: true });
+          toast.success('Using your current location');
         }
-        return { ...r, distance: Infinity };
-      })
-      .filter((r) => r.distance <= MAX)
+      },
+      (err) => {
+        setGpsLoading(false);
+        setGpsDenied(true);
+        if (err.code === 1) toast('Location permission denied. Use the address picker instead.', { icon: '📍' });
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
+  }, []);
+
+  /* ─────────────────────────────────────────────
+     FILTER LOGIC  
+     Priority:
+       1. Real GPS coords (non-zero) → distance ≤ 20km
+       2. Address has [0,0] coords  → skip distance, use city-name matching
+       3. No address selected        → show all restaurants
+  ────────────────────────────────────────────── */
+  const filterByCoords = useCallback((lat, lng, cityLabel = '') => {
+    const cluster = findCluster(cityLabel);
+    const typedCity = cityLabel.toLowerCase().trim();
+    const userHasGps = (lat !== 0 || lng !== 0);
+
+    const withDist = restaurants.map((r) => {
+      const rCity = (r.address?.city || '').toLowerCase().trim();
+
+      // 1) Restaurant has real GPS → use precise distance
+      if (hasRealCoords(r) && userHasGps) {
+        const [rLng, rLat] = r.location.coordinates;
+        return { ...r, distance: calculateDistance(lat, lng, rLat, rLng) };
+      }
+
+      // 2) Cluster match  (e.g. "Ataria" → shows Sidhauli/Sitapur cluster restaurants)
+      if (cluster && rCity && cluster.some(k => rCity.includes(k) || k.includes(rCity))) {
+        return { ...r, distance: 5 };
+      }
+
+      // 3) If user has real GPS but restaurant has [0,0] coords — match by city name
+      if (userHasGps && typedCity && rCity &&
+          (rCity.includes(typedCity) || typedCity.includes(rCity))) {
+        return { ...r, distance: 10 };
+      }
+
+      // 4) Pure city-name substring match (for manually typed areas)
+      if (typedCity && rCity &&
+          (rCity.includes(typedCity) || typedCity.includes(rCity) ||
+           typedCity.split(' ').some(w => w.length > 2 && rCity.includes(w)))) {
+        return { ...r, distance: 10 };
+      }
+
+      return { ...r, distance: Infinity };
+    });
+
+    const nearby = withDist
+      .filter(r => r.distance <= DELIVERY_RADIUS_KM)
       .sort((a, b) => a.distance - b.distance);
-    setNearbyRests(list);
+
+    setNearbyRests(nearby);
+    setNoServiceArea(nearby.length === 0);
+  }, [restaurants]);
+
+  useEffect(() => {
+    if (selectedAddress && restaurants.length) {
+      filterByCoords(selectedAddress.latitude, selectedAddress.longitude, selectedAddress.city);
+    }
+  }, [selectedAddress, restaurants, filterByCoords]);
+
+  /* ── Select a saved address ── */
+  const handleSelectSavedAddress = async (addr) => {
+    setGeocoding(true);
+    setShowAddressPicker(false);
+    // Try full address first, then just city
+    let geo = await geocodeAddress(`${addr.street}, ${addr.city}, ${addr.state}`);
+    if (!geo) geo = await geocodeAddress(addr.city);
+    setGeocoding(false);
+    const cityLabel = addr.city;
+    const typeLabel = addr.type === 'home' ? 'Home' : addr.type === 'work' ? 'Work' : 'Other';
+    if (geo) {
+      setSelectedAddress({ label: `${typeLabel} – ${cityLabel}`, city: cityLabel, latitude: geo.latitude, longitude: geo.longitude });
+    } else {
+      // No geocode — use cluster fallback with zeroed coords (city match will still work)
+      setSelectedAddress({ label: `${typeLabel} – ${cityLabel}`, city: cityLabel, latitude: 0, longitude: 0 });
+      toast(`Showing restaurants near ${cityLabel}`, { icon: '📍' });
+    }
+  };
+
+  /* ── Manual city / area geocode ── */
+  const handleManualGeocode = async (e) => {
+    e.preventDefault();
+    if (!manualInput.trim()) return;
+    setGeocoding(true);
+    setShowAddressPicker(false);
+    const input = manualInput.trim();
+    const geo = await geocodeAddress(input);
+    setGeocoding(false);
+    const cityLabel = (geo?.displayName || input);
+    setSelectedAddress({
+      label: cityLabel,
+      city: cityLabel,
+      latitude: geo?.latitude ?? 0,
+      longitude: geo?.longitude ?? 0,
+    });
+    setManualInput('');
+    if (!geo) toast(`Showing restaurants near "${input}"`, { icon: '📍' });
+  };
+
+  const clearAddress = () => {
+    setSelectedAddress(null);
+    setNearbyRests([]);
+    setNoServiceArea(false);
   };
 
   const handleSearch = (e) => {
@@ -178,18 +378,243 @@ const Home = () => {
     if (searchQ.trim()) navigate(`/restaurants?search=${encodeURIComponent(searchQ.trim())}`);
   };
 
-  const allFiltered = (() => {
-    const base = userLocation && nearbyRests.length ? nearbyRests : restaurants;
-    return activeCat === 'all' ? base : base.filter((r) => r.cuisines?.some((c) => c.toLowerCase() === activeCat.toLowerCase()));
-  })();
+  const baseList = selectedAddress ? nearbyRests : restaurants;
+  const allFiltered = activeCat === 'all' ? baseList : baseList.filter((r) => r.cuisines?.some((c) => c.toLowerCase() === activeCat.toLowerCase()));
 
   return (
     <div className="page-wrapper flex justify-center lg:pt-10">
+      <SEO
+        title="Order Food Online – Best Restaurants Near You"
+        description="Order fresh, hot food online from top restaurants near you. Fast delivery, exclusive restaurant deals, and 500+ menu options. FlashBites – India's fastest food delivery."
+        url="/"
+        keywords="food delivery, order food online, restaurant near me, online food order India, FlashBites, fast delivery food, food app India"
+      />
       <div className="max-w-7xl mx-auto w-full">
+
       {/* ══════════════════════════════════
-          SEARCH BAR (top, full-width)
+          DELIVERY ADDRESS SELECTOR
       ══════════════════════════════════ */}
-      <div className="container-px pt-6 pb-6 lg:hidden">
+      <div className="container-px pt-5 pb-3">
+        <div ref={pickerRef} className="relative">
+          <button
+            onClick={() => setShowAddressPicker(!showAddressPicker)}
+            className="w-full flex items-center gap-3 px-4 py-3.5 bg-white rounded-2xl text-left transition-all"
+            style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.08)', border: showAddressPicker ? `1.5px solid ${BRAND}` : '1.5px solid transparent' }}
+          >
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: selectedAddress ? '#FEF2F3' : '#F5F7FA' }}
+            >
+              {geocoding ? (
+                <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke={BRAND} strokeWidth="4" />
+                  <path className="opacity-75" fill={BRAND} d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+              ) : (
+                <MapPinIcon className="w-5 h-5" style={{ color: selectedAddress ? BRAND : '#9CA3AF' }} />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Deliver to</p>
+              <p className="text-[14.5px] font-bold text-gray-900 truncate mt-0.5">
+                {geocoding ? 'Finding location…' : selectedAddress ? selectedAddress.label : 'Select delivery address'}
+              </p>
+            </div>
+            {selectedAddress ? (
+              // ← div NOT button (fixes button-in-button DOM nesting error)
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); clearAddress(); }}
+                onKeyDown={(e) => e.key === 'Enter' && clearAddress()}
+                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 cursor-pointer hover:bg-gray-200"
+                aria-label="Clear address"
+              >
+                <XMarkIcon className="w-4 h-4 text-gray-500" />
+              </div>
+            ) : (
+              <ChevronDownIcon
+                className="w-5 h-5 text-gray-400 flex-shrink-0 transition-transform"
+                style={{ transform: showAddressPicker ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              />
+            )}
+          </button>
+
+          {/* Dropdown */}
+          {showAddressPicker && (
+            <div
+              className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl overflow-hidden z-50 animate-slide-down"
+              style={{ boxShadow: '0 12px 40px rgba(0,0,0,0.14)' }}
+            >
+              {/* Manual input */}
+              <form onSubmit={handleManualGeocode} className="p-4 border-b border-gray-100">
+                <div
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                  style={{ background: '#F5F7FA', border: '1.5px solid transparent' }}
+                >
+                  <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <input
+                    type="text"
+                    value={manualInput}
+                    onChange={(e) => setManualInput(e.target.value)}
+                    placeholder="Type city or area name…"
+                    className="flex-1 bg-transparent outline-none text-[14px] font-medium text-gray-800 placeholder-gray-400"
+                    autoFocus
+                  />
+                  {manualInput && (
+                    <button
+                      type="submit"
+                      className="text-[12px] font-bold px-3 py-1 rounded-lg text-white flex-shrink-0"
+                      style={{ background: BRAND }}
+                    >
+                      Go
+                    </button>
+                  )}
+                </div>
+              </form>
+
+              {/* Browse all option */}
+              <button
+                onClick={() => { clearAddress(); setShowAddressPicker(false); }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-100"
+              >
+                <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" className="w-5 h-5">
+                    <path d="M3 6h18M3 12h18M3 18h18" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-[14px] font-semibold text-gray-800">All Areas</p>
+                  <p className="text-[12px] text-gray-400">Browse all restaurants</p>
+                </div>
+                {!selectedAddress && <CheckIcon className="w-4 h-4" style={{ color: BRAND }} />}
+              </button>
+
+              {/* Saved addresses */}
+              {savedAddresses.length > 0 && (
+                <>
+                  <div className="px-4 py-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Saved Addresses</p>
+                  </div>
+                  {savedAddresses.map((addr) => (
+                    <button
+                      key={addr._id}
+                      onClick={() => handleSelectSavedAddress(addr)}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
+                    >
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: '#FEF2F3' }}
+                      >
+                        <MapPinIcon className="w-4 h-4" style={{ color: BRAND }} />
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="text-[13px] font-semibold text-gray-800">
+                          <span className="capitalize">{addr.type}</span> – {addr.city}
+                        </p>
+                        <p className="text-[11px] text-gray-400 truncate">{addr.street}</p>
+                      </div>
+                      <CheckIcon
+                        className="w-3.5 h-3.5 flex-shrink-0"
+                        style={{ color: BRAND, opacity: selectedAddress?.city === addr.city ? 1 : 0 }}
+                      />
+                    </button>
+                  ))}
+                </>
+              )}
+
+              {/* Add Address CTA — shown when logged in but no saved addresses */}
+              {isAuthenticated && savedAddresses.length === 0 && (
+                <div className="px-4 py-3 border-t border-gray-100">
+                  <p className="text-[12px] text-gray-500 mb-2">No saved addresses yet.</p>
+                  <Link
+                    to="/profile"
+                    onClick={() => setShowAddressPicker(false)}
+                    className="flex items-center gap-2 text-[13px] font-bold px-3 py-2 rounded-xl"
+                    style={{ background: '#FEF2F3', color: BRAND }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                      <line x1="12" y1="5" x2="12" y2="19" strokeLinecap="round" />
+                      <line x1="5" y1="12" x2="19" y2="12" strokeLinecap="round" />
+                    </svg>
+                    Add Delivery Address
+                  </Link>
+                </div>
+              )}
+
+              {/* Login nudge — for non-authenticated users */}
+              {!isAuthenticated && (
+                <div className="px-4 py-3 border-t border-gray-100">
+                  <p className="text-[12px] text-gray-400">
+                    <Link to="/login" className="font-semibold" style={{ color: BRAND }}>Sign in</Link> to use your saved addresses
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════
+          GPS PERMISSION BANNER
+      ══════════════════════════════════ */}
+      {!selectedAddress && !gpsLoading && showGpsBanner && !gpsDenied && (
+        <div className="container-px pb-2">
+          <div
+            className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+            style={{ background: 'linear-gradient(135deg, #1C1C1C 0%, #2D1515 100%)', boxShadow: '0 2px 12px rgba(226,55,68,0.15)' }}
+          >
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: 'rgba(226,55,68,0.25)' }}
+            >
+              <MapPinIcon className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-[13px] font-bold leading-tight">Enable location access</p>
+              <p className="text-white/50 text-[11px] mt-0.5">See restaurants near you</p>
+            </div>
+            <button
+              onClick={requestGps}
+              className="flex-shrink-0 text-[12px] font-bold px-3 py-1.5 rounded-xl text-white"
+              style={{ background: BRAND }}
+            >
+              Allow
+            </button>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setShowGpsBanner(false)}
+              onKeyDown={(e) => e.key === 'Enter' && setShowGpsBanner(false)}
+              className="w-6 h-6 rounded-full flex items-center justify-center cursor-pointer flex-shrink-0"
+              style={{ background: 'rgba(255,255,255,0.12)' }}
+            >
+              <XMarkIcon className="w-3.5 h-3.5 text-white/60" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GPS loading indicator */}
+      {gpsLoading && (
+        <div className="container-px pb-2">
+          <div
+            className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+            style={{ background: '#F5F7FA' }}
+          >
+            <svg className="animate-spin w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke={BRAND} strokeWidth="4" />
+              <path className="opacity-75" fill={BRAND} d="M4 12a8 8 0 018-8v8z" />
+            </svg>
+            <p className="text-[13px] font-semibold text-gray-600">Detecting your location…</p>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════
+          SEARCH BAR
+      ══════════════════════════════════ */}
+      <div className="container-px pb-5 lg:hidden">
         <form onSubmit={handleSearch}>
           <div className="search-bar">
             <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
@@ -330,9 +755,9 @@ const Home = () => {
       <div className="container-px">
         <div className="section-header">
           <h2 className="section-title">
-            {userLocation && nearbyRests.length > 0
-              ? `${nearbyRests.length} Nearby Restaurants`
-              : 'Nearby Restaurants'}
+            {selectedAddress
+              ? `${nearbyRests.length > 0 ? nearbyRests.length + ' Restaurants near ' : 'Restaurants near '} ${selectedAddress.city}`
+              : 'All Restaurants'}
           </h2>
           <Link to="/restaurants" className="section-link flex items-center gap-1">
             View All
@@ -346,30 +771,64 @@ const Home = () => {
           <Loader />
         ) : allFiltered.length ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-5 sm:gap-6">
-            {allFiltered.slice(0, 6).map((r) => (
+            {allFiltered.slice(0, 12).map((r) => (
               <RestaurantCard key={r._id} restaurant={r} />
             ))}
           </div>
-        ) : userLocation && nearbyRests.length === 0 ? (
-          /* Coming Soon — no restaurants in this city yet */
-          <div className="text-center py-16 px-4">
-            <div className="text-6xl mb-4">🚀</div>
-            <h3 className="text-xl font-extrabold text-gray-900 mb-2">Coming Soon to Your City!</h3>
-            <p className="text-gray-400 text-sm max-w-xs mx-auto mb-6">
-              We're expanding fast! FlashBites isn't in your area yet but we'll be there soon.
-            </p>
-            <button
-              onClick={clearLocation}
-              className="btn-primary text-sm py-2.5 px-6"
-              style={{ background: BRAND }}
+        ) : noServiceArea ? (
+          /* ── Coming soon to this location ── */
+          <div
+            className="text-center py-10 px-6 rounded-2xl"
+            style={{ background: 'white', boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
+          >
+            <div
+              className="w-20 h-20 rounded-2xl mx-auto mb-5 flex items-center justify-center"
+              style={{ background: '#FEF2F3' }}
             >
-              Browse All Restaurants
-            </button>
+              <svg viewBox="0 0 24 24" fill="none" stroke={BRAND} strokeWidth="1.5" className="w-10 h-10">
+                <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+            </div>
+            <h3
+              className="text-[20px] font-black text-gray-900 mb-2"
+              style={{ letterSpacing: '-0.02em' }}
+            >
+              Coming Soon to {selectedAddress?.city || 'Your Area'}!
+            </h3>
+            <p className="text-[13px] text-gray-400 max-w-xs mx-auto mb-5 leading-relaxed">
+              We don't have restaurants delivering to <strong>{selectedAddress?.city}</strong> yet.
+              FlashBites is expanding fast — we'll be there soon!
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                onClick={clearAddress}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-[14px] font-bold text-white"
+                style={{ background: `linear-gradient(135deg, ${BRAND}, #C92535)`, boxShadow: `0 4px 14px rgba(226,55,68,0.3)` }}
+              >
+                Browse All Restaurants
+              </button>
+              <a
+                href="mailto:info.flashbites@gmail.com"
+                className="text-[13px] font-semibold"
+                style={{ color: BRAND }}
+              >
+                Notify me when available →
+              </a>
+            </div>
           </div>
         ) : (
           <div className="text-center py-16">
-            <div className="text-5xl mb-4 animate-float">🍽️</div>
-            <p className="text-gray-500 font-medium">No restaurants found</p>
+            <div
+              className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+              style={{ background: '#FEF2F3' }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke={BRAND} strokeWidth="1.5" className="w-7 h-7">
+                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M9 22V12h6v10" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <p className="text-gray-500 font-medium">No restaurants found for this category</p>
             <button onClick={() => setActiveCat('all')} className="btn-primary mt-4 text-sm py-2 px-5">
               Clear filter
             </button>
@@ -404,27 +863,52 @@ const Home = () => {
       {/* ══════════════════════════════════
           WHY FLASHBITES
       ══════════════════════════════════ */}
-      <div className="px-4 mt-4 pb-4">
+      <div className="px-4 mt-6 pb-4">
         <h2 className="section-title mb-4">Why FlashBites?</h2>
         <div className="grid grid-cols-3 gap-3">
           {[
-            { icon: '⚡', title: '30 min', sub: 'Fast delivery' },
-            { icon: '🍴', title: '500+', sub: 'Restaurants' },
-            { icon: '💯', title: 'Top rated', sub: 'Quality assured' },
+            {
+              icon: (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ),
+              title: '30 min',
+              sub: 'Avg. delivery'
+            },
+            {
+              icon: (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M9 22V12h6v10" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ),
+              title: '500+',
+              sub: 'Restaurants'
+            },
+            {
+              icon: (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ),
+              title: '4.8★',
+              sub: 'Avg. rating'
+            },
           ].map((f) => (
-            <div key={f.title} className="card text-center py-4 px-2" style={{ borderRadius: '16px' }}>
+            <div key={f.title} className="card text-center py-4 px-2" style={{ borderRadius: '14px' }}>
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2"
-                style={{ background: '#FFF0ED' }}
+                style={{ background: '#FEF2F3', color: '#E23744' }}
               >
-                <span className="text-xl">{f.icon}</span>
+                {f.icon}
               </div>
               <p className="text-sm font-bold text-gray-900">{f.title}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{f.sub}</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">{f.sub}</p>
             </div>
           ))}
         </div>
-        </div>
+      </div>
       </div>
     </div>
   );

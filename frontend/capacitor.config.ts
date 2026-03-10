@@ -2,13 +2,11 @@ import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.flashbites.app',
-  appName: 'Flashbites',
+  appName: 'FlashBites',
   webDir: 'dist',
   server: {
-    cleartext: true,
     androidScheme: 'https',
     iosScheme: 'https',
-    hostname: 'localhost'
   }
 };
 

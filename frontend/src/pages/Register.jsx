@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { clearError } from '../redux/slices/authSlice';
+import { clearError, setAuthUser } from '../redux/slices/authSlice';
 import toast from 'react-hot-toast';
 import { validateEmail, validatePhone, validatePassword } from '../utils/validators';
 import axios from '../api/axios';
@@ -12,10 +12,12 @@ const Register = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { error, isAuthenticated, user } = useSelector((state) => state.auth);
+  const recaptchaReady = useRef(false);
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -47,11 +49,31 @@ const Register = () => {
   }, [isAuthenticated, user, navigate]);
 
   useEffect(() => {
+    const warmUp = () => {
+      try {
+        setupRecaptcha();
+        recaptchaReady.current = true;
+      } catch {
+        // Retry will happen on OTP button click.
+      }
+    };
+
+    const t = setTimeout(warmUp, 300);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
     if (error) {
       toast.error(error);
       dispatch(clearError());
     }
   }, [error, dispatch]);
+
+  useEffect(() => {
+    if (resendCountdown <= 0) return;
+    const t = setInterval(() => setResendCountdown((c) => c - 1), 1000);
+    return () => clearInterval(t);
+  }, [resendCountdown]);
 
   // Hide navbar/footer completely
   useEffect(() => {
@@ -116,12 +138,15 @@ const Register = () => {
 
     setLoading(true);
     try {
-      setupRecaptcha();
+      if (!recaptchaReady.current) setupRecaptcha();
       const phoneWithCode = `+91${formData.phone}`;
       await sendPhoneOTP(phoneWithCode);
       toast.success('OTP sent to your phone number');
       setStep(2);
+      setResendCountdown(30);
     } catch (error) {
+      console.error('Send OTP error:', error);
+      recaptchaReady.current = false;
       if (error.code === 'auth/too-many-requests') {
         toast.error('Too many attempts. Please try again later.');
       } else if (error.code === 'auth/invalid-phone-number') {
@@ -150,22 +175,21 @@ const Register = () => {
       const response = await axios.post('/auth/register', dataToSend);
 
       // Store tokens and user data
-      const { accessToken, refreshToken, user } = response.data.data;
+      const { accessToken, refreshToken, user: userData } = response.data.data;
+      localStorage.setItem('token', accessToken);
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
+      dispatch(setAuthUser({ user: userData, token: accessToken }));
 
       toast.success('Registration successful!');
-      
-      // Redirect based on role
-      setTimeout(() => {
-        if (user.role === 'restaurant_owner') {
-          navigate('/dashboard');
-        } else if (user.role === 'delivery_partner') {
-          navigate('/delivery-dashboard');
-        } else {
-          navigate('/');
-        }
-      }, 1000);
+
+      if (userData.role === 'restaurant_owner') {
+        navigate('/dashboard');
+      } else if (userData.role === 'delivery_partner') {
+        navigate('/delivery-dashboard');
+      } else {
+        navigate('/');
+      }
     } catch (error) {
       if (error.code?.startsWith('auth/')) {
         toast.error('Invalid OTP. Please try again.');
@@ -200,13 +224,16 @@ const Register = () => {
   };
 
   const handleResendOTP = async () => {
+    if (resendCountdown > 0) return;
     setLoading(true);
     try {
-      setupRecaptcha();
+      if (!recaptchaReady.current) setupRecaptcha();
       const phoneWithCode = `+91${formData.phone}`;
       await sendPhoneOTP(phoneWithCode);
       toast.success('OTP resent to your phone');
+      setResendCountdown(30);
     } catch (error) {
+      recaptchaReady.current = false;
       toast.error(error.message || 'Failed to resend OTP');
     } finally {
       setLoading(false);
@@ -540,10 +567,10 @@ const Register = () => {
             <button
               type="button"
               onClick={handleResendOTP}
-              disabled={loading}
+              disabled={loading || resendCountdown > 0}
               className="text-orange-500 hover:text-orange-600 font-medium text-sm disabled:opacity-50 touch-manipulation"
             >
-              Resend OTP
+              {resendCountdown > 0 ? `Resend OTP in ${resendCountdown}s` : 'Resend OTP'}
             </button>
           </div>
         </form>

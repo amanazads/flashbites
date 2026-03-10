@@ -10,6 +10,7 @@ import { Loader } from '../components/common/Loader';
 import { formatCurrency } from '../utils/formatters';
 import { FOOD_CATEGORIES } from '../utils/constants';
 import { isRestaurantOpen } from '../utils/helpers';
+import SEO from '../components/common/SEO';
 import toast from 'react-hot-toast';
 
 const BRAND = '#FF523B';
@@ -50,6 +51,9 @@ const RestaurantDetail = () => {
   const { isOpen, opensAt, closesAt } = isRestaurantOpen(restaurant.timing, restaurant.acceptingOrders !== false);
   const isOrderable = isOpen;
 
+  const cuisineStr = Array.isArray(restaurant.cuisines) ? restaurant.cuisines.join(', ') : restaurant.cuisine || '';
+  const seoDesc = `Order from ${restaurant.name} on FlashBites. ${cuisineStr} cuisine. Rating: ${restaurant.rating}★. Delivery in ${restaurant.deliveryTime} mins. ${isOpen ? 'Open now!' : ''}`;
+
   const categories = ['All', ...FOOD_CATEGORIES];
   const filteredMenu = selectedCategory === 'All'
     ? menuItems
@@ -57,6 +61,13 @@ const RestaurantDetail = () => {
 
   return (
     <div className="min-h-screen" style={{ background: '#F8F6F5' }}>
+      <SEO
+        title={`${restaurant.name} – Order Online | FlashBites`}
+        description={seoDesc}
+        image={restaurant.image}
+        url={`/restaurant/${id}`}
+        keywords={`${restaurant.name}, ${cuisineStr}, food delivery, order online FlashBites`}
+      />
       {/* Restaurant Header */}
       <div className="relative h-64 sm:h-72 lg:h-80 bg-gray-900">
         <img

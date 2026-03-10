@@ -4,8 +4,8 @@ import { StarIcon } from '@heroicons/react/24/solid';
 import { ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { isRestaurantOpen } from '../../utils/helpers';
 
-const BRAND = '#FF523B';
-const DELIVERY_RADIUS_KM = 10; // max delivery range
+const BRAND = '#E23744';
+const DELIVERY_RADIUS_KM = 10;
 
 const getDiscount = (r) => {
   if (r.discount) return r.discount;
@@ -15,165 +15,155 @@ const getDiscount = (r) => {
 const RestaurantCard = ({ restaurant: r }) => {
   const discount = getDiscount(r);
   const rating = parseFloat(r.rating) || 4.0;
-  const ratingBg = rating >= 4.5 ? '#16a34a' : rating >= 4.0 ? '#15803d' : rating >= 3.5 ? '#ca8a04' : '#dc2626';
+  const ratingBg = rating >= 4.5 ? '#1BA672' : rating >= 4.0 ? '#1BA672' : rating >= 3.5 ? '#E8A020' : '#E23744';
 
   const { isOpen, opensAt } = isRestaurantOpen(r.timing, r.acceptingOrders !== false);
   const outOfRange = r.distance !== undefined && r.distance > DELIVERY_RADIUS_KM;
+  const unavailable = outOfRange || !isOpen;
 
-  // Closed or out-of-range cards: render a non-clickable div
-  const CardWrapper = (outOfRange || !isOpen)
+  const CardWrapper = unavailable
     ? ({ children, ...props }) => <div {...props}>{children}</div>
     : ({ children, ...props }) => <Link to={`/restaurant/${r._id}`} {...props}>{children}</Link>;
 
   return (
     <CardWrapper
-      className="block bg-white group animate-fade-in"
+      className="block bg-white group"
       style={{
         borderRadius: '16px',
-        boxShadow: '0 2px 16px rgba(0,0,0,0.05)',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
         overflow: 'hidden',
-        transition: 'box-shadow 0.25s ease, transform 0.25s ease',
-        cursor: (outOfRange || !isOpen) ? 'default' : 'pointer',
+        transition: 'box-shadow 0.22s ease, transform 0.22s ease',
+        cursor: unavailable ? 'default' : 'pointer',
       }}
       onMouseEnter={e => {
-        if (!outOfRange && isOpen) {
-          e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.12)';
-          e.currentTarget.style.transform = 'translateY(-2px)';
+        if (!unavailable) {
+          e.currentTarget.style.boxShadow = '0 10px 32px rgba(0,0,0,0.12)';
+          e.currentTarget.style.transform = 'translateY(-3px)';
         }
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.boxShadow = '0 2px 16px rgba(0,0,0,0.05)';
+        e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)';
         e.currentTarget.style.transform = 'translateY(0)';
       }}
     >
-      {/* Image */}
-      <div className="relative" style={{ height: '170px' }}>
+      {/* ── Image ── */}
+      <div className="relative" style={{ height: '168px' }}>
         <img
           src={r.image || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=80'}
           alt={r.name}
-          className={`w-full h-full object-cover transition-transform duration-500 ${!outOfRange && isOpen ? 'group-hover:scale-105' : ''}`}
+          className={`w-full h-full object-cover transition-transform duration-500 ${!unavailable ? 'group-hover:scale-105' : ''}`}
           loading="lazy"
-          style={{ filter: (!isOpen || outOfRange) ? 'grayscale(40%)' : 'none' }}
+          style={{ filter: unavailable ? 'grayscale(30%) brightness(0.9)' : 'none' }}
         />
 
-        {/* Badges row at top */}
-        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
-          {/* Open/Close badge */}
-          <div
-            className="text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm"
-            style={{ background: isOpen ? 'rgba(22,163,74,0.92)' : 'rgba(107,114,128,0.92)', backdropFilter: 'blur(4px)' }}
-          >
-            {isOpen ? '🟢 OPEN' : `🔴 CLOSED`}
-          </div>
-
-          {/* Free Delivery badge */}
-          {(r.deliveryFee === 0 || r.deliveryFee === '0') && isOpen && !outOfRange && (
-            <div
-              className="text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm"
-              style={{ background: 'rgba(22,163,74,0.92)', backdropFilter: 'blur(4px)' }}
-            >
-              FREE DELIVERY
-            </div>
-          )}
-
-          {/* Top Rated badge */}
-          {rating >= 4.5 && isOpen && !outOfRange && (
-            <div
-              className="text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm"
-              style={{ background: 'rgba(255,82,59,0.92)', backdropFilter: 'blur(4px)' }}
+        {/* Top-left badges */}
+        <div className="absolute top-3 left-3 flex items-center gap-1.5">
+          {isOpen && !outOfRange && rating >= 4.5 && (
+            <span
+              className="text-white text-[10px] font-bold px-2 py-1 rounded-lg"
+              style={{ background: 'rgba(226,55,68,0.92)', backdropFilter: 'blur(4px)' }}
             >
               TOP RATED
-            </div>
+            </span>
           )}
-
-          {/* Discount chip */}
-          {rating < 4.5 && isOpen && !outOfRange && (
-            <div
-              className="text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm"
-              style={{ background: 'rgba(255,82,59,0.92)', backdropFilter: 'blur(4px)' }}
+          {isOpen && !outOfRange && (r.deliveryFee === 0 || r.deliveryFee === '0') && (
+            <span
+              className="text-white text-[10px] font-bold px-2 py-1 rounded-lg"
+              style={{ background: 'rgba(27,166,114,0.9)', backdropFilter: 'blur(4px)' }}
             >
-              {r.isPureVeg ? '🌿 PURE VEG' : `FLAT ₹${discount} OFF`}
-            </div>
+              FREE DELIVERY
+            </span>
+          )}
+          {isOpen && !outOfRange && rating < 4.5 && (
+            <span
+              className="text-white text-[10px] font-bold px-2 py-1 rounded-lg"
+              style={{ background: 'rgba(226,55,68,0.88)', backdropFilter: 'blur(4px)' }}
+            >
+              {r.isPureVeg ? 'PURE VEG' : `₹${discount} OFF`}
+            </span>
           )}
         </div>
 
-        {/* Rating badge */}
+        {/* Rating badge — bottom right */}
         <div
-          className="absolute bottom-2.5 right-2.5 flex items-center gap-0.5 text-white text-[11px] font-bold px-2 py-1 rounded-lg shadow-md"
+          className="absolute bottom-3 left-3 flex items-center gap-0.5 text-white text-[11px] font-bold px-2 py-1 rounded-lg shadow-md"
           style={{ background: ratingBg }}
         >
           <StarIcon className="h-3 w-3" />
           {r.rating || '4.0'}
         </div>
 
-        {/* Bookmark */}
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          className="absolute top-2.5 right-2.5 bg-white/90 hover:bg-white rounded-xl p-1.5 shadow-sm transition-all hover:scale-110"
-        >
-          <svg className="h-3.5 w-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-          </svg>
-        </button>
-
         {/* Closed overlay */}
         {!isOpen && (
-          <div className="absolute inset-0 bg-black/55 flex flex-col items-center justify-center gap-1">
-            <span className="bg-white text-gray-900 text-[10px] font-bold px-3 py-1 rounded-lg shadow">
+          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1.5">
+            <span className="bg-white text-gray-900 text-[11px] font-bold px-3 py-1.5 rounded-lg shadow">
               Closed Now
             </span>
             {opensAt && (
-              <span className="text-white/80 text-[9px] font-medium">
-                Opens at {opensAt}
-              </span>
+              <span className="text-white/75 text-[10px]">Opens at {opensAt}</span>
             )}
           </div>
         )}
 
         {/* Out of range overlay */}
         {isOpen && outOfRange && (
-          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1">
-            <span className="text-2xl">🚀</span>
-            <span className="bg-white text-gray-900 text-[10px] font-bold px-3 py-1 rounded-lg shadow text-center">
-              Coming Soon to Your Location
+          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1.5">
+            <span className="bg-white text-gray-900 text-[11px] font-bold px-3 py-1.5 rounded-lg shadow text-center">
+              Coming Soon to Your Area
             </span>
-            <span className="text-white/70 text-[9px]">{r.distance?.toFixed(1)} km away</span>
+            <span className="text-white/70 text-[10px]">{r.distance?.toFixed(1)} km away</span>
           </div>
         )}
       </div>
 
-      {/* Info */}
-      <div className="p-4" style={{ opacity: (!isOpen || outOfRange) ? 0.6 : 1 }}>
+      {/* ── Info ── */}
+      <div className="p-3.5" style={{ opacity: unavailable ? 0.7 : 1 }}>
         <div className="flex items-start justify-between gap-2 mb-0.5">
           <h3 className="text-[15px] font-bold text-gray-900 leading-tight flex-1 line-clamp-1">{r.name}</h3>
         </div>
 
-        <p className="text-[11px] text-gray-400 mb-2.5 line-clamp-1 font-medium">
-          {Array.isArray(r.cuisines) ? r.cuisines.join(' · ') : r.cuisine || 'Multi-cuisine'}
+        <p className="text-[12px] text-gray-400 mb-2 line-clamp-1 font-medium">
+          {Array.isArray(r.cuisines) ? r.cuisines.join(', ') : r.cuisine || 'Multi-cuisine'}
         </p>
 
-        <div className="flex items-center gap-2.5 text-[11px] font-medium text-gray-500">
-          <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded-md">
-            <ClockIcon className="h-3 w-3" style={{ color: BRAND }} />
+        {/* Meta row */}
+        <div className="flex items-center gap-0 text-[12px] font-medium text-gray-500 border-t border-gray-100 pt-2.5 mt-2.5">
+          <span className="flex items-center gap-1 flex-1">
+            <ClockIcon className="h-3.5 w-3.5" style={{ color: BRAND }} />
             {String(r.deliveryTime || '30').replace(/\s*min\s*$/i, '')} min
           </span>
-          <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-0.5 rounded-md">
-            <MapPinIcon className="h-3 w-3" style={{ color: BRAND }} />
+          <span
+            className="w-px h-3 bg-gray-200 mx-2 flex-shrink-0"
+          />
+          <span className="flex items-center gap-1 flex-1">
+            <MapPinIcon className="h-3.5 w-3.5" style={{ color: BRAND }} />
             {r.distance ? `${r.distance.toFixed(1)} km` : r.address?.city || 'Nearby'}
           </span>
-          <span className="bg-gray-50 px-1.5 py-0.5 rounded-md truncate">
-            {r.deliveryFee === 0 ? 'Free delivery' : `₹${r.deliveryFee ?? 0} delivery`}
+          <span
+            className="w-px h-3 bg-gray-200 mx-2 flex-shrink-0"
+          />
+          <span className="flex-1 text-right truncate">
+            {r.deliveryFee === 0 ? (
+              <span className="text-green-600 font-semibold">Free delivery</span>
+            ) : (
+              `₹${r.deliveryFee ?? 30} delivery`
+            )}
           </span>
         </div>
 
         {/* Offer strip */}
         {isOpen && !outOfRange && (
-          <div className="mt-2.5 pt-2.5 border-t border-dashed border-gray-100 flex items-center gap-1.5 opacity-90">
-            <div className="h-4 w-4 rounded-full flex items-center justify-center" style={{ background: '#FFF0ED' }}>
-              <span className="text-[9px] font-bold block" style={{ color: BRAND }}>%</span>
+          <div
+            className="mt-2.5 pt-2.5 border-t border-dashed border-gray-100 flex items-center gap-1.5"
+          >
+            <div
+              className="h-4 w-4 rounded flex items-center justify-center flex-shrink-0"
+              style={{ background: '#FEF2F3' }}
+            >
+              <span className="text-[9px] font-black" style={{ color: BRAND }}>%</span>
             </div>
-            <span className="text-[10px] font-bold" style={{ color: BRAND }}>
-              Flat ₹{discount} OFF above ₹{discount + 89}
+            <span className="text-[11px] font-semibold" style={{ color: BRAND }}>
+              ₹{discount} off on orders above ₹{discount + 99}
             </span>
           </div>
         )}
