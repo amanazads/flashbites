@@ -33,6 +33,18 @@ const Profile = () => {
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [avatarLetter, setAvatarLetter] = useState('');
   const [loading, setLoading] = useState(true);
+  const [profileData, setProfileData] = useState({
+    name: user?.name || '',
+    phone: user?.phone || '',
+  });
+  const [addressData, setAddressData] = useState({
+    type: 'home',
+    street: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    landmark: '',
+  });
 
   useEffect(() => {
     if (user === undefined) return; // Wait for Redux to resolve
@@ -50,6 +62,7 @@ const Profile = () => {
     }
 
     setAvatarLetter(user.name ? user.name[0] : '');
+    setProfileData({ name: user.name || '', phone: user.phone || '' });
     setLoading(false);
   }, [user, navigate]);
 

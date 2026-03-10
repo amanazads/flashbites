@@ -30,65 +30,6 @@ const Orders = () => {
     });
   }, [orders]);
 
-  const mockOrders = useMemo(
-    () => [
-      {
-        _id: 'demo',
-        status: 'on_the_way',
-        createdAt: new Date().toISOString(),
-        total: 24.5,
-        restaurantId: {
-          _id: 'demo-restaurant',
-          name: 'Pizza Hut',
-          image:
-            'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=300&q=80',
-        },
-        items: [
-          { name: 'Margherita', quantity: 1 },
-          { name: 'Coke', quantity: 2 },
-        ],
-        __isMock: true,
-      },
-      {
-        _id: 'demo-past-delivered',
-        status: 'delivered',
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        total: 18.2,
-        restaurantId: {
-          _id: 'demo-restaurant-2',
-          name: 'Burger King',
-          image:
-            'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=300&q=80',
-        },
-        items: [
-          { name: 'Whopper Meal', quantity: 1 },
-          { name: 'Onion Rings', quantity: 1 },
-        ],
-        __isMock: true,
-      },
-      {
-        _id: 'demo-past-cancelled',
-        status: 'cancelled',
-        createdAt: new Date(Date.now() - 172800000).toISOString(),
-        total: 15,
-        restaurantId: {
-          _id: 'demo-restaurant-3',
-          name: 'Green Salads',
-          image:
-            'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=300&q=80',
-        },
-        items: [
-          { name: 'Caesar Salad', quantity: 1 },
-          { name: 'Orange Juice', quantity: 1 },
-        ],
-        __isMock: true,
-      },
-    ],
-    []
-  );
-
-  const ordersForDisplay = uniqueOrders.length > 0 ? uniqueOrders : mockOrders;
-
   const getOrderTime = (order) => {
     if (!order?.createdAt) return '';
     return new Date(order.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -126,18 +67,18 @@ const Orders = () => {
 
   const activeOrders = useMemo(
     () =>
-      ordersForDisplay
+      uniqueOrders
         .filter((order) => isActiveStatus(order.status))
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
-    [ordersForDisplay]
+    [uniqueOrders]
   );
 
   const pastOrders = useMemo(
     () =>
-      ordersForDisplay
+      uniqueOrders
         .filter((order) => !isActiveStatus(order.status))
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
-    [ordersForDisplay]
+    [uniqueOrders]
   );
 
   const currentOrder = activeOrders[0];

@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import axios from '../api/axios';
 import { setupRecaptcha, sendPhoneOTP, verifyPhoneOTP } from '../firebase';
 
-const BRAND = '#FF523B';
+const BRAND = '#f97316';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
@@ -117,8 +117,7 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8"
-      style={{ background: '#F8F6F5' }}>
+    <div className="min-h-screen flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 bg-white">
       <div className="max-w-md w-full space-y-6 sm:space-y-8">
         <div className="bg-white rounded-3xl p-6 sm:p-8"
           style={{ boxShadow: '0 4px 40px rgba(0,0,0,0.07)' }}>
@@ -171,8 +170,11 @@ const ForgotPassword = () => {
                 </div>
               </div>
 
-              <button type="submit" disabled={loading}
-                className="btn-primary w-full py-3">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 {loading ? 'Sending...' : 'Send OTP'}
               </button>
             </form>
@@ -197,8 +199,11 @@ const ForgotPassword = () => {
                 </p>
               </div>
 
-              <button type="submit" disabled={loading}
-                className="btn-primary w-full py-3">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 {loading ? 'Verifying...' : 'Verify OTP'}
               </button>
 
@@ -238,15 +243,18 @@ const ForgotPassword = () => {
                 />
               </div>
 
-              <button type="submit" disabled={loading}
-                className="btn-primary w-full py-3">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 {loading ? 'Resetting...' : 'Reset Password'}
               </button>
             </form>
           )}
 
           <div className="mt-6 text-center">
-            <Link to="/login" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+            <Link to="/login" className="text-sm font-medium text-orange-500 hover:text-orange-600 transition-colors">
               ← Back to Login
             </Link>
           </div>

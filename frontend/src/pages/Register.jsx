@@ -111,12 +111,12 @@ const Register = () => {
     e.preventDefault();
 
     // Validation
-    if (!formData.name || !formData.email || !formData.password || !formData.phone) {
-      toast.error('Please fill in all fields');
+    if (!formData.name || !formData.password || !formData.phone) {
+      toast.error('Please fill in name, phone, and password');
       return;
     }
 
-    if (!validateEmail(formData.email)) {
+    if (formData.email && !validateEmail(formData.email)) {
       toast.error('Please enter a valid email');
       return;
     }
@@ -320,7 +320,6 @@ const Register = () => {
                   id="email"
                   name="email"
                   type="email"
-                  required
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="name@example.com"

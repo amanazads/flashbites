@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { clearError, setCredentials } from '../redux/slices/authSlice';
 import toast from 'react-hot-toast';
-import { validateEmail, validatePassword } from '../utils/validators';
+import { validatePassword, validatePhone } from '../utils/validators';
 import axios from '../api/axios';
 import logo from '../assets/logo.png';
 import { Preferences } from '@capacitor/preferences';
@@ -15,10 +15,19 @@ const Login = () => {
 
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
+    phone: '',
     password: ''
   });
+
+  useEffect(() => {
+    const savedPhone = localStorage.getItem('rememberedPhone') || '';
+    if (savedPhone) {
+      setFormData((prev) => ({ ...prev, phone: savedPhone }));
+      setRememberMe(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -80,13 +89,13 @@ const Login = () => {
     e.preventDefault();
 
     // Validation
-    if (!formData.email || !formData.password) {
+    if (!formData.phone || !formData.password) {
       toast.error('Please fill in all fields');
       return;
     }
 
-    if (!validateEmail(formData.email)) {
-      toast.error('Please enter a valid email');
+    if (!validatePhone(formData.phone.trim())) {
+      toast.error('Please enter a valid 10-digit phone number');
       return;
     }
 
@@ -97,12 +106,18 @@ const Login = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post('/auth/login', formData);
+      const payload = { phone: formData.phone.trim(), password: formData.password };
+      const response = await axios.post('/auth/login', payload);
       const { accessToken, refreshToken, user } = response.data.data;
 
       // Store in localStorage
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
+      if (rememberMe) {
+        localStorage.setItem('rememberedPhone', formData.phone.trim());
+      } else {
+        localStorage.removeItem('rememberedPhone');
+      }
 
       // Store in Capacitor Preferences (for mobile)
       await Preferences.set({ key: 'accessToken', value: accessToken });
@@ -154,36 +169,30 @@ const Login = () => {
 
         {/* Form */}
         <form onSubmit={handleLogin} className="space-y-4 sm:space-y-5">
-          {/* Email Address */}
+          {/* Phone Number */}
           <div>
-            <label className="block text-sm font-medium text-gray-900 mb-2">Email address</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                </svg>
-              </div>
+            <label className="block text-sm font-medium text-gray-900 mb-2">Phone Number</label>
+            <div className="flex">
+              <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-gray-200 bg-gray-50 text-gray-500 text-sm font-semibold">
+                +91
+              </span>
               <input
-                id="email"
-                name="email"
-                type="email"
+                id="phone"
+                name="phone"
+                type="tel"
                 required
-                value={formData.email}
+                maxLength="10"
+                value={formData.phone}
                 onChange={handleChange}
-                placeholder="name@example.com"
-                className="w-full pl-11 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900 placeholder-gray-400 text-base"
+                placeholder="10-digit mobile number"
+                className="w-full pl-3 sm:pl-4 pr-3 sm:pr-4 py-3 sm:py-3.5 border border-gray-200 rounded-r-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900 placeholder-gray-400 text-base"
               />
             </div>
           </div>
 
           {/* Password */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-900">Password</label>
-              <Link to="/forgot-password" className="text-sm font-medium text-orange-500 hover:text-orange-600">
-                Forgot Password?
-              </Link>
-            </div>
+            <label className="block text-sm font-medium text-gray-900 mb-2">Password</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -217,6 +226,21 @@ const Login = () => {
                 </svg>
               </button>
             </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+              />
+              Remember me
+            </label>
+            <Link to="/forgot-password" className="text-sm font-medium text-orange-500 hover:text-orange-600">
+              Forgot Password?
+            </Link>
           </div>
 
           {/* Login Button */}
