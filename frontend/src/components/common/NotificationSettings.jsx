@@ -3,9 +3,6 @@ import { useNotifications } from '../../hooks/useNotifications';
 
 const NotificationSettings = () => {
   const {
-    connected,
-    soundEnabled,
-    toggleSound,
     requestNotificationPermission,
     notificationPermission,
   } = useNotifications();
@@ -17,47 +14,18 @@ const NotificationSettings = () => {
         Notification Settings
       </h2>
 
-      {/* Connection Status */}
-      <div className="mb-6 p-4 rounded-lg bg-gray-50 border border-gray-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold text-gray-700">Real-time Connection</h3>
-            <p className="text-sm text-gray-500">Live updates for new orders</p>
-          </div>
-          <div className="flex items-center">
-            <div
-              className={`w-3 h-3 rounded-full mr-2 ${
-                connected ? 'bg-green-500' : 'bg-red-500'
-              }`}
-            ></div>
-            <span className={`font-medium ${connected ? 'text-green-600' : 'text-red-600'}`}>
-              {connected ? 'Connected' : 'Disconnected'}
-            </span>
-          </div>
-        </div>
-      </div>
-
       {/* Sound Notifications */}
       <div className="mb-6 p-4 rounded-lg bg-gray-50 border border-gray-200">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-semibold text-gray-700">Sound Notifications</h3>
             <p className="text-sm text-gray-500">
-              Play sound when you receive new orders or updates
+              Plays an alert sound instantly when new real-time orders or updates arrive.
             </p>
           </div>
-          <button
-            onClick={toggleSound}
-            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
-              soundEnabled ? 'bg-primary-500' : 'bg-gray-300'
-            }`}
-          >
-            <span
-              className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                soundEnabled ? 'translate-x-7' : 'translate-x-1'
-              }`}
-            />
-          </button>
+          <span className="text-sm font-medium text-green-600 bg-green-50 px-3 py-1 rounded-full">
+            Always On
+          </span>
         </div>
       </div>
 
@@ -101,10 +69,9 @@ const NotificationSettings = () => {
           How it works
         </h4>
         <ul className="text-sm text-blue-700 space-y-1 ml-6 list-disc">
-          <li>Sound alerts play instantly when you receive notifications</li>
-          <li>Browser notifications work even when FlashBites tab is in background</li>
-          <li>All notifications are real-time with no delays</li>
-          <li>You can toggle sound on/off anytime without affecting connection</li>
+          <li>Sound alerts are active by default to ensure you instantly hear new orders.</li>
+          <li>Browser notifications ensure you don't miss updates when the FlashBites tab is in the background.</li>
+          <li>All notifications flow in real-time instantly without delays.</li>
         </ul>
       </div>
     </div>

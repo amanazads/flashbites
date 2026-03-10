@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async';
@@ -88,6 +88,39 @@ const GoogleAuthSuccess = () => {
   );
 };
 
+// Global Route Guard for Business Roles
+const RoleRedirector = () => {
+  const { user, isAuthenticated } = useSelector((state) => state.auth);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const path = location.pathname;
+      
+      // Allow them to visit these exact auxiliary pages, otherwise trap them in dashboard
+      const allowedCommonPaths = ['/profile', '/help', '/terms', '/privacy', '/contact', '/notifications'];
+      const isAllowedCommonPath = allowedCommonPaths.some(p => path.startsWith(p));
+
+      if (user.role === 'restaurant_owner') {
+        if (!path.startsWith('/dashboard') && !isAllowedCommonPath) {
+          navigate('/dashboard', { replace: true });
+        }
+      } else if (user.role === 'delivery_partner') {
+        if (!path.startsWith('/delivery-dashboard') && !isAllowedCommonPath) {
+          navigate('/delivery-dashboard', { replace: true });
+        }
+      } else if (user.role === 'admin') {
+        if (!path.startsWith('/admin') && !isAllowedCommonPath) {
+          navigate('/admin', { replace: true });
+        }
+      }
+    }
+  }, [isAuthenticated, user, location.pathname, navigate]);
+
+  return null;
+};
+
 function App() {
   const dispatch = useDispatch();
   const { isAuthenticated } = useSelector((state) => state.auth);
@@ -158,6 +191,7 @@ function App() {
       {/* Global default title – overridden per-page by <SEO> components */}
       <Helmet defaultTitle="FlashBites" titleTemplate="%s | FlashBites" />
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <RoleRedirector />
         <ScrollToTop />
         <div className="flex flex-col min-h-screen">
           <Navbar />

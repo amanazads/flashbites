@@ -67,13 +67,31 @@ const Navbar = () => {
   }, []);
 
   /* ─ Nav tab definitions ─ */
-  const tabs = [
-    { path: '/',           label: 'Home',    Icon: HomeIcon,         IconS: HomeIconSolid },
-    { path: '/restaurants',label: 'Search',  Icon: MagnifyingGlassIcon, IconS: SearchIconSolid },
-    { path: '/__cart__',   label: 'Cart',    Icon: ShoppingCartIcon, IconS: CartIconSolid, isCart: true },
-    { path: '/orders',     label: 'Orders',  Icon: ShoppingBagIcon,  IconS: OrdersIconSolid },
-    { path: '/profile',    label: 'Profile', Icon: UserCircleIcon,   IconS: ProfileIconSolid },
-  ];
+  let tabs = [];
+  if (user?.role === 'restaurant_owner') {
+    tabs = [
+      { path: '/dashboard',  label: 'Dashboard', Icon: HomeIcon,         IconS: HomeIconSolid },
+      { path: '/profile',    label: 'Profile',   Icon: UserCircleIcon,   IconS: ProfileIconSolid },
+    ];
+  } else if (user?.role === 'delivery_partner') {
+    tabs = [
+      { path: '/delivery-dashboard',  label: 'Dashboard', Icon: HomeIcon,         IconS: HomeIconSolid },
+      { path: '/profile',             label: 'Profile',   Icon: UserCircleIcon,   IconS: ProfileIconSolid },
+    ];
+  } else if (user?.role === 'admin') {
+    tabs = [
+      { path: '/admin',      label: 'Admin',     Icon: HomeIcon,         IconS: HomeIconSolid },
+      { path: '/profile',    label: 'Profile',   Icon: UserCircleIcon,   IconS: ProfileIconSolid },
+    ];
+  } else {
+    tabs = [
+      { path: '/',           label: 'Home',    Icon: HomeIcon,         IconS: HomeIconSolid },
+      { path: '/restaurants',label: 'Search',  Icon: MagnifyingGlassIcon, IconS: SearchIconSolid },
+      { path: '/__cart__',   label: 'Cart',    Icon: ShoppingCartIcon, IconS: CartIconSolid, isCart: true },
+      { path: '/orders',     label: 'Orders',  Icon: ShoppingBagIcon,  IconS: OrdersIconSolid },
+      { path: '/profile',    label: 'Profile', Icon: UserCircleIcon,   IconS: ProfileIconSolid },
+    ];
+  }
 
   return (
     <>
@@ -116,13 +134,15 @@ const Navbar = () => {
 
           {/* Right icons: Search + Bell/Notifications + Cart */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Search toggle */}
-            <button
-              onClick={() => setShowMobileSearch(!showMobileSearch)}
-              className="icon-btn h-9 w-9"
-            >
-              <MagnifyingGlassIcon className="h-4.5 w-4.5 text-gray-600" style={{ width: '18px', height: '18px' }} />
-            </button>
+            {/* Search toggle (Hidden for partners/admin) */}
+            {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' && (
+              <button
+                onClick={() => setShowMobileSearch(!showMobileSearch)}
+                className="icon-btn h-9 w-9"
+              >
+                <MagnifyingGlassIcon className="h-4.5 w-4.5 text-gray-600" style={{ width: '18px', height: '18px' }} />
+              </button>
+            )}
 
             {/* Notifications */}
             {isAuthenticated ? (
@@ -133,21 +153,23 @@ const Navbar = () => {
               </Link>
             )}
 
-            {/* Cart */}
-            <button
-              onClick={() => dispatch(toggleCart())}
-              className="icon-btn h-9 w-9 relative"
-            >
-              <ShoppingCartIcon style={{ width: '18px', height: '18px', color: '#6B7280' }} />
-              {cartCount > 0 && (
-                <span
-                  className="absolute -top-1 -right-1 text-white text-[9px] rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center font-bold"
-                  style={{ background: BRAND }}
-                >
-                  {cartCount}
-                </span>
-              )}
-            </button>
+            {/* Cart (Hidden for partners/admin) */}
+            {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' && (
+              <button
+                onClick={() => dispatch(toggleCart())}
+                className="icon-btn h-9 w-9 relative"
+              >
+                <ShoppingCartIcon style={{ width: '18px', height: '18px', color: '#6B7280' }} />
+                {cartCount > 0 && (
+                  <span
+                    className="absolute -top-1 -right-1 text-white text-[9px] rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center font-bold"
+                    style={{ background: BRAND }}
+                  >
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
@@ -190,50 +212,60 @@ const Navbar = () => {
             </Link>
 
             {/* Search */}
-            <form
-              className="flex-1 max-w-lg"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const q = e.target.elements.q.value.trim();
-                if (q) navigate(`/restaurants?search=${encodeURIComponent(q)}`);
-              }}
-            >
-              <div className="search-bar">
-                <MagnifyingGlassIcon className="h-4.5 w-4.5 text-gray-400 flex-shrink-0" style={{ width: '18px', height: '18px' }} />
-                <input name="q" type="text" placeholder='Search "pizza" or restaurant...' />
-              </div>
-            </form>
+            {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' ? (
+              <form
+                className="flex-1 max-w-lg"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const q = e.target.elements.q.value.trim();
+                  if (q) navigate(`/restaurants?search=${encodeURIComponent(q)}`);
+                }}
+              >
+                <div className="search-bar">
+                  <MagnifyingGlassIcon className="h-4.5 w-4.5 text-gray-400 flex-shrink-0" style={{ width: '18px', height: '18px' }} />
+                  <input name="q" type="text" placeholder='Search "pizza" or restaurant...' />
+                </div>
+              </form>
+            ) : (
+              <div className="flex-1 max-w-lg"></div>
+            )}
 
 
 
 
             {/* Right actions */}
             <div className="flex items-center gap-3 flex-shrink-0">
-              <Link to="/restaurants" className={`text-sm font-medium transition-colors ${isActive('/restaurants') ? 'text-brand' : 'text-gray-600 hover:text-gray-900'}`}
-                style={isActive('/restaurants') ? { color: BRAND } : {}}>
-                Restaurants
-              </Link>
+              {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' && (
+                <Link to="/restaurants" className={`text-sm font-medium transition-colors ${isActive('/restaurants') ? 'text-brand' : 'text-gray-600 hover:text-gray-900'}`}
+                  style={isActive('/restaurants') ? { color: BRAND } : {}}>
+                  Restaurants
+                </Link>
+              )}
 
               {isAuthenticated ? (
                 <>
-                  <Link to="/orders" className={`text-sm font-medium transition-colors ${isActive('/orders') ? 'text-brand' : 'text-gray-600 hover:text-gray-900'}`}
-                    style={isActive('/orders') ? { color: BRAND } : {}}>
-                    Orders
-                  </Link>
+                  {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' && (
+                    <Link to="/orders" className={`text-sm font-medium transition-colors ${isActive('/orders') ? 'text-brand' : 'text-gray-600 hover:text-gray-900'}`}
+                      style={isActive('/orders') ? { color: BRAND } : {}}>
+                      Orders
+                    </Link>
+                  )}
                   {user?.role === 'restaurant_owner' && <Link to="/dashboard" className="text-sm text-gray-600 hover:text-gray-900">Dashboard</Link>}
                   {user?.role === 'delivery_partner' && <Link to="/delivery-dashboard" className="text-sm text-gray-600 hover:text-gray-900">Dashboard</Link>}
                   {user?.role === 'admin' && <Link to="/admin" className="text-sm text-gray-600 hover:text-gray-900">Admin</Link>}
 
                   <NotificationBell />
 
-                  <button onClick={() => dispatch(toggleCart())} className="relative p-2 text-gray-500 hover:text-gray-900 transition-colors">
-                    <ShoppingCartIcon className="h-5 w-5" />
-                    {cartCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 text-white text-[9px] rounded-full h-4 min-w-[16px] px-0.5 flex items-center justify-center font-bold" style={{ background: BRAND }}>
-                        {cartCount}
-                      </span>
-                    )}
-                  </button>
+                  {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' && (
+                    <button onClick={() => dispatch(toggleCart())} className="relative p-2 text-gray-500 hover:text-gray-900 transition-colors">
+                      <ShoppingCartIcon className="h-5 w-5" />
+                      {cartCount > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 text-white text-[9px] rounded-full h-4 min-w-[16px] px-0.5 flex items-center justify-center font-bold" style={{ background: BRAND }}>
+                          {cartCount}
+                        </span>
+                      )}
+                    </button>
+                  )}
 
                   <div className="relative" ref={dropdownRef}>
                     <button
