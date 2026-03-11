@@ -127,8 +127,8 @@ const PROMOS = [
   {
     id: 2,
     tag: 'FREE DELIVERY',
-    bold: 'Free delivery on orders above ₹199',
-    sub: 'No minimum fuss. Just great food delivered.',
+    bold: 'Free delivery on all orders',
+    sub: 'No minimum limits. Just great food delivered.',
     cta: 'Order Now',
     bg: 'linear-gradient(135deg, #E23744 0%, #C92535 100%)',
     img: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=280&q=80',

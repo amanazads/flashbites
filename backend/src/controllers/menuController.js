@@ -28,13 +28,12 @@ exports.addMenuItem = async (req, res) => {
     }
 
     // Handle image upload
-    let imageUrl = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800';
+    let imageUrl = '';
     if (req.file) {
       try {
         imageUrl = await uploadToCloudinary(req.file.buffer, 'flashbites/menu-items');
       } catch (uploadError) {
-        console.error('Image upload failed, using default:', uploadError.message);
-        // Continue with default image if upload fails
+        console.error('Image upload failed, ignoring:', uploadError.message);
       }
     }
 
@@ -107,11 +106,16 @@ exports.updateMenuItem = async (req, res) => {
 
     // Handle image upload if new file provided
     if (req.file) {
-      // Delete old image from Cloudinary if it exists and is not default
+      // Delete old image from Cloudinary if it exists
       if (menuItem.image && !menuItem.image.includes('unsplash')) {
         await deleteFromCloudinary(menuItem.image);
       }
       req.body.image = await uploadToCloudinary(req.file.buffer, 'flashbites/menu-items');
+    } else if (req.body.image === '' || req.body.image === 'null') {
+      if (menuItem.image && !menuItem.image.includes('unsplash')) {
+        await deleteFromCloudinary(menuItem.image);
+      }
+      req.body.image = '';
     }
 
     if (req.body.variants && typeof req.body.variants === 'string') {
@@ -172,8 +176,9 @@ exports.toggleMenuItemAvailability = async (req, res) => {
       return errorResponse(res, 404, 'Menu item not found');
     }
 
-    menuItem.isAvailable = !menuItem.isAvailable;
-    await menuItem.save();
+    const newStatus = !menuItem.isAvailable;
+    await MenuItem.findByIdAndUpdate(req.params.itemId, { isAvailable: newStatus });
+    menuItem.isAvailable = newStatus;
 
     successResponse(res, 200, 'Menu item availability updated', { menuItem });
   } catch (error) {

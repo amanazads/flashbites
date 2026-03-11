@@ -246,13 +246,17 @@ const RestaurantDashboard = () => {
       formData.append('description', menuItemData.description.trim());
       formData.append('price', menuItemData.price);
       formData.append('category', menuItemData.category);
-      formData.append('isVeg', menuItemData.isVeg);
-      formData.append('isAvailable', menuItemData.isAvailable);
-      
-      if (menuItemData.variants && menuItemData.variants.length > 0) {
-        formData.append('variants', JSON.stringify(menuItemData.variants));
-      }
-      
+    formData.append('isVeg', menuItemData.isVeg);
+    formData.append('isAvailable', Boolean(menuItemData.isAvailable));
+    if (menuItemData.variants) {
+      formData.append('variants', JSON.stringify(menuItemData.variants));
+    }
+    
+    // Explicitly send an empty image so backend knows we removed it
+    if (menuItemData.image === '') {
+      formData.append('image', '');
+    }
+
       // Append image if selected
       if (menuImageFile) {
         formData.append('image', menuImageFile);
@@ -1524,18 +1528,34 @@ const RestaurantDashboard = () => {
                     Item Image
                   </label>
                   <input
+                    id="menuItemImageInput"
                     type="file"
                     accept="image/*"
                     onChange={handleMenuImageChange}
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   {menuImagePreview && (
-                    <div className="mt-2">
+                    <div className="mt-2 relative">
                       <img
                         src={menuImagePreview}
                         alt="Preview"
-                        className="h-32 w-full object-cover rounded-lg"
+                        className="h-32 w-full object-cover rounded-lg border"
                       />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuImagePreview(null);
+                          setMenuImageFile(null);
+                          setMenuItemData({ ...menuItemData, image: '' }); // Clear image in the data explicitly
+                          // Reset the file input so they can re-select the same image if needed
+                          const fileInput = document.getElementById('menuItemImageInput');
+                          if (fileInput) fileInput.value = '';
+                        }}
+                        className="absolute top-2 right-2 bg-white text-red-600 p-1.5 rounded-md shadow hover:bg-red-50"
+                        title="Remove Image"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
                     </div>
                   )}
                   <p className="text-xs text-gray-500 mt-1">
@@ -1667,20 +1687,30 @@ const RestaurantDashboard = () => {
                 </div>
 
                 <div className="flex items-center space-x-6">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={menuItemData.isVeg}
-                      onChange={(e) =>
-                        setMenuItemData({
-                          ...menuItemData,
-                          isVeg: e.target.checked,
-                        })
-                      }
-                      className="mr-2"
-                    />
-                    <span className="text-sm font-medium">Vegetarian</span>
-                  </label>
+                  <div className="flex items-center space-x-4">
+                    <span className="text-sm font-medium text-gray-700">Dietary Type:</span>
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="dietaryType"
+                        checked={menuItemData.isVeg === true}
+                        onChange={() => setMenuItemData({ ...menuItemData, isVeg: true })}
+                        className="mr-1.5"
+                      />
+                      <span className="text-sm font-medium text-green-700">Veg</span>
+                    </label>
+
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="dietaryType"
+                        checked={menuItemData.isVeg === false}
+                        onChange={() => setMenuItemData({ ...menuItemData, isVeg: false })}
+                        className="mr-1.5"
+                      />
+                      <span className="text-sm font-medium text-red-700">Non-Veg</span>
+                    </label>
+                  </div>
 
                   <label className="flex items-center">
                     <input

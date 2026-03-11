@@ -5,7 +5,7 @@ import { ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { isRestaurantOpen } from '../../utils/helpers';
 
 const BRAND = '#E23744';
-const DELIVERY_RADIUS_KM = 10;
+const DELIVERY_RADIUS_KM = 20;
 
 const getDiscount = (r) => {
   if (r.discount) return r.discount;
@@ -66,14 +66,6 @@ const RestaurantCard = ({ restaurant: r }) => {
               TOP RATED
             </span>
           )}
-          {isOpen && !outOfRange && (r.deliveryFee === 0 || r.deliveryFee === '0') && (
-            <span
-              className="text-white text-[10px] font-bold px-2 py-1 rounded-lg"
-              style={{ background: 'rgba(27,166,114,0.9)', backdropFilter: 'blur(4px)' }}
-            >
-              FREE DELIVERY
-            </span>
-          )}
           {isOpen && !outOfRange && rating < 4.5 && (
             <span
               className="text-white text-[10px] font-bold px-2 py-1 rounded-lg"
@@ -90,7 +82,7 @@ const RestaurantCard = ({ restaurant: r }) => {
           style={{ background: ratingBg }}
         >
           <StarIcon className="h-3 w-3" />
-          {r.rating || '4.0'}
+          {r.rating || '4.0'}/5
         </div>
 
         {/* Closed overlay */}
@@ -139,16 +131,6 @@ const RestaurantCard = ({ restaurant: r }) => {
             <MapPinIcon className="h-3.5 w-3.5" style={{ color: BRAND }} />
             {r.distance ? `${r.distance.toFixed(1)} km` : r.address?.city || 'Nearby'}
           </span>
-          <span
-            className="w-px h-3 bg-gray-200 mx-2 flex-shrink-0"
-          />
-          <span className="flex-1 text-right truncate">
-            {r.deliveryFee === 0 ? (
-              <span className="text-green-600 font-semibold">Free delivery</span>
-            ) : (
-              `₹${r.deliveryFee ?? 30} delivery`
-            )}
-          </span>
         </div>
 
         {/* Offer strip */}
@@ -163,7 +145,7 @@ const RestaurantCard = ({ restaurant: r }) => {
               <span className="text-[9px] font-black" style={{ color: BRAND }}>%</span>
             </div>
             <span className="text-[11px] font-semibold" style={{ color: BRAND }}>
-              ₹{discount} off on orders above ₹{discount + 99}
+              Flat ₹{discount} OFF
             </span>
           </div>
         )}

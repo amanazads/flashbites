@@ -6,7 +6,6 @@ import { clearCart } from '../redux/slices/cartSlice';
 import { getAddresses } from '../api/userApi';
 import { formatCurrency } from '../utils/formatters';
 import { calculateCartTotal } from '../utils/helpers';
-import { MINIMUM_ORDER_VALUE, calculateDeliveryCharge } from '../utils/constants';
 import { calculateDistance } from '../utils/helpers';
 import { createRazorpayOrder, verifyPayment } from '../api/paymentApi';
 import { updateOrderStatus } from '../api/orderApi';
@@ -79,10 +78,9 @@ const Checkout = () => {
   }, [selectedAddress, restaurant, addresses]);
 
   const subtotal = calculateCartTotal(items);
-  const deliveryFee = deliveryDistance > 0 ? calculateDeliveryCharge(deliveryDistance) : 30; // Default ₹30
   const discount = appliedCoupon?.discount || 0;
   const tax = (subtotal - discount) * 0.05;
-  const total = subtotal + deliveryFee + tax - discount;
+  const total = subtotal + tax - discount;
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -112,11 +110,6 @@ const Checkout = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if (subtotal < MINIMUM_ORDER_VALUE) {
-      toast.error(`Minimum order value is ${formatCurrency(MINIMUM_ORDER_VALUE)}`);
-      return;
-    }
-
     if (!selectedAddress) {
       toast.error('Please select a delivery address');
       return;
@@ -419,15 +412,6 @@ const Checkout = () => {
                   <span>Subtotal</span>
                   <span className="font-medium text-gray-700">{formatCurrency(subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-gray-500">
-                  <div>
-                    <span>Delivery Fee</span>
-                    {deliveryDistance > 0 && (
-                      <span className="text-xs text-gray-400 ml-1">({deliveryDistance.toFixed(1)} km)</span>
-                    )}
-                  </div>
-                  <span className="font-medium text-gray-700">{formatCurrency(deliveryFee)}</span>
-                </div>
                 {appliedCoupon && (
                   <div className="flex justify-between text-green-600 font-semibold">
                     <span>Discount ({appliedCoupon.code})</span>
@@ -444,23 +428,12 @@ const Checkout = () => {
                 </div>
               </div>
 
-              {subtotal < MINIMUM_ORDER_VALUE && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl">
-                  <p className="text-sm text-red-700 font-medium">
-                    Minimum order is {formatCurrency(MINIMUM_ORDER_VALUE)}
-                  </p>
-                  <p className="text-xs text-red-500 mt-0.5">
-                    Add {formatCurrency(MINIMUM_ORDER_VALUE - subtotal)} more
-                  </p>
-                </div>
-              )}
-
               <button
                 onClick={handlePlaceOrder}
-                disabled={loading || !selectedAddress || subtotal < MINIMUM_ORDER_VALUE}
+                disabled={loading || !selectedAddress}
                 className="w-full btn-primary py-3.5 text-[15px] font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Placing Order...' : subtotal < MINIMUM_ORDER_VALUE ? `Min. Order ${formatCurrency(MINIMUM_ORDER_VALUE)}` : 'Place Order'}
+                {loading ? 'Placing Order...' : 'Place Order'}
               </button>
             </div>
           </div>

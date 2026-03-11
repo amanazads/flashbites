@@ -60,7 +60,7 @@ exports.getAllRestaurants = async (req, res) => {
       search,
       lat,
       lng,
-      radius = 5000,
+      radius = 20000,
       minRating,
       sortBy = '-rating',
       page = 1,

@@ -219,6 +219,32 @@ const Profile = () => {
     } catch { toast.error('Failed to save address'); }
   };
 
+  const handlePincodeChange = async (e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+    setAddressData(prev => ({ ...prev, zipCode: value }));
+
+    if (value.length === 6) {
+      try {
+        const response = await fetch(`https://api.postalpincode.in/pincode/${value}`);
+        const data = await response.json();
+        
+        if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
+          const postOffice = data[0].PostOffice[0];
+          setAddressData(prev => ({
+            ...prev,
+            city: postOffice.District,
+            state: postOffice.State
+          }));
+          toast.success("City and State auto-detected");
+        } else {
+          toast.error("Invalid PIN code entered");
+        }
+      } catch (error) {
+        console.error("Failed to fetch pincode details", error);
+      }
+    }
+  };
+
   const handleDeleteAddress = async (id) => {
     const result = await Swal.fire({
       title: 'Remove this address?',
@@ -601,7 +627,7 @@ const Profile = () => {
                     { placeholder: 'Street address *', key: 'street', required: true },
                     { placeholder: 'City *', key: 'city', required: true },
                     { placeholder: 'State *', key: 'state', required: true },
-                    { placeholder: 'PIN Code *', key: 'zipCode', required: true },
+                    { placeholder: 'PIN Code *', key: 'zipCode', required: true, isPincode: true },
                     { placeholder: 'Landmark (optional)', key: 'landmark', required: false },
                   ].map((f) => (
                     <input
@@ -609,8 +635,10 @@ const Profile = () => {
                       type="text"
                       placeholder={f.placeholder}
                       required={f.required}
+                      maxLength={f.isPincode ? 6 : undefined}
+                      pattern={f.isPincode ? "[0-9]{6}" : undefined}
                       value={addressData[f.key]}
-                      onChange={(e) => setAddressData({ ...addressData, [f.key]: e.target.value })}
+                      onChange={(e) => f.isPincode ? handlePincodeChange(e) : setAddressData({ ...addressData, [f.key]: e.target.value })}
                       className="input-field"
                     />
                   ))}

@@ -45,7 +45,7 @@ const menuItemSchema = new mongoose.Schema({
   }],
   image: {
     type: String,
-    required: [true, 'Please provide item image']
+    required: false
   },
   isVeg: {
     type: Boolean,

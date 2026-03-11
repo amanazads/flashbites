@@ -188,11 +188,7 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    // Validate minimum order value
-    const MINIMUM_ORDER_VALUE = 199;
-    if (subtotal < MINIMUM_ORDER_VALUE) {
-      return errorResponse(res, 400, `Minimum order value is ₹${MINIMUM_ORDER_VALUE}`);
-    }
+
 
     // Calculate distance-based delivery fee (platform-controlled)
     let deliveryFee = 30; // Default ₹30
@@ -204,6 +200,11 @@ exports.createOrder = async (req, res) => {
         const [addrLng, addrLat] = address.location.coordinates;
         const [restLng, restLat] = restaurant.location.coordinates;
         const distance = calculateDistance(restLat, restLng, addrLat, addrLng);
+        
+        if (distance > 20) {
+          return errorResponse(res, 400, "Delivery is not available in your area. Maximum delivery distance is 20km.");
+        }
+        
         deliveryFee = calculateDeliveryCharge(distance);
       }
     }
