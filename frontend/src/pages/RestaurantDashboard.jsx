@@ -14,6 +14,7 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 import {
   createRestaurant, 
   getMyRestaurant, 
@@ -23,6 +24,7 @@ import {
   createMenuItem,
   updateMenuItem,
   deleteMenuItem,
+  toggleMenuItemAvailability,
   getRestaurantAnalytics 
 } from '../api/restaurantApi';
 import { getRestaurantOrders, updateOrderStatus } from '../api/orderApi';
@@ -84,6 +86,7 @@ const RestaurantDashboard = () => {
     category: '',
     isVeg: true,
     isAvailable: true,
+    variants: [],
   });
 
   useEffect(() => {
@@ -216,17 +219,44 @@ const RestaurantDashboard = () => {
 
   const handleMenuItemSubmit = async (e) => {
     e.preventDefault();
+    
+    // Client-side validation
+    if (!menuItemData.name?.trim()) {
+      toast.error('Please enter the item name');
+      return;
+    }
+    if (!menuItemData.description?.trim()) {
+      toast.error('Please enter a description for the item!');
+      return;
+    }
+    if (!menuItemData.price || parseFloat(menuItemData.price) <= 0) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+    if (!menuItemData.category) {
+      toast.error('Please select a category');
+      return;
+    }
+    
     try {
       const formData = new FormData();
       
       // Append menu item data
-      formData.append('name', menuItemData.name);
-      formData.append('description', menuItemData.description);
+      formData.append('name', menuItemData.name.trim());
+      formData.append('description', menuItemData.description.trim());
       formData.append('price', menuItemData.price);
       formData.append('category', menuItemData.category);
-      formData.append('isVeg', menuItemData.isVeg);
-      formData.append('isAvailable', menuItemData.isAvailable);
-      
+    formData.append('isVeg', menuItemData.isVeg);
+    formData.append('isAvailable', Boolean(menuItemData.isAvailable));
+    if (menuItemData.variants) {
+      formData.append('variants', JSON.stringify(menuItemData.variants));
+    }
+    
+    // Explicitly send an empty image so backend knows we removed it
+    if (menuItemData.image === '') {
+      formData.append('image', '');
+    }
+
       // Append image if selected
       if (menuImageFile) {
         formData.append('image', menuImageFile);
@@ -252,23 +282,36 @@ const RestaurantDashboard = () => {
         category: '',
         isVeg: true,
         isAvailable: true,
+        variants: [],
       });
       
       // Immediately refresh menu items
       await fetchMenuItems(restaurant._id);
       console.log('Menu items refreshed after add/update');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to save menu item');
+      // Show the exact server error message for easy debugging
+      const msg = error.response?.data?.message || error.message || 'Failed to save menu item';
+      toast.error(msg);
+      console.error('Menu item save error:', error.response?.data || error.message);
     }
   };
 
+
   const handleDeleteMenuItem = async (itemId) => {
-    if (!window.confirm('Are you sure you want to delete this item?')) return;
+    const result = await Swal.fire({
+      title: 'Delete this menu item?',
+      text: 'This action cannot be undone.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#9CA3AF',
+      confirmButtonText: 'Yes, delete it',
+    });
+    if (!result.isConfirmed) return;
 
     try {
       await deleteMenuItem(restaurant._id, itemId);
       toast.success('Menu item deleted');
-      // Immediately refresh menu items
       await fetchMenuItems(restaurant._id);
     } catch (error) {
       toast.error('Failed to delete menu item');
@@ -276,21 +319,34 @@ const RestaurantDashboard = () => {
     }
   };
 
-  const handleDeleteRestaurant = async () => {
-    const confirmed = window.confirm(
-      'Are you sure you want to delete your restaurant? This action cannot be undone and will delete all menu items and order history.'
-    );
-    
-    if (!confirmed) return;
-
-    const doubleConfirm = window.prompt(
-      'Type "DELETE" to confirm deletion:'
-    );
-
-    if (doubleConfirm !== 'DELETE') {
-      toast.error('Deletion cancelled');
-      return;
+  const handleToggleAvailability = async (itemId) => {
+    try {
+      await toggleMenuItemAvailability(restaurant._id, itemId);
+      toast.success('Availability changed');
+      await fetchMenuItems(restaurant._id);
+    } catch (error) {
+      toast.error('Failed to change status');
+      console.error('Toggle error:', error);
     }
+  };
+
+  const handleDeleteRestaurant = async () => {
+    const result = await Swal.fire({
+      title: 'Delete your restaurant?',
+      html: 'This will permanently delete <strong>all menu items and order history</strong>. This action cannot be undone.',
+      icon: 'error',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#9CA3AF',
+      confirmButtonText: 'Yes, delete everything',
+      input: 'text',
+      inputLabel: 'Type DELETE to confirm',
+      inputPlaceholder: 'DELETE',
+      inputValidator: (value) => {
+        if (value !== 'DELETE') return 'Please type DELETE exactly to confirm';
+      },
+    });
+    if (!result.isConfirmed) return;
 
     try {
       await deleteRestaurant(restaurant._id);
@@ -356,6 +412,7 @@ const RestaurantDashboard = () => {
       category: item.category,
       isVeg: item.isVeg,
       isAvailable: item.isAvailable,
+      variants: item.variants ? item.variants.map(v => ({ ...v })) : [],
     });
     setMenuImagePreview(item.image);
     setShowMenuForm(true);
@@ -674,6 +731,7 @@ const RestaurantDashboard = () => {
                           category: '',
                           isVeg: true,
                           isAvailable: true,
+                          variants: [],
                         });
                         setMenuImageFile(null);
                         setMenuImagePreview(null);
@@ -738,15 +796,26 @@ const RestaurantDashboard = () => {
                               <h3 className="font-bold text-lg flex-1">{item.name}</h3>
                               <div className="flex space-x-2 ml-2">
                                 <button
+                                  onClick={() => handleToggleAvailability(item._id)}
+                                  className={`p-1.5 rounded transition-colors ${item.isAvailable ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
+                                  title="Toggle availability"
+                                >
+                                  {item.isAvailable ? (
+                                    <CheckCircleIcon className="h-5 w-5" />
+                                  ) : (
+                                    <XCircleIcon className="h-5 w-5" />
+                                  )}
+                                </button>
+                                <button
                                   onClick={() => handleEditMenuItem(item)}
-                                  className="text-blue-600 hover:text-blue-800 p-1 hover:bg-blue-50 rounded"
+                                  className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-50 rounded"
                                   title="Edit item"
                                 >
                                   <PencilIcon className="h-5 w-5" />
                                 </button>
                                 <button
                                   onClick={() => handleDeleteMenuItem(item._id)}
-                                  className="text-red-600 hover:text-red-800 p-1 hover:bg-red-50 rounded"
+                                  className="text-red-600 hover:text-red-800 p-1.5 hover:bg-red-50 rounded"
                                   title="Delete item"
                                 >
                                   <TrashIcon className="h-5 w-5" />
@@ -760,23 +829,31 @@ const RestaurantDashboard = () => {
                             
                             <div className="flex justify-between items-center mb-2">
                               <span className="font-bold text-xl text-primary-600">
-                                ₹{item.price}
+                                ₹{item.price} <span className="text-xs text-gray-500 font-normal">{item.variants && item.variants.length > 0 ? "onwards" : ""}</span>
                               </span>
                               <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
                                 {item.category}
                               </span>
                             </div>
                             
-                            <div className="mt-2">
-                              <span
-                                className={`text-xs px-2 py-1 rounded font-medium ${
-                                  item.isAvailable
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'bg-gray-200 text-gray-600'
-                                }`}
-                              >
-                                {item.isAvailable ? '✓ Available' : '✗ Unavailable'}
-                              </span>
+                            {item.variants && item.variants.length > 0 && (
+                              <div className="mb-2 space-y-1">
+                                <div className="flex flex-wrap gap-1">
+                                  {item.variants.map((v, i) => (
+                                    <span key={i} className="text-xs bg-gray-50 border border-gray-200 px-2 py-0.5 rounded text-gray-700">
+                                      {v.name}: ₹{v.price}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            <div className="mt-2 text-xs">
+                              {item.isAvailable ? (
+                                <span className="text-green-600 font-medium">✓ Available to order</span>
+                              ) : (
+                                <span className="text-red-500 font-medium">✗ Currently Unavailable</span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1451,18 +1528,34 @@ const RestaurantDashboard = () => {
                     Item Image
                   </label>
                   <input
+                    id="menuItemImageInput"
                     type="file"
                     accept="image/*"
                     onChange={handleMenuImageChange}
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   {menuImagePreview && (
-                    <div className="mt-2">
+                    <div className="mt-2 relative">
                       <img
                         src={menuImagePreview}
                         alt="Preview"
-                        className="h-32 w-full object-cover rounded-lg"
+                        className="h-32 w-full object-cover rounded-lg border"
                       />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuImagePreview(null);
+                          setMenuImageFile(null);
+                          setMenuItemData({ ...menuItemData, image: '' }); // Clear image in the data explicitly
+                          // Reset the file input so they can re-select the same image if needed
+                          const fileInput = document.getElementById('menuItemImageInput');
+                          if (fileInput) fileInput.value = '';
+                        }}
+                        className="absolute top-2 right-2 bg-white text-red-600 p-1.5 rounded-md shadow hover:bg-red-50"
+                        title="Remove Image"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
                     </div>
                   )}
                   <p className="text-xs text-gray-500 mt-1">
@@ -1472,10 +1565,11 @@ const RestaurantDashboard = () => {
 
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Description
+                    Description *
                   </label>
                   <textarea
                     value={menuItemData.description}
+                    placeholder="Enter item description..."
                     onChange={(e) =>
                       setMenuItemData({
                         ...menuItemData,
@@ -1525,25 +1619,98 @@ const RestaurantDashboard = () => {
                       <option value="Breads">Breads</option>
                       <option value="Rice">Rice</option>
                       <option value="Snacks">Snacks</option>
+                      <option value="Fast Food">Fast Food</option>
+                      <option value="Pizza">Pizza</option>
+                      <option value="Burger">Burger</option>
+                      <option value="South Indian">South Indian</option>
+                      <option value="North Indian">North Indian</option>
+                      <option value="Chinese">Chinese</option>
                     </select>
                   </div>
                 </div>
 
+                {/* Variants Section */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-sm font-medium">Variants (Optional)</label>
+                    <button
+                      type="button"
+                      onClick={() => setMenuItemData({
+                        ...menuItemData,
+                        variants: [...(menuItemData.variants || []), { name: '', price: '' }]
+                      })}
+                      className="text-primary-600 text-sm font-medium hover:text-primary-700"
+                    >
+                      + Add Variant
+                    </button>
+                  </div>
+                  {(menuItemData.variants || []).map((variant, index) => (
+                    <div key={index} className="flex gap-3 mb-2 items-center">
+                      <input
+                        type="text"
+                        placeholder="Variant name"
+                        value={variant.name}
+                        onChange={(e) => {
+                          const newVariants = [...menuItemData.variants];
+                          newVariants[index] = { ...newVariants[index], name: e.target.value };
+                          setMenuItemData({ ...menuItemData, variants: newVariants });
+                        }}
+                        className="flex-1 min-w-[100px] px-3 py-2 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Price"
+                        min="0"
+                        value={variant.price}
+                        onChange={(e) => {
+                          const newVariants = [...menuItemData.variants];
+                          newVariants[index] = { ...newVariants[index], price: e.target.value };
+                          setMenuItemData({ ...menuItemData, variants: newVariants });
+                        }}
+                        className="w-20 sm:w-24 px-3 py-2 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newVariants = menuItemData.variants.filter((_, i) => i !== index);
+                          setMenuItemData({ ...menuItemData, variants: newVariants });
+                        }}
+                        className="text-red-500 hover:text-red-700 flex-shrink-0"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                  ))}
+                  {(!menuItemData.variants || menuItemData.variants.length === 0) && (
+                    <p className="text-xs text-gray-500">Add options like Regular, Medium, Large, Half, Full</p>
+                  )}
+                </div>
+
                 <div className="flex items-center space-x-6">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={menuItemData.isVeg}
-                      onChange={(e) =>
-                        setMenuItemData({
-                          ...menuItemData,
-                          isVeg: e.target.checked,
-                        })
-                      }
-                      className="mr-2"
-                    />
-                    <span className="text-sm font-medium">Vegetarian</span>
-                  </label>
+                  <div className="flex items-center space-x-4">
+                    <span className="text-sm font-medium text-gray-700">Dietary Type:</span>
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="dietaryType"
+                        checked={menuItemData.isVeg === true}
+                        onChange={() => setMenuItemData({ ...menuItemData, isVeg: true })}
+                        className="mr-1.5"
+                      />
+                      <span className="text-sm font-medium text-green-700">Veg</span>
+                    </label>
+
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="dietaryType"
+                        checked={menuItemData.isVeg === false}
+                        onChange={() => setMenuItemData({ ...menuItemData, isVeg: false })}
+                        className="mr-1.5"
+                      />
+                      <span className="text-sm font-medium text-red-700">Non-Veg</span>
+                    </label>
+                  </div>
 
                   <label className="flex items-center">
                     <input

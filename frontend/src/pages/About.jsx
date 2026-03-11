@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Link } from 'react-router-dom';
+import SEO from '../components/common/SEO';
 import {
-  ArrowLeftIcon,
   BoltIcon,
   ShieldCheckIcon,
   UserGroupIcon,
@@ -10,48 +10,10 @@ import {
 } from '@heroicons/react/24/outline';
 
 const About = () => {
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const styleEl = document.createElement('style');
-    styleEl.id = 'about-hide-layout';
-    styleEl.textContent = `
-      body nav,
-      body footer,
-      body .cart-drawer,
-      [class*="Navbar"],
-      [class*="Footer"],
-      [class*="CartDrawer"] {
-        display: none !important;
-      }
-      body main {
-        padding-bottom: 0 !important;
-      }
-    `;
-    document.head.appendChild(styleEl);
-
-    return () => {
-      const el = document.getElementById('about-hide-layout');
-      if (el) el.remove();
-    };
-  }, []);
-
   const valueCards = [
-    {
-      title: 'Community First',
-      text: 'We prioritize the needs of rural communities, ensuring our platform serves those who need it most',
-      icon: UserGroupIcon,
-    },
-    {
-      title: 'Trust & Quality',
-      text: 'We maintain the highest standards of food quality and delivery service, building lasting trust',
-      icon: ShieldCheckIcon,
-    },
-    {
-      title: 'Inclusive Growth',
-      text: 'We believe in growing together, creating opportunities for local businesses and delivery partners',
-      icon: SparklesIcon,
-    },
+    { title: 'Community First', text: 'We prioritize the needs of rural communities, ensuring our platform serves those who need it most', icon: UserGroupIcon },
+    { title: 'Trust & Quality', text: 'We maintain the highest standards of food quality and delivery service, building lasting trust', icon: ShieldCheckIcon },
+    { title: 'Inclusive Growth', text: 'We believe in growing together, creating opportunities for local businesses and delivery partners', icon: SparklesIcon },
   ];
 
   const whyChoose = [
@@ -62,115 +24,98 @@ const About = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F4F5F7]">
-      <div className="w-full max-w-md mx-auto min-h-screen bg-[#F4F5F7] pb-24">
-        <header className="sticky top-0 z-20 bg-[#F4F5F7]/95 backdrop-blur-sm border-b border-slate-200 px-4 py-4">
-          <div className="relative flex items-center justify-center">
-            <button
-              onClick={() => navigate(-1)}
-              className="absolute left-0 w-9 h-9 rounded-full bg-[#e8edf2] flex items-center justify-center text-slate-700 transition-colors active:bg-slate-200"
-            >
-              <ArrowLeftIcon className="w-5 h-5" />
-            </button>
-            <h1 className="text-[22px] font-bold text-slate-900">About Us</h1>
+    <div className="min-h-screen bg-gray-50">
+      <SEO
+        title="About Us – FlashBites Food Delivery"
+        description="Learn about FlashBites – India's fastest growing food delivery app. Founded in Sitapur, UP, we connect rural and semi-urban India with their favourite local restaurants."
+        url="/about"
+        keywords="about FlashBites, food delivery India, rural food delivery, Sitapur food delivery, FlashBites story"
+      />
+
+      {/* Hero */}
+      <div className="bg-gradient-to-r from-primary-500 to-primary-600 text-white py-12 sm:py-16 lg:py-20">
+        <div className="max-w-7xl mx-auto container-px text-center">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">About FlashBites</h1>
+          <p className="text-lg sm:text-xl lg:text-2xl text-primary-100 max-w-3xl mx-auto px-2 sm:px-0">
+            Bringing the joy of online food delivery to rural and semi-urban India
+          </p>
+        </div>
+      </div>
+
+      {/* Our Story */}
+      <div className="max-w-4xl mx-auto container-px py-12 sm:py-16">
+        <div className="flex items-center gap-2 mb-4">
+          <BoltIcon className="w-5 h-5 text-primary-600" />
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Our Story</h2>
+        </div>
+        <div className="space-y-4 text-gray-600 text-base leading-relaxed">
+          <p>
+            Founded in <span className="font-semibold text-primary-600">2026</span> in{' '}
+            <span className="font-semibold text-primary-600">Sitapur, Uttar Pradesh</span>, FlashBites was born from a simple observation: while urban India enjoyed the convenience of food delivery apps, millions in rural and semi-urban areas were left behind.
+          </p>
+          <p>
+            We recognized the untapped potential of local restaurants in smaller towns and villages, and the growing desire among rural communities to access diverse culinary options. FlashBites bridges this gap, connecting local eateries with customers who crave convenience and variety.
+          </p>
+          <p>
+            Today, we're proud to serve communities that have been overlooked by traditional food delivery platforms, empowering local businesses and bringing smiles to countless homes across rural India.
+          </p>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mt-8">
+          {[{ label: 'Founded', value: '2026' }, { label: 'Origin', value: 'Sitapur' }, { label: 'Focus', value: 'Rural India' }].map((s) => (
+            <div key={s.label} className="bg-white border border-gray-200 rounded-2xl p-4 text-center shadow-sm">
+              <p className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold">{s.label}</p>
+              <p className="text-sm font-bold text-gray-900 mt-1">{s.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Values */}
+      <div className="bg-white py-12 sm:py-16">
+        <div className="max-w-7xl mx-auto container-px">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Our Core Values</h2>
+            <p className="text-xl text-gray-500">The principles that guide everything we do</p>
           </div>
-        </header>
+          <div className="grid md:grid-cols-3 gap-8">
+            {valueCards.map(({ title, text, icon: Icon }) => (
+              <div key={title} className="bg-gray-50 rounded-xl shadow-sm p-6 text-center hover:shadow-md transition-shadow">
+                <div className="bg-primary-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Icon className="h-8 w-8 text-primary-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">{title}</h3>
+                <p className="text-gray-600">{text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
-        <main className="px-4 py-5 space-y-6">
-          <section className="rounded-3xl bg-white border border-slate-200 shadow-[0_10px_24px_rgba(15,23,42,0.06)] p-5 text-center">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-orange-500 font-semibold mb-2">Our Mission</p>
-            <p className="text-[20px] font-semibold text-slate-900 italic leading-tight">
-              "To democratize food delivery for every Indian, regardless of location."
-            </p>
-          </section>
+      {/* Why Choose */}
+      <div className="max-w-4xl mx-auto container-px py-12 sm:py-16">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 text-center">Why Choose FlashBites?</h2>
+        <ul className="space-y-3">
+          {whyChoose.map((item) => (
+            <li key={item} className="flex items-start gap-3 text-gray-600 text-base">
+              <CheckCircleIcon className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
 
-          <section className="space-y-3">
-            <div className="flex items-center gap-2">
-              <BoltIcon className="w-4 h-4 text-orange-500" />
-              <h3 className="text-[28px] font-bold text-slate-900">Our Story</h3>
-            </div>
-            <div className="space-y-3 text-[16px] leading-relaxed text-slate-600">
-              <p>
-                Founded in <span className="font-semibold text-orange-500">2026</span> in{' '}
-                <span className="font-semibold text-orange-500">Sitapur, Uttar Pradesh</span>, FlashBites was born from a simple observation: while urban India enjoyed the convenience of food delivery apps, millions in rural and semi-urban areas were left behind.
-              </p>
-              <p>
-                We recognized the untapped potential of local restaurants in smaller towns and villages, and the growing desire among rural communities to access diverse culinary options. FlashBites bridges this gap, connecting local eateries with customers who crave convenience and variety.
-              </p>
-              <p>
-                Today, we're proud to serve communities that have been overlooked by traditional food delivery platforms, empowering local businesses and bringing smiles to countless homes across rural India.
-              </p>
-            </div>
-          </section>
-
-          <section className="grid grid-cols-3 gap-2">
-            <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center shadow-sm">
-              <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Founded</p>
-              <p className="text-sm font-bold text-slate-900 mt-1">2026</p>
-            </div>
-            <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center shadow-sm">
-              <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Origin</p>
-              <p className="text-sm font-bold text-slate-900 mt-1">Sitapur</p>
-            </div>
-            <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center shadow-sm">
-              <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Focus</p>
-              <p className="text-sm font-bold text-slate-900 mt-1">Rural India</p>
-            </div>
-          </section>
-
-          <section>
-            <h3 className="text-[28px] font-bold text-slate-900 mb-3">Our Values</h3>
-            <div className="space-y-3">
-              {valueCards.map(({ title, text, icon: Icon }) => (
-                <article key={title} className="bg-white border border-slate-200 rounded-3xl p-3.5 shadow-[0_6px_14px_rgba(15,23,42,0.05)]">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center flex-shrink-0">
-                      <Icon className="w-5 h-5 text-orange-500" />
-                    </div>
-                    <div>
-                      <h4 className="text-[22px] font-bold text-slate-900">{title}</h4>
-                      <p className="text-[15px] text-slate-600 leading-relaxed mt-1">{text}</p>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section>
-            <h3 className="text-[28px] font-bold text-slate-900 mb-3">Why Choose FlashBites?</h3>
-            <ul className="space-y-2.5">
-              {whyChoose.map((item) => (
-                <li key={item} className="flex items-start gap-2.5 text-[15px] text-slate-700 leading-relaxed">
-                  <CheckCircleIcon className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="rounded-3xl bg-gradient-to-br from-[#fff6f1] to-white border border-orange-100 p-5 shadow-sm">
-            <h3 className="text-[24px] font-bold text-slate-900 mb-2">Join the FlashBites Revolution</h3>
-            <p className="text-[15px] text-slate-600 leading-relaxed mb-4">
-              Whether you're a customer, restaurant owner, or potential delivery partner, we'd love to have you on board.
-            </p>
-            <div className="grid grid-cols-2 gap-2.5">
-              <Link
-                to="/restaurants"
-                className="inline-flex items-center justify-center rounded-2xl bg-orange-500 text-white font-semibold py-3 text-sm shadow-[0_8px_18px_rgba(249,115,22,0.28)]"
-              >
-                Explore Menu
-              </Link>
-              <Link
-                to="/partner"
-                className="inline-flex items-center justify-center rounded-2xl border border-orange-300 text-orange-600 font-semibold py-3 text-sm bg-white"
-              >
-                Partner With Us
-              </Link>
-            </div>
-          </section>
-        </main>
-
+      {/* CTA */}
+      <div className="bg-gray-100 py-12 sm:py-16">
+        <div className="max-w-4xl mx-auto container-px text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Join the FlashBites Revolution</h2>
+          <p className="text-xl text-gray-600 mb-8">Whether you're a customer, restaurant owner, or potential delivery partner, we'd love to have you on board</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to="/register" className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold text-lg transition-colors">Order Now</Link>
+            <Link to="/partner" className="px-8 py-3 bg-white text-primary-600 border-2 border-primary-600 rounded-lg hover:bg-primary-50 font-semibold text-lg transition-colors">Partner With Us</Link>
+          </div>
+        </div>
       </div>
     </div>
   );

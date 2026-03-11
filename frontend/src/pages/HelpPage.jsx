@@ -1,220 +1,199 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  FiArrowLeft,
-  FiBell,
-  FiSearch,
-  FiChevronDown,
-  FiChevronRight,
-  FiMessageCircle,
-  FiPhone,
-  FiMail,
-  FiClock,
-  FiCheckCircle,
-} from 'react-icons/fi';
-import { getUserOrders } from '../api/orderApi';
-import toast from 'react-hot-toast';
+  ChevronDownIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  MapPinIcon,
+  ClockIcon,
+  BuildingOffice2Icon,
+} from '@heroicons/react/24/outline';
+
+const BRAND = '#E23744';
 
 const faqs = [
   {
-    q: 'Where is my order?',
-    a: 'Open Orders and tap your active order to see live status updates and ETA.',
+    q: 'How long does delivery take?',
+    a: 'Delivery usually takes 30–45 minutes depending on your location and order volume. We strive to deliver every order within 30 minutes.',
   },
   {
-    q: 'How can I request a refund?',
-    a: 'Go to Orders, select the order, and tap Report an issue. Our team reviews it quickly.',
+    q: 'How do I cancel my order?',
+    a: "If your order hasn't been accepted by the restaurant yet, you can cancel it directly from the My Orders page. Once the restaurant starts preparing, cancellation may not be possible.",
   },
   {
-    q: 'Can I cancel after placing the order?',
-    a: 'You can cancel before restaurant confirmation. After that, cancellation depends on preparation status.',
+    q: 'Do you offer contactless delivery?',
+    a: 'Yes! All our deliveries are contactless by default. Our delivery partner will leave your order safely at your door.',
   },
   {
-    q: 'My item is missing, what should I do?',
-    a: 'Use Help on the order details page and choose Missing Item. We will resolve with refund/replacement.',
+    q: 'What if my food is missing or incorrect?',
+    a: 'Please contact us immediately at info.flashbites@gmail.com or call +91 7068247779 with your Order ID. We will issue a refund or replacement promptly.',
+  },
+  {
+    q: 'What payment methods are accepted?',
+    a: 'We accept UPI (PhonePe, Google Pay, Paytm), Credit/Debit Cards, Net Banking, and Cash on Delivery.',
+  },
+  {
+    q: 'How do I apply a coupon?',
+    a: 'Go to the Checkout page and enter your coupon code in the "Have a coupon?" field. Valid offers are listed on our Offers & Coupons page.',
+  },
+  {
+    q: 'Can I track my order in real time?',
+    a: 'Yes. After placing an order, visit My Orders and tap on your order to see its live status — from confirmed to out-for-delivery.',
+  },
+  {
+    q: 'How do I become a restaurant partner?',
+    a: 'Visit our Partner page or email info.flashbites@gmail.com. Our team will get in touch within 24–48 hours.',
   },
 ];
 
-const HelpPage = () => {
-  const navigate = useNavigate();
-  const [openFaq, setOpenFaq] = useState(0);
-  const [ordersLoading, setOrdersLoading] = useState(true);
-  const [recentIssues, setRecentIssues] = useState([]);
-  const openWhatsAppSupport = () => {
-    const phone = '918001234567';
-    const message = encodeURIComponent('Hi FlashBites support, I need help with my order.');
-    const url = `https://wa.me/${phone}?text=${message}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
-
-  useEffect(() => {
-    const loadRecentIssues = async () => {
-      try {
-        const response = await getUserOrders({ page: 1, limit: 8 });
-        const orders = response?.data?.orders || [];
-
-        const prioritized = orders
-          .filter((order) => ['cancelled', 'pending', 'confirmed', 'preparing', 'out_for_delivery'].includes(order.status))
-          .slice(0, 2)
-          .map((order) => ({
-            id: order._id,
-            orderNo: order._id?.slice(-4) || '----',
-            status: order.status,
-            paymentStatus: order.paymentStatus,
-            createdAt: order.createdAt,
-          }));
-
-        setRecentIssues(prioritized);
-      } catch {
-        toast.error('Failed to load recent issues');
-      } finally {
-        setOrdersLoading(false);
-      }
-    };
-
-    loadRecentIssues();
-  }, []);
-
-  const statusMeta = (status) => {
-    if (status === 'cancelled') {
-      return {
-        title: 'Order Cancelled',
-        subtitle: 'Status: Resolved',
-        icon: <FiCheckCircle className="w-4 h-4" />,
-        iconClass: 'bg-green-100 text-green-500',
-      };
-    }
-    return {
-      title: 'Order Support Request',
-      subtitle: 'Status: Investigating',
-      icon: <FiClock className="w-4 h-4" />,
-      iconClass: 'bg-orange-100 text-orange-500',
-    };
-  };
-
-  const timeAgo = (dateStr) => {
-    if (!dateStr) return 'Recently';
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${Math.max(mins, 1)}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    const days = Math.floor(hrs / 24);
-    return `${days}d ago`;
-  };
-
-  const hasIssues = useMemo(() => recentIssues.length > 0, [recentIssues]);
-
+const FaqItem = ({ faq, index }) => {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="bg-[#f3f4f6] min-h-screen">
-      <div className="max-w-md mx-auto px-5 pt-5 pb-32">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-9 h-9 rounded-full bg-[#e8edf2] flex items-center justify-center text-slate-700 transition-colors active:bg-slate-200"
+    <div
+      className="border-b last:border-b-0"
+      style={{ borderColor: '#F5F5F5' }}
+    >
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between gap-3 px-4 py-4 text-left transition-colors hover:bg-gray-50"
+      >
+        <p className="text-[14px] font-semibold text-gray-800 flex-1">{faq.q}</p>
+        <div
+          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all"
+          style={open ? { background: '#FEF2F3' } : { background: '#F5F7FA' }}
+        >
+          <ChevronDownIcon
+            className="w-4 h-4 transition-transform duration-200"
+            style={{
+              color: open ? BRAND : '#9CA3AF',
+              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            }}
+          />
+        </div>
+      </button>
+      {open && (
+        <div className="px-4 pb-4">
+          <p className="text-[13px] text-gray-500 leading-relaxed">{faq.a}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const HelpPage = () => {
+  return (
+    <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
+      <div className="max-w-2xl mx-auto px-4 pt-6 pb-24">
+
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div
+            className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+            style={{ background: '#FEF2F3' }}
           >
-            <FiArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-[20px] font-semibold text-slate-900">Help Center</h1>
-          <button onClick={() => navigate('/notifications')} className="w-9 h-9 rounded-full flex items-center justify-center text-orange-500">
-            <FiBell className="w-5 h-5" />
-          </button>
+            <svg viewBox="0 0 24 24" fill="none" stroke={BRAND} strokeWidth="1.5" className="w-8 h-8">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+              <line x1="12" y1="17" x2="12.01" y2="17" strokeLinecap="round" strokeWidth="2" />
+            </svg>
+          </div>
+          <h1 className="text-[26px] font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>
+            Help &amp; Support
+          </h1>
+          <p className="text-[14px] text-gray-400 mt-1">We're here to help. Reach us anytime.</p>
         </div>
 
-        <div className="mt-5">
-          <h2 className="text-[36px] leading-tight font-semibold text-slate-900">How can we help?</h2>
-        </div>
-
-        <section className="mt-6">
-          <h3 className="text-[26px] font-semibold text-slate-900">FAQs</h3>
-          <div className="mt-2 space-y-2">
-            {faqs.map((item, idx) => {
-              const isOpen = openFaq === idx;
-              return (
-                <div key={item.q} className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-                  <button
-                    onClick={() => setOpenFaq(isOpen ? -1 : idx)}
-                    className="w-full px-4 py-3 flex items-center justify-between text-left"
-                  >
-                    <span className="text-[15px] font-semibold text-slate-900 pr-3">{item.q}</span>
-                    <FiChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {isOpen && (
-                    <div className="px-4 pb-3 text-[14px] text-slate-600">
-                      {item.a}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="mt-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-[22px] font-semibold text-slate-900">Recent Issues</h3>
-            <button onClick={() => navigate('/orders')} className="text-orange-500 text-[13px] font-medium">View All</button>
-          </div>
-          {ordersLoading && (
-            <div className="rounded-xl bg-white border border-slate-200 px-3 py-4 text-[13px] text-slate-500">
-              Loading recent issues...
-            </div>
-          )}
-          {!ordersLoading && !hasIssues && (
-            <div className="rounded-xl bg-white border border-slate-200 px-3 py-4 text-[13px] text-slate-500">
-              No recent issues found.
-            </div>
-          )}
-          <div className="space-y-2">
-            {recentIssues.map((issue) => {
-              const meta = statusMeta(issue.status);
-              return (
-                <button
-                  key={issue.id}
-                  onClick={() => navigate(`/orders/${issue.id}`)}
-                  className="w-full rounded-xl bg-white border border-slate-200 px-3 py-3 flex items-center justify-between"
-                >
-                  <div className="flex items-start gap-3 text-left">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${meta.iconClass}`}>
-                      {meta.icon}
-                    </div>
-                    <div>
-                      <p className="text-[14px] font-semibold text-slate-900">{meta.title} - Order #{issue.orderNo}</p>
-                      <p className="text-[12px] text-slate-500">{meta.subtitle} · {timeAgo(issue.createdAt)}</p>
-                    </div>
-                  </div>
-                  <FiChevronRight className="w-4 h-4 text-slate-400" />
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="mt-6">
-          <h3 className="text-[22px] font-semibold text-slate-900">Still need help?</h3>
-          <button
-            onClick={openWhatsAppSupport}
-            className="mt-2 w-full h-12 rounded-xl bg-orange-500 text-white px-4 flex items-center justify-between"
+        {/* ── Contact cards ── */}
+        <div className="grid sm:grid-cols-2 gap-3 mb-6">
+          {/* Phone */}
+          <a
+            href="tel:+917068247779"
+            className="bg-white rounded-2xl p-4 flex items-start gap-3 transition-all hover:shadow-md"
+            style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
           >
-            <div className="flex items-center gap-2">
-              <FiMessageCircle className="w-4 h-4" />
-              <div className="text-left">
-                <p className="text-[15px] font-semibold leading-tight">Live Chat</p>
-                <p className="text-[11px] text-orange-100">Wait time: &lt; 2 mins</p>
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#ECFDF5' }}>
+              <PhoneIcon className="w-5 h-5" style={{ color: '#1BA672' }} />
+            </div>
+            <div>
+              <p className="text-[13px] font-bold text-gray-900">Call Us</p>
+              <p className="text-[13px] font-semibold mt-0.5" style={{ color: BRAND }}>+91 7068247779</p>
+              <div className="flex items-center gap-1 mt-1 text-[11px] text-gray-400">
+                <ClockIcon className="w-3.5 h-3.5" />
+                Mon–Sat, 9 AM – 6 PM
               </div>
             </div>
-            <FiChevronRight className="w-4 h-4" />
-          </button>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <a href="tel:18001234567" className="h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center gap-2 text-[14px] font-medium text-slate-700">
-              <FiPhone className="w-4 h-4 text-orange-500" />
-              Call Us
-            </a>
-            <a href="mailto:support@flashbites.com" className="h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center gap-2 text-[14px] font-medium text-slate-700">
-              <FiMail className="w-4 h-4 text-orange-500" />
-              Email
-            </a>
+          </a>
+
+          {/* Email */}
+          <a
+            href="mailto:info.flashbites@gmail.com"
+            className="bg-white rounded-2xl p-4 flex items-start gap-3 transition-all hover:shadow-md"
+            style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
+          >
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#FEF2F3' }}>
+              <EnvelopeIcon className="w-5 h-5" style={{ color: BRAND }} />
+            </div>
+            <div>
+              <p className="text-[13px] font-bold text-gray-900">Email Support</p>
+              <p className="text-[13px] font-semibold mt-0.5 break-all" style={{ color: BRAND }}>
+                info.flashbites@gmail.com
+              </p>
+              <p className="text-[11px] text-gray-400 mt-1">General, Careers, Partnerships</p>
+            </div>
+          </a>
+        </div>
+
+        {/* ── Contact types ── */}
+        <div className="bg-white rounded-2xl overflow-hidden mb-6" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
+          <div className="px-4 py-3 border-b border-gray-100">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Contact by Topic</p>
           </div>
-        </section>
+          {[
+            { label: 'Restaurant Partnership', email: 'info.flashbites@gmail.com' },
+            { label: 'Delivery Partnership', email: 'info.flashbites@gmail.com' },
+            { label: 'Careers', email: 'info.flashbites@gmail.com' },
+            { label: 'General Enquiries', email: 'info.flashbites@gmail.com' },
+          ].map((row, i, arr) => (
+            <a
+              key={row.label}
+              href={`mailto:${row.email}`}
+              className="flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors"
+              style={{ borderBottom: i < arr.length - 1 ? '1px solid #F5F5F5' : 'none' }}
+            >
+              <p className="text-[14px] font-semibold text-gray-800">{row.label}</p>
+              <p className="text-[12px]" style={{ color: BRAND }}>{row.email}</p>
+            </a>
+          ))}
+        </div>
+
+        {/* ── Office ── */}
+        <div className="bg-white rounded-2xl p-4 mb-6 flex items-start gap-3" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#EFF6FF' }}>
+            <BuildingOffice2Icon className="w-5 h-5" style={{ color: '#3B82F6' }} />
+          </div>
+          <div>
+            <p className="text-[13px] font-bold text-gray-900">FlashBites Headquarters</p>
+            <p className="text-[13px] text-gray-500 mt-0.5">NH24, Ataria, Sitapur, 261303, Uttar Pradesh, India</p>
+          </div>
+        </div>
+
+        {/* ── FAQs ── */}
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-3 px-1">
+            Frequently Asked Questions
+          </p>
+          <div className="bg-white rounded-2xl overflow-hidden" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
+            {faqs.map((faq, i) => (
+              <FaqItem key={i} faq={faq} index={i} />
+            ))}
+          </div>
+        </div>
+
+        <div className="text-center mt-6">
+          <Link to="/" className="text-[13px] font-semibold" style={{ color: BRAND }}>
+            ← Back to Home
+          </Link>
+        </div>
       </div>
 
     </div>

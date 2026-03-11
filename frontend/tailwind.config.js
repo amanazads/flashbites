@@ -5,6 +5,16 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
+    screens: {
+      '2xs': '320px',   // Galaxy A series, iPhone SE 1st gen
+      'xs':  '390px',   // iPhone 12 mini, small Androids
+      'sm':  '640px',   // Tailwind default
+      'md':  '768px',   // Tailwind default
+      'lg':  '1024px',  // Tailwind default
+      'xl':  '1280px',  // Tailwind default
+      '2xl': '1536px',  // Tailwind default
+      '3xl': '1920px',  // Large monitors
+    },
     extend: {
       colors: {
         primary: {

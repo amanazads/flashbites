@@ -18,6 +18,12 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Password is required'],
     minlength: [6, 'Password must be at least 6 characters'],
+    validate: {
+      validator: function (v) {
+        return /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).{6,}$/.test(v);
+      },
+      message: 'Password must have at least one uppercase letter, one lowercase letter, and one special character'
+    },
     select: false // Don't include password in queries by default
   },
   phone: {
@@ -83,10 +89,15 @@ const userSchema = new mongoose.Schema({
   passwordChangedAt: {
     type: Date,
     default: null
+  },
+  fcmToken: {
+    type: String,
+    default: null
   }
 }, { 
   timestamps: true 
 });
+
 
 // Hash password before saving
 userSchema.pre('save', async function() {

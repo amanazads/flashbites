@@ -57,7 +57,6 @@ export const USER_ROLES = {
   ADMIN: 'admin',
 };
 
-export const MINIMUM_ORDER_VALUE = 199; // Minimum order value in INR
 
 // Delivery charge tiers based on distance (platform-controlled)
 export const DELIVERY_CHARGES = [

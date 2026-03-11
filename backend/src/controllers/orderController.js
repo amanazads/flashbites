@@ -144,7 +144,7 @@ exports.createOrder = async (req, res) => {
       _id: { $in: uniqueMenuItemIds },
       restaurantId,
     })
-      .select('_id name price image isAvailable')
+      .select('_id name price image isAvailable variants')
       .lean();
 
     const menuItemMap = new Map(menuItems.map((menuItem) => [String(menuItem._id), menuItem]));
@@ -165,23 +165,30 @@ exports.createOrder = async (req, res) => {
         return errorResponse(res, 400, `Invalid quantity for ${menuItem.name}`);
       }
 
-      const itemTotal = menuItem.price * quantity;
+      let itemPrice = menuItem.price;
+      let itemName = menuItem.name;
+      
+      if (item.variantName && menuItem.variants && menuItem.variants.length > 0) {
+        const variant = menuItem.variants.find(v => v.name === item.variantName);
+        if (variant) {
+          itemPrice = variant.price;
+          itemName = `${menuItem.name} (${variant.name})`;
+        }
+      }
+
+      const itemTotal = itemPrice * quantity;
       subtotal += itemTotal;
 
       orderItems.push({
         menuItemId: menuItem._id,
-        name: menuItem.name,
+        name: itemName,
         quantity,
-        price: menuItem.price,
+        price: itemPrice,
         image: menuItem.image
       });
     }
 
-    // Validate minimum order value
-    const MINIMUM_ORDER_VALUE = 199;
-    if (subtotal < MINIMUM_ORDER_VALUE) {
-      return errorResponse(res, 400, `Minimum order value is ₹${MINIMUM_ORDER_VALUE}`);
-    }
+
 
     // Calculate distance-based delivery fee (platform-controlled)
     let deliveryFee = 30; // Default ₹30
@@ -193,6 +200,11 @@ exports.createOrder = async (req, res) => {
         const [addrLng, addrLat] = address.location.coordinates;
         const [restLng, restLat] = restaurant.location.coordinates;
         const distance = calculateDistance(restLat, restLng, addrLat, addrLng);
+        
+        if (distance > 20) {
+          return errorResponse(res, 400, "Delivery is not available in your area. Maximum delivery distance is 20km.");
+        }
+        
         deliveryFee = calculateDeliveryCharge(distance);
       }
     }

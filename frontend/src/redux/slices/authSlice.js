@@ -99,6 +99,7 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    // Used after registration/Google auth to immediately set auth state in Redux
     setAuthUser: (state, action) => {
       state.user = action.payload.user;
       state.token = action.payload.token;
@@ -139,7 +140,9 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.token = action.payload.accessToken;
+        state.refreshToken = action.payload.refreshToken || null;
         state.isAuthenticated = true;
+        state.error = null;
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
@@ -147,9 +150,11 @@ const authSlice = createSlice({
       })
       // Get current user
       .addCase(getCurrentUser.fulfilled, (state, action) => {
-        state.user = action.payload?.data?.user || action.payload?.user || null;
-        state.loading = false;
-        if (state.user) state.isAuthenticated = true;
+        state.user = action.payload.user;
+        // Mark as authenticated whenever we successfully fetch the user
+        if (action.payload.user) {
+          state.isAuthenticated = true;
+        }
       })
       .addCase(getCurrentUser.rejected, (state) => {
         state.loading = false;
@@ -157,6 +162,5 @@ const authSlice = createSlice({
       });
   },
 });
-
-export const { logout, clearError, setCredentials, setAuthUser } = authSlice.actions;
+export const { logout, clearError, setAuthUser, setCredentials } = authSlice.actions;
 export default authSlice.reducer;

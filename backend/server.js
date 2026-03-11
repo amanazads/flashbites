@@ -21,6 +21,9 @@ const connectDB = require('./src/config/database');
 // Import socket service
 const { initializeSocket } = require('./src/services/socketService');
 
+// Import keep alive
+const keepAlive = require('./src/utils/keepAlive');
+
 // Import routes
 const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
@@ -34,6 +37,7 @@ const partnerRoutes = require('./src/routes/partnerRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const couponRoutes = require('./src/routes/couponRoutes');
 const deliveryPartnerRoutes = require('./src/routes/deliveryPartnerRoutes');
+const contactRoutes = require('./src/routes/contactRoutes');
 
 // Import error handler
 const errorHandler = require('./src/middleware/errorHandler');
@@ -76,14 +80,13 @@ const allowedOrigins = [
   'http://localhost:3001',
   'http://localhost:5173',
   'http://localhost:5174',
-  'https://flashbites.vercel.app',
+  'https://localhost',
   'https://flashbites.in',
   'https://www.flashbites.in',
   // Capacitor iOS/Android origins
   'capacitor://localhost',
   'ionic://localhost',
   'http://localhost',
-  'https://flash-bite-go.base44.app',
   'https://api.razorpay.com',
   process.env.FRONTEND_URL
 ].filter(Boolean);
@@ -161,6 +164,7 @@ app.use('/api/partners', partnerRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/delivery', deliveryPartnerRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -195,6 +199,7 @@ app.use(errorHandler);
   ╚═══════════════════════════════════════════╝
   `);
     initializeSocket(server);
+    keepAlive();
   });
 
   // Handle unhandled promise rejections

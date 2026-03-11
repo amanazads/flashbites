@@ -4,319 +4,272 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchUserOrders } from '../redux/slices/orderSlice';
 import { Loader } from '../components/common/Loader';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
-import { ArrowLeftIcon, MapPinIcon, PhoneIcon, MagnifyingGlassIcon, UserCircleIcon } from '@heroicons/react/24/outline';
-import { HomeIcon as HomeSolid, ShoppingBagIcon as OrdersSolid } from '@heroicons/react/24/solid';
-import ReviewModal from '../components/common/ReviewModal';
-import toast from 'react-hot-toast';
+import { ORDER_STATUS_LABELS } from '../utils/constants';
+import {
+  ArrowLeftIcon,
+  ClockIcon,
+  ShoppingBagIcon,
+} from '@heroicons/react/24/outline';
+import { StarIcon } from '@heroicons/react/24/solid';
+const BRAND = '#E23744';
 
+/* ─── Status config ─── */
+const STATUS_CONFIG = {
+  pending:            { label: 'Pending',     color: '#F59E0B', bg: '#FFFBEB', dot: '#F59E0B' },
+  confirmed:          { label: 'Confirmed',   color: '#3B82F6', bg: '#EFF6FF', dot: '#3B82F6' },
+  preparing:          { label: 'Preparing',   color: '#8B5CF6', bg: '#F5F3FF', dot: '#8B5CF6' },
+  ready:              { label: 'Ready',       color: '#10B981', bg: '#ECFDF5', dot: '#10B981' },
+  out_for_delivery:   { label: 'On the way',  color: '#3B82F6', bg: '#EFF6FF', dot: '#3B82F6' },
+  delivered:          { label: 'Delivered',   color: '#1BA672', bg: '#ECFDF5', dot: '#1BA672' },
+  cancelled:          { label: 'Cancelled',   color: '#E23744', bg: '#FEF2F3', dot: '#E23744' },
+  canceled:           { label: 'Cancelled',   color: '#E23744', bg: '#FEF2F3', dot: '#E23744' },
+  failed:             { label: 'Failed',      color: '#E23744', bg: '#FEF2F3', dot: '#E23744' },
+  refunded:           { label: 'Refunded',    color: '#6B7280', bg: '#F3F4F6', dot: '#6B7280' },
+};
+
+const getStatus = (s = '') => STATUS_CONFIG[s.toLowerCase()] || { label: s || 'Unknown', color: '#6B7280', bg: '#F3F4F6', dot: '#6B7280' };
+
+const isActiveStatus = (s = '') =>
+  !['delivered', 'cancelled', 'canceled', 'failed', 'refunded'].includes(s.toLowerCase());
+
+const getRestaurantImage = (order) =>
+  order?.restaurantId?.image ||
+  order?.restaurantId?.logo ||
+  order?.restaurantId?.images?.[0] ||
+  'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=80';
+
+/* ─── Empty state ─── */
+const EmptyState = ({ isActive }) => (
+  <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+    <div
+      className="w-20 h-20 rounded-2xl mb-5 flex items-center justify-center"
+      style={{ background: '#FEF2F3' }}
+    >
+      <ShoppingBagIcon className="w-9 h-9" style={{ color: BRAND }} />
+    </div>
+    <h3 className="text-[18px] font-bold text-gray-900 mb-1">
+      {isActive ? 'No active orders' : 'No past orders'}
+    </h3>
+    <p className="text-[13px] text-gray-400 mb-6 max-w-[240px]">
+      {isActive
+        ? 'Your current orders will appear here.'
+        : 'Your delivered and past orders will show up here.'}
+    </p>
+    <Link
+      to="/restaurants"
+      className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold text-white"
+      style={{
+        background: `linear-gradient(135deg, ${BRAND}, #C92535)`,
+        boxShadow: '0 4px 14px rgba(226,55,68,0.3)',
+      }}
+    >
+      <ShoppingBagIcon className="w-4 h-4" />
+      Browse Restaurants
+    </Link>
+  </div>
+);
+
+/* ─── Order card ─── */
+const OrderCard = ({ order }) => {
+  const navigate = useNavigate();
+  const status = getStatus(order.status);
+  const isActive = isActiveStatus(order.status);
+  const itemPreview = order.items?.slice(0, 2).map((i) => `${i.name}`).join(', ') || 'Items';
+  const moreCount = (order.items?.length || 0) - 2;
+
+  return (
+    <button
+      onClick={() => navigate(`/orders/${order._id}`)}
+      className="w-full bg-white rounded-2xl overflow-hidden text-left transition-all active:scale-[0.985]"
+      style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
+    >
+      {/* Restaurant image strip */}
+      <div className="relative h-[120px] overflow-hidden">
+        <img
+          src={getRestaurantImage(order)}
+          alt={order.restaurantId?.name}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+        {/* Gradient overlay */}
+        <div
+          className="absolute inset-0"
+          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.05) 60%, transparent 100%)' }}
+        />
+
+        {/* Restaurant name on image */}
+        <div className="absolute bottom-0 left-0 p-3">
+          <p className="text-white font-bold text-[15px] leading-tight">
+            {order.restaurantId?.name || 'Restaurant'}
+          </p>
+        </div>
+
+        {/* Status badge */}
+        <div className="absolute top-3 right-3">
+          <span
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold"
+            style={{ background: status.bg, color: status.color }}
+          >
+            <span
+              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+              style={{
+                background: status.dot,
+                boxShadow: isActive ? `0 0 0 3px ${status.dot}33` : 'none',
+                animation: isActive ? 'pulse 2s infinite' : 'none',
+              }}
+            />
+            {status.label}
+          </span>
+        </div>
+      </div>
+
+      {/* Order details */}
+      <div className="p-3.5">
+        {/* Items preview */}
+        <p className="text-[13px] text-gray-500 mb-2 line-clamp-1">
+          {itemPreview}
+          {moreCount > 0 && <span className="text-gray-400"> +{moreCount} more</span>}
+        </p>
+
+        {/* Bottom row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-[16px] font-bold text-gray-900">
+              {formatCurrency(order.total)}
+            </span>
+            <span
+              className="text-[11px] font-medium text-gray-400 flex items-center gap-1"
+            >
+              <ClockIcon className="w-3.5 h-3.5" />
+              {formatDateTime(order.createdAt)}
+            </span>
+          </div>
+
+          <span
+            className="text-[12px] font-bold px-3 py-1.5 rounded-xl"
+            style={{ background: '#FEF2F3', color: BRAND }}
+          >
+            View Details
+          </span>
+        </div>
+      </div>
+    </button>
+  );
+};
+
+/* ─── Main ─── */
 const Orders = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { orders, loading } = useSelector((state) => state.order);
   const [activeTab, setActiveTab] = useState('active');
-  const [reviewOrder, setReviewOrder] = useState(null);
 
-  useEffect(() => {
-    dispatch(fetchUserOrders());
-  }, [dispatch]);
+  useEffect(() => { dispatch(fetchUserOrders()); }, [dispatch]);
 
   const uniqueOrders = useMemo(() => {
     if (!orders) return [];
     const seen = new Set();
-    return orders.filter((order) => {
-      if (seen.has(order._id)) return false;
-      seen.add(order._id);
+    return orders.filter((o) => {
+      if (seen.has(o._id)) return false;
+      seen.add(o._id);
       return true;
     });
   }, [orders]);
 
-  const getOrderTime = (order) => {
-    if (!order?.createdAt) return '';
-    return new Date(order.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  };
-
-  const getRestaurantName = (order) => order?.restaurantId?.name || 'Restaurant';
-
-  const getRestaurantImage = (order) =>
-    order?.restaurantId?.image ||
-    order?.restaurantId?.logo ||
-    order?.restaurantId?.images?.[0] ||
-    'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=300&q=80';
-
-  const getItemsPreview = (order) => {
-    if (!order?.items?.length) return 'No items';
-    return order.items
-      .slice(0, 2)
-      .map((item) => `${item.quantity || 1}x ${item.name || 'Item'}`)
-      .join(', ');
-  };
-
-  const isActiveStatus = (status = '') => {
-    const s = status.toLowerCase();
-    return !['delivered', 'cancelled', 'canceled', 'failed', 'refunded'].includes(s);
-  };
-
-  const getStatusBadge = (status = '') => {
-    const s = status.toLowerCase();
-    if (s === 'delivered') return { label: 'DELIVERED', cls: 'bg-emerald-50 text-emerald-600' };
-    if (['cancelled', 'canceled', 'failed', 'refunded'].includes(s)) {
-      return { label: 'CANCELLED', cls: 'bg-rose-50 text-rose-500' };
-    }
-    return { label: 'In Progress', cls: 'bg-orange-50 text-orange-500' };
-  };
-
   const activeOrders = useMemo(
-    () =>
-      uniqueOrders
-        .filter((order) => isActiveStatus(order.status))
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+    () => uniqueOrders.filter((o) => isActiveStatus(o.status)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
     [uniqueOrders]
   );
-
   const pastOrders = useMemo(
-    () =>
-      uniqueOrders
-        .filter((order) => !isActiveStatus(order.status))
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+    () => uniqueOrders.filter((o) => !isActiveStatus(o.status)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
     [uniqueOrders]
   );
-
-  const currentOrder = activeOrders[0];
-
-  const handleOpenReview = (order) => {
-    if (order?.__isMock) {
-      toast('Rate works on real delivered orders.');
-      return;
-    }
-    if (order?.reviewId) {
-      toast.success('You already reviewed this order.');
-      return;
-    }
-    setReviewOrder(order);
-  };
-
-  const handleViewDetails = (order) => {
-    if (!order?._id) return;
-    navigate(`/orders/${order._id}`);
-  };
-
-  if (loading) return <Loader />;
+  const displayOrders = activeTab === 'active' ? activeOrders : pastOrders;
 
   return (
-    <div className="min-h-screen bg-[#F2F3F5]">
-      <div className="w-full max-w-md mx-auto min-h-screen bg-[#F2F3F5] pb-28">
-        <header className="sticky top-0 z-20 bg-[#F2F3F5] px-4 pt-5 pb-4 border-b border-slate-200">
-          <div className="relative flex items-center justify-center">
-            <button onClick={() => navigate(-1)} className="absolute left-0 p-1.5 text-slate-900">
-              <ArrowLeftIcon className="w-6 h-6" />
-            </button>
-            <h1 className="text-[24px] font-bold text-slate-900">My Orders</h1>
-          </div>
-        </header>
+    <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
+      <div className="max-w-md mx-auto min-h-screen">
 
-        <div className="px-4 py-4">
-          <div className="bg-[#ECE8E8] rounded-full p-1.5 flex gap-1 mb-5">
+        {/* ── Header ── */}
+        <div
+          className="sticky top-0 z-20 px-4 pt-5 pb-4 bg-white"
+          style={{ borderBottom: '1px solid #F0F2F5', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}
+        >
+          <div className="flex items-center gap-3 mb-4">
             <button
-              type="button"
-              onClick={() => setActiveTab('active')}
-              className={`flex-1 rounded-full py-2.5 text-sm font-semibold transition ${
-                activeTab === 'active' ? 'bg-white text-orange-500 shadow-sm' : 'text-slate-400'
-              }`}
+              onClick={() => navigate(-1)}
+              className="w-9 h-9 rounded-xl flex items-center justify-center bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors flex-shrink-0"
             >
-              Active Orders
+              <ArrowLeftIcon className="w-5 h-5" />
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('past')}
-              className={`flex-1 rounded-full py-2.5 text-sm font-semibold transition ${
-                activeTab === 'past' ? 'bg-white text-orange-500 shadow-sm' : 'text-slate-400'
-              }`}
+            <h1
+              className="text-[20px] font-bold text-gray-900 flex-1"
+              style={{ letterSpacing: '-0.02em' }}
             >
-              Past Orders
-            </button>
+              My Orders
+            </h1>
+            {uniqueOrders.length > 0 && (
+              <span
+                className="text-[12px] font-bold px-2.5 py-1 rounded-full"
+                style={{ background: '#FEF2F3', color: BRAND }}
+              >
+                {uniqueOrders.length}
+              </span>
+            )}
           </div>
 
-          {activeTab === 'active' && (
-            <section className="mb-8">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-xl font-bold text-slate-900">Current Order</h2>
-                {currentOrder && (
-                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${getStatusBadge(currentOrder.status).cls}`}>
-                    {getStatusBadge(currentOrder.status).label}
+          {/* Pill tabs */}
+          <div
+            className="flex rounded-2xl p-1"
+            style={{ background: '#F0F2F5' }}
+          >
+            {[
+              { id: 'active', label: 'Active', count: activeOrders.length },
+              { id: 'past',   label: 'Past',   count: pastOrders.length },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13.5px] font-semibold transition-all"
+                style={
+                  activeTab === tab.id
+                    ? { background: 'white', color: BRAND, boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }
+                    : { color: '#9CA3AF' }
+                }
+              >
+                {tab.label}
+                {tab.count > 0 && (
+                  <span
+                    className="text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center"
+                    style={
+                      activeTab === tab.id
+                        ? { background: BRAND, color: 'white' }
+                        : { background: '#D1D5DB', color: 'white' }
+                    }
+                  >
+                    {tab.count}
                   </span>
                 )}
-              </div>
-
-              {!currentOrder ? (
-                <div className="bg-white rounded-3xl p-6 text-center border border-slate-200">
-                  <p className="text-sm text-slate-500 mb-4">No active orders right now.</p>
-                  <Link to="/restaurants" className="inline-flex items-center justify-center bg-orange-500 text-white text-sm font-semibold rounded-full px-5 py-2.5">
-                    Browse Restaurants
-                  </Link>
-                </div>
-              ) : (
-                <div className="bg-white rounded-3xl p-4 border border-slate-200 shadow-[0_4px_12px_rgba(15,23,42,0.06)]">
-                  <div className="flex gap-3.5">
-                    <img
-                      src={getRestaurantImage(currentOrder)}
-                      alt={getRestaurantName(currentOrder)}
-                      className="w-20 h-20 rounded-2xl object-cover border border-slate-200"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-[18px] font-bold text-slate-900 leading-tight">{getRestaurantName(currentOrder)}</h3>
-                        <span className="text-[24px] font-bold text-orange-500 leading-none">{formatCurrency(currentOrder.total || 0)}</span>
-                      </div>
-                      <p className="text-xs text-slate-400 mt-1">Today, {getOrderTime(currentOrder)}</p>
-                      <p className="text-sm italic text-slate-500 mt-1 truncate">{getItemsPreview(currentOrder)}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex items-center gap-2">
-                    <div className="h-1.5 flex-1 bg-slate-200 rounded-full overflow-hidden">
-                      <div className="h-full w-[72%] bg-orange-500 rounded-full" />
-                    </div>
-                    <span className="text-[11px] font-semibold text-orange-500 tracking-wide">ESTIMATED: 15 MINS</span>
-                  </div>
-
-                  <div className="mt-4 flex items-center gap-3">
-                    <Link
-                      to={currentOrder.__isMock ? '/orders/demo/track' : `/orders/${currentOrder._id}/track`}
-                      className="flex-1 inline-flex items-center justify-center gap-2 bg-orange-500 text-white text-sm font-semibold rounded-full py-3"
-                    >
-                      <MapPinIcon className="w-4 h-4" />
-                      Track Order
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleViewDetails(currentOrder)}
-                      className="px-3 py-3 rounded-full border border-slate-200 bg-white text-[12px] font-semibold text-slate-600"
-                    >
-                      View Details
-                    </button>
-                    <button
-                      type="button"
-                      className="w-12 h-12 rounded-full border border-slate-200 bg-slate-50 inline-flex items-center justify-center text-slate-500"
-                    >
-                      <PhoneIcon className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
-
-          {activeTab === 'past' && (
-            <section>
-              <h2 className="text-xl font-bold text-slate-900 mb-3">Past Orders</h2>
-              {pastOrders.length === 0 ? (
-                <div className="bg-white rounded-3xl p-6 text-center border border-slate-200">
-                  <p className="text-sm text-slate-500">No past orders found yet.</p>
-                </div>
-              ) : (
-                <div className="space-y-3.5">
-                  {pastOrders.map((order) => {
-                    const badge = getStatusBadge(order.status);
-                    const canReorder = badge.label === 'DELIVERED' && order?.restaurantId?._id;
-                    return (
-                      <div key={order._id} className="bg-white rounded-3xl p-4 border border-slate-200 shadow-[0_4px_12px_rgba(15,23,42,0.05)]">
-                        <div className="flex gap-3">
-                          <img
-                            src={getRestaurantImage(order)}
-                            alt={getRestaurantName(order)}
-                            className={`w-16 h-16 rounded-2xl object-cover border border-slate-200 ${badge.label === 'CANCELLED' ? 'grayscale opacity-50' : ''}`}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <h3 className={`text-[16px] font-bold truncate ${badge.label === 'CANCELLED' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                                {getRestaurantName(order)}
-                              </h3>
-                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${badge.cls}`}>{badge.label}</span>
-                            </div>
-                            <p className="text-xs text-slate-400">{formatDateTime(order.createdAt)}</p>
-                            <p className="text-sm text-slate-500 mt-0.5 truncate">{getItemsPreview(order)}</p>
-                          </div>
-                        </div>
-                        <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                          <span className="text-[24px] font-bold text-slate-800">{formatCurrency(order.total || 0)}</span>
-                          <div className="flex items-center gap-2">
-                          {canReorder ? (
-                            order.reviewId ? (
-                              <span className="px-4 py-2 rounded-full border border-emerald-200 bg-emerald-50 text-[13px] font-semibold text-emerald-600">
-                                Reviewed
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleOpenReview(order)}
-                                className="px-4 py-2 rounded-full border border-slate-200 text-[13px] font-semibold text-slate-500"
-                              >
-                                Rate
-                              </button>
-                            )
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleViewDetails(order)}
-                              className="px-4 py-2 rounded-full border border-slate-200 text-[13px] font-semibold text-slate-500"
-                            >
-                              View Details
-                            </button>
-                          )}
-                          {canReorder && (
-                            <button
-                              type="button"
-                                onClick={() => navigate(`/restaurant/${order.restaurantId._id}`)}
-                                className="px-4 py-2 rounded-full bg-orange-500 text-white text-[13px] font-semibold"
-                              >
-                                Reorder
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          )}
-        </div>
-
-        <div
-          className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-200"
-          style={{ paddingBottom: 'max(6px, env(safe-area-inset-bottom))' }}
-        >
-          <div className="max-w-md mx-auto grid grid-cols-4 px-2 py-2">
-            <button onClick={() => navigate('/')} className="flex flex-col items-center gap-1 py-1">
-              <HomeSolid className="w-5 h-5 text-slate-400" />
-              <span className="text-[10px] text-slate-400 font-medium">Home</span>
-            </button>
-            <button onClick={() => navigate('/restaurants')} className="flex flex-col items-center gap-1 py-1">
-              <MagnifyingGlassIcon className="w-5 h-5 text-slate-400" />
-              <span className="text-[10px] text-slate-400 font-medium">Explore</span>
-            </button>
-            <button onClick={() => navigate('/orders')} className="relative flex flex-col items-center gap-1 py-1">
-              <OrdersSolid className="w-5 h-5 text-orange-500" />
-              <span className="text-[10px] text-orange-500 font-semibold">Orders</span>
-              <span className="absolute top-0.5 right-[34%] w-2 h-2 rounded-full bg-orange-500" />
-            </button>
-            <button onClick={() => navigate('/profile')} className="flex flex-col items-center gap-1 py-1">
-              <UserCircleIcon className="w-5 h-5 text-slate-400" />
-              <span className="text-[10px] text-slate-400 font-medium">Profile</span>
-            </button>
+              </button>
+            ))}
           </div>
         </div>
-      </div>
 
-      <ReviewModal
-        isOpen={Boolean(reviewOrder)}
-        onClose={() => {
-          setReviewOrder(null);
-          dispatch(fetchUserOrders());
-        }}
-        order={reviewOrder}
-      />
+        {/* ── Content ── */}
+        <div className="px-4 py-4 pb-28">
+          {loading ? (
+            <Loader />
+          ) : displayOrders.length === 0 ? (
+            <EmptyState isActive={activeTab === 'active'} />
+          ) : (
+            <div className="space-y-3">
+              {displayOrders.map((order) => (
+                <OrderCard key={order._id} order={order} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

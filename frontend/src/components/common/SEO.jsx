@@ -1,7 +1,6 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
-
-const BASE_URL = 'https://www.flashbites.in';
+const BASE_URL = 'https://flashbites.in';
 const DEFAULT_IMAGE = `${BASE_URL}/logo.png`;
 const SITE_NAME = 'FlashBites';
 
@@ -18,8 +17,9 @@ const SEO = ({
   keywords,
 }) => {
   const fullTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} – Fast Food Delivery in India`;
-  const canonicalUrl = url ? `${BASE_URL}${url}` : BASE_URL;
-
+  const canonicalPath = url || (typeof window !== 'undefined' ? window.location.pathname : '/');
+  const normalizedPath = canonicalPath.startsWith('/') ? canonicalPath : `/${canonicalPath}`;
+  const canonicalUrl = `${BASE_URL}${normalizedPath === '/' ? '' : normalizedPath}`;
   return (
     <Helmet>
       {/* Primary */}

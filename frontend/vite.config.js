@@ -28,5 +28,30 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core React runtime — virtually never changes, cached aggressively
+          'vendor-react': ['react', 'react-dom'],
+          // Routing
+          'vendor-router': ['react-router-dom'],
+          // Redux state management
+          'vendor-redux': ['@reduxjs/toolkit', 'react-redux'],
+          // Firebase — large, keep isolated so browser caches it separately
+          'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/messaging'],
+          // UI utilities
+          'vendor-ui': ['react-hot-toast', 'react-helmet-async', 'sweetalert2'],
+          // HTTP + Socket
+          'vendor-network': ['axios', 'socket.io-client'],
+          // Capacitor native plugins
+          'vendor-capacitor': [
+            '@capacitor/core',
+            '@capacitor/preferences',
+            '@capacitor/local-notifications',
+          ],
+        },
+      },
+    },
   },
 });

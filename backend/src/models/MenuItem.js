@@ -14,7 +14,13 @@ const menuItemSchema = new mongoose.Schema({
   description: {
     type: String,
     required: [true, 'Please provide item description'],
-    maxlength: [200, 'Description cannot exceed 200 characters']
+    validate: {
+      validator: function(v) {
+        // Allow up to 500 words
+        return !v || v.trim().split(/\s+/).length <= 500;
+      },
+      message: 'Description cannot exceed 500 words'
+    }
   },
   price: {
     type: Number,
@@ -24,11 +30,22 @@ const menuItemSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['Starters', 'Main Course', 'Desserts', 'Beverages', 'Breads', 'Rice', 'Snacks']
+    enum: ['Starters', 'Main Course', 'Desserts', 'Beverages', 'Breads', 'Rice', 'Snacks', 'Fast Food', 'Pizza', 'Burger', 'South Indian', 'North Indian', 'Chinese']
   },
+  variants: [{
+    name: {
+      type: String, // e.g., 'Regular', 'Large', 'Half', 'Full'
+      required: true
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: [0, 'Variant price cannot be negative']
+    }
+  }],
   image: {
     type: String,
-    required: [true, 'Please provide item image']
+    required: false
   },
   isVeg: {
     type: Boolean,

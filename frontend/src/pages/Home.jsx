@@ -18,7 +18,9 @@ import {
 } from '@heroicons/react/24/outline';
 
 const BRAND = '#E23744';
-
+const LOCATION_BANNER_DISMISSED_KEY = 'fb_location_banner_dismissed';
+const LOCATION_PERMISSION_STATE_KEY = 'fb_location_permission_state';
+const SELECTED_ADDRESS_KEY = 'fb_selected_address';
 /* ───── Category definitions with SVG icon paths ───── */
 const CATEGORIES = [
   {
@@ -124,8 +126,8 @@ const PROMOS = [
   {
     id: 2,
     tag: 'FREE DELIVERY',
-    bold: 'Free delivery on orders above ₹199',
-    sub: 'No minimum fuss. Just great food delivered.',
+    bold: 'Free delivery on all orders',
+    sub: 'No minimum limits. Just great food delivered.',
     cta: 'Order Now',
     bg: 'linear-gradient(135deg, #E23744 0%, #C92535 100%)',
     img: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=280&q=80',
@@ -163,7 +165,12 @@ const hasRealCoords = (r) => {
 const reverseGeocode = async (lat, lng) => {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10&accept-language=en`;
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'FlashBites/1.0 (info.flashbites@gmail.com)',
+        'Accept-Language': 'en',
+      },
+    });
     const data = await res.json();
     return (
       data?.address?.city ||
@@ -182,7 +189,12 @@ const reverseGeocode = async (lat, lng) => {
 const geocodeAddress = async (query) => {
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', India')}&format=json&limit=1`;
-    const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'FlashBites/1.0 (info.flashbites@gmail.com)',
+        'Accept-Language': 'en',
+      },
+    });
     const data = await res.json();
     if (data && data.length > 0) {
       return { latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon), displayName: data[0].display_name.split(',')[0] };
@@ -196,7 +208,7 @@ const geocodeAddress = async (query) => {
 const Home = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { restaurants, loading } = useSelector((s) => s.restaurant);
+  const { restaurants, loading, error: restaurantError } = useSelector((s) => s.restaurant);
   const { isAuthenticated } = useSelector((s) => s.auth);
 
   /* ── Delivery address state ── */
@@ -207,7 +219,10 @@ const Home = () => {
   const [geocoding, setGeocoding] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsDenied, setGpsDenied] = useState(false);
-  const [showGpsBanner, setShowGpsBanner] = useState(true);
+  const [showGpsBanner, setShowGpsBanner] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return localStorage.getItem(LOCATION_BANNER_DISMISSED_KEY) !== 'true';
+  });
   const pickerRef = useRef(null);
 
   /* ── Filtered restaurants ── */
@@ -218,8 +233,24 @@ const Home = () => {
   const [activeCat, setActiveCat] = useState('all');
   const [searchQ, setSearchQ] = useState('');
 
-  // Fetch restaurants on mount
-  useEffect(() => { dispatch(fetchRestaurants({})); }, [dispatch]);
+
+  // Wake up the backend, then fetch restaurants
+  // On mobile (Capacitor) wait for health ping before fetching to avoid cold-start race
+  useEffect(() => {
+    const apiBase = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
+    const isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform());
+
+    const boot = async () => {
+      try {
+        await fetch(`${apiBase}/api/health`);
+      } catch (_) { /* backend might be sleeping, that's fine */ }
+      // Give it a moment to fully wake if it was sleeping
+      if (isCapacitor) await new Promise(r => setTimeout(r, 1500));
+      dispatch(fetchRestaurants({}));
+    };
+
+    boot();
+  }, [dispatch]);
 
   // Load saved addresses if authenticated
   useEffect(() => {
@@ -230,6 +261,36 @@ const Home = () => {
       }).catch(() => {});
     }
   }, [isAuthenticated]);
+
+  // Restore selected address and permission/banner state across page navigation
+  useEffect(() => {
+    try {
+      const savedAddress = localStorage.getItem(SELECTED_ADDRESS_KEY);
+      if (savedAddress) {
+        const parsed = JSON.parse(savedAddress);
+        if (parsed && typeof parsed === 'object') {
+          setSelectedAddress(parsed);
+        }
+      }
+
+      const permissionState = localStorage.getItem(LOCATION_PERMISSION_STATE_KEY);
+      if (permissionState === 'granted' || permissionState === 'denied') {
+        setShowGpsBanner(false);
+      }
+      if (permissionState === 'denied') {
+        setGpsDenied(true);
+      }
+    } catch {
+      // ignore invalid persisted state
+    }
+  }, []);
+
+  // Persist selected address so returning to Home doesn't ask location again
+  useEffect(() => {
+    if (selectedAddress) {
+      localStorage.setItem(SELECTED_ADDRESS_KEY, JSON.stringify(selectedAddress));
+    }
+  }, [selectedAddress]);
 
   // Close picker on outside click
   useEffect(() => {
@@ -249,11 +310,13 @@ const Home = () => {
     if (!navigator.geolocation) { setGpsDenied(true); return; }
     setGpsLoading(true);
     setShowGpsBanner(false);
+    localStorage.setItem(LOCATION_BANNER_DISMISSED_KEY, 'true');
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         const city = await reverseGeocode(latitude, longitude);
         setGpsLoading(false);
+        localStorage.setItem(LOCATION_PERMISSION_STATE_KEY, 'granted');
         if (city) {
           setSelectedAddress({ label: city, city, latitude, longitude, fromGps: true });
           toast.success(`Location detected: ${city}`);
@@ -266,9 +329,10 @@ const Home = () => {
       (err) => {
         setGpsLoading(false);
         setGpsDenied(true);
+        localStorage.setItem(LOCATION_PERMISSION_STATE_KEY, 'denied');
         if (err.code === 1) toast('Location permission denied. Use the address picker instead.', { icon: '📍' });
       },
-      { timeout: 10000, maximumAge: 60000 }
+      { timeout: 20000, maximumAge: 120000 }
     );
   }, []);
 
@@ -371,6 +435,7 @@ const Home = () => {
     setSelectedAddress(null);
     setNearbyRests([]);
     setNoServiceArea(false);
+    localStorage.removeItem(SELECTED_ADDRESS_KEY);
   };
 
   const handleSearch = (e) => {
@@ -584,8 +649,16 @@ const Home = () => {
             <div
               role="button"
               tabIndex={0}
-              onClick={() => setShowGpsBanner(false)}
-              onKeyDown={(e) => e.key === 'Enter' && setShowGpsBanner(false)}
+                onClick={() => {
+                  setShowGpsBanner(false);
+                  localStorage.setItem(LOCATION_BANNER_DISMISSED_KEY, 'true');
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setShowGpsBanner(false);
+                    localStorage.setItem(LOCATION_BANNER_DISMISSED_KEY, 'true');
+                  }
+                }}
               className="w-6 h-6 rounded-full flex items-center justify-center cursor-pointer flex-shrink-0"
               style={{ background: 'rgba(255,255,255,0.12)' }}
             >
@@ -643,9 +716,9 @@ const Home = () => {
               className="promo-banner snap-start flex-shrink-0 touch-feedback relative"
               style={{
                 background: p.bg,
-                width: 'clamp(280px, 80vw, 420px)',
-                minWidth: '280px',
-                minHeight: '160px',
+                width: 'clamp(260px, 75vw, 420px)',
+                minWidth: '260px',
+                minHeight: '145px',
                 borderRadius: '20px',
               }}
             >
@@ -663,7 +736,7 @@ const Home = () => {
               <img
                 src={p.img}
                 alt=""
-                className="h-28 w-28 object-cover rounded-2xl flex-shrink-0"
+                className="h-24 w-24 xs:h-28 xs:w-28 object-cover rounded-2xl flex-shrink-0"
                 loading="lazy"
               />
             </Link>
@@ -723,7 +796,7 @@ const Home = () => {
                 key={r._id}
                 to={`/restaurant/${r._id}`}
                 className="snap-start flex-shrink-0 group"
-              style={{ width: 'clamp(220px, 55vw, 260px)', minWidth: '220px' }}
+              style={{ width: 'clamp(190px, 48vw, 260px)', minWidth: '190px' }}
               >
                 <div className="card relative" style={{ borderRadius: '16px', overflow: 'hidden' }}>
                   <div className="relative" style={{ height: '160px' }}>
@@ -768,9 +841,40 @@ const Home = () => {
         </div>
 
         {loading ? (
-          <Loader />
+          <div className="flex flex-col items-center justify-center py-16 gap-4">
+            <svg className="animate-spin w-10 h-10" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke={BRAND} strokeWidth="4" />
+              <path className="opacity-75" fill={BRAND} d="M4 12a8 8 0 018-8v8z" />
+            </svg>
+            <p className="text-[14px] font-semibold text-gray-500">Loading restaurants…</p>
+            <p className="text-[12px] text-gray-400">This may take a moment on first load</p>
+          </div>
+        ) : restaurantError ? (
+          /* ── Error / Retry state ── */
+          <div
+            className="text-center py-10 px-6 rounded-2xl"
+            style={{ background: 'white', boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
+          >
+            <div
+              className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+              style={{ background: '#FEF2F3' }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke={BRAND} strokeWidth="1.5" className="w-8 h-8">
+                <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <h3 className="text-[17px] font-bold text-gray-900 mb-1">Couldn't load restaurants</h3>
+            <p className="text-[13px] text-gray-400 mb-5">The server may be waking up. Please try again.</p>
+            <button
+              onClick={() => dispatch(fetchRestaurants({}))}
+              className="px-6 py-2.5 rounded-xl text-white font-semibold text-[14px]"
+              style={{ background: BRAND }}
+            >
+              Retry
+            </button>
+          </div>
         ) : allFiltered.length ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-5 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 xs:gap-4 sm:gap-5 lg:gap-6">
             {allFiltered.slice(0, 12).map((r) => (
               <RestaurantCard key={r._id} restaurant={r} />
             ))}

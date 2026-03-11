@@ -7,9 +7,8 @@ import {
   HomeIcon,
   MagnifyingGlassIcon,
   ShoppingBagIcon,
-  MapPinIcon,
   BellIcon,
-  ChevronDownIcon,
+  ArrowLeftIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
@@ -23,7 +22,6 @@ import { toggleCart } from '../../redux/slices/uiSlice';
 import toast from 'react-hot-toast';
 import logo from '../../assets/logo.png';
 import NotificationBell from './NotificationBell';
-import { NEARBY_LOCATIONS } from '../../utils/constants';
 
 const BRAND = '#96092B';
 
@@ -34,12 +32,8 @@ const Navbar = () => {
   const { isAuthenticated, user } = useSelector((s) => s.auth);
   const { items } = useSelector((s) => s.cart);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [showLocationMenu, setShowLocationMenu] = useState(false);
-  const [locationLabel, setLocationLabel] = useState('Select Area');
   const [mobileSearch, setMobileSearch] = useState('');
   const [showMobileSearch, setShowMobileSearch] = useState(false);
-  const isProfilePage = location.pathname === '/profile';
-  const locationRef = useRef(null);
   const dropdownRef = useRef(null);
 
   const cartCount = items.reduce((t, i) => t + i.quantity, 0);
@@ -66,7 +60,6 @@ const Navbar = () => {
 
   useEffect(() => {
     const handler = (e) => {
-      if (locationRef.current && !locationRef.current.contains(e.target)) setShowLocationMenu(false);
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowDropdown(false);
     };
     document.addEventListener('mousedown', handler);
@@ -74,13 +67,34 @@ const Navbar = () => {
   }, []);
 
   /* ─ Nav tab definitions ─ */
-  const tabs = [
-    { path: '/',           label: 'Home',    Icon: HomeIcon,         IconS: HomeIconSolid },
-    { path: '/restaurants',label: 'Search',  Icon: MagnifyingGlassIcon, IconS: SearchIconSolid },
-    { path: '/__cart__',   label: 'Cart',    Icon: ShoppingCartIcon, IconS: CartIconSolid, isCart: true },
-    { path: '/orders',     label: 'Orders',  Icon: ShoppingBagIcon,  IconS: OrdersIconSolid },
-    { path: '/profile',    label: 'Profile', Icon: UserCircleIcon,   IconS: ProfileIconSolid },
-  ];
+  let tabs = [];
+  if (user?.role === 'restaurant_owner') {
+    tabs = [
+      { path: '/dashboard',  label: 'Dashboard', Icon: HomeIcon,         IconS: HomeIconSolid },
+      { path: '/profile',    label: 'Profile',   Icon: UserCircleIcon,   IconS: ProfileIconSolid },
+    ];
+  } else if (user?.role === 'delivery_partner') {
+    tabs = [
+      { path: '/delivery-dashboard',  label: 'Dashboard', Icon: HomeIcon,         IconS: HomeIconSolid },
+      { path: '/profile',             label: 'Profile',   Icon: UserCircleIcon,   IconS: ProfileIconSolid },
+    ];
+  } else if (user?.role === 'admin') {
+    tabs = [
+      { path: '/admin',      label: 'Admin',     Icon: HomeIcon,         IconS: HomeIconSolid },
+      { path: '/profile',    label: 'Profile',   Icon: UserCircleIcon,   IconS: ProfileIconSolid },
+    ];
+  } else {
+    tabs = [
+      { path: '/',           label: 'Home',    Icon: HomeIcon,         IconS: HomeIconSolid },
+      { path: '/restaurants',label: 'Search',  Icon: MagnifyingGlassIcon, IconS: SearchIconSolid },
+      { path: '/__cart__',   label: 'Cart',    Icon: ShoppingCartIcon, IconS: CartIconSolid, isCart: true },
+      { path: '/orders',     label: 'Orders',  Icon: ShoppingBagIcon,  IconS: OrdersIconSolid },
+      { path: '/profile',    label: 'Profile', Icon: UserCircleIcon,   IconS: ProfileIconSolid },
+    ];
+  }
+
+  const isProfilePage = location.pathname === '/profile';
+  const isHomePage = location.pathname === '/';
 
   return (
     <>
@@ -97,57 +111,41 @@ const Navbar = () => {
       >
         <div className="px-4 flex items-center justify-between gap-2"
           style={{ minHeight: '60px' }}>
-
-          {/* Location selector — left */}
-          <div className="flex-1 min-w-0" ref={locationRef}>
+          {/* Back button — visible on non-home pages */}
+          {location.pathname !== '/' && (
             <button
-              onClick={() => setShowLocationMenu(!showLocationMenu)}
-              className="flex items-center gap-1.5 text-left group"
+              onClick={() => navigate(-1)}
+              className="icon-btn h-9 w-9 flex-shrink-0"
+              aria-label="Go back"
             >
-              <div className="icon-btn h-8 w-8 flex-shrink-0" style={{ background: '#fcf0f3' }}>
-                <MapPinIcon className="h-4 w-4" style={{ color: BRAND }} />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-0.5">
-                  <span className="text-sm font-bold text-gray-900 truncate">{locationLabel}</span>
-                  <ChevronDownIcon className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
-                </div>
-                <p className="text-[11px] text-gray-400 truncate leading-none">Tap to change</p>
-              </div>
+              <ArrowLeftIcon className="h-5 w-5 text-gray-700" />
             </button>
+          )}
 
-            {/* Location dropdown */}
-            {showLocationMenu && (
-              <div className="absolute top-[62px] left-4 right-4 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 animate-slide-down max-h-72 overflow-y-auto">
-                <div className="p-3 border-b border-gray-100">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Popular Locations</p>
-                </div>
-                {NEARBY_LOCATIONS.map((loc) => (
-                  <button
-                    key={loc.id}
-                    onClick={() => { setLocationLabel(loc.name); setShowLocationMenu(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-primary-50 text-left transition-colors border-b border-gray-50 last:border-0"
-                  >
-                    <MapPinIcon className="h-4 w-4 flex-shrink-0" style={{ color: BRAND }} />
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{loc.name}</p>
-                      <p className="text-xs text-gray-400">{loc.district}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Brand logo — centre/left on mobile */}
+          <div className="flex-1 min-w-0">
+            <Link to="/" className="flex items-center gap-2 min-w-0">
+              <img src={logo} alt="FlashBites" className="h-7 w-auto flex-shrink-0" />
+              <span
+                className="text-[15px] font-black tracking-tight text-gray-900 truncate hidden xs:block"
+                style={{ letterSpacing: '-0.02em' }}
+              >
+                FlashBites
+              </span>
+            </Link>
+                      </div>
 
           {/* Right icons: Search + Bell/Notifications + Cart */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Search toggle */}
-            <button
-              onClick={() => setShowMobileSearch(!showMobileSearch)}
-              className="icon-btn h-9 w-9"
-            >
-              <MagnifyingGlassIcon className="h-4.5 w-4.5 text-gray-600" style={{ width: '18px', height: '18px' }} />
-            </button>
+            {/* Search toggle (Hidden for partners/admin) */}
+            {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' && (
+              <button
+                onClick={() => setShowMobileSearch(!showMobileSearch)}
+                className="icon-btn h-9 w-9"
+              >
+                <MagnifyingGlassIcon className="h-4.5 w-4.5 text-gray-600" style={{ width: '18px', height: '18px' }} />
+              </button>
+            )}
 
             {/* Notifications */}
             {isAuthenticated ? (
@@ -158,21 +156,23 @@ const Navbar = () => {
               </Link>
             )}
 
-            {/* Cart */}
-            <button
-              onClick={() => dispatch(toggleCart())}
-              className="icon-btn h-9 w-9 relative"
-            >
-              <ShoppingCartIcon style={{ width: '18px', height: '18px', color: '#6B7280' }} />
-              {cartCount > 0 && (
-                <span
-                  className="absolute -top-1 -right-1 text-white text-[9px] rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center font-bold"
-                  style={{ background: BRAND }}
-                >
-                  {cartCount}
-                </span>
-              )}
-            </button>
+            {/* Cart (Hidden for partners/admin) */}
+            {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' && (
+              <button
+                onClick={() => dispatch(toggleCart())}
+                className="icon-btn h-9 w-9 relative"
+              >
+                <ShoppingCartIcon style={{ width: '18px', height: '18px', color: '#6B7280' }} />
+                {cartCount > 0 && (
+                  <span
+                    className="absolute -top-1 -right-1 text-white text-[9px] rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center font-bold"
+                    style={{ background: BRAND }}
+                  >
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
@@ -217,76 +217,60 @@ const Navbar = () => {
             </Link>
 
             {/* Search */}
-            <form
-              className="flex-1 max-w-lg"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const q = e.target.elements.q.value.trim();
-                if (q) navigate(`/restaurants?search=${encodeURIComponent(q)}`);
-              }}
-            >
-              <div className="search-bar">
-                <MagnifyingGlassIcon className="h-4.5 w-4.5 text-gray-400 flex-shrink-0" style={{ width: '18px', height: '18px' }} />
-                <input name="q" type="text" placeholder='Search "pizza" or restaurant...' />
-              </div>
-            </form>
-
-            {/* Location (desktop) */}
-            <div className="relative flex-shrink-0" ref={locationRef}>
-              <button
-                onClick={() => setShowLocationMenu(!showLocationMenu)}
-                className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' ? (
+              <form
+                className="flex-1 max-w-lg"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const q = e.target.elements.q.value.trim();
+                  if (q) navigate(`/restaurants?search=${encodeURIComponent(q)}`);
+                }}
               >
-                <MapPinIcon className="h-4 w-4" style={{ color: BRAND }} />
-                <span>{locationLabel}</span>
-                <ChevronDownIcon className="h-3.5 w-3.5" />
-              </button>
-              {showLocationMenu && (
-                <div className="absolute top-8 left-0 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 animate-slide-down w-56 max-h-64 overflow-y-auto">
-                  {NEARBY_LOCATIONS.map((loc) => (
-                    <button
-                      key={loc.id}
-                      onClick={() => { setLocationLabel(loc.name); setShowLocationMenu(false); }}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-primary-50 text-left transition-colors border-b border-gray-50 last:border-0"
-                    >
-                      <MapPinIcon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: BRAND }} />
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{loc.name}</p>
-                        <p className="text-xs text-gray-400">{loc.district}</p>
-                      </div>
-                    </button>
-                  ))}
+                <div className="search-bar">
+                  <MagnifyingGlassIcon className="h-4.5 w-4.5 text-gray-400 flex-shrink-0" style={{ width: '18px', height: '18px' }} />
+                  <input name="q" type="text" placeholder='Search "pizza" or restaurant...' />
                 </div>
-              )}
-            </div>
+              </form>
+            ) : (
+              <div className="flex-1 max-w-lg"></div>
+            )}
+
+
+
 
             {/* Right actions */}
             <div className="flex items-center gap-3 flex-shrink-0">
-              <Link to="/restaurants" className={`text-sm font-medium transition-colors ${isActive('/restaurants') ? 'text-brand' : 'text-gray-600 hover:text-gray-900'}`}
-                style={isActive('/restaurants') ? { color: BRAND } : {}}>
-                Restaurants
-              </Link>
+              {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' && (
+                <Link to="/restaurants" className={`text-sm font-medium transition-colors ${isActive('/restaurants') ? 'text-brand' : 'text-gray-600 hover:text-gray-900'}`}
+                  style={isActive('/restaurants') ? { color: BRAND } : {}}>
+                  Restaurants
+                </Link>
+              )}
 
               {isAuthenticated ? (
                 <>
-                  <Link to="/orders" className={`text-sm font-medium transition-colors ${isActive('/orders') ? 'text-brand' : 'text-gray-600 hover:text-gray-900'}`}
-                    style={isActive('/orders') ? { color: BRAND } : {}}>
-                    Orders
-                  </Link>
+                  {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' && (
+                    <Link to="/orders" className={`text-sm font-medium transition-colors ${isActive('/orders') ? 'text-brand' : 'text-gray-600 hover:text-gray-900'}`}
+                      style={isActive('/orders') ? { color: BRAND } : {}}>
+                      Orders
+                    </Link>
+                  )}
                   {user?.role === 'restaurant_owner' && <Link to="/dashboard" className="text-sm text-gray-600 hover:text-gray-900">Dashboard</Link>}
                   {user?.role === 'delivery_partner' && <Link to="/delivery-dashboard" className="text-sm text-gray-600 hover:text-gray-900">Dashboard</Link>}
                   {user?.role === 'admin' && <Link to="/admin" className="text-sm text-gray-600 hover:text-gray-900">Admin</Link>}
 
                   <NotificationBell />
 
-                  <button onClick={() => dispatch(toggleCart())} className="relative p-2 text-gray-500 hover:text-gray-900 transition-colors">
-                    <ShoppingCartIcon className="h-5 w-5" />
-                    {cartCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 text-white text-[9px] rounded-full h-4 min-w-[16px] px-0.5 flex items-center justify-center font-bold" style={{ background: BRAND }}>
-                        {cartCount}
-                      </span>
-                    )}
-                  </button>
+                  {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' && (
+                    <button onClick={() => dispatch(toggleCart())} className="relative p-2 text-gray-500 hover:text-gray-900 transition-colors">
+                      <ShoppingCartIcon className="h-5 w-5" />
+                      {cartCount > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 text-white text-[9px] rounded-full h-4 min-w-[16px] px-0.5 flex items-center justify-center font-bold" style={{ background: BRAND }}>
+                          {cartCount}
+                        </span>
+                      )}
+                    </button>
+                  )}
 
                   <div className="relative" ref={dropdownRef}>
                     <button

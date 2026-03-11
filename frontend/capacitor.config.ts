@@ -5,6 +5,8 @@ const config: CapacitorConfig = {
   appName: 'FlashBites',
   webDir: 'dist',
   server: {
+    // Setting this to your main authorized domain fixes Firebase CORS and reCAPTCHA limits natively
+    hostname: 'flashbites.in',
     androidScheme: 'https',
     iosScheme: 'https',
   }

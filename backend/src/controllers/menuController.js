@@ -8,47 +8,59 @@ const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 // @access  Private (Owner)
 exports.addMenuItem = async (req, res) => {
   try {
-    const { name, description, price, category, isVeg, tags, prepTime, isAvailable } = req.body;
+    const { name, description, price, category, isVeg, tags, prepTime, isAvailable, variants } = req.body;
 
-    // Validate required fields
-    if (!name || !description || !price || !category) {
-      return errorResponse(res, 400, 'Missing required fields: name, description, price, category');
+    // Validate required fields with detailed errors
+    const missing = [];
+    if (!name) missing.push('name');
+    if (!description) missing.push('description');
+    if (!price) missing.push('price');
+    if (!category) missing.push('category');
+
+    if (missing.length > 0) {
+      return errorResponse(res, 400, `Missing required fields: ${missing.join(', ')}`);
+    }
+
+    // Validate category is in allowed enum
+    const allowedCategories = ['Starters', 'Main Course', 'Desserts', 'Beverages', 'Breads', 'Rice', 'Snacks', 'Fast Food', 'Pizza', 'Burger', 'South Indian', 'North Indian', 'Chinese'];
+    if (!allowedCategories.includes(category)) {
+      return errorResponse(res, 400, `Invalid category "${category}". Must be one of: ${allowedCategories.join(', ')}`);
     }
 
     // Handle image upload
-    let imageUrl = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800';
+    let imageUrl = '';
     if (req.file) {
       try {
         imageUrl = await uploadToCloudinary(req.file.buffer, 'flashbites/menu-items');
       } catch (uploadError) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.error('Image upload failed:', uploadError);
-        }
-        // Continue with default image if upload fails
+        console.error('Image upload failed, ignoring:', uploadError.message);
       }
     }
 
     const menuItemData = {
       restaurantId: req.params.restaurantId,
-      name,
-      description,
+      name: name.trim(),
+      description: description.trim(),
       price: parseFloat(price),
       category,
       image: imageUrl,
       isVeg: isVeg === 'true' || isVeg === true,
       isAvailable: isAvailable === 'true' || isAvailable === true || isAvailable === undefined,
       tags: tags ? (Array.isArray(tags) ? tags : [tags]) : [],
-      prepTime: prepTime ? parseInt(prepTime) : 20
+      prepTime: prepTime ? parseInt(prepTime) : 20,
+      variants: variants ? (typeof variants === 'string' ? JSON.parse(variants) : variants) : []
     };
 
     const menuItem = await MenuItem.create(menuItemData);
 
     successResponse(res, 201, 'Menu item added successfully', { menuItem });
   } catch (error) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('Add menu item error:', error);
-      console.error('Error stack:', error.stack);
+    // Return detailed Mongoose validation errors to help debug
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(e => e.message).join(', ');
+      return errorResponse(res, 400, `Validation failed: ${messages}`);
     }
+    console.error('Add menu item error:', error.message);
     errorResponse(res, 500, 'Failed to add menu item', error.message);
   }
 };
@@ -94,24 +106,47 @@ exports.updateMenuItem = async (req, res) => {
 
     // Handle image upload if new file provided
     if (req.file) {
-      // Delete old image from Cloudinary if it exists and is not default
+      // Delete old image from Cloudinary if it exists
       if (menuItem.image && !menuItem.image.includes('unsplash')) {
         await deleteFromCloudinary(menuItem.image);
       }
       req.body.image = await uploadToCloudinary(req.file.buffer, 'flashbites/menu-items');
+    } else if (req.body.image === '' || req.body.image === 'null') {
+      if (menuItem.image && !menuItem.image.includes('unsplash')) {
+        await deleteFromCloudinary(menuItem.image);
+      }
+      req.body.image = '';
     }
 
+    if (req.body.variants && typeof req.body.variants === 'string') {
+      try {
+        const parsedVariants = JSON.parse(req.body.variants);
+        if (Array.isArray(parsedVariants)) {
+          req.body.variants = parsedVariants.filter(v => v.name && v.name.trim() !== '' && v.price !== '' && v.price !== null);
+        }
+      } catch (e) {
+        console.error('Failed to parse variants string', e);
+      }
+    }
+
+    // Use $set to only update provided fields — never wipe existing data
     const updatedMenuItem = await MenuItem.findByIdAndUpdate(
       req.params.itemId,
-      req.body,
+      { $set: req.body },
       { new: true, runValidators: true }
     );
 
     successResponse(res, 200, 'Menu item updated successfully', { menuItem: updatedMenuItem });
   } catch (error) {
+    console.error('Update Menu Item Error:', error);
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(e => e.message).join(', ');
+      return errorResponse(res, 400, `Validation failed: ${messages}`);
+    }
     errorResponse(res, 500, 'Failed to update menu item', error.message);
   }
 };
+
 
 // @desc    Delete menu item
 // @route   DELETE /api/restaurants/:restaurantId/menu/:itemId
@@ -141,8 +176,9 @@ exports.toggleMenuItemAvailability = async (req, res) => {
       return errorResponse(res, 404, 'Menu item not found');
     }
 
-    menuItem.isAvailable = !menuItem.isAvailable;
-    await menuItem.save();
+    const newStatus = !menuItem.isAvailable;
+    await MenuItem.findByIdAndUpdate(req.params.itemId, { isAvailable: newStatus });
+    menuItem.isAvailable = newStatus;
 
     successResponse(res, 200, 'Menu item availability updated', { menuItem });
   } catch (error) {

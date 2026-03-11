@@ -1,17 +1,35 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import * as restaurantApi from '../../api/restaurantApi';
 
+// Retry helper — retries up to maxRetries times with delay between attempts
+const withRetry = async (fn, maxRetries = 3, delayMs = 3000) => {
+  let lastError;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      console.warn(`fetchRestaurants attempt ${attempt}/${maxRetries} failed:`, err?.message);
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw lastError;
+};
+
 export const fetchRestaurants = createAsyncThunk(
   'restaurant/fetchRestaurants',
   async (filters, { rejectWithValue }) => {
     try {
-      const response = await restaurantApi.getRestaurants(filters);
+      const response = await withRetry(() => restaurantApi.getRestaurants(filters), 3, 4000);
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message);
+      return rejectWithValue(error.response?.data?.message || 'Failed to load restaurants');
     }
   }
 );
+
 
 export const fetchRestaurantById = createAsyncThunk(
   'restaurant/fetchRestaurantById',

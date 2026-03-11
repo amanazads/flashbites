@@ -12,8 +12,8 @@ console.log('📱 Running in Capacitor:', isCapacitor);
 console.log('🌍 Environment:', import.meta.env.MODE);
 
 const instance = axios.create({
-  baseURL: apiUrl, // This must be http://localhost:8080/api
-  timeout: 30000, // Increased to 30 seconds for slower connections
+  baseURL: apiUrl,
+  timeout: isCapacitor ? 60000 : 30000, // 60s on mobile (Render cold start), 30s on web
   headers: {
     'Content-Type': 'application/json',
   },
@@ -26,12 +26,24 @@ instance.interceptors.request.use(
     let token;
     
     if (isCapacitor) {
-      // Use Capacitor Preferences for mobile
-      const { value } = await Preferences.get({ key: 'token' });
-      token = value;
+      // On Capacitor, try Preferences first (the correct native store)
+      const { value: prefToken } = await Preferences.get({ key: 'token' });
+      token = prefToken;
       if (!token) {
-        const { value: accessToken } = await Preferences.get({ key: 'accessToken' });
-        token = accessToken;
+        const { value: prefAccess } = await Preferences.get({ key: 'accessToken' });
+        token = prefAccess;
+      }
+
+      // Fallback: token may have been saved to localStorage (web session, or Register flow)
+      // Migrate it to Preferences so all future requests work correctly
+      if (!token) {
+        const lsToken = localStorage.getItem('token') || localStorage.getItem('accessToken');
+        if (lsToken) {
+          token = lsToken;
+          // Migrate to Preferences so next request finds it there
+          await Preferences.set({ key: 'token', value: lsToken });
+          console.log('🔄 Token migrated from localStorage → Preferences');
+        }
       }
     } else {
       // Use localStorage for web
@@ -41,6 +53,15 @@ instance.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // If sending FormData in browser, remove default Content-Type so browser sets boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+      if (config.headers.post) delete config.headers.post['Content-Type'];
+      if (config.headers.put) delete config.headers.put['Content-Type'];
+      if (config.headers.patch) delete config.headers.patch['Content-Type'];
+    }
+    
     return config;
   },
   (error) => {
@@ -49,6 +70,7 @@ instance.interceptors.request.use(
   }
 );
 
+
 // Response interceptor for handling errors
 instance.interceptors.response.use(
   (response) => response,
@@ -56,11 +78,12 @@ instance.interceptors.response.use(
     const status = error.response?.status;
     const url = error.config?.url || '';
 
-    // Skip noisy logs for expected auth-check failures
+    // Skip noisy logs for expected auth-check failures and simple coupon validation
     const isExpectedAuthCheckFailure = status === 401 && url.includes('/auth/me');
+    const isExpectedCouponFailure = (status === 404 || status === 400) && url.includes('/coupons/validate');
 
     // Log the full error for debugging
-    if (!isExpectedAuthCheckFailure) {
+    if (!isExpectedAuthCheckFailure && !isExpectedCouponFailure) {
       console.error('API Error:', {
         url: error.config?.url,
         method: error.config?.method,
@@ -71,24 +94,27 @@ instance.interceptors.response.use(
     }
 
     if (status === 401) {
-      // Routes that require authentication — redirect to login on 401
+      // Only treat as a real session expiry if the user is explicitly on/navigating to a protected page.
+      // Background calls (FCM token, /auth/me, socket setup, etc.) should NOT wipe the session.
       const protectedRoutes = ['/checkout', '/orders', '/profile', '/auth/logout', '/notifications', '/users/addresses'];
       const isProtectedRequest = protectedRoutes.some(route => url.includes(route));
 
-      // Clear tokens on 401 regardless
-      if (isCapacitor) {
-        await Preferences.remove({ key: 'token' });
-        await Preferences.remove({ key: 'accessToken' });
-        await Preferences.remove({ key: 'refreshToken' });
-      } else {
-        localStorage.removeItem('token');
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-      }
+      // Only clear tokens + redirect when this is a user-facing protected action, not a background call.
+      // This prevents register/login flows from being disrupted by background 401s (e.g. FCM token, /auth/me)
+      if (isProtectedRequest) {
+        if (isCapacitor) {
+          await Preferences.remove({ key: 'token' });
+          await Preferences.remove({ key: 'accessToken' });
+          await Preferences.remove({ key: 'refreshToken' });
+        } else {
+          localStorage.removeItem('token');
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+        }
 
-      // Only redirect to login for protected actions — NOT for routine /auth/me checks or public browsing
-      if (isProtectedRequest && !window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);

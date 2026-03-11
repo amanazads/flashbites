@@ -5,8 +5,7 @@ import { ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { isRestaurantOpen } from '../../utils/helpers';
 
 const BRAND = '#E23744';
-const DELIVERY_RADIUS_KM = 10;
-
+const DELIVERY_RADIUS_KM = 20;
 const getDiscount = (r) => {
   if (r.discount) return r.discount;
   return Math.max(20, Math.min((r.rating || 4) * 10, 60));
@@ -46,8 +45,8 @@ const RestaurantCard = ({ restaurant: r }) => {
         e.currentTarget.style.transform = 'translateY(0)';
       }}
     >
-      {/* ── Image ── */}
-      <div className="relative" style={{ height: '168px' }}>
+      {/* ── Image — aspect-ratio preserves shape at any width ── */}
+      <div className="relative" style={{ aspectRatio: '16/9' }}>
         <img
           src={r.image || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=80'}
           alt={r.name}
@@ -66,14 +65,6 @@ const RestaurantCard = ({ restaurant: r }) => {
               TOP RATED
             </span>
           )}
-          {isOpen && !outOfRange && (r.deliveryFee === 0 || r.deliveryFee === '0') && (
-            <span
-              className="text-white text-[10px] font-bold px-2 py-1 rounded-lg"
-              style={{ background: 'rgba(27,166,114,0.9)', backdropFilter: 'blur(4px)' }}
-            >
-              FREE DELIVERY
-            </span>
-          )}
           {isOpen && !outOfRange && rating < 4.5 && (
             <span
               className="text-white text-[10px] font-bold px-2 py-1 rounded-lg"
@@ -90,7 +81,7 @@ const RestaurantCard = ({ restaurant: r }) => {
           style={{ background: ratingBg }}
         >
           <StarIcon className="h-3 w-3" />
-          {r.rating || '4.0'}
+          {r.rating || '4.0'}/5
         </div>
 
         {/* Closed overlay */}
@@ -117,11 +108,10 @@ const RestaurantCard = ({ restaurant: r }) => {
       </div>
 
       {/* ── Info ── */}
-      <div className="p-3.5" style={{ opacity: unavailable ? 0.7 : 1 }}>
-        <div className="flex items-start justify-between gap-2 mb-0.5">
-          <h3 className="text-[15px] font-bold text-gray-900 leading-tight flex-1 line-clamp-1">{r.name}</h3>
-        </div>
-
+        <div className="p-2.5 xs:p-3.5" style={{ opacity: unavailable ? 0.7 : 1 }}>
+          <div className="flex items-start justify-between gap-2 mb-0.5">
+            <h3 className="text-[13px] xs:text-[15px] font-bold text-gray-900 leading-tight flex-1 line-clamp-1">{r.name}</h3>
+          </div>
         <p className="text-[12px] text-gray-400 mb-2 line-clamp-1 font-medium">
           {Array.isArray(r.cuisines) ? r.cuisines.join(', ') : r.cuisine || 'Multi-cuisine'}
         </p>
@@ -139,17 +129,7 @@ const RestaurantCard = ({ restaurant: r }) => {
             <MapPinIcon className="h-3.5 w-3.5" style={{ color: BRAND }} />
             {r.distance ? `${r.distance.toFixed(1)} km` : r.address?.city || 'Nearby'}
           </span>
-          <span
-            className="w-px h-3 bg-gray-200 mx-2 flex-shrink-0"
-          />
-          <span className="flex-1 text-right truncate">
-            {r.deliveryFee === 0 ? (
-              <span className="text-green-600 font-semibold">Free delivery</span>
-            ) : (
-              `₹${r.deliveryFee ?? 30} delivery`
-            )}
-          </span>
-        </div>
+                  </div>
 
         {/* Offer strip */}
         {isOpen && !outOfRange && (
@@ -163,7 +143,7 @@ const RestaurantCard = ({ restaurant: r }) => {
               <span className="text-[9px] font-black" style={{ color: BRAND }}>%</span>
             </div>
             <span className="text-[11px] font-semibold" style={{ color: BRAND }}>
-              ₹{discount} off on orders above ₹{discount + 99}
+              Flat ₹{discount} OFF
             </span>
           </div>
         )}

@@ -1,40 +1,85 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import socketService from '../services/socketService';
 import notificationSound from '../utils/notificationSound';
 import { toast } from 'react-hot-toast';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { getFCMToken, onForegroundMessage } from '../firebase';
+import axiosInstance from '../api/axios';
 
-const sendNativeNotification = async (title, body, tag) => {
+const isNativePlatform = () => !!(window.Capacitor && window.Capacitor.isNativePlatform());
+
+let notifIdCounter = Math.floor(Math.random() * 100000);
+const nextNotifId = () => ++notifIdCounter;
+
+// ─── Send a native system notification (iOS/Android tray OR browser notification) ───
+const sendSystemNotification = async (title, body, data = {}) => {
   try {
-    const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform());
-    if (isNative) {
-      const permStatus = await LocalNotifications.checkPermissions();
-      if (permStatus.display !== 'granted') {
-        await LocalNotifications.requestPermissions();
+    if (isNativePlatform()) {
+      // Capacitor native — appears in the OS notification tray
+      const perm = await LocalNotifications.checkPermissions();
+      if (perm.display !== 'granted') {
+        const req = await LocalNotifications.requestPermissions();
+        if (req.display !== 'granted') return;
       }
+
       await LocalNotifications.schedule({
         notifications: [
           {
-            title: title,
-            body: body,
-            id: new Date().getTime(),
-            schedule: { at: new Date(Date.now() + 100) },
-            extra: { tag }
-          }
-        ]
+            id: nextNotifId(),
+            title,
+            body,
+            // Sound on iOS/Android
+            sound: 'default',
+            // Android specific
+            smallIcon: 'ic_launcher',
+            largeIcon: 'ic_launcher',
+            channelId: 'flashbites-orders',
+            // High priority — shows immediately on lock screen
+            importance: 5, // IMPORTANCE_HIGH
+            // No schedule delay — fire immediately
+            schedule: { at: new Date(Date.now() + 50) },
+            extra: data,
+          },
+        ],
       });
-      console.log('✅ Native mobile notification scheduled');
+      console.log('✅ Native tray notification sent:', title);
     } else {
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(title, { body, icon: '/favicon.ico', tag });
-        console.log('✅ Browser notification displayed');
-      } else if ('Notification' in window && Notification.permission !== 'denied') {
-        Notification.requestPermission();
+      // Web browser native notification
+      if (!('Notification' in window)) return;
+      if (Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
+      if (Notification.permission === 'granted') {
+        const n = new Notification(title, {
+          body,
+          icon: '/logo.png',
+          badge: '/favicon-32.png',
+          tag: data.tag || 'flashbites',
+          requireInteraction: true,
+        });
+        if (data.url) {
+          n.onclick = () => { window.focus(); window.location.href = data.url; n.close(); };
+        }
+        console.log('✅ Browser notification sent:', title);
       }
     }
-  } catch (error) {
-    console.error('❌ Failed to send native notification:', error);
+  } catch (err) {
+    console.error('❌ System notification failed:', err);
+  }
+};
+
+// ─── Register FCM token with backend after login ───
+const registerFCMToken = async (authAxios) => {
+  try {
+    if (isNativePlatform()) return; // Capacitor uses local notifications, not FCM web push
+    const token = await getFCMToken();
+    if (!token) return;
+    // Save token to backend so server can send targeted pushes
+    await authAxios.post('/users/fcm-token', { token });
+    console.log('✅ FCM token registered with backend');
+  } catch (err) {
+    console.warn('FCM token registration with backend failed (may be OK if endpoint not set up yet):', err?.message);
   }
 };
 
@@ -42,54 +87,92 @@ export const useNotifications = () => {
   const { user, token } = useSelector((state) => state.auth);
   const [connected, setConnected] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(() => {
-    // Get sound preference from localStorage
     const saved = localStorage.getItem('notificationSoundEnabled');
     return saved !== null ? JSON.parse(saved) : true;
   });
+  const authAxiosRef = useRef(null);
 
-  // Initialize socket connection
+  // Initialize socket + audio + FCM
   useEffect(() => {
     if (token && user) {
-      console.log('🔌 Initializing socket connection for user:', user.email, 'Role:', user.role);
+      console.log('🔌 Initializing socket for:', user.email, '| Role:', user.role);
       socketService.connect(token);
       setConnected(true);
 
-      // Initialize audio context on first user interaction
+      // Initialize audio on first user interaction
       const initAudio = () => {
-        console.log('🎵 Initializing audio context on user interaction...');
         notificationSound.init();
-        // Keep listener for mobile - might need multiple interactions
         setTimeout(() => {
           document.removeEventListener('click', initAudio);
           document.removeEventListener('touchstart', initAudio);
         }, 2000);
       };
-      
       document.addEventListener('click', initAudio, { once: false });
       document.addEventListener('touchstart', initAudio, { once: false });
-
-      // Also try to initialize immediately (will work if user already interacted)
       notificationSound.init();
 
-      // Request notification permission if not already decided
-      if ('Notification' in window && Notification.permission === 'default') {
-        // Wait a bit before requesting to not overwhelm user on page load
-        setTimeout(() => {
-          console.log('📱 Requesting notification permission...');
-          Notification.requestPermission().then(permission => {
-            console.log('📱 Notification permission:', permission);
-          });
-        }, 3000);
+      // Set up FCM for web push (foreground + background)
+      if (!isNativePlatform()) {
+        // Get & register FCM token
+        authAxiosRef.current = axiosInstance;
+        registerFCMToken(axiosInstance);
+
+        // Listen for foreground FCM messages (when app is open)
+        onForegroundMessage((payload) => {
+          console.log('📨 FCM foreground message:', payload);
+          const { title, body } = payload.notification || {};
+          if (title) {
+            if (soundEnabled) notificationSound.playNotification('new-order');
+            toast(
+              <div className="flex items-center gap-3">
+                <div className="text-2xl">🔔</div>
+                <div>
+                  <p className="font-bold text-white mb-0.5">{title}</p>
+                  {body && <p className="text-sm text-gray-300">{body}</p>}
+                </div>
+              </div>,
+              {
+                duration: 7000,
+                position: 'top-center',
+                style: {
+                  background: '#1A1A1A',
+                  color: '#fff',
+                  borderRadius: '16px',
+                  padding: '14px 18px',
+                  boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+                  border: '1px solid #333',
+                },
+              }
+            );
+          }
+        });
       }
 
-      // Cleanup on unmount
+      // Request native notification permission on mobile
+      if (isNativePlatform()) {
+        LocalNotifications.requestPermissions().then((perm) => {
+          console.log('📱 Local notification permission:', perm.display);
+          // Create notification channel for Android
+          LocalNotifications.createChannel({
+            id: 'flashbites-orders',
+            name: 'Order Updates',
+            description: 'Real-time order status notifications',
+            importance: 5,
+            sound: 'default',
+            vibration: true,
+            lights: true,
+            lightColor: '#E23744',
+          }).catch(() => {}); // createChannel only exists on Android
+        }).catch(() => {});
+      } else if ('Notification' in window && Notification.permission === 'default') {
+        setTimeout(() => Notification.requestPermission(), 3000);
+      }
+
       return () => {
-        // Only disconnect if we are actually fully unmounting or token changed
-        // StrictMode double-invokes this in dev
         setTimeout(() => {
           if (!document.hidden) {
-             socketService.disconnect();
-             setConnected(false);
+            socketService.disconnect();
+            setConnected(false);
           }
         }, 100);
         document.removeEventListener('click', initAudio);
@@ -98,254 +181,133 @@ export const useNotifications = () => {
     }
   }, [token, user]);
 
-  // Handle new order notifications (for restaurant owners and admins)
+  // ─── Toast helper ─────────────────
+  const showToast = useCallback((emoji, title, subtitle, borderColor = '#444') => {
+    toast(
+      <div className="flex items-center gap-3">
+        <div className="text-2xl">{emoji}</div>
+        <div>
+          <p className="font-bold text-white mb-0.5">{title}</p>
+          {subtitle && <p className="text-sm text-gray-300">{subtitle}</p>}
+        </div>
+      </div>,
+      {
+        duration: 7000,
+        position: 'top-center',
+        style: {
+          background: '#1A1A1A',
+          color: '#fff',
+          borderRadius: '16px',
+          padding: '14px 18px',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.25)',
+          border: `1px solid ${borderColor}`,
+        },
+      }
+    );
+  }, []);
+
+  // ─── Handlers ─────────────────────
   const handleNewOrder = useCallback((data) => {
     console.log('🆕 New order received:', data);
-    console.log('🔊 Sound enabled:', soundEnabled);
-    console.log('🔊 Data.sound:', data.sound);
-    
-    // Play sound if enabled
-    if (soundEnabled && data.sound) {
-      console.log('🎵 Attempting to play notification sound...');
-      notificationSound.playNotification('new-order')
-        .then(() => console.log('✅ Sound played successfully'))
-        .catch(err => console.error('❌ Sound play failed:', err));
-    } else {
-      console.log('🔇 Sound not played. Enabled:', soundEnabled, 'Data.sound:', data.sound);
-    }
+    if (soundEnabled && data.sound !== false) notificationSound.playNotification('new-order');
 
-    // Show toast notification
-    toast(
-      <div className="flex items-center gap-3">
-        <div className="text-2xl">🎉</div>
-        <div>
-          <p className="font-bold text-white mb-0.5">New Order Received!</p>
-          <p className="text-sm text-gray-300">Order #{data.order._id?.slice(-6) || 'N/A'}</p>
-          <p className="text-sm text-brand-gradient font-semibold mt-1">Total: ₹{data.order.total}</p>
-        </div>
-      </div>,
-      {
-        duration: 8000,
-        position: 'top-center',
-        style: {
-          background: '#1A1A1A',
-          color: '#ffffff',
-          borderRadius: '20px',
-          padding: '16px 20px',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-          border: '1px solid #333',
-        },
-      }
+    showToast(
+      '🎉',
+      'New Order Received!',
+      `Order #${data.order._id?.slice(-6)} · ₹${data.order.total}`,
+      '#22c55e'
     );
-
-    // Send cross-platform notification
-    sendNativeNotification(
-      'New Order Received! 🎉',
-      `Order #${data.order._id?.slice(-6) || 'N/A'} - Total: ₹${data.order.total || 0}`,
-      'new-order'
+    sendSystemNotification(
+      '🎉 New Order Received!',
+      `Order #${data.order._id?.slice(-6)} – Total: ₹${data.order.total || 0}`,
+      { tag: 'new-order', url: '/dashboard' }
     );
-  }, [soundEnabled]);
+  }, [soundEnabled, showToast]);
 
-  // Handle order status update notifications (for users)
   const handleOrderUpdate = useCallback((data) => {
     console.log('📦 Order update received:', data);
-    console.log('🔊 Sound enabled:', soundEnabled);
-    
-    // Play sound if enabled
-    if (soundEnabled && data.sound) {
-      console.log('🎵 Attempting to play order update sound...');
-      notificationSound.playNotification('order-update')
-        .then(() => console.log('✅ Sound played successfully'))
-        .catch(err => console.error('❌ Sound play failed:', err));
-    }
+    if (soundEnabled && data.sound !== false) notificationSound.playNotification('order-update');
 
-    // Map status to user-friendly messages
     const statusMessages = {
-      confirmed: 'Your order has been confirmed! 🎉',
-      preparing: 'Restaurant is preparing your order 👨‍🍳',
-      ready: 'Your order is ready! 🎊',
-      out_for_delivery: 'Your order is out for delivery 🚚',
-      delivered: 'Your order has been delivered! ✅',
-      cancelled: 'Your order has been cancelled ❌',
+      confirmed:        { msg: 'Order confirmed! 🎉',              emoji: '✅' },
+      preparing:        { msg: 'Restaurant is preparing your order 👨‍🍳', emoji: '🍳' },
+      ready:            { msg: 'Your food is ready! 🎊',           emoji: '✨' },
+      out_for_delivery: { msg: 'Out for delivery! 🚀',             emoji: '🚚' },
+      delivered:        { msg: 'Order delivered! Enjoy 😋',        emoji: '✅' },
+      cancelled:        { msg: 'Order cancelled ❌',                emoji: '❌' },
     };
 
-    const message = statusMessages[data.order.status] || 'Order status updated';
+    const s = statusMessages[data.order?.status] || { msg: 'Order updated', emoji: '⚡' };
 
-    // Show toast notification
-    toast(
-      <div className="flex items-center gap-3">
-        <div className="text-2xl">⚡</div>
-        <div>
-          <p className="font-bold text-white mb-0.5">{message}</p>
-          <p className="text-sm text-gray-400">Order #{data.order._id?.slice(-6) || 'N/A'}</p>
-        </div>
-      </div>,
-      {
-        duration: 6000,
-        position: 'top-center',
-        style: {
-          background: '#1A1A1A',
-          color: '#ffffff',
-          borderRadius: '20px',
-          padding: '16px 20px',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-          border: '1px solid #333',
-        },
-      }
+    showToast(s.emoji, s.msg, `Order #${data.order?._id?.slice(-6)}`, '#3b82f6');
+    sendSystemNotification(
+      `FlashBites – ${s.msg}`,
+      `Order #${data.order?._id?.slice(-6)}`,
+      { tag: 'order-update', url: '/orders' }
     );
+  }, [soundEnabled, showToast]);
 
-    // Send cross-platform notification
-    sendNativeNotification(
-      message,
-      `Order #${data.order._id?.slice(-6) || 'N/A'}`,
-      'order-update'
-    );
-  }, [soundEnabled]);
-
-  // Handle delivery update notifications
   const handleDeliveryUpdate = useCallback((data) => {
-    console.log('🚚 Delivery update received:', data);
-    
-    if (soundEnabled && data.sound) {
-      notificationSound.playNotification('delivery-update');
-    }
+    console.log('🚚 Delivery update:', data);
+    if (soundEnabled && data.sound !== false) notificationSound.playNotification('order-update');
 
-    toast(
-      <div className="flex items-center gap-3">
-        <div className="text-2xl">🚚</div>
-        <div>
-          <p className="font-bold text-white mb-0.5">Delivery Update</p>
-          <p className="text-sm text-gray-300">{data.delivery.message}</p>
-        </div>
-      </div>,
-      {
-        duration: 5000,
-        position: 'top-center',
-        style: {
-          background: '#1A1A1A',
-          color: '#ffffff',
-          borderRadius: '20px',
-          padding: '16px 20px',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-          border: '1px solid #333',
-        },
-      }
+    showToast('🚚', 'Delivery Update', data.delivery?.message);
+    sendSystemNotification(
+      'FlashBites – Delivery Update 🚚',
+      data.delivery?.message || 'Your delivery is on the way',
+      { tag: 'delivery-update', url: '/orders' }
     );
-    // Ensure native notification is fired
-    sendNativeNotification('Delivery Update 🚚', data.delivery?.message || 'Package update', 'delivery-update');
+  }, [soundEnabled, showToast]);
 
-  }, [soundEnabled]);
-
-  // Setup listeners based on user role
+  // ─── Socket listeners ──────────────
   useEffect(() => {
     if (!connected || !user) return;
 
-    // --- Delivery Partner Handlers ---
+    // Delivery partner handlers
     const handleDeliveryNewOrder = (data) => {
-      console.log('🆕 [Global] New order available:', data);
       if (soundEnabled && data.sound !== false) notificationSound.playNotification('new-order');
-      toast(
-        <div className="flex items-center gap-3">
-          <div className="text-2xl">🆕</div>
-          <div>
-            <p className="font-bold text-white mb-0.5">New Order Available!</p>
-            <p className="text-sm text-gray-300">Order #{data.order?._id?.slice(-6) || 'N/A'}</p>
-            <p className="text-sm text-brand-gradient font-semibold mt-1">Fee: ₹{data.order?.deliveryFee || 0}</p>
-          </div>
-        </div>,
-        {
-          duration: 6000,
-          position: 'top-center',
-          style: {
-            background: '#1A1A1A',
-            color: '#ffffff',
-            borderRadius: '20px',
-            padding: '16px 20px',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-            border: '1px solid #333',
-          },
-        }
+      showToast('🆕', 'New Order Available!', `Order #${data.order?._id?.slice(-6)} · ₹${data.order?.deliveryFee || 0} fee`, '#f59e0b');
+      sendSystemNotification(
+        '🆕 New Order Available!',
+        `Delivery fee: ₹${data.order?.deliveryFee || 0}`,
+        { tag: 'new-order-available', url: '/delivery-dashboard' }
       );
-      sendNativeNotification('New Order Available! 🆕', `Fee: ₹${data.order?.deliveryFee || 0}`, 'new-order-available');
     };
 
     const handleDeliveryAssigned = (data) => {
-      console.log('✅ [Global] Order assigned:', data);
       if (soundEnabled && data.sound !== false) notificationSound.playNotification('order-update');
-      toast(
-        <div className="flex items-center gap-3">
-          <div className="text-2xl">✅</div>
-          <div>
-            <p className="font-bold text-white mb-0.5">Order Assigned!</p>
-            <p className="text-sm text-gray-300">Order #{data.order?._id?.slice(-6) || 'N/A'}</p>
-          </div>
-        </div>,
-        {
-          duration: 5000,
-          position: 'top-center',
-          style: {
-            background: '#1A1A1A',
-            color: '#ffffff',
-            borderRadius: '20px',
-            padding: '16px 20px',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-            border: '1px solid #10b981',
-          },
-        }
+      showToast('✅', 'Order Assigned!', `Order #${data.order?._id?.slice(-6)}`, '#22c55e');
+      sendSystemNotification(
+        '✅ Order Assigned!',
+        `Order #${data.order?._id?.slice(-6)} is yours to deliver`,
+        { tag: 'order-assigned', url: '/delivery-dashboard' }
       );
-      sendNativeNotification('Order Assigned! ✅', `Order #${data.order?._id?.slice(-6) || 'N/A'}`, 'order-assigned');
     };
 
     const handleDeliveryCancelled = (data) => {
-      console.log('❌ [Global] Order cancelled:', data);
-      if (soundEnabled && data.sound !== false) notificationSound.playError();
-      toast(
-        <div className="flex items-center gap-3">
-          <div className="text-2xl">❌</div>
-          <div>
-            <p className="font-bold text-white mb-0.5">Order Cancelled</p>
-            <p className="text-sm text-gray-300">Order #{data.order?._id?.slice(-6) || 'N/A'} has been cancelled</p>
-          </div>
-        </div>,
-        {
-          duration: 5000,
-          position: 'top-center',
-          style: {
-            background: '#1A1A1A',
-            color: '#ffffff',
-            borderRadius: '20px',
-            padding: '16px 20px',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-            border: '1px solid #ef4444',
-          },
-        }
+      if (soundEnabled) notificationSound.playError();
+      showToast('❌', 'Order Cancelled', `Order #${data.order?._id?.slice(-6)}`, '#ef4444');
+      sendSystemNotification(
+        '❌ Order Cancelled',
+        `Order #${data.order?._id?.slice(-6)} was cancelled`,
+        { tag: 'order-cancelled', url: '/delivery-dashboard' }
       );
-      sendNativeNotification('Order Cancelled ❌', `Order #${data.order?._id?.slice(-6) || 'N/A'}`, 'order-cancelled');
     };
-    // ------------------------------------
 
     if (user.role === 'restaurant_owner') {
-      // Restaurant owners listen for new orders
       socketService.onNewOrder(handleNewOrder);
-      
-      // Join restaurant room if user owns a restaurant
-      if (user.restaurantId) {
-        socketService.joinRestaurant(user.restaurantId);
-      }
+      if (user.restaurantId) socketService.joinRestaurant(user.restaurantId);
     } else if (user.role === 'admin') {
-      // Admins listen for all new orders
       socketService.onNewOrder(handleNewOrder);
     } else if (user.role === 'delivery_partner') {
-      // Delivery partners listen for available orders and assignments
       socketService.on('new-order-available', handleDeliveryNewOrder);
       socketService.on('order-assigned', handleDeliveryAssigned);
       socketService.on('order-cancelled', handleDeliveryCancelled);
     } else {
-      // Regular users listen for order updates
+      // Regular customer
       socketService.onOrderUpdate(handleOrderUpdate);
     }
 
-    // All roles listen for delivery updates
     socketService.onDeliveryUpdate(handleDeliveryUpdate);
 
     return () => {
@@ -356,30 +318,27 @@ export const useNotifications = () => {
       socketService.off('order-assigned');
       socketService.off('order-cancelled');
     };
-  }, [connected, user, handleNewOrder, handleOrderUpdate, handleDeliveryUpdate, soundEnabled]);
+  }, [connected, user, handleNewOrder, handleOrderUpdate, handleDeliveryUpdate, soundEnabled, showToast]);
 
-  // Toggle sound notifications
   const toggleSound = useCallback(() => {
     const newValue = !soundEnabled;
     setSoundEnabled(newValue);
     localStorage.setItem('notificationSoundEnabled', JSON.stringify(newValue));
-    
-    // Play test sound
     if (newValue) {
       notificationSound.playSuccess();
       toast.success('Sound notifications enabled 🔔');
     } else {
-      toast.success('Sound notifications disabled 🔕');
+      toast.success('Sound notifications muted 🔕');
     }
   }, [soundEnabled]);
 
-  // Request notification permission
   const requestNotificationPermission = useCallback(async () => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        toast.success('Browser notifications enabled! 🔔');
-      }
+    if (isNativePlatform()) {
+      const perm = await LocalNotifications.requestPermissions();
+      if (perm.display === 'granted') toast.success('Notifications enabled! 🔔');
+    } else if ('Notification' in window) {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') toast.success('Browser notifications enabled! 🔔');
     }
   }, []);
 

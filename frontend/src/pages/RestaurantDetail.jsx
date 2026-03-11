@@ -75,28 +75,25 @@ const RestaurantDetail = () => {
           alt={restaurant.name}
           className="w-full h-full object-cover opacity-60"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/40" />
         
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 lg:p-8 text-white">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
               <div className="min-w-0">
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 break-words">{restaurant.name}</h1>
-                <p className="text-sm sm:text-base lg:text-lg mb-2 sm:mb-3 line-clamp-2 sm:line-clamp-none text-white/80">{restaurant.description}</p>
-                <p className="text-sm mb-4 text-white/70">{restaurant.cuisines.join(' • ')}</p>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 break-words text-white drop-shadow-lg">{restaurant.name}</h1>
+                <p className="text-sm sm:text-base lg:text-lg mb-2 sm:mb-3 line-clamp-2 sm:line-clamp-none text-white/90 drop-shadow-md">{restaurant.description}</p>
+                <p className="text-sm mb-4 text-white/80 drop-shadow">{restaurant.cuisines.join(' • ')}</p>
                 
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm">
-                  <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-xl">
-                    <StarIcon className="h-4 w-4 text-yellow-400" />
-                    <span className="font-semibold">{restaurant.rating}</span>
-                    <span className="text-white/70">({restaurant.reviewCount} ratings)</span>
+                  <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-xl">
+                    <StarIcon className="h-4 w-4 text-yellow-500" />
+                    <span className="font-semibold text-white">{restaurant.rating}/5</span>
+                    <span className="text-white/80">({restaurant.reviewCount} ratings)</span>
                   </div>
-                  <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-xl">
+                  <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-xl text-white">
                     <ClockIcon className="h-4 w-4" />
                     <span>{restaurant.deliveryTime} mins</span>
-                  </div>
-                  <div className="bg-white/15 backdrop-blur-sm px-3 py-1.5 rounded-xl">
-                    Delivery: {(Number(restaurant.deliveryFee) || 0) === 0 ? 'FREE' : formatCurrency(Number(restaurant.deliveryFee))}
                   </div>
                 </div>
               </div>
@@ -139,22 +136,18 @@ const RestaurantDetail = () => {
       {/* Menu Section */}
       <div className="max-w-7xl mx-auto container-px py-8">
         {/* Restaurant Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-8">
           <div className="bg-white rounded-xl p-4 text-center shadow-sm">
             <div className="text-2xl font-bold" style={{ color: BRAND }}>{menuItems?.length || 0}</div>
             <div className="text-sm text-gray-600">Menu Items</div>
           </div>
           <div className="bg-white rounded-xl p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-green-600">{restaurant.rating}</div>
+            <div className="text-2xl font-bold text-green-600">{restaurant.rating}/5</div>
             <div className="text-sm text-gray-600">Rating</div>
           </div>
           <div className="bg-white rounded-xl p-4 text-center shadow-sm">
             <div className="text-2xl font-bold" style={{ color: BRAND }}>{restaurant.deliveryTime}m</div>
             <div className="text-sm text-gray-600">Delivery Time</div>
-          </div>
-          <div className="bg-white rounded-xl p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-green-600">{(Number(restaurant.deliveryFee) || 0) === 0 ? 'Free' : formatCurrency(Number(restaurant.deliveryFee))}</div>
-            <div className="text-sm text-gray-600">Delivery Fee</div>
           </div>
         </div>
 
@@ -171,54 +164,32 @@ const RestaurantDetail = () => {
           )}
         </div>
 
-        {/* Category Filter — Figma pill tabs */}
-        <div className="mb-8">
-          <div className="overflow-x-auto scrollbar-hide">
-            <div className="flex space-x-2 pb-2 min-w-max">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className="px-5 sm:px-6 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-200"
-                  style={
-                    selectedCategory === category
-                      ? { background: BRAND, color: 'white', boxShadow: '0 4px 12px rgba(255,82,59,0.25)' }
-                      : { background: 'white', color: '#4B5563', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }
-                  }
-                  onMouseEnter={e => {
-                    if (selectedCategory !== category) {
-                      e.currentTarget.style.background = '#FFF0ED';
-                      e.currentTarget.style.color = BRAND;
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (selectedCategory !== category) {
-                      e.currentTarget.style.background = 'white';
-                      e.currentTarget.style.color = '#4B5563';
-                    }
-                  }}
-                >
+        {/* Menu Items Grouped by Category */}
+        <div className="space-y-8">
+          {categories.map((category) => {
+            const catItems = category === 'All' ? [] : menuItems?.filter(item => item.category === category);
+            if (category === 'All' || !catItems || catItems.length === 0) return null;
+            
+            return (
+              <div key={category} className="bg-white rounded-2xl shadow-sm overflow-hidden p-6 pb-2">
+                <h3 className="text-xl font-bold mb-4 pb-2 border-b flex justify-between items-center text-gray-900 border-gray-100">
                   {category}
-                  {category !== 'All' && (
-                    <span className="ml-2 text-xs opacity-75">
-                      ({menuItems?.filter(item => item.category === category).length || 0})
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Menu Items Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredMenu && filteredMenu.length > 0 ? (
-            filteredMenu.map((item) => (
-              <MenuCard key={item._id} item={item} restaurant={restaurant} disabled={!isOrderable} />
-            ))
-          ) : (
-            <div className="col-span-full text-center py-12">
-              <p className="text-gray-500">No items found in this category</p>
+                  <span className="text-sm font-semibold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">
+                    {catItems.length} {catItems.length === 1 ? 'item' : 'items'}
+                  </span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
+                  {catItems.map((item) => (
+                    <MenuCard key={item._id} item={item} restaurant={restaurant} disabled={!isOrderable} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          
+          {(!menuItems || menuItems.length === 0) && (
+            <div className="text-center py-12 bg-white rounded-2xl shadow-sm">
+              <p className="text-gray-500">No items found for this restaurant.</p>
             </div>
           )}
         </div>
@@ -258,12 +229,12 @@ const RestaurantDetail = () => {
                   </div>
                 </div>
                 <div>
-                  <span className="text-sm text-gray-500">Min Order</span>
-                  <p className="font-medium">{formatCurrency(restaurant.minOrderAmount || 0)}</p>
-                </div>
-                <div>
                   <span className="text-sm text-gray-500">Accepts</span>
-                  <p className="font-medium">Cash, UPI, Cards</p>
+                  <div className="flex gap-2 mt-1">
+                    <span className="bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 shadow-sm border border-gray-100">Cash</span>
+                    <span className="bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 shadow-sm border border-gray-100">UPI</span>
+                    <span className="bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 shadow-sm border border-gray-100">Cards</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -317,7 +288,6 @@ const RestaurantDetail = () => {
               <ul className="space-y-2 text-gray-700">
                 <li>• Rating: {restaurant.rating}/5 ({restaurant.reviewCount} reviews)</li>
                 <li>• Average delivery time: {restaurant.deliveryTime} minutes</li>
-                <li>• {(Number(restaurant.deliveryFee) || 0) === 0 ? 'FREE delivery' : `Delivery fee: ${formatCurrency(Number(restaurant.deliveryFee))}`}</li>
                 <li>• Quality checked and hygienic</li>
                 <li>• Safe packaging and contactless delivery</li>
               </ul>

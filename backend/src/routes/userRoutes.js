@@ -8,7 +8,8 @@ const {
   getAddresses,
   updateAddress,
   deleteAddress,
-  setDefaultAddress
+  setDefaultAddress,
+  saveFcmToken
 } = require('../controllers/userController');
 
 router.use(protect); // All routes require authentication
@@ -19,5 +20,6 @@ router.get('/addresses', getAddresses);
 router.put('/addresses/:id', updateAddress);
 router.delete('/addresses/:id', deleteAddress);
 router.patch('/addresses/:id/default', setDefaultAddress);
+router.post('/fcm-token', saveFcmToken);
 
 module.exports = router;

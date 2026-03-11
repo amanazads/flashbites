@@ -12,7 +12,7 @@ const initializeSocket = (server) => {
     cors: {
       origin: [
         'http://localhost:3000',
-        'https://flashbites.vercel.app',
+        'https://localhost',
         'https://flashbites.in',
         'https://www.flashbites.in',
         'capacitor://localhost',

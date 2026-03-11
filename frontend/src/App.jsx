@@ -1,13 +1,18 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
+import { Helmet } from 'react-helmet-async';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
+import { Preferences } from '@capacitor/preferences';
 import { getCurrentUser } from './redux/slices/authSlice';
 import { useNotifications } from './hooks/useNotifications';
 
-// Layout Components
+// Firebase initialization (analytics)
+import './firebase';
+
+// Layout Components (always needed — keep eagerly loaded)
 import Navbar from './components/common/Navbar';
 import Footer from './components/common/Footer';
 import CartDrawer from './components/cart/CartDrawer';
@@ -15,33 +20,42 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ScrollToTop from './components/common/ScrollToTop';
 
-// Pages
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import ForgotPassword from './pages/ForgotPassword';
-import RestaurantPage from './pages/RestaurantPage';
-import RestaurantDetail from './pages/RestaurantDetail';
-import RestaurantDashboard from './pages/RestaurantDashboard';
-import DeliveryPartnerDashboard from './pages/DeliveryPartnerDashboard';
-import AdminPanel from './pages/AdminPanel';
-import Checkout from './pages/Checkout';
-import Orders from './pages/Orders';
-import OrderDetail from './pages/OrderDetail';
-import Profile from './pages/Profile';
-import About from './pages/About';
-import Partner from './pages/Partner';
-import TermsPage from './pages/TermsPage';
-import PrivacyPage from './pages/PrivacyPage';
-import NotificationsPage from './pages/NotificationsPage';
-import HelpPage from './pages/HelpPage';
-import Settings from './pages/Settings';
-import Addresses from './pages/Addresses';
-import PaymentMethods from './pages/PaymentMethods';
-import Promos from './pages/Promos';
-import TrackOrder from './pages/TrackOrder';
-import OrderStatus from './pages/OrderStatus';
-import NotFound from './pages/NotFound';
+// Pages — lazy loaded for code splitting (reduces initial bundle ~80%)
+const Home = React.lazy(() => import('./pages/Home'));
+const Login = React.lazy(() => import('./pages/Login'));
+const Register = React.lazy(() => import('./pages/Register'));
+const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
+const RestaurantPage = React.lazy(() => import('./pages/RestaurantPage'));
+const RestaurantDetail = React.lazy(() => import('./pages/RestaurantDetail'));
+const RestaurantDashboard = React.lazy(() => import('./pages/RestaurantDashboard'));
+const DeliveryPartnerDashboard = React.lazy(() => import('./pages/DeliveryPartnerDashboard'));
+const AdminPanel = React.lazy(() => import('./pages/AdminPanel'));
+const Checkout = React.lazy(() => import('./pages/Checkout'));
+const Orders = React.lazy(() => import('./pages/Orders'));
+const OrderDetail = React.lazy(() => import('./pages/OrderDetail'));
+const Profile = React.lazy(() => import('./pages/Profile'));
+const About = React.lazy(() => import('./pages/About'));
+const Partner = React.lazy(() => import('./pages/Partner'));
+const TermsPage = React.lazy(() => import('./pages/TermsPage'));
+const PrivacyPage = React.lazy(() => import('./pages/PrivacyPage'));
+const NotificationsPage = React.lazy(() => import('./pages/NotificationsPage'));
+const HelpPage = React.lazy(() => import('./pages/HelpPage'));
+const PromosPage = React.lazy(() => import('./pages/PromosPage'));
+const Contact = React.lazy(() => import('./pages/Contact'));
+const NotFound = React.lazy(() => import('./pages/NotFound'));
+
+// Page loading fallback
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[60vh]">
+    <div className="flex flex-col items-center gap-3">
+      <svg className="animate-spin w-10 h-10" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-20" cx="12" cy="12" r="10" stroke="#E23744" strokeWidth="4" />
+        <path className="opacity-80" fill="#E23744" d="M4 12a8 8 0 018-8v8z" />
+      </svg>
+      <p className="text-sm text-gray-400 font-medium">Loading…</p>
+    </div>
+  </div>
+);
 
 // Google OAuth Success Handler
 const GoogleAuthSuccess = () => {
@@ -53,7 +67,6 @@ const GoogleAuthSuccess = () => {
 
       if (token && refreshToken) {
         // Use Preferences instead of localStorage
-        const { Preferences } = await import('@capacitor/preferences');
         await Preferences.set({ key: 'accessToken', value: token });
         await Preferences.set({ key: 'refreshToken', value: refreshToken });
         window.location.href = '/';
@@ -75,10 +88,149 @@ const GoogleAuthSuccess = () => {
   );
 };
 
-function AppContent() {
-  const dispatch = useDispatch();
-  const { isAuthenticated, token } = useSelector((state) => state.auth);
+// Extracted auth paths to a constant
+const AUTH_PATHS = ['/login', '/register', '/forgot-password', '/auth/google/success'];
+
+// Global Route Guard for Business Roles
+const RoleRedirector = () => {
+  const { user, isAuthenticated } = useSelector((state) => state.auth);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Wait until user object AND role are both available
+    if (!isAuthenticated || !user || !user.role) return;
+
+    const path = location.pathname;
+    const allowedCommonPaths = ['/profile', '/help', '/terms', '/privacy', '/contact', '/notifications', '/login', '/register'];
+    const isAllowedCommonPath = allowedCommonPaths.some(p => path.startsWith(p));
+
+    if (user.role === 'restaurant_owner') {
+      if (!path.startsWith('/dashboard') && !isAllowedCommonPath) {
+        navigate('/dashboard', { replace: true });
+      }
+    } else if (user.role === 'delivery_partner') {
+      if (!path.startsWith('/delivery-dashboard') && !isAllowedCommonPath) {
+        navigate('/delivery-dashboard', { replace: true });
+      }
+    } else if (user.role === 'admin') {
+      if (!path.startsWith('/admin') && !isAllowedCommonPath) {
+        navigate('/admin', { replace: true });
+      }
+    }
+    // role === 'customer' or undefined → no redirect
+  }, [isAuthenticated, user, user?.role, location.pathname, navigate]);
+
+  return null;
+};
+
+// Needs to be inside <Router> to access useLocation
+const AppLayout = () => {
+  const location = useLocation();
+  const isAuthPage = AUTH_PATHS.some(p => location.pathname.startsWith(p));
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      {!isAuthPage && <Navbar />}
+      <main className={`flex-1 w-full relative z-0 ${isAuthPage ? '' : 'pb-20 lg:pb-0'}`}>
+        <React.Suspense fallback={<PageLoader />}>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
+            <Route path="/restaurants" element={<RestaurantPage />} />
+            <Route path="/restaurant/:id" element={<RestaurantDetail />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/partner" element={<Partner />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/help" element={<HelpPage />} />
+            <Route path="/promos" element={<PromosPage />} />
+            <Route path="/contact" element={<Contact />} />
+
+            {/* Protected Routes */}
+            <Route
+              path="/checkout"
+              element={
+                <ProtectedRoute>
+                  <Checkout />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <ProtectedRoute>
+                  <Orders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders/:id"
+              element={
+                <ProtectedRoute>
+                  <OrderDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute>
+                  <NotificationsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <RestaurantDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/delivery-dashboard"
+              element={
+                <ProtectedRoute>
+                  <DeliveryPartnerDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminPanel />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </React.Suspense>
+      </main>
+      {!isAuthPage && <footer className="hidden lg:block"><Footer /></footer>}
+      {!isAuthPage && <CartDrawer />}
+    </div>
+  );
+};
+
+function App() {
+  const dispatch = useDispatch();
+  const { isAuthenticated } = useSelector((state) => state.auth);
   
   // Initialize notification system
   useNotifications();
@@ -93,7 +245,7 @@ function AppContent() {
         if (isNative && Capacitor.isPluginAvailable('StatusBar')) {
           // Set status bar to transparent or match app color
           await StatusBar.setStyle({ style: Style.Light });
-          await StatusBar.setBackgroundColor({ color: '#e11d48' }); // Your primary color (rose-600)
+          await StatusBar.setBackgroundColor({ color: '#FF523B' }); // Brand orange
           console.log('Status bar initialized successfully');
         }
       } catch (error) {
@@ -111,205 +263,85 @@ function AppContent() {
   }, [isNative]);
 
   useEffect(() => {
-    // Check if we have a token and fetch current user
-    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-    if (token) {
-      dispatch(getCurrentUser());
+    // Restore session on app restart / page refresh.
+    // Skip if Redux already has a user (right after login/register).
+    if (!isAuthenticated) {
+      const restoreSession = async () => {
+        let token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+
+        // On Capacitor, also check Preferences (the native persistent store)
+        if (!token && window.Capacitor) {
+          try {
+            const { value } = await Preferences.get({ key: 'token' });
+            token = value;
+            if (!token) {
+              const { value: v2 } = await Preferences.get({ key: 'accessToken' });
+              token = v2;
+            }
+          } catch (e) {
+            // Preferences unavailable — fall through
+          }
+        }
+
+        if (token) {
+          dispatch(getCurrentUser());
+        }
+      };
+      restoreSession();
     }
-  }, [dispatch]);
+  }, [dispatch, isAuthenticated]);
 
-  const normalizedPath = location.pathname !== '/' && location.pathname.endsWith('/')
-    ? location.pathname.slice(0, -1)
-    : location.pathname;
-
-  const isTrackOrderPage = /^\/orders\/[^/]+\/track$/.test(location.pathname);
-  const isOrderStatusPage = /^\/orders\/[^/]+\/status$/.test(location.pathname);
-  const isOrderDetailPage = /^\/orders\/[^/]+$/.test(location.pathname);
-  // Hide global navbar/footer on auth and app-like mobile pages
-  const isAuthPage = ['/login', '/register', '/forgot-password', '/checkout', '/profile', '/settings', '/addresses', '/payment-methods', '/promos', '/help', '/privacy', '/terms', '/partner', '/orders', '/about', '/notifications'].includes(normalizedPath) || isTrackOrderPage || isOrderDetailPage || isOrderStatusPage;
-  const isProfilePage = ['/checkout', '/profile', '/settings', '/addresses', '/payment-methods', '/promos', '/help', '/privacy', '/terms', '/partner', '/orders', '/about', '/notifications'].includes(normalizedPath) || isTrackOrderPage || isOrderDetailPage || isOrderStatusPage;
-
-  return (
-    <div className="flex flex-col min-h-screen">
-      {!isAuthPage && <Navbar />}
-      
-      <main className={`flex-1 w-full relative z-0 ${isProfilePage ? 'pb-0' : 'pb-20 lg:pb-0'}`}>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
-          <Route path="/restaurants" element={<RestaurantPage />} />
-          <Route path="/restaurant/:id" element={<RestaurantDetail />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/partner" element={<Partner />} />
-          <Route path="/terms" element={<TermsPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
-          <Route path="/help" element={<HelpPage />} />
-
-          {/* Protected Routes */}
-          <Route
-            path="/checkout"
-            element={
-              <ProtectedRoute>
-                <Checkout />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/orders"
-            element={
-              <ProtectedRoute>
-                <Orders />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/orders/:id"
-            element={
-              <ProtectedRoute>
-                <OrderDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/orders/:id/track"
-            element={
-              <ProtectedRoute>
-                <TrackOrder />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/orders/:id/status"
-            element={
-              <ProtectedRoute>
-                <OrderStatus />
-              </ProtectedRoute>
-            }
-          />
-          {/* Profile is now protected again */}
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/notifications"
-            element={
-              <ProtectedRoute>
-                <NotificationsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/addresses"
-            element={
-              <ProtectedRoute>
-                <Addresses />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/payment-methods"
-            element={
-              <ProtectedRoute>
-                <PaymentMethods />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/promos"
-            element={
-              <ProtectedRoute>
-                <Promos />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <RestaurantDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/delivery-dashboard"
-            element={
-              <ProtectedRoute>
-                <DeliveryPartnerDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute>
-                <AdminPanel />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </main>
-
-      {!isAuthPage && !isProfilePage && (
-        <footer className="hidden lg:block">
-          <Footer />
-        </footer>
-      )}
-      {!isAuthPage && !isProfilePage && <CartDrawer />}
-    </div>
-  );
-}
-
-function App() {
   return (
     <ErrorBoundary>
+      {/* Global default title – overridden per-page by <SEO> components */}
+      <Helmet defaultTitle="FlashBites" titleTemplate="%s | FlashBites" />
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <RoleRedirector />
         <ScrollToTop />
-        <AppContent />
-
-        {/* Toast Notifications */}
+        <AppLayout />
         <Toaster
           position="top-center"
-          containerStyle={{ top: 16 }}
+          containerStyle={{ top: 20 }}
           toastOptions={{
-            duration: 3000,
+            duration: 3500,
             style: {
-              background: '#363636',
-              color: '#fff',
-              maxWidth: '90vw',
+              background: '#1C1C1E',
+              color: '#F5F5F7',
+              maxWidth: '92vw',
               fontSize: '14px',
+              fontWeight: '500',
+              borderRadius: '14px',
+              padding: '12px 16px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15)',
             },
             success: {
               duration: 3000,
               iconTheme: {
-                primary: '#10b981',
-                secondary: '#fff',
+                primary: '#34D399',
+                secondary: '#1C1C1E',
+              },
+              style: {
+                background: '#0D1F18',
+                color: '#D1FAE5',
+                border: '1px solid #065F46',
               },
             },
             error: {
-              duration: 4000,
+              duration: 4500,
               iconTheme: {
-                primary: '#ef4444',
-                secondary: '#fff',
+                primary: '#F87171',
+                secondary: '#1C1C1E',
+              },
+              style: {
+                background: '#1F0D0D',
+                color: '#FEE2E2',
+                border: '1px solid #7F1D1D',
+              },
+            },
+            loading: {
+              iconTheme: {
+                primary: '#FF6B35',
+                secondary: '#1C1C1E',
               },
             },
           }}

@@ -37,7 +37,7 @@ services:
       - key: MAILTRAP_API_TOKEN
         sync: false
       - key: MAILTRAP_FROM_EMAIL
-        value: hello@flashbites.shop
+        value: hello@flashbites.in
       - key: MAILTRAP_FROM_NAME
         value: FlashBites
       - key: GOOGLE_CLIENT_ID
@@ -47,7 +47,7 @@ services:
       - key: SESSION_SECRET
         sync: false
       - key: FRONTEND_URL
-        value: https://flashbites.shop
+        value: https://flashbites.in
       - key: VAPID_PUBLIC_KEY
         sync: false
       - key: VAPID_PRIVATE_KEY

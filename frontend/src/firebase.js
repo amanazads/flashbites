@@ -1,6 +1,7 @@
 // Firebase configuration for FlashBites
 import { initializeApp } from "firebase/app";
 import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
+import { getMessaging, getToken, onMessage, isSupported } from "firebase/messaging";
 
 // All values injected from .env via Vite (must start with VITE_)
 const firebaseConfig = {
@@ -26,6 +27,78 @@ const ensureFirebaseAuth = () => {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   return auth;
+};
+
+// ─── FCM Messaging ────────────────────────────────────────────────────────────
+// FCM VAPID key from Firebase Console → Project Settings → Cloud Messaging → Web Push certificates
+const FCM_VAPID_KEY = import.meta.env.VITE_FCM_VAPID_KEY || '';
+
+let messagingInstance = null;
+
+const getMessagingInstance = async () => {
+  if (messagingInstance) return messagingInstance;
+  try {
+    const supported = await isSupported();
+    if (!supported) return null;
+    messagingInstance = getMessaging(app);
+    return messagingInstance;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Request FCM permission and get the device token.
+ * Token is used by the backend to send targeted push notifications.
+ */
+export const getFCMToken = async () => {
+  try {
+    // Guard: if Firebase config is incomplete, skip FCM entirely
+    if (!firebaseConfig.projectId || firebaseConfig.projectId === 'undefined') {
+      console.warn('FCM skipped — Firebase projectId not configured in env vars');
+      return null;
+    }
+
+    const messaging = await getMessagingInstance();
+    if (!messaging) return null;
+
+    let swRegistration;
+    // Register the service worker and pass registration handle to getToken
+    if ('serviceWorker' in navigator) {
+      const swUrl = `/firebase-messaging-sw.js?apiKey=${firebaseConfig.apiKey}&authDomain=${firebaseConfig.authDomain}&projectId=${firebaseConfig.projectId}&storageBucket=${firebaseConfig.storageBucket}&messagingSenderId=${firebaseConfig.messagingSenderId}&appId=${firebaseConfig.appId}`;
+      swRegistration = await navigator.serviceWorker.register(swUrl);
+    }
+
+    const token = await getToken(messaging, {
+      vapidKey: FCM_VAPID_KEY,
+      ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {}),
+    });
+
+    if (token) {
+      console.log('✅ FCM token obtained:', token.slice(0, 20) + '...');
+      return token;
+    } else {
+      console.warn('No FCM token available — notification permission may be blocked');
+      return null;
+    }
+  } catch (error) {
+    console.error('Failed to get FCM token:', error);
+    return null;
+  }
+};
+
+
+/**
+ * Listen for foreground FCM messages (when app is open/focused).
+ */
+export const onForegroundMessage = async (callback) => {
+  try {
+    const messaging = await getMessagingInstance();
+    if (!messaging) return () => {};
+    return onMessage(messaging, callback);
+  } catch {
+    return () => {};
+  }
 };
 
 /**

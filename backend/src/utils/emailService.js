@@ -215,9 +215,63 @@ const sendPasswordResetSuccessEmail = async (email, name) => {
   }
 };
 
+// Send contact form email
+const sendContactEmail = async ({ name, email, phone, subject, message }) => {
+  try {
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px;">
+        <h2 style="color: #111827; margin-bottom: 20px; border-bottom: 2px solid #E23744; padding-bottom: 10px;">New Contact Submission</h2>
+        <div style="background-color: #f9fafb; padding: 20px; border-radius: 6px;">
+          <p style="margin: 0 0 10px 0;"><strong style="color: #374151;">Name:</strong> <span style="color: #111827;">${name}</span></p>
+          <p style="margin: 0 0 10px 0;"><strong style="color: #374151;">Email:</strong> <a href="mailto:${email}" style="color: #2563eb;">${email}</a></p>
+          <p style="margin: 0 0 10px 0;"><strong style="color: #374151;">Phone:</strong> <span style="color: #111827;">${phone || 'Not provided'}</span></p>
+          <p style="margin: 0 0 10px 0;"><strong style="color: #374151;">Subject:</strong> <strong style="color: #E23744;">${subject}</strong></p>
+        </div>
+        <div style="margin-top: 20px;">
+          <h3 style="color: #374151; font-size: 16px; margin-bottom: 10px;">Message:</h3>
+          <p style="background-color: #ffffff; padding: 15px; border: 1px solid #e5e7eb; border-radius: 6px; color: #4b5563; line-height: 1.6; white-space: pre-wrap;">${message}</p>
+        </div>
+      </div>
+    `;
+
+    const adminEmail = 'info.flashbites@gmail.com';
+    const emailSubject = `[FlashBites Contact] ${subject} from ${name}`;
+    const textMessage = `New Contact Form Submission from ${name} (${email}). Subject: ${subject}. Message: ${message}`;
+
+    // Try Mailtrap API first
+    if (process.env.MAILTRAP_API_TOKEN) {
+      await sendMailtrapAPI(adminEmail, emailSubject, htmlContent, textMessage);
+      console.log(`✅ Contact email sent successfully to ${adminEmail}`);
+      return true;
+    }
+
+    // Fallback to SMTP
+    if (!transporter) {
+      console.warn('⚠️ Email service not configured. Could not send contact email.');
+      return false;
+    }
+
+    const mailOptions = {
+      from: process.env.MAILTRAP_FROM_EMAIL || 'FlashBites <noreply@flashbites.in>',
+      to: adminEmail,
+      replyTo: email,
+      subject: emailSubject,
+      html: htmlContent
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Contact email sent via SMTP to ${adminEmail}`);
+    return true;
+  } catch (error) {
+    console.error('Contact email error:', error);
+    return false;
+  }
+};
+
 module.exports = {
   generateOTP,
   sendOTPEmail,
   sendWelcomeEmail,
-  sendPasswordResetSuccessEmail
+  sendPasswordResetSuccessEmail,
+  sendContactEmail
 };

@@ -26,7 +26,11 @@ const COUPONS = [
     title: '50% Off – First 3 Orders',
     description: 'Get 50% off on your first 3 orders. Maximum discount ₹100 per order.',
     discount: '50% OFF',
+<<<<<<< HEAD
     minOrder: 199,
+=======
+    minOrder: 0,
+>>>>>>> 03f7a28c714d024301f4bb01a60a7d16a613a2a0
     maxDiscount: 100,
     type: 'percent',
     tag: 'NEW USER',
@@ -42,9 +46,15 @@ const COUPONS = [
     id: 2,
     code: 'FREEDEL',
     title: 'Free Delivery – Any Order',
+<<<<<<< HEAD
     description: 'Zero delivery charges on orders above ₹199. No location restriction.',
     discount: 'FREE DELIVERY',
     minOrder: 199,
+=======
+    description: 'Zero delivery charges on your order. No location restriction.',
+    discount: 'FREE DELIVERY',
+    minOrder: 0,
+>>>>>>> 03f7a28c714d024301f4bb01a60a7d16a613a2a0
     maxDiscount: 80,
     type: 'delivery',
     tag: 'POPULAR',
@@ -98,7 +108,11 @@ const COUPONS = [
     title: '15% Off – Lunch Hours',
     description: '15% off on all orders placed between 12 PM – 3 PM. Max discount ₹60.',
     discount: '15% OFF',
+<<<<<<< HEAD
     minOrder: 199,
+=======
+    minOrder: 0,
+>>>>>>> 03f7a28c714d024301f4bb01a60a7d16a613a2a0
     maxDiscount: 60,
     type: 'percent',
     tag: '12–3 PM',

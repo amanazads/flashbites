@@ -16,6 +16,32 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
 
   if (!isOpen) return null;
 
+  const handlePincodeChange = async (e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+    setFormData(prev => ({ ...prev, zipCode: value }));
+
+    if (value.length === 6) {
+      try {
+        const response = await fetch(`https://api.postalpincode.in/pincode/${value}`);
+        const data = await response.json();
+        
+        if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
+          const postOffice = data[0].PostOffice[0];
+          setFormData(prev => ({
+            ...prev,
+            city: postOffice.District,
+            state: postOffice.State
+          }));
+          toast.success("City and State auto-detected");
+        } else {
+          toast.error("Invalid PIN code entered");
+        }
+      } catch (error) {
+        console.error("Failed to fetch pincode details", error);
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -163,7 +189,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
             <input
               type="text"
               value={formData.zipCode}
-              onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
+              onChange={handlePincodeChange}
               placeholder="6-digit PIN code"
               maxLength={6}
               pattern="[0-9]{6}"
