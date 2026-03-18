@@ -54,7 +54,16 @@ const TermsAndConditions = () => {
               <ul className="list-disc pl-6 space-y-2">
                 <li>One person cannot maintain multiple accounts</li>
                 <li>Accounts are non-transferable</li>
+                <li>Account deletion is request-based and subject to admin review; direct instant self-deletion is not available</li>
                 <li>We reserve the right to suspend or terminate accounts that violate these Terms</li>
+              </ul>
+
+              <h3 className="text-xl font-semibold text-gray-800 mt-4">3.3 Account Deletion Requests</h3>
+              <ul className="list-disc pl-6 space-y-2">
+                <li>Users may submit account deletion requests from their Profile page</li>
+                <li>Deletion requests are reviewed by FlashBites admins before final action</li>
+                <li>Approved requests are generally completed within 2-4 weeks</li>
+                <li>Some data may be retained where required by law, tax, fraud prevention, or dispute handling obligations</li>
               </ul>
             </div>
           </section>

@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Address = require('../models/Address');
+const AccountDeletionRequest = require('../models/AccountDeletionRequest');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 
 // @desc    Update user profile
@@ -164,5 +165,74 @@ exports.saveFcmToken = async (req, res) => {
     successResponse(res, 200, 'FCM token saved successfully');
   } catch (error) {
     errorResponse(res, 500, 'Failed to save FCM token', error.message);
+  }
+};
+
+// @desc    Submit account deletion request
+// @route   POST /api/users/account-deletion-requests
+// @access  Private
+exports.submitAccountDeletionRequest = async (req, res) => {
+  try {
+    const { reason, details = '' } = req.body;
+
+    if (!reason || reason.trim().length < 10) {
+      return errorResponse(res, 400, 'Please provide a reason with at least 10 characters');
+    }
+
+    const pendingRequest = await AccountDeletionRequest.findOne({
+      userId: req.user._id,
+      status: 'pending'
+    });
+
+    if (pendingRequest) {
+      return errorResponse(res, 409, 'You already have a pending account deletion request under review');
+    }
+
+    const deletionRequest = await AccountDeletionRequest.create({
+      userId: req.user._id,
+      name: req.user.name,
+      email: req.user.email || null,
+      phone: req.user.phone,
+      reason: reason.trim(),
+      details: details.trim(),
+      status: 'pending',
+      expectedDeletionWindow: '2-4 weeks'
+    });
+
+    successResponse(res, 201, 'Deletion request submitted. Our team will review it and complete account deletion within 2-4 weeks.', {
+      request: deletionRequest
+    });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to submit deletion request', error.message);
+  }
+};
+
+// @desc    Get my latest account deletion request
+// @route   GET /api/users/account-deletion-requests/me
+// @access  Private
+exports.getMyDeletionRequest = async (req, res) => {
+  try {
+    const request = await AccountDeletionRequest.findOne({ userId: req.user._id })
+      .sort({ createdAt: -1 });
+
+    successResponse(res, 200, 'Deletion request status fetched successfully', { request });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to fetch deletion request status', error.message);
+  }
+};
+
+// @desc    Delete authenticated user account (disabled for users)
+// @route   DELETE /api/users/account
+// @access  Private
+exports.deleteAccount = async (req, res) => {
+  try {
+    return errorResponse(
+      res,
+      403,
+      'Direct account deletion is disabled. Please submit an account deletion request for admin review (2-4 weeks).'
+    );
+
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to delete account', error.message);
   }
 };

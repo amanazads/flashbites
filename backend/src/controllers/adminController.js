@@ -5,6 +5,9 @@ const Order = require('../models/Order');
 const Restaurant = require('../models/Restaurant');
 const Payment = require('../models/Payment');
 const Coupon = require('../models/Coupon');
+const Address = require('../models/Address');
+const Notification = require('../models/Notification');
+const AccountDeletionRequest = require('../models/AccountDeletionRequest');
 const { notifyCouponAvailable, notifyUser } = require('../utils/notificationService');
 
 // @desc    Get admin dashboard statistics
@@ -590,5 +593,92 @@ exports.getComprehensiveAnalytics = async (req, res) => {
   } catch (error) {
     console.error('Admin analytics error:', error);
     errorResponse(res, 500, 'Failed to get analytics', error.message);
+  }
+};
+
+// @desc    Get account deletion requests
+// @route   GET /api/admin/account-deletion-requests
+// @access  Private (Admin)
+exports.getAccountDeletionRequests = async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    const parsedPage = parseInt(page, 10);
+    const parsedLimit = parseInt(limit, 10);
+
+    const query = {};
+    if (status && ['pending', 'approved', 'rejected'].includes(status)) {
+      query.status = status;
+    }
+
+    const requests = await AccountDeletionRequest.find(query)
+      .populate('reviewedBy', 'name email')
+      .sort({ createdAt: -1 })
+      .skip((parsedPage - 1) * parsedLimit)
+      .limit(parsedLimit);
+
+    const total = await AccountDeletionRequest.countDocuments(query);
+
+    successResponse(res, 200, 'Account deletion requests fetched successfully', {
+      requests,
+      pagination: {
+        total,
+        page: parsedPage,
+        pages: Math.ceil(total / parsedLimit)
+      }
+    });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to fetch account deletion requests', error.message);
+  }
+};
+
+// @desc    Review account deletion request
+// @route   PATCH /api/admin/account-deletion-requests/:id/review
+// @access  Private (Admin)
+exports.reviewAccountDeletionRequest = async (req, res) => {
+  try {
+    const { action, adminNotes = '' } = req.body;
+
+    if (!['approve', 'reject'].includes(action)) {
+      return errorResponse(res, 400, 'Action must be either approve or reject');
+    }
+
+    const deletionRequest = await AccountDeletionRequest.findById(req.params.id);
+
+    if (!deletionRequest) {
+      return errorResponse(res, 404, 'Deletion request not found');
+    }
+
+    if (deletionRequest.status !== 'pending') {
+      return errorResponse(res, 409, 'This request has already been reviewed');
+    }
+
+    if (action === 'approve') {
+      const userId = deletionRequest.userId;
+
+      await Promise.all([
+        Address.deleteMany({ userId }),
+        Notification.deleteMany({ recipient: userId }),
+        User.findByIdAndDelete(userId)
+      ]);
+
+      deletionRequest.status = 'approved';
+    } else {
+      deletionRequest.status = 'rejected';
+    }
+
+    deletionRequest.adminNotes = adminNotes.trim();
+    deletionRequest.reviewedBy = req.user._id;
+    deletionRequest.reviewedAt = new Date();
+
+    await deletionRequest.save();
+
+    successResponse(
+      res,
+      200,
+      `Deletion request ${action === 'approve' ? 'approved and account deleted' : 'rejected'} successfully`,
+      { request: deletionRequest }
+    );
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to review deletion request', error.message);
   }
 };

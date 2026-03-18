@@ -81,9 +81,11 @@ instance.interceptors.response.use(
     // Skip noisy logs for expected auth-check failures and simple coupon validation
     const isExpectedAuthCheckFailure = status === 401 && url.includes('/auth/me');
     const isExpectedCouponFailure = (status === 404 || status === 400) && url.includes('/coupons/validate');
+    const isExpectedNotificationAuthFailure = (status === 401 || status === 403) && url.includes('/notifications');
+    const isExpectedAccountDeletionNotReady = status === 404 && url.includes('/users/account-deletion-requests');
 
     // Log the full error for debugging
-    if (!isExpectedAuthCheckFailure && !isExpectedCouponFailure) {
+    if (!isExpectedAuthCheckFailure && !isExpectedCouponFailure && !isExpectedNotificationAuthFailure && !isExpectedAccountDeletionNotReady) {
       console.error('API Error:', {
         url: error.config?.url,
         method: error.config?.method,
@@ -96,12 +98,14 @@ instance.interceptors.response.use(
     if (status === 401) {
       // Only treat as a real session expiry if the user is explicitly on/navigating to a protected page.
       // Background calls (FCM token, /auth/me, socket setup, etc.) should NOT wipe the session.
-      const protectedRoutes = ['/checkout', '/orders', '/profile', '/auth/logout', '/notifications', '/users/addresses'];
+      const protectedRoutes = ['/checkout', '/orders', '/profile', '/auth/logout', '/users/addresses'];
       const isProtectedRequest = protectedRoutes.some(route => url.includes(route));
+      const protectedPagePrefixes = ['/checkout', '/orders', '/profile', '/notifications', '/dashboard', '/delivery-dashboard', '/admin'];
+      const isOnProtectedPage = protectedPagePrefixes.some((prefix) => window.location.pathname.startsWith(prefix));
 
       // Only clear tokens + redirect when this is a user-facing protected action, not a background call.
       // This prevents register/login flows from being disrupted by background 401s (e.g. FCM token, /auth/me)
-      if (isProtectedRequest) {
+      if (isProtectedRequest && isOnProtectedPage) {
         if (isCapacitor) {
           await Preferences.remove({ key: 'token' });
           await Preferences.remove({ key: 'accessToken' });

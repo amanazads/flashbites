@@ -16,7 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { getRestaurants } from '../api/restaurantApi';
 import { getAllPartnerApplications, approvePartner, rejectPartner } from '../api/partnerApi';
-import { getComprehensiveAnalytics } from '../api/adminApi';
+import { getComprehensiveAnalytics, getAccountDeletionRequests, reviewAccountDeletionRequest } from '../api/adminApi';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
 import axios from '../api/axios';
@@ -30,6 +30,7 @@ const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [partners, setPartners] = useState([]);
+  const [deletionRequests, setDeletionRequests] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsPeriod, setAnalyticsPeriod] = useState('30');
@@ -41,6 +42,7 @@ const AdminPanel = () => {
     pendingApprovals: 0,
     totalPartners: 0,
     pendingPartners: 0,
+    pendingDeletionRequests: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -85,6 +87,7 @@ const AdminPanel = () => {
   useEffect(() => {
     const pendingApprovals = restaurants.filter(r => !r.isApproved).length;
     const pendingPartners = partners.filter(p => p.status === 'pending').length;
+    const pendingDeletionRequests = deletionRequests.filter(r => r.status === 'pending').length;
     setStats({
       totalRestaurants: restaurants.length,
       totalUsers: users.length,
@@ -93,8 +96,9 @@ const AdminPanel = () => {
       pendingApprovals,
       totalPartners: partners.length,
       pendingPartners,
+      pendingDeletionRequests,
     });
-  }, [restaurants, users, orders, partners]);
+  }, [restaurants, users, orders, partners, deletionRequests]);
 
   const fetchData = async () => {
     try {
@@ -133,6 +137,14 @@ const AdminPanel = () => {
         setPartners(partnersRes.data?.partners || []);
       } catch (err) {
         console.log('Partners endpoint not available yet');
+      }
+
+      // Fetch account deletion requests
+      try {
+        const requestsRes = await getAccountDeletionRequests({ limit: 100 });
+        setDeletionRequests(requestsRes.data?.data?.requests || []);
+      } catch (err) {
+        console.log('Account deletion requests endpoint not available yet');
       }
       
       setLoading(false);
@@ -230,6 +242,37 @@ const AdminPanel = () => {
     } catch (error) {
       toast.error('Failed to reject partner');
       console.error(error);
+    }
+  };
+
+  const handleReviewDeletionRequest = async (requestId, action) => {
+    const isApprove = action === 'approve';
+
+    const result = await Swal.fire({
+      title: isApprove ? 'Approve and delete account?' : 'Reject deletion request?',
+      input: 'textarea',
+      inputLabel: isApprove ? 'Optional admin note' : 'Reason for rejection',
+      inputPlaceholder: isApprove ? 'Add optional note for records' : 'Enter rejection reason',
+      showCancelButton: true,
+      confirmButtonColor: isApprove ? '#16a34a' : '#ef4444',
+      cancelButtonColor: '#9CA3AF',
+      confirmButtonText: isApprove ? 'Approve & Delete' : 'Reject Request',
+      inputValidator: (value) => {
+        if (!isApprove && !value) return 'Please provide a rejection reason';
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await reviewAccountDeletionRequest(requestId, {
+        action,
+        adminNotes: result.value || ''
+      });
+      toast.success(isApprove ? 'Request approved and account deleted' : 'Request rejected');
+      fetchData();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to review request');
     }
   };
 
@@ -380,6 +423,16 @@ const AdminPanel = () => {
                 }`}
               >
                 Analytics
+              </button>
+              <button
+                onClick={() => setActiveTab('deletionRequests')}
+                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                  activeTab === 'deletionRequests'
+                    ? 'border-b-2 border-primary-500 text-primary-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Deletion Requests ({deletionRequests.length})
               </button>
             </nav>
           </div>
@@ -747,6 +800,86 @@ const AdminPanel = () => {
                               Applied: {formatDateTime(partner.createdAt)}
                             </p>
                           </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'deletionRequests' && (
+              <div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center mb-4">
+                  <h2 className="text-xl font-bold">Account Deletion Requests</h2>
+                  <div className="text-sm text-gray-600">
+                    Total: {deletionRequests.length} |
+                    <span className="text-yellow-600 ml-1">
+                      Pending: {deletionRequests.filter(r => r.status === 'pending').length}
+                    </span>
+                  </div>
+                </div>
+
+                {deletionRequests.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No account deletion requests yet
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {deletionRequests.map((request) => (
+                      <div key={request._id} className="border rounded-lg p-5 bg-white">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="text-base font-bold text-gray-900">{request.name}</h3>
+                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                request.status === 'pending'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : request.status === 'approved'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-red-100 text-red-800'
+                              }`}>
+                                {request.status.toUpperCase()}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600">{request.email || 'No email'} • {request.phone}</p>
+                            <p className="text-sm text-gray-700 mt-2">
+                              <span className="font-semibold">Reason:</span> {request.reason}
+                            </p>
+                            {request.details && (
+                              <p className="text-sm text-gray-700 mt-1">
+                                <span className="font-semibold">Details:</span> {request.details}
+                              </p>
+                            )}
+                            {request.adminNotes && (
+                              <p className="text-sm text-gray-700 mt-1">
+                                <span className="font-semibold">Admin Note:</span> {request.adminNotes}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-500 mt-2">
+                              Requested: {formatDateTime(request.createdAt)}
+                              {request.reviewedAt ? ` • Reviewed: ${formatDateTime(request.reviewedAt)}` : ''}
+                            </p>
+                          </div>
+
+                          {request.status === 'pending' && (
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <button
+                                onClick={() => handleReviewDeletionRequest(request._id, 'approve')}
+                                className="inline-flex items-center px-4 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors whitespace-nowrap"
+                              >
+                                <CheckCircleIcon className="h-4 w-4 mr-1" />
+                                Approve & Delete
+                              </button>
+                              <button
+                                onClick={() => handleReviewDeletionRequest(request._id, 'reject')}
+                                className="inline-flex items-center px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors whitespace-nowrap"
+                              >
+                                <XCircleIcon className="h-4 w-4 mr-1" />
+                                Reject
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}

@@ -44,6 +44,10 @@ const faqs = [
     q: 'How do I become a restaurant partner?',
     a: 'Visit our Partner page or email info.flashbites@gmail.com. Our team will get in touch within 24–48 hours.',
   },
+  {
+    q: 'How can I delete my FlashBites account?',
+    a: 'You can submit an account deletion request from your Profile page. Requests are reviewed by our admin team and are generally completed within 2–4 weeks. Direct instant self-deletion is not available.',
+  },
 ];
 
 const FaqItem = ({ faq, index }) => {

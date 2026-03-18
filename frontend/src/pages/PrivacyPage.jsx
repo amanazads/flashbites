@@ -271,8 +271,9 @@ const PrivacyPolicy = () => {
 
             <h3 className="text-xl font-semibold text-gray-800 mt-6 mb-3">7.2 Delete Your Account</h3>
             <p>
-              You can request deletion of your account by contacting customer support. We will delete or anonymize 
-              your personal data, subject to legal retention requirements.
+              You can submit an account deletion request from your Profile page. Deletion requests are reviewed by
+              our admin team and are typically processed within 2-4 weeks. We will delete or anonymize your personal
+              data after approval, subject to applicable legal, tax, fraud prevention, and regulatory retention requirements.
             </p>
 
             <h3 className="text-xl font-semibold text-gray-800 mt-6 mb-3">7.3 Opt-Out of Marketing</h3>

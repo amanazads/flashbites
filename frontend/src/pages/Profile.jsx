@@ -559,6 +559,17 @@ const Profile = () => {
               Sign Out
             </button>
 
+            {user?.role === 'user' && (
+              <Link
+                to="/account-delete"
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[14.5px] font-bold transition-colors"
+                style={{ background: '#FFE4E6', color: '#DC2626' }}
+              >
+                <TrashIcon className="w-5 h-5" />
+                Account Deletion Request
+              </Link>
+            )}
+
             <p className="text-center text-[11px] text-gray-300 pb-2">
               © {new Date().getFullYear()} FlashBites · All rights reserved
             </p>

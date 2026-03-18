@@ -27,3 +27,11 @@ export const blockUser = (id, isActive) => {
 export const getComprehensiveAnalytics = (params) => {
   return axios.get('/admin/analytics', { params });
 };
+
+export const getAccountDeletionRequests = (params) => {
+  return axios.get('/admin/account-deletion-requests', { params });
+};
+
+export const reviewAccountDeletionRequest = (id, payload) => {
+  return axios.patch(`/admin/account-deletion-requests/${id}/review`, payload);
+};

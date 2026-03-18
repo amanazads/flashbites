@@ -69,7 +69,11 @@ export const getFCMToken = async () => {
       return null;
     }
   } catch (error) {
-    console.error('Failed to get FCM token:', error);
+    if (error?.name === 'AbortError' || /Registration failed - push service error/i.test(error?.message || '')) {
+      console.warn('FCM token unavailable in this browser/session:', error?.message || error);
+      return null;
+    }
+    console.warn('Failed to get FCM token:', error?.message || error);
     return null;
   }
 };

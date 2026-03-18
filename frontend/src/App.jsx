@@ -39,6 +39,7 @@ const Partner = React.lazy(() => import('./pages/Partner'));
 const TermsPage = React.lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = React.lazy(() => import('./pages/PrivacyPage'));
 const NotificationsPage = React.lazy(() => import('./pages/NotificationsPage'));
+const AccountDeletePage = React.lazy(() => import('./pages/AccountDeletePage'));
 const HelpPage = React.lazy(() => import('./pages/HelpPage'));
 const PromosPage = React.lazy(() => import('./pages/PromosPage'));
 const Contact = React.lazy(() => import('./pages/Contact'));
@@ -253,6 +254,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <NotificationsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/account-delete"
+                element={
+                  <ProtectedRoute>
+                    <AccountDeletePage />
                   </ProtectedRoute>
                 }
               />

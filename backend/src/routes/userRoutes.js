@@ -9,7 +9,9 @@ const {
   updateAddress,
   deleteAddress,
   setDefaultAddress,
-  saveFcmToken
+  saveFcmToken,
+  submitAccountDeletionRequest,
+  getMyDeletionRequest
 } = require('../controllers/userController');
 
 router.use(protect); // All routes require authentication
@@ -21,5 +23,8 @@ router.put('/addresses/:id', updateAddress);
 router.delete('/addresses/:id', deleteAddress);
 router.patch('/addresses/:id/default', setDefaultAddress);
 router.post('/fcm-token', saveFcmToken);
+router.post('/account-deletion-requests', submitAccountDeletionRequest);
+router.get('/account-deletion-requests', getMyDeletionRequest);
+router.get('/account-deletion-requests/me', getMyDeletionRequest);
 
 module.exports = router;

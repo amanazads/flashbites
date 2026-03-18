@@ -41,3 +41,15 @@ export const setDefaultAddress = async (addressId) => {
   const response = await axios.patch(`/users/addresses/${addressId}/default`);
   return response.data;
 };
+
+// Submit account deletion request
+export const submitAccountDeletionRequest = async (payload) => {
+  const response = await axios.post('/users/account-deletion-requests', payload);
+  return response.data;
+};
+
+// Get latest account deletion request status
+export const getMyDeletionRequest = async () => {
+  const response = await axios.get('/users/account-deletion-requests/me');
+  return response.data;
+};

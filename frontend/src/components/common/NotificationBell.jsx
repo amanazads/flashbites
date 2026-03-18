@@ -4,6 +4,7 @@ import { useNotifications } from '../../hooks/useNotifications';
 import axiosInstance from '../../api/axios';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 
 const BRAND = '#FF523B';
 
@@ -11,6 +12,7 @@ const NotificationBell = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
   
   const {
     connected,
@@ -23,25 +25,42 @@ const NotificationBell = () => {
   // Fetch real notifications whenever the menu is opened or component mounts
   useEffect(() => {
     const fetchNotifications = async () => {
+      if (!isAuthenticated || !user) {
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
+
       try {
         const { data } = await axiosInstance.get('/notifications?limit=5');
-        const items = data.data || data;
-        setNotifications(Array.isArray(items) ? items : []);
-        setUnreadCount(Array.isArray(items) ? items.filter(n => !n.isRead).length : 0);
+        const payload = data?.data || {};
+        const items = Array.isArray(payload.notifications) ? payload.notifications : [];
+        setNotifications(items);
+        setUnreadCount(typeof payload.unreadCount === 'number' ? payload.unreadCount : items.filter(n => !n.read).length);
       } catch (err) {
+        const status = err?.response?.status;
+        if (status === 401 || status === 403) {
+          setNotifications([]);
+          setUnreadCount(0);
+          return;
+        }
         console.error('Failed to fetch real-time notifications', err);
       }
     };
     if (showMenu) fetchNotifications();
     else fetchNotifications(); // load unread count silently
-  }, [showMenu, connected]);
+  }, [showMenu, connected, isAuthenticated, user]);
 
   const markAllRead = async () => {
+    if (!isAuthenticated || !user) return;
+
     try {
       await axiosInstance.put('/notifications/read-all');
-      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+      setNotifications(notifications.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (err) {
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) return;
       console.error(err);
     }
   };
@@ -122,10 +141,10 @@ const NotificationBell = () => {
                   </div>
                 ) : (
                   notifications.map((notif) => (
-                    <div key={notif._id} className={`p-4 transition-colors hover:bg-gray-50 flex gap-3 ${!notif.isRead ? 'bg-primary-50/10' : ''}`}>
-                      <div className={`mt-0.5 rounded-full h-2 w-2 flex-shrink-0 ${!notif.isRead ? 'bg-primary-500' : 'bg-transparent'}`} />
+                    <div key={notif._id} className={`p-4 transition-colors hover:bg-gray-50 flex gap-3 ${!(notif.read ?? notif.isRead) ? 'bg-primary-50/10' : ''}`}>
+                      <div className={`mt-0.5 rounded-full h-2 w-2 flex-shrink-0 ${!(notif.read ?? notif.isRead) ? 'bg-primary-500' : 'bg-transparent'}`} />
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${!notif.isRead ? 'text-gray-900 font-semibold' : 'text-gray-700 font-medium'}`}>
+                        <p className={`text-sm ${!(notif.read ?? notif.isRead) ? 'text-gray-900 font-semibold' : 'text-gray-700 font-medium'}`}>
                           {notif.title}
                         </p>
                         <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">
