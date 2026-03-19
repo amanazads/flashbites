@@ -30,3 +30,6 @@ yarn-error.log*
 *~
 .vercel
 .env*.local
+
+# Android signing keys (never commit)
+keystores/
