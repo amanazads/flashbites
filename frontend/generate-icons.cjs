@@ -50,7 +50,12 @@ const IOS_ICONS = [
 
 async function generateIcon(src, outputPath, size) {
   await sharp(src)
-    .resize(size, size, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+    .trim()
+    .resize(size, size, {
+      fit: 'contain',
+      position: 'centre',
+      background: { r: 255, g: 255, b: 255, alpha: 0 }
+    })
     .png()
     .toFile(outputPath);
   console.log(`✅ ${outputPath} (${size}x${size})`);

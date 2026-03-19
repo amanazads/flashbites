@@ -11,6 +11,10 @@ const { sendWelcomeEmail, sendPasswordResetSuccessEmail } = require('../utils/em
 exports.register = async (req, res) => {
   try {
     const { name, phone, password, role, email, firebaseToken } = req.body;
+    const normalizedEmail = typeof email === 'string'
+      ? email.trim().toLowerCase()
+      : '';
+    const hasValidEmail = !!normalizedEmail && normalizedEmail !== 'undefined' && normalizedEmail !== 'null';
 
     // Validate required fields
     if (!name || !phone || !password || !firebaseToken) {
@@ -52,7 +56,9 @@ exports.register = async (req, res) => {
       existingUser.name = name;
       existingUser.password = password;
       existingUser.phone = normalizedPhone;
-      existingUser.email = email || null;
+      if (hasValidEmail) {
+        existingUser.email = normalizedEmail;
+      }
       existingUser.role = role || 'user';
       existingUser.isPhoneVerified = true;
       existingUser.otp = null;
@@ -61,14 +67,19 @@ exports.register = async (req, res) => {
       user = existingUser;
     } else {
       // Create new user
-      user = await User.create({
+      const userData = {
         name,
         phone: normalizedPhone,
         password,
-        email: email || null,
         role: role || 'user',
         isPhoneVerified: true,
-      });
+      };
+
+      if (hasValidEmail) {
+        userData.email = normalizedEmail;
+      }
+
+      user = await User.create(userData);
     }
 
     // Generate tokens
@@ -90,8 +101,8 @@ exports.register = async (req, res) => {
     });
 
     // Send welcome email in background if email provided
-    if (email) {
-      sendWelcomeEmail(email, name)
+    if (hasValidEmail) {
+      sendWelcomeEmail(normalizedEmail, name)
         .catch(err => console.error('Background welcome email failed:', err.message));
     }
 
