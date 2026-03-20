@@ -76,6 +76,38 @@ html { scroll-behavior: smooth; }
   background: var(--bg-app);
 }
 
+ion-app,
+.ion-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg-app);
+  color: var(--text-primary);
+}
+
+.app-ion-content {
+  --background: var(--bg-app);
+}
+
+.app-ion-content::part(scroll) {
+  padding: 0;
+}
+
+.mobile-top-nav {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1200 !important;
+}
+
+.mobile-bottom-nav {
+  position: fixed !important;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1200 !important;
+}
+
 .min-h-screen {
   min-height: 100vh;
   min-height: 100dvh;

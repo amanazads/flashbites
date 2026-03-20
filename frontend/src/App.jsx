@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from
 import { useDispatch, useSelector } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async';
+import { IonApp, IonContent, IonPage } from '@ionic/react';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Preferences } from '@capacitor/preferences';
@@ -191,179 +192,182 @@ function App() {
     const isAuthPage = authPaths.some((path) => location.pathname.startsWith(path));
 
     return (
-      <div className="flex flex-col min-h-screen bg-white lg:bg-[var(--bg-app)]">
+      <IonPage>
         {!isAuthPage && <Navbar />}
+        <IonContent fullscreen className="app-ion-content" forceOverscroll={false}>
+          <main className={`flex-1 w-full relative z-0 bg-white lg:bg-[var(--bg-app)] ${isAuthPage ? '' : 'content-mobile-safe'}`}>
+            <React.Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
+              <Route path="/restaurants" element={<RestaurantPage />} />
+              <Route path="/restaurant/:id" element={<RestaurantDetail />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/partner" element={<Partner />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/help" element={<HelpPage />} />
+              <Route path="/promos" element={<PromosPage />} />
+              <Route path="/contact" element={<Contact />} />
 
-        <main className={`flex-1 w-full relative z-0 bg-white lg:bg-[var(--bg-app)] ${isAuthPage ? '' : 'content-mobile-safe'}`}>
-          <React.Suspense fallback={<PageLoader />}>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
-            <Route path="/restaurants" element={<RestaurantPage />} />
-            <Route path="/restaurant/:id" element={<RestaurantDetail />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/partner" element={<Partner />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/help" element={<HelpPage />} />
-            <Route path="/promos" element={<PromosPage />} />
-            <Route path="/contact" element={<Contact />} />
+              {/* Protected Routes */}
+              <Route
+                path="/checkout"
+                element={
+                  <ProtectedRoute>
+                    <Checkout />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/orders"
+                element={
+                  <ProtectedRoute>
+                    <Orders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/orders/:id"
+                element={
+                  <ProtectedRoute>
+                    <OrderDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/notifications"
+                element={
+                  <ProtectedRoute>
+                    <NotificationsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/account-delete"
+                element={
+                  <ProtectedRoute>
+                    <AccountDeletePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <RestaurantDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/delivery-dashboard"
+                element={
+                  <ProtectedRoute>
+                    <DeliveryPartnerDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <AdminPanel />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Protected Routes */}
-            <Route
-              path="/checkout"
-              element={
-                <ProtectedRoute>
-                  <Checkout />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/orders"
-              element={
-                <ProtectedRoute>
-                  <Orders />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/orders/:id"
-              element={
-                <ProtectedRoute>
-                  <OrderDetail />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/notifications"
-              element={
-                <ProtectedRoute>
-                  <NotificationsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/account-delete"
-              element={
-                <ProtectedRoute>
-                  <AccountDeletePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <RestaurantDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/delivery-dashboard"
-              element={
-                <ProtectedRoute>
-                  <DeliveryPartnerDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute>
-                  <AdminPanel />
-                </ProtectedRoute>
-              }
-            />
+              {/* 404 */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            </React.Suspense>
 
-            {/* 404 */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          </React.Suspense>
-        </main>
-
-        {!isAuthPage && (
-          <footer className="hidden lg:block">
-            <Footer />
-          </footer>
-        )}
-        <CartDrawer />
-      </div>
+            {!isAuthPage && (
+              <footer className="hidden lg:block">
+                <Footer />
+              </footer>
+            )}
+            <CartDrawer />
+          </main>
+        </IonContent>
+      </IonPage>
     );
   };
 
 
 
   return (
-    <ErrorBoundary>
-      {/* Global default title – overridden per-page by <SEO> components */}
-      <Helmet defaultTitle="FlashBites" titleTemplate="%s | FlashBites" />
-      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <RoleRedirector />
-        <ScrollToTop />
-        <AppShell />
+    <IonApp>
+      <ErrorBoundary>
+        {/* Global default title – overridden per-page by <SEO> components */}
+        <Helmet defaultTitle="FlashBites" titleTemplate="%s | FlashBites" />
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <RoleRedirector />
+          <ScrollToTop />
+          <AppShell />
 
-        {/* Toast Notifications */}
-        <Toaster
-          position="top-center"
-          containerStyle={{ top: 20 }}
-          toastOptions={{
-            duration: 3500,
-            style: {
-              background: '#1C1C1E',
-              color: '#F5F5F7',
-              maxWidth: '92vw',
-              fontSize: '14px',
-              fontWeight: '500',
-              borderRadius: '14px',
-              padding: '12px 16px',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15)',
-            },
-            success: {
-              duration: 3000,
-              iconTheme: {
-                primary: '#34D399',
-                secondary: '#1C1C1E',
-              },
+          {/* Toast Notifications */}
+          <Toaster
+            position="top-center"
+            containerStyle={{ top: 20 }}
+            toastOptions={{
+              duration: 3500,
               style: {
-                background: '#0D1F18',
-                color: '#D1FAE5',
-                border: '1px solid #065F46',
+                background: '#1C1C1E',
+                color: '#F5F5F7',
+                maxWidth: '92vw',
+                fontSize: '14px',
+                fontWeight: '500',
+                borderRadius: '14px',
+                padding: '12px 16px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15)',
               },
-            },
-            error: {
-              duration: 4500,
-              iconTheme: {
-                primary: '#F87171',
-                secondary: '#1C1C1E',
+              success: {
+                duration: 3000,
+                iconTheme: {
+                  primary: '#34D399',
+                  secondary: '#1C1C1E',
+                },
+                style: {
+                  background: '#0D1F18',
+                  color: '#D1FAE5',
+                  border: '1px solid #065F46',
+                },
               },
-              style: {
-                background: '#1F0D0D',
-                color: '#FEE2E2',
-                border: '1px solid #7F1D1D',
+              error: {
+                duration: 4500,
+                iconTheme: {
+                  primary: '#F87171',
+                  secondary: '#1C1C1E',
+                },
+                style: {
+                  background: '#1F0D0D',
+                  color: '#FEE2E2',
+                  border: '1px solid #7F1D1D',
+                },
               },
-            },
-            loading: {
-              iconTheme: {
-                primary: '#FF6B35',
-                secondary: '#1C1C1E',
+              loading: {
+                iconTheme: {
+                  primary: '#FF6B35',
+                  secondary: '#1C1C1E',
+                },
               },
-            },
-          }}
-        />
-      </Router>
-    </ErrorBoundary>
+            }}
+          />
+        </Router>
+      </ErrorBoundary>
+    </IonApp>
   );
 }
 

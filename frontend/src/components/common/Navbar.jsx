@@ -107,7 +107,7 @@ const Navbar = () => {
           MOBILE TOP BAR
       ═══════════════════════════════════════ */}
       <div
-        className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white"
+        className="mobile-top-nav lg:hidden fixed top-0 left-0 right-0 z-[1200] bg-white"
         style={{ 
           boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
           paddingTop: 'max(12px, env(safe-area-inset-top))',
@@ -329,7 +329,7 @@ const Navbar = () => {
       ═══════════════════════════════════════ */}
       {!location.pathname.startsWith('/checkout') && !location.pathname.startsWith('/cart') && (
       <div
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-50"
+        className="mobile-bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-[1200]"
         style={{
           paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
           paddingLeft: 'max(12px, env(safe-area-inset-left))',
