@@ -256,11 +256,11 @@ const Checkout = () => {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <div className="max-w-4xl mx-auto container-px pt-6 pb-24 lg:pb-10">
+    <div className="min-h-screen w-full overflow-x-hidden" style={{ background: 'var(--bg-app)' }}>
+      <div className="max-w-4xl mx-auto container-px pt-6 pb-28 lg:pb-10">
         <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-gray-900" style={{ letterSpacing: '-0.02em' }}>Checkout</h1>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-3 gap-6 w-full">
           {/* Left Column */}
           <div className="md:col-span-2 space-y-6">
             {/* Delivery Address */}
@@ -394,15 +394,15 @@ const Checkout = () => {
           </div>
 
           {/* Right Column - Order Summary */}
-          <div>
+          <div className="min-w-0">
             <div className="bg-white rounded-2xl shadow-soft p-4 sm:p-5 sticky top-20 md:top-24">
               <h2 className="text-base font-bold text-gray-900 mb-4">Order Summary</h2>
 
               <div className="space-y-2.5 mb-4">
                 {items.map((item) => (
-                  <div key={item._id} className="flex justify-between text-sm">
-                    <span className="text-gray-700">{item.name} <span className="text-gray-400">x{item.quantity}</span></span>
-                    <span className="font-medium">{formatCurrency((Number(item.price) || 0) * (item.quantity || 1))}</span>
+                  <div key={item._id} className="flex justify-between gap-3 text-sm min-w-0">
+                    <span className="text-gray-700 min-w-0 truncate">{item.name} <span className="text-gray-400">x{item.quantity}</span></span>
+                    <span className="font-medium shrink-0">{formatCurrency((Number(item.price) || 0) * (item.quantity || 1))}</span>
                   </div>
                 ))}
               </div>

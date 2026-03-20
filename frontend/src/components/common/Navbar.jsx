@@ -324,7 +324,7 @@ const Navbar = () => {
       {/* ═══════════════════════════════════════
           MOBILE FLOATING BOTTOM NAV — Fixed, not scrollable
       ═══════════════════════════════════════ */}
-      {location.pathname !== '/checkout' && (
+      {!location.pathname.startsWith('/checkout') && !location.pathname.startsWith('/cart') && (
       <div
         className="lg:hidden fixed bottom-0 left-0 right-0 z-50"
         style={{

@@ -13,14 +13,24 @@ import {
   ArrowPathIcon,
   TruckIcon,
   ChartBarIcon,
+  PencilSquareIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import { getRestaurants } from '../api/restaurantApi';
 import { getAllPartnerApplications, approvePartner, rejectPartner } from '../api/partnerApi';
-import { getComprehensiveAnalytics, getAccountDeletionRequests, reviewAccountDeletionRequest } from '../api/adminApi';
+import { getComprehensiveAnalytics, getAccountDeletionRequests, reviewAccountDeletionRequest, updateUserRole } from '../api/adminApi';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
 import axios from '../api/axios';
 import socketService from '../services/socketService';
+
+const MENU_CATEGORIES = ['Starters', 'Main Course', 'Desserts', 'Beverages', 'Breads', 'Rice', 'Snacks', 'Fast Food', 'Pizza', 'Burger', 'South Indian', 'North Indian', 'Chinese'];
+const ROLE_OPTIONS = [
+  { value: 'user', label: 'User' },
+  { value: 'restaurant_owner', label: 'Restaurant Owner' },
+  { value: 'delivery_partner', label: 'Delivery Partner' },
+  { value: 'admin', label: 'Admin' },
+];
 
 const AdminPanel = () => {
   const { user } = useSelector((state) => state.auth);
@@ -30,6 +40,9 @@ const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [partners, setPartners] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState('');
+  const [menuLoading, setMenuLoading] = useState(false);
   const [deletionRequests, setDeletionRequests] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
@@ -99,6 +112,18 @@ const AdminPanel = () => {
       pendingDeletionRequests,
     });
   }, [restaurants, users, orders, partners, deletionRequests]);
+
+  useEffect(() => {
+    if (!selectedRestaurantId && restaurants.length > 0) {
+      setSelectedRestaurantId(restaurants[0]._id);
+    }
+  }, [restaurants, selectedRestaurantId]);
+
+  useEffect(() => {
+    if (activeTab === 'menu-items' && selectedRestaurantId) {
+      fetchRestaurantMenu(selectedRestaurantId);
+    }
+  }, [activeTab, selectedRestaurantId]);
 
   const fetchData = async () => {
     try {
@@ -276,6 +301,118 @@ const AdminPanel = () => {
     }
   };
 
+  const handleUpdateUserRole = async (userId, role) => {
+    try {
+      await updateUserRole(userId, role);
+      toast.success('User role updated');
+      fetchData();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update user role');
+    }
+  };
+
+  const fetchRestaurantMenu = async (restaurantId) => {
+    if (!restaurantId) {
+      setMenuItems([]);
+      return;
+    }
+
+    try {
+      setMenuLoading(true);
+      const response = await axios.get(`/restaurants/${restaurantId}/menu`);
+      const items = response.data?.data?.items || response.data?.items || [];
+      setMenuItems(items);
+    } catch (error) {
+      console.error('Failed to fetch restaurant menu', error);
+      toast.error('Failed to fetch menu items');
+    } finally {
+      setMenuLoading(false);
+    }
+  };
+
+  const handleEditMenuItem = async (restaurantId, item) => {
+    const categoryOptions = MENU_CATEGORIES
+      .map((category) => `<option value="${category}" ${item.category === category ? 'selected' : ''}>${category}</option>`)
+      .join('');
+
+    const result = await Swal.fire({
+      title: 'Edit Menu Item',
+      html: `
+        <input id="swal-name" class="swal2-input" placeholder="Name" value="${item.name || ''}" />
+        <textarea id="swal-description" class="swal2-textarea" placeholder="Description">${item.description || ''}</textarea>
+        <input id="swal-price" class="swal2-input" type="number" min="0" step="0.01" placeholder="Price" value="${item.price || 0}" />
+        <select id="swal-category" class="swal2-select">${categoryOptions}</select>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Save Changes',
+      preConfirm: () => {
+        const name = document.getElementById('swal-name')?.value?.trim();
+        const description = document.getElementById('swal-description')?.value?.trim();
+        const category = document.getElementById('swal-category')?.value;
+        const priceValue = document.getElementById('swal-price')?.value;
+        const price = Number(priceValue);
+
+        if (!name || !description || !category || Number.isNaN(price) || price < 0) {
+          Swal.showValidationMessage('Please provide valid name, description, category and price');
+          return false;
+        }
+
+        return {
+          name,
+          description,
+          category,
+          price,
+          isVeg: item.isVeg,
+          isAvailable: item.isAvailable,
+          prepTime: item.prepTime || 20,
+        };
+      }
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await axios.put(`/restaurants/${restaurantId}/menu/${item._id}`, result.value);
+      toast.success('Menu item updated');
+      fetchRestaurantMenu(restaurantId);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update menu item');
+    }
+  };
+
+  const handleToggleMenuItemAvailability = async (restaurantId, itemId) => {
+    try {
+      await axios.patch(`/restaurants/${restaurantId}/menu/${itemId}/availability`);
+      toast.success('Menu item availability updated');
+      fetchRestaurantMenu(restaurantId);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update availability');
+    }
+  };
+
+  const handleDeleteMenuItem = async (restaurantId, itemId) => {
+    const result = await Swal.fire({
+      title: 'Delete this menu item?',
+      text: 'This action cannot be undone.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#9CA3AF',
+      confirmButtonText: 'Delete',
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await axios.delete(`/restaurants/${restaurantId}/menu/${itemId}`);
+      toast.success('Menu item deleted');
+      fetchRestaurantMenu(restaurantId);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to delete menu item');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -390,6 +527,16 @@ const AdminPanel = () => {
                 }`}
               >
                 Users ({users.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('menu-items')}
+                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                  activeTab === 'menu-items'
+                    ? 'border-b-2 border-primary-500 text-primary-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Menu Items
               </button>
               <button
                 onClick={() => setActiveTab('orders')}
@@ -575,6 +722,7 @@ const AdminPanel = () => {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -595,6 +743,17 @@ const AdminPanel = () => {
                               }`}>
                                 {user.isActive ? 'Active' : 'Inactive'}
                               </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <select
+                                value={user.role}
+                                onChange={(e) => handleUpdateUserRole(user._id, e.target.value)}
+                                className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white"
+                              >
+                                {ROLE_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                              </select>
                             </td>
                           </tr>
                         ))}
@@ -680,6 +839,89 @@ const AdminPanel = () => {
                         )}
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'menu-items' && (
+              <div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
+                  <h2 className="text-xl font-bold">Menu Item Management</h2>
+                  <div className="flex gap-2 items-center">
+                    <label className="text-sm text-gray-600">Restaurant</label>
+                    <select
+                      value={selectedRestaurantId}
+                      onChange={(e) => setSelectedRestaurantId(e.target.value)}
+                      className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+                    >
+                      {restaurants.map((restaurant) => (
+                        <option key={restaurant._id} value={restaurant._id}>{restaurant.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {menuLoading ? (
+                  <div className="text-center py-10 text-gray-500">Loading menu items...</div>
+                ) : menuItems.length === 0 ? (
+                  <div className="text-center py-10 text-gray-500">No menu items found for this restaurant.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 bg-white rounded-lg">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Availability</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {menuItems.map((item) => (
+                          <tr key={item._id}>
+                            <td className="px-4 py-3">
+                              <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                              <div className="text-xs text-gray-500 line-clamp-2">{item.description}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{item.category}</td>
+                            <td className="px-4 py-3 text-sm font-semibold text-gray-900">{formatCurrency(item.price || 0)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{item.isVeg ? 'Veg' : 'Non-veg'}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${item.isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                {item.isAvailable ? 'Available' : 'Unavailable'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  onClick={() => handleEditMenuItem(selectedRestaurantId, item)}
+                                  className="inline-flex items-center px-2.5 py-1.5 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
+                                >
+                                  <PencilSquareIcon className="h-4 w-4 mr-1" />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleToggleMenuItemAvailability(selectedRestaurantId, item._id)}
+                                  className="inline-flex items-center px-2.5 py-1.5 bg-yellow-100 text-yellow-700 rounded-md hover:bg-yellow-200"
+                                >
+                                  {item.isAvailable ? 'Disable' : 'Enable'}
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteMenuItem(selectedRestaurantId, item._id)}
+                                  className="inline-flex items-center px-2.5 py-1.5 bg-red-100 text-red-700 rounded-md hover:bg-red-200"
+                                >
+                                  <TrashIcon className="h-4 w-4 mr-1" />
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>

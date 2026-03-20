@@ -25,7 +25,6 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'user',
     otp: ''
   });
 
@@ -118,7 +117,6 @@ const Register = () => {
         phone: formData.phone,
         password: formData.password,
         email: formData.email || undefined,
-        role: formData.role,
         firebaseToken,
       });
 
@@ -284,15 +282,6 @@ const Register = () => {
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Confirm Password</label>
                   <input name="confirmPassword" type="password" required value={formData.confirmPassword} onChange={handleChange}
                     placeholder="Re-enter password" className="input-field" />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">I want to</label>
-                  <select name="role" value={formData.role} onChange={handleChange} className="input-field">
-                    <option value="user">Order food 🍕</option>
-                    <option value="restaurant_owner">List my restaurant 🏪</option>
-                    <option value="delivery_partner">Deliver food 🛵</option>
-                  </select>
                 </div>
 
                 <button type="submit" disabled={loading} className="btn-primary w-full py-3.5 mt-2">

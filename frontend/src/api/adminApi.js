@@ -24,6 +24,10 @@ export const blockUser = (id, isActive) => {
   return axios.patch(`/admin/users/${id}/block`, { isActive });
 };
 
+export const updateUserRole = (id, role) => {
+  return axios.patch(`/admin/users/${id}/role`, { role });
+};
+
 export const getComprehensiveAnalytics = (params) => {
   return axios.get('/admin/analytics', { params });
 };

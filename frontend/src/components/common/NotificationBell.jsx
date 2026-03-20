@@ -86,7 +86,7 @@ const NotificationBell = () => {
       {showMenu && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)}></div>
-          <div className="absolute right-0 sm:-right-2 mt-2 w-[calc(100vw-2rem)] max-w-[340px] sm:w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden transform origin-top-right transition-all">
+          <div className="fixed lg:absolute left-2 right-2 lg:left-auto lg:right-0 top-[calc(env(safe-area-inset-top)+56px)] lg:top-full lg:mt-2 w-auto lg:w-[340px] max-w-none lg:max-w-[340px] bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden transform origin-top-right transition-all">
             <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
               <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Notifications</h3>
               {unreadCount > 0 && (
@@ -96,7 +96,7 @@ const NotificationBell = () => {
               )}
             </div>
 
-            <div className="max-h-[360px] overflow-y-auto">
+            <div className="max-h-[min(60vh,360px)] overflow-y-auto">
               {/* Settings Section */}
               <div className="p-3 bg-white border-b border-gray-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">

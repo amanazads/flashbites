@@ -223,6 +223,45 @@ exports.blockUser = async (req, res) => {
   }
 };
 
+// @desc    Update user role
+// @route   PATCH /api/admin/users/:id/role
+// @access  Private (Admin)
+exports.updateUserRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+    const validRoles = ['user', 'restaurant_owner', 'delivery_partner', 'admin'];
+
+    if (!validRoles.includes(role)) {
+      return errorResponse(res, 400, 'Invalid role specified');
+    }
+
+    const targetUser = await User.findById(req.params.id).select('-password -refreshToken');
+
+    if (!targetUser) {
+      return errorResponse(res, 404, 'User not found');
+    }
+
+    const isSelf = targetUser._id.toString() === req.user._id.toString();
+    if (isSelf && role !== 'admin') {
+      return errorResponse(res, 400, 'You cannot remove your own admin role');
+    }
+
+    if (targetUser.role === 'admin' && role !== 'admin') {
+      const totalAdmins = await User.countDocuments({ role: 'admin', isActive: true });
+      if (totalAdmins <= 1) {
+        return errorResponse(res, 400, 'At least one active admin must remain');
+      }
+    }
+
+    targetUser.role = role;
+    await targetUser.save();
+
+    successResponse(res, 200, 'User role updated successfully', { user: targetUser });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to update user role', error.message);
+  }
+};
+
 // @desc    Create coupon
 // @route   POST /api/admin/coupons
 // @access  Private (Admin)

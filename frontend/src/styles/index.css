@@ -73,6 +73,19 @@ html { scroll-behavior: smooth; }
   background: var(--bg-app);
 }
 
+main {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
 * {
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;

@@ -10,7 +10,7 @@ const { sendWelcomeEmail, sendPasswordResetSuccessEmail } = require('../utils/em
 // @access  Public
 exports.register = async (req, res) => {
   try {
-    const { name, phone, password, role, email, firebaseToken } = req.body;
+    const { name, phone, password, email, firebaseToken } = req.body;
     const normalizedEmail = typeof email === 'string'
       ? email.trim().toLowerCase()
       : '';
@@ -41,15 +41,6 @@ exports.register = async (req, res) => {
     if (existingUser && existingUser.isPhoneVerified && existingUser.password) {
       return errorResponse(res, 400, 'Phone number already registered. Please login.');
     }
-
-
-
-    // Validate role
-    const validRoles = ['user', 'restaurant_owner', 'delivery_partner'];
-    if (role && !validRoles.includes(role)) {
-      return errorResponse(res, 400, 'Invalid role specified');
-    }
-
     let user;
     if (existingUser) {
       // Update existing unverified user
@@ -59,7 +50,7 @@ exports.register = async (req, res) => {
       if (hasValidEmail) {
         existingUser.email = normalizedEmail;
       }
-      existingUser.role = role || 'user';
+      existingUser.role = existingUser.role === 'admin' ? 'admin' : 'user';
       existingUser.isPhoneVerified = true;
       existingUser.otp = null;
       existingUser.otpExpires = null;
@@ -71,7 +62,7 @@ exports.register = async (req, res) => {
         name,
         phone: normalizedPhone,
         password,
-        role: role || 'user',
+        role: 'user',
         isPhoneVerified: true,
       };
 

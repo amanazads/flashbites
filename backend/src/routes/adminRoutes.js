@@ -9,6 +9,7 @@ const {
   getAllOrders,
   approveRestaurant,
   blockUser,
+  updateUserRole,
   getAllRestaurants,
   createCoupon,
   getAllCoupons,
@@ -28,6 +29,7 @@ router.get('/orders', getAllOrders);
 router.get('/restaurants', getAllRestaurants);
 router.patch('/restaurants/:id/approve', approveRestaurant);
 router.patch('/users/:id/block', blockUser);
+router.patch('/users/:id/role', updateUserRole);
 router.get('/account-deletion-requests', getAccountDeletionRequests);
 router.patch('/account-deletion-requests/:id/review', reviewAccountDeletionRequest);
 

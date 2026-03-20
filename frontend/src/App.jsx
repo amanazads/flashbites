@@ -137,9 +137,9 @@ function App() {
     const initializeStatusBar = async () => {
       try {
         if (isNative && Capacitor.isPluginAvailable('StatusBar')) {
-          // Set status bar to transparent or match app color
-          await StatusBar.setStyle({ style: Style.Light });
-          await StatusBar.setBackgroundColor({ color: '#FF523B' }); // Brand orange
+          await StatusBar.setOverlaysWebView({ overlay: false });
+          await StatusBar.setStyle({ style: Style.Dark });
+          await StatusBar.setBackgroundColor({ color: '#FFFFFF' });
           console.log('Status bar initialized successfully');
         }
       } catch (error) {
