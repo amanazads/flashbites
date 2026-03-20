@@ -256,8 +256,8 @@ const Checkout = () => {
   };
 
   return (
-    <div className="min-h-screen pb-10" style={{ background: 'var(--bg-app)' }}>
-      <div className="max-w-4xl mx-auto container-px pt-6">
+    <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
+      <div className="max-w-4xl mx-auto container-px pt-6 pb-24 lg:pb-10">
         <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-gray-900" style={{ letterSpacing: '-0.02em' }}>Checkout</h1>
 
         <div className="grid md:grid-cols-3 gap-6">

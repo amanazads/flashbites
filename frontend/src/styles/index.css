@@ -52,13 +52,17 @@
 
 html, body {
   width: 100%;
+  height: 100%;
   overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
+  -webkit-overflow-scrolling: auto;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--bg-app);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevents parallax and unwanted scroll animations on iOS */
+  -webkit-transform: translate3d(0, 0, 0);
+  -webkit-perspective: 1000;
 }
 
 html { scroll-behavior: smooth; }
@@ -122,7 +126,20 @@ input, textarea, select {
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
   .safe-left   { padding-left:   env(safe-area-inset-left);   }
   .safe-right  { padding-right:  env(safe-area-inset-right);  }
-  .pb-safe     { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+  .pb-safe     { padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
+  .pt-safe     { padding-top:    max(0.75rem, env(safe-area-inset-top)); }
+
+  /* Content padding to not hide behind fixed navbars (mobile) */
+  .content-mobile-safe {
+    padding-top: calc(60px + env(safe-area-inset-top));
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+  @media (min-width: 1024px) {
+    .content-mobile-safe {
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+  }
 
   /* ── Viewport height fixes (iOS address bar) ── */
   .min-h-screen-safe { min-height: 100svh; }
@@ -271,6 +288,12 @@ input, textarea, select {
     @apply flex items-center justify-center bg-white rounded-xl transition-all duration-150 active:scale-95;
     box-shadow: var(--shadow-card);
   }
+  .icon-btn:hover {
+    background: #F9FAFB;
+  }
+  .icon-btn:active {
+    transform: scale(0.95);
+  }
 
   /* ── Floating bottom nav ── */
   .bottom-nav {
@@ -386,11 +409,38 @@ input, textarea, select {
 .page-wrapper {
   min-height: 100vh;
   background: var(--bg-app);
-  padding-bottom: calc(108px + var(--safe-area-inset-bottom));
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
 
 @media (min-width: 768px) {
   .page-wrapper { padding-bottom: 0; }
+}
+
+/* Prevent parallax and unwanted scroll transforms */
+body, html, #root {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-perspective: 1000;
+  perspective: 1000;
+}
+
+/* Fixed elements should remain truly fixed */
+.fixed {
+  position: fixed !important;
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+}
+
+/* Sticky positioning with proper 3D fixes for iOS */
+.sticky {
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+}
+
+/* Ensure scrollable containers don't affect fixed elements */
+main {
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
 }
 
 /* ─────────────────────────────────────────

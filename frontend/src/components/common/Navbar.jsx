@@ -9,6 +9,7 @@ import {
   ShoppingBagIcon,
   BellIcon,
   ArrowLeftIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
@@ -19,6 +20,7 @@ import {
 } from '@heroicons/react/24/solid';
 import { logout } from '../../redux/slices/authSlice';
 import { toggleCart } from '../../redux/slices/uiSlice';
+import { useSwipeBack } from '../../hooks/useSwipeBack';
 import toast from 'react-hot-toast';
 import logo from '../../assets/logo.png';
 import NotificationBell from './NotificationBell';
@@ -32,9 +34,12 @@ const Navbar = () => {
   const { isAuthenticated, user } = useSelector((s) => s.auth);
   const { items } = useSelector((s) => s.cart);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [mobileSearch, setMobileSearch] = useState('');
   const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const [mobileSearch, setMobileSearch] = useState('');
   const dropdownRef = useRef(null);
+
+  // Enable swipe-right gesture to go back (mobile)
+  useSwipeBack();
 
   const cartCount = items.reduce((t, i) => t + i.quantity, 0);
 
@@ -101,22 +106,30 @@ const Navbar = () => {
       <div
         className="lg:hidden sticky top-0 z-40 bg-white"
         style={{ 
-          boxShadow: '0 1px 0 #E5E7EB',
-          paddingTop: 'var(--safe-area-inset-top, env(safe-area-inset-top))'
+          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+          paddingTop: 'max(12px, env(safe-area-inset-top))',
+          paddingLeft: 'env(safe-area-inset-left)',
+          paddingRight: 'env(safe-area-inset-right)',
         }}
       >
-        <div className="px-4 flex items-center justify-between gap-2"
-          style={{ minHeight: '60px' }}>
+        <div className="px-3 sm:px-4 flex items-center justify-between gap-2"
+          style={{ minHeight: '56px' }}>
 
-          {/* Back button — visible on non-home pages */}
+          {/* Back button — visible on non-home pages, also supports swipe-right */}
           {location.pathname !== '/' && (
             <button
               onClick={() => navigate(-1)}
-              className="icon-btn h-9 w-9 flex-shrink-0"
+              className="icon-btn h-10 w-10 flex-shrink-0 hover:bg-gray-100"
               aria-label="Go back"
+              title="Swipe right or tap to go back"
             >
               <ArrowLeftIcon className="h-5 w-5 text-gray-700" />
             </button>
+          )}
+
+          {/* Spacer when no back button on home */}
+          {location.pathname === '/' && (
+            <div className="w-10 flex-shrink-0" />
           )}
 
           {/* Brand logo — centre/left on mobile */}
@@ -309,21 +322,24 @@ const Navbar = () => {
       </div>
 
       {/* ═══════════════════════════════════════
-          MOBILE FLOATING BOTTOM NAV
+          MOBILE FLOATING BOTTOM NAV — Fixed, not scrollable
       ═══════════════════════════════════════ */}
+      {location.pathname !== '/checkout' && (
       <div
         className="lg:hidden fixed bottom-0 left-0 right-0 z-50"
         style={{
           paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
-          paddingLeft: '12px',
-          paddingRight: '12px',
+          paddingLeft: 'max(12px, env(safe-area-inset-left))',
+          paddingRight: 'max(12px, env(safe-area-inset-right))',
           background: 'transparent',
+          pointerEvents: 'none'
         }}
       >
         <div
           className="bg-white flex items-center gap-1 rounded-[28px] px-2 py-2"
           style={{
             boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
+            pointerEvents: 'auto'
           }}
         >
           {tabs.map((tab) => {
@@ -368,6 +384,7 @@ const Navbar = () => {
           })}
         </div>
       </div>
+      )}
     </>
   );
 };
