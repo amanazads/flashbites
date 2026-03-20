@@ -150,7 +150,7 @@ const OrderDetail = () => {
           <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
             <h2 className="text-xl font-bold mb-6">Order Status</h2>
             <div className="relative overflow-x-auto">
-              <div className="flex justify-between items-center min-w-[640px]">
+              <div className="flex justify-between items-center min-w-[520px] sm:min-w-[640px]">
                 {getOrderStatusSteps().map((step, index) => {
                   const Icon = step.icon;
                   return (

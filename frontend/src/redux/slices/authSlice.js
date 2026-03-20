@@ -11,10 +11,13 @@ export const login = createAsyncThunk(
       // apiResponse is { success, message, data: { user, accessToken, refreshToken } }
       // Store tokens in Preferences
       if (apiResponse.success && apiResponse.data) {
+        const sessionStartedAt = String(Date.now());
         await Preferences.set({ key: 'token', value: apiResponse.data.accessToken });
         await Preferences.set({ key: 'refreshToken', value: apiResponse.data.refreshToken });
+        await Preferences.set({ key: 'sessionStartedAt', value: sessionStartedAt });
         localStorage.setItem('token', apiResponse.data.accessToken);
         localStorage.setItem('refreshToken', apiResponse.data.refreshToken);
+        localStorage.setItem('sessionStartedAt', sessionStartedAt);
       }
       // Return the nested data object which contains user, accessToken, refreshToken
       return apiResponse.data;
@@ -32,10 +35,13 @@ export const register = createAsyncThunk(
       // apiResponse is { success, message, data: { user, accessToken, refreshToken } }
       // Store tokens in Preferences
       if (apiResponse.success && apiResponse.data) {
+        const sessionStartedAt = String(Date.now());
         await Preferences.set({ key: 'token', value: apiResponse.data.accessToken });
         await Preferences.set({ key: 'refreshToken', value: apiResponse.data.refreshToken });
+        await Preferences.set({ key: 'sessionStartedAt', value: sessionStartedAt });
         localStorage.setItem('token', apiResponse.data.accessToken);
         localStorage.setItem('refreshToken', apiResponse.data.refreshToken);
+        localStorage.setItem('sessionStartedAt', sessionStartedAt);
       }
       // Return the nested data object which contains user, accessToken, refreshToken
       return apiResponse.data;
@@ -75,9 +81,11 @@ const authSlice = createSlice({
       Preferences.remove({ key: 'token' });
       Preferences.remove({ key: 'accessToken' });
       Preferences.remove({ key: 'refreshToken' });
+      Preferences.remove({ key: 'sessionStartedAt' });
       localStorage.removeItem('token');
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('sessionStartedAt');
     },
     clearError: (state) => {
       state.error = null;

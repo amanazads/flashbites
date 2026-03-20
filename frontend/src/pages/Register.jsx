@@ -124,9 +124,11 @@ const Register = () => {
       const { accessToken, refreshToken, user: userData } = response.data.data;
 
       // Store in localStorage (web) — always set for compatibility
+      const sessionStartedAt = String(Date.now());
       localStorage.setItem('token', accessToken);
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('sessionStartedAt', sessionStartedAt);
 
       // Also store in Capacitor Preferences so native app sessions persist
       if (window.Capacitor) {
@@ -135,6 +137,7 @@ const Register = () => {
           await P.set({ key: 'token', value: accessToken });
           await P.set({ key: 'accessToken', value: accessToken });
           await P.set({ key: 'refreshToken', value: refreshToken });
+          await P.set({ key: 'sessionStartedAt', value: sessionStartedAt });
         } catch (e) {
           // Non-critical — localStorage fallback is already set
         }
@@ -304,7 +307,7 @@ const Register = () => {
                     name="otp" type="text" maxLength="6" required
                     value={formData.otp} onChange={handleChange}
                     placeholder="000000"
-                    className="input-field text-center text-2xl tracking-[0.5em] font-bold"
+                    className="input-field text-center text-xl sm:text-2xl tracking-[0.24em] sm:tracking-[0.5em] font-bold"
                     autoFocus
                   />
                 </div>

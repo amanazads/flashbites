@@ -53,6 +53,8 @@
 html, body {
   width: 100%;
   height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
   -webkit-overflow-scrolling: auto;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -69,8 +71,19 @@ html { scroll-behavior: smooth; }
 
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
   background: var(--bg-app);
+}
+
+.min-h-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.h-screen {
+  height: 100vh;
+  height: 100dvh;
 }
 
 main {
@@ -94,6 +107,16 @@ svg {
 input, textarea, select {
   -webkit-user-select: text;
   user-select: text;
+}
+
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 1024px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
 }
 
 /* ─────────────────────────────────────────
@@ -144,7 +167,7 @@ input, textarea, select {
 
   /* Content padding to not hide behind fixed navbars (mobile) */
   .content-mobile-safe {
-    padding-top: calc(60px + env(safe-area-inset-top));
+    padding-top: calc(72px + env(safe-area-inset-top));
     padding-bottom: calc(96px + env(safe-area-inset-bottom));
   }
   @media (min-width: 1024px) {
@@ -155,8 +178,14 @@ input, textarea, select {
   }
 
   /* ── Viewport height fixes (iOS address bar) ── */
-  .min-h-screen-safe { min-height: 100svh; }
-  .h-screen-safe     { height:     100svh; }
+  .min-h-screen-safe {
+    min-height: 100svh;
+    min-height: 100dvh;
+  }
+  .h-screen-safe {
+    height: 100svh;
+    height: 100dvh;
+  }
 
   /* ── Line clamp utilities ── */
   .line-clamp-1 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
@@ -178,10 +207,12 @@ input, textarea, select {
 
   /* ── Primary Button ── */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 font-semibold py-3 px-6 rounded-xl text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed select-none;
+    @apply inline-flex items-center justify-center gap-2 font-semibold py-2.5 sm:py-3 px-5 sm:px-6 rounded-xl text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed select-none;
     background: var(--brand);
     box-shadow: 0 4px 14px var(--brand-shadow);
     letter-spacing: 0.01em;
+    font-size: 0.95rem;
+    line-height: 1.2;
   }
   .btn-primary:hover:not(:disabled) {
     background: var(--brand-dark);
@@ -234,11 +265,12 @@ input, textarea, select {
 
   /* ── Inputs ── */
   .input-field {
-    @apply w-full px-4 py-3 rounded-xl text-gray-900 placeholder-gray-400 transition-all duration-200;
+    @apply w-full px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl text-gray-900 placeholder-gray-400 transition-all duration-200;
     background: var(--bg-input);
     border: 1.5px solid transparent;
-    font-size: 0.9375rem;
+    font-size: 0.9rem;
     color: var(--text-primary);
+    min-width: 0;
   }
   .input-field:focus {
     outline: none;
@@ -249,9 +281,10 @@ input, textarea, select {
 
   /* ── Search bar ── */
   .search-bar {
-    @apply flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl transition-all duration-200;
+    @apply flex items-center gap-2.5 w-full px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl transition-all duration-200;
     background: var(--bg-input);
     border: 1.5px solid transparent;
+    min-width: 0;
   }
   .search-bar:focus-within {
     border-color: var(--brand);
@@ -260,8 +293,9 @@ input, textarea, select {
   }
   .search-bar input {
     border: none; outline: none; background: transparent;
-    flex: 1; font-size: 0.9375rem; color: var(--text-primary);
+    flex: 1; font-size: 0.9rem; color: var(--text-primary);
     font-weight: 500;
+    min-width: 0;
   }
   .search-bar input::placeholder { color: var(--text-muted); font-weight: 400; }
 

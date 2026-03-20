@@ -42,6 +42,9 @@ const Navbar = () => {
   useSwipeBack();
 
   const cartCount = items.reduce((t, i) => t + i.quantity, 0);
+  const isCustomer = !user || user.role === 'user';
+  const searchRoutes = ['/', '/restaurants'];
+  const shouldShowSearch = isCustomer && (searchRoutes.some((path) => location.pathname === path || location.pathname.startsWith(path + '/')) || location.pathname.startsWith('/restaurant/'));
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/';
@@ -104,7 +107,7 @@ const Navbar = () => {
           MOBILE TOP BAR
       ═══════════════════════════════════════ */}
       <div
-        className="lg:hidden sticky top-0 z-40 bg-white"
+        className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white"
         style={{ 
           boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
           paddingTop: 'max(12px, env(safe-area-inset-top))',
@@ -148,7 +151,7 @@ const Navbar = () => {
           {/* Right icons: Search + Bell/Notifications + Cart */}
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Search toggle (Hidden for partners/admin) */}
-            {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' && (
+            {shouldShowSearch && (
               <button
                 onClick={() => setShowMobileSearch(!showMobileSearch)}
                 className="icon-btn h-9 w-9"
@@ -187,7 +190,7 @@ const Navbar = () => {
         </div>
 
         {/* Expandable search bar */}
-        {showMobileSearch && (
+        {showMobileSearch && shouldShowSearch && (
           <div className="px-4 pb-3 animate-slide-down">
             <form onSubmit={handleMobileSearch} className="search-bar">
               <MagnifyingGlassIcon className="h-4 w-4 flex-shrink-0 text-gray-400" />
@@ -225,7 +228,7 @@ const Navbar = () => {
             </Link>
 
             {/* Search */}
-            {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' ? (
+            {shouldShowSearch ? (
               <form
                 className="flex-1 max-w-lg"
                 onSubmit={(e) => {
@@ -248,7 +251,7 @@ const Navbar = () => {
 
             {/* Right actions */}
             <div className="flex items-center gap-3 flex-shrink-0">
-              {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' && (
+              {shouldShowSearch && (
                 <Link to="/restaurants" className={`text-sm font-medium transition-colors ${isActive('/restaurants') ? 'text-brand' : 'text-gray-600 hover:text-gray-900'}`}
                   style={isActive('/restaurants') ? { color: BRAND } : {}}>
                   Restaurants

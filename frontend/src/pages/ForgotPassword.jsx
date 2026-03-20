@@ -189,7 +189,7 @@ const ForgotPassword = () => {
                 <input
                   id="otp" name="otp" type="text" maxLength="6" required
                   value={formData.otp} onChange={handleChange}
-                  className="input-field text-center text-2xl tracking-[0.5em] font-bold"
+                  className="input-field text-center text-xl sm:text-2xl tracking-[0.24em] sm:tracking-[0.5em] font-bold"
                   placeholder="000000"
                   autoFocus
                 />

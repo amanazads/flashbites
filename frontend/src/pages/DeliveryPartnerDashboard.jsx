@@ -23,6 +23,7 @@ const DeliveryPartnerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [locationTrackingEnabled, setLocationTrackingEnabled] = useState(true);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
 
 
   // Get active order ID for location tracking
@@ -44,19 +45,19 @@ const DeliveryPartnerDashboard = () => {
     // Listen for new order notifications
     const handleNewOrder = (data) => {
       console.log('🔄 Dashboard: Auto-refreshing data on available order:', data.order?._id);
-      fetchData(); // Refresh orders
+      if (autoRefreshEnabled) fetchData(); // Refresh orders
     };
 
     // Listen for order assignment
     const handleOrderAssigned = (data) => {
       console.log('🔄 Dashboard: Auto-refreshing data on assigned order:', data.order?._id);
-      fetchData(); // Refresh orders
+      if (autoRefreshEnabled) fetchData(); // Refresh orders
     };
 
     // Listen for order cancellation
     const handleOrderCancelled = (data) => {
       console.log('🔄 Dashboard: Auto-refreshing data on cancelled order:', data.order?._id);
-      fetchData(); // Refresh orders
+      if (autoRefreshEnabled) fetchData(); // Refresh orders
     };
 
     socketService.on('new-order-available', handleNewOrder);
@@ -68,7 +69,17 @@ const DeliveryPartnerDashboard = () => {
       socketService.off('order-assigned');
       socketService.off('order-cancelled');
     };
-  }, [user]);
+  }, [user, autoRefreshEnabled]);
+
+  useEffect(() => {
+    if (!autoRefreshEnabled || !user || user.role !== 'delivery_partner') return;
+
+    const intervalId = setInterval(() => {
+      fetchData();
+    }, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [autoRefreshEnabled, user]);
 
   useEffect(() => {
     if (!user || user.role !== 'delivery_partner') {
@@ -247,10 +258,24 @@ const DeliveryPartnerDashboard = () => {
                 Delivery Partner Dashboard
               </h1>
               <p className="text-gray-600">Welcome back, {user?.name}! 🚴</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  onClick={() => setAutoRefreshEnabled((prev) => !prev)}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium text-white ${autoRefreshEnabled ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
+                >
+                  {autoRefreshEnabled ? 'Stop Auto Refresh' : 'Start Auto Refresh'}
+                </button>
+                <button
+                  onClick={fetchData}
+                  className="px-3 py-2 rounded-lg text-sm font-medium text-white bg-primary-500 hover:bg-primary-600"
+                >
+                  Refresh Now
+                </button>
+              </div>
             </div>
             
             {/* Location Tracking Status */}
-            <div className="bg-white rounded-lg shadow p-4 min-w-[250px]">
+            <div className="bg-white rounded-lg shadow p-4 w-full sm:w-auto sm:min-w-[250px]">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold text-gray-700">Location Tracking</span>
                 <label className="relative inline-flex items-center cursor-pointer">

@@ -47,6 +47,7 @@ const AdminPanel = () => {
   const [analytics, setAnalytics] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsPeriod, setAnalyticsPeriod] = useState('30');
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
   const [stats, setStats] = useState({
     totalRestaurants: 0,
     totalUsers: 0,
@@ -66,15 +67,18 @@ const AdminPanel = () => {
       return;
     }
     fetchData();
-    
-    // Auto-refresh every 30 seconds
+  }, [user, navigate]);
+
+  useEffect(() => {
+    if (!autoRefreshEnabled || user?.role !== 'admin') return;
+
     const interval = setInterval(() => {
       fetchData();
       console.log('Admin panel auto-refreshed');
     }, 30000);
-    
+
     return () => clearInterval(interval);
-  }, [user, navigate]);
+  }, [autoRefreshEnabled, user]);
 
   // Socket.IO listener for new orders (admin receives all new orders)
   useEffect(() => {
@@ -84,7 +88,7 @@ const AdminPanel = () => {
       console.log('🔄 Admin: Auto-refreshing data on order event:', data.type);
       
       // Refresh data silently, global useNotifications handles UI
-      if (activeTab === 'orders') {
+      if (autoRefreshEnabled && activeTab === 'orders') {
         fetchData();
       }
     };
@@ -94,7 +98,7 @@ const AdminPanel = () => {
     return () => {
       socketService.off('new-order');
     };
-  }, [user, activeTab]);
+  }, [user, activeTab, autoRefreshEnabled]);
 
   // Recalculate stats when data changes
   useEffect(() => {
@@ -429,15 +433,23 @@ const AdminPanel = () => {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Admin Panel</h1>
             <p className="mt-2 text-sm sm:text-base text-gray-600">
-              Manage restaurants, users, and platform settings • Auto-refreshes every 30s
+              Manage restaurants, users, and platform settings
             </p>
           </div>
-          <button
-            onClick={fetchData}
-            className="w-full sm:w-auto px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
-          >
-            Refresh Now
-          </button>
+          <div className="w-full sm:w-auto flex gap-2">
+            <button
+              onClick={() => setAutoRefreshEnabled((prev) => !prev)}
+              className={`w-full sm:w-auto px-4 py-2 rounded-lg text-white ${autoRefreshEnabled ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
+            >
+              {autoRefreshEnabled ? 'Stop Auto Refresh' : 'Start Auto Refresh'}
+            </button>
+            <button
+              onClick={fetchData}
+              className="w-full sm:w-auto px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+            >
+              Refresh Now
+            </button>
+          </div>
         </div>
 
         {/* Stats Overview */}

@@ -2,9 +2,53 @@ import axios from 'axios';
 import { Preferences } from '@capacitor/preferences';
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 // Detect if running in Capacitor
 const isCapacitor = window.Capacitor !== undefined;
+
+const clearAuthStorage = async () => {
+  if (isCapacitor) {
+    await Preferences.remove({ key: 'token' });
+    await Preferences.remove({ key: 'accessToken' });
+    await Preferences.remove({ key: 'refreshToken' });
+    await Preferences.remove({ key: 'sessionStartedAt' });
+  }
+  localStorage.removeItem('token');
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('sessionStartedAt');
+};
+
+const getSessionStartedAt = async () => {
+  if (isCapacitor) {
+    const { value } = await Preferences.get({ key: 'sessionStartedAt' });
+    if (value) return Number(value);
+  }
+  const value = localStorage.getItem('sessionStartedAt');
+  return value ? Number(value) : null;
+};
+
+const setSessionStartedAtIfMissing = async () => {
+  const now = Date.now();
+  const existing = await getSessionStartedAt();
+  if (!existing) {
+    if (isCapacitor) {
+      await Preferences.set({ key: 'sessionStartedAt', value: String(now) });
+    }
+    localStorage.setItem('sessionStartedAt', String(now));
+  }
+};
+
+const getRefreshToken = async () => {
+  if (isCapacitor) {
+    const { value } = await Preferences.get({ key: 'refreshToken' });
+    if (value) return value;
+  }
+  return localStorage.getItem('refreshToken');
+};
+
+let refreshPromise = null;
 
 // Log the API URL and environment
 console.log('🔗 API Base URL:', apiUrl);
@@ -51,6 +95,16 @@ instance.interceptors.request.use(
     }
     
     if (token) {
+      const startedAt = await getSessionStartedAt();
+      if (startedAt && Date.now() - startedAt > SESSION_MAX_AGE_MS) {
+        await clearAuthStorage();
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+        return Promise.reject(new Error('Session expired after 30 days. Please login again.'));
+      }
+
+      await setSessionStartedAtIfMissing();
       config.headers.Authorization = `Bearer ${token}`;
     }
     
@@ -77,6 +131,58 @@ instance.interceptors.response.use(
   async (error) => {
     const status = error.response?.status;
     const url = error.config?.url || '';
+    const originalRequest = error.config || {};
+
+    const isRefreshCall = url.includes('/auth/refresh');
+
+    if (status === 401 && !isRefreshCall && !originalRequest._retry) {
+      const refreshToken = await getRefreshToken();
+
+      if (refreshToken) {
+        originalRequest._retry = true;
+
+        try {
+          if (!refreshPromise) {
+            refreshPromise = axios.post(
+              `${apiUrl}/auth/refresh`,
+              { refreshToken },
+              {
+                headers: { 'Content-Type': 'application/json' },
+                withCredentials: !isCapacitor,
+                timeout: isCapacitor ? 60000 : 30000,
+              }
+            );
+          }
+
+          const refreshRes = await refreshPromise;
+          refreshPromise = null;
+
+          const newAccessToken = refreshRes?.data?.data?.accessToken;
+          if (!newAccessToken) {
+            throw new Error('No access token returned by refresh endpoint');
+          }
+
+          if (isCapacitor) {
+            await Preferences.set({ key: 'token', value: newAccessToken });
+            await Preferences.set({ key: 'accessToken', value: newAccessToken });
+          }
+          localStorage.setItem('token', newAccessToken);
+          localStorage.setItem('accessToken', newAccessToken);
+
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+          return instance(originalRequest);
+        } catch (refreshError) {
+          refreshPromise = null;
+          await clearAuthStorage();
+          if (!window.location.pathname.includes('/login')) {
+            window.location.href = '/login';
+          }
+          return Promise.reject(refreshError);
+        }
+      }
+    }
 
     // Skip noisy logs for expected auth-check failures and simple coupon validation
     const isExpectedAuthCheckFailure = status === 401 && url.includes('/auth/me');
@@ -106,15 +212,7 @@ instance.interceptors.response.use(
       // Only clear tokens + redirect when this is a user-facing protected action, not a background call.
       // This prevents register/login flows from being disrupted by background 401s (e.g. FCM token, /auth/me)
       if (isProtectedRequest && isOnProtectedPage) {
-        if (isCapacitor) {
-          await Preferences.remove({ key: 'token' });
-          await Preferences.remove({ key: 'accessToken' });
-          await Preferences.remove({ key: 'refreshToken' });
-        } else {
-          localStorage.removeItem('token');
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-        }
+        await clearAuthStorage();
 
         if (!window.location.pathname.includes('/login')) {
           window.location.href = '/login';

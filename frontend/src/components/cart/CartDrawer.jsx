@@ -57,8 +57,24 @@ const CartDrawer = () => {
 
       {/* Drawer – full-screen on mobile, right-side panel on sm+ */}
       <div className="fixed inset-0 z-50 sm:left-auto sm:w-[420px] bg-white shadow-2xl flex flex-col animate-slide-up sm:animate-slide-right">
+        {/* Safe-area top strip (notch/status bar background) */}
+        <div
+          className="bg-white sm:hidden"
+          style={{
+            height: 'env(safe-area-inset-top, 0px)',
+            borderBottom: '1px solid #F0F2F5'
+          }}
+        />
+
         {/* Header */}
-        <div className="flex items-center justify-between gap-3 px-4 py-4 bg-white sticky top-0 z-10" style={{ borderBottom: '1px solid #F0F2F5' }}>
+        <div
+          className="flex items-center justify-between gap-3 px-4 bg-white sticky top-0 z-10"
+          style={{
+            paddingTop: 'max(12px, env(safe-area-inset-top, 0px))',
+            paddingBottom: '12px',
+            borderBottom: '1px solid #F0F2F5'
+          }}
+        >
           <div className="min-w-0">
             <h2 className="text-[17px] font-bold text-gray-900 truncate">Your Cart</h2>
             {restaurant && (

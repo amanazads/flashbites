@@ -185,6 +185,124 @@ function App() {
     }
   }, [dispatch, isAuthenticated]);
 
+  const AppShell = () => {
+    const location = useLocation();
+    const authPaths = ['/login', '/register', '/forgot-password', '/auth/google/success'];
+    const isAuthPage = authPaths.some((path) => location.pathname.startsWith(path));
+
+    return (
+      <div className="flex flex-col min-h-screen bg-white lg:bg-[var(--bg-app)]">
+        {!isAuthPage && <Navbar />}
+
+        <main className={`flex-1 w-full relative z-0 bg-white lg:bg-[var(--bg-app)] ${isAuthPage ? '' : 'content-mobile-safe'}`}>
+          <React.Suspense fallback={<PageLoader />}>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
+            <Route path="/restaurants" element={<RestaurantPage />} />
+            <Route path="/restaurant/:id" element={<RestaurantDetail />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/partner" element={<Partner />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/help" element={<HelpPage />} />
+            <Route path="/promos" element={<PromosPage />} />
+            <Route path="/contact" element={<Contact />} />
+
+            {/* Protected Routes */}
+            <Route
+              path="/checkout"
+              element={
+                <ProtectedRoute>
+                  <Checkout />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <ProtectedRoute>
+                  <Orders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders/:id"
+              element={
+                <ProtectedRoute>
+                  <OrderDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute>
+                  <NotificationsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/account-delete"
+              element={
+                <ProtectedRoute>
+                  <AccountDeletePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <RestaurantDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/delivery-dashboard"
+              element={
+                <ProtectedRoute>
+                  <DeliveryPartnerDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminPanel />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          </React.Suspense>
+        </main>
+
+        {!isAuthPage && (
+          <footer className="hidden lg:block">
+            <Footer />
+          </footer>
+        )}
+        <CartDrawer />
+      </div>
+    );
+  };
+
 
 
   return (
@@ -194,114 +312,7 @@ function App() {
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <RoleRedirector />
         <ScrollToTop />
-        <div className="flex flex-col min-h-screen bg-white lg:bg-[var(--bg-app)]">
-          <Navbar />
-          
-          <main className="flex-1 w-full relative z-0 bg-white lg:bg-[var(--bg-app)]">
-            <React.Suspense fallback={<PageLoader />}>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
-              <Route path="/restaurants" element={<RestaurantPage />} />
-              <Route path="/restaurant/:id" element={<RestaurantDetail />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/partner" element={<Partner />} />
-              <Route path="/terms" element={<TermsPage />} />
-              <Route path="/privacy" element={<PrivacyPage />} />
-              <Route path="/help" element={<HelpPage />} />
-              <Route path="/promos" element={<PromosPage />} />
-              <Route path="/contact" element={<Contact />} />
-
-              {/* Protected Routes */}
-              <Route
-                path="/checkout"
-                element={
-                  <ProtectedRoute>
-                    <Checkout />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/orders"
-                element={
-                  <ProtectedRoute>
-                    <Orders />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/orders/:id"
-                element={
-                  <ProtectedRoute>
-                    <OrderDetail />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <Profile />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/notifications"
-                element={
-                  <ProtectedRoute>
-                    <NotificationsPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/account-delete"
-                element={
-                  <ProtectedRoute>
-                    <AccountDeletePage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <RestaurantDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/delivery-dashboard"
-                element={
-                  <ProtectedRoute>
-                    <DeliveryPartnerDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute>
-                    <AdminPanel />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* 404 */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            </React.Suspense>
-          </main>
-
-          {/* Footer: desktop only — mobile users see footer links in Profile */}
-          <footer className="hidden lg:block">
-            <Footer />
-          </footer>
-          <CartDrawer />
-        </div>
+        <AppShell />
 
         {/* Toast Notifications */}
         <Toaster

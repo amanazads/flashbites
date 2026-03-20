@@ -140,7 +140,7 @@ const RestaurantDashboard = () => {
       console.log('🔄 Dashboard: Auto-refreshing data on order event:', data.type);
       
       // Refresh orders list silently, global useNotifications handles UI
-      if (activeTab === 'orders') {
+      if (autoRefreshOrders && activeTab === 'orders') {
         fetchOrders();
       }
     };
@@ -151,7 +151,7 @@ const RestaurantDashboard = () => {
     return () => {
       socketService.off('new-order');
     };
-  }, [restaurant, activeTab]);
+  }, [restaurant, activeTab, autoRefreshOrders]);
 
   // Auto-refresh orders when enabled
   useEffect(() => {
@@ -869,18 +869,12 @@ const RestaurantDashboard = () => {
                 <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
                   <h2 className="text-xl font-bold">Restaurant Orders</h2>
                   <div className="flex items-center gap-3">
-                    {/* Auto-refresh toggle */}
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={autoRefreshOrders}
-                        onChange={(e) => setAutoRefreshOrders(e.target.checked)}
-                        className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
-                      />
-                      <span className="text-sm text-gray-700">
-                        Auto-refresh {autoRefreshOrders && '(30s)'}
-                      </span>
-                    </label>
+                    <button
+                      onClick={() => setAutoRefreshOrders((prev) => !prev)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium text-white ${autoRefreshOrders ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
+                    >
+                      {autoRefreshOrders ? 'Stop Auto Refresh' : 'Start Auto Refresh'}
+                    </button>
                     <button
                       onClick={fetchOrders}
                       className="btn-outline"
