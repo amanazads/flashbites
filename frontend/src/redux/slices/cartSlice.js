@@ -70,6 +70,13 @@ const cartSlice = createSlice({
       localStorage.removeItem('cart');
     },
   },
+  extraReducers: (builder) => {
+    builder.addCase('auth/logout', (state) => {
+      state.items = [];
+      state.restaurant = null;
+      localStorage.removeItem('cart');
+    });
+  },
 });
 
 export const { addToCart, removeFromCart, updateQuantity, clearCart } = cartSlice.actions;

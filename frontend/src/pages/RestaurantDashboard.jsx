@@ -477,7 +477,7 @@ const RestaurantDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-8 pb-[calc(120px+env(safe-area-inset-bottom))] lg:pb-8">
       <div className="max-w-7xl mx-auto container-px">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
@@ -639,7 +639,7 @@ const RestaurantDashboard = () => {
               <div className="bg-white rounded-lg shadow-md p-6">
                 {/* Restaurant Status Toggle */}
                 <div className="mb-6 p-4 border-2 border-primary-200 rounded-lg bg-primary-50">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <div className={`w-4 h-4 rounded-full ${restaurant.acceptingOrders ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
                       <div>
@@ -681,27 +681,27 @@ const RestaurantDashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <p className="text-sm text-gray-600">Name</p>
-                    <p className="font-medium">{restaurant.name}</p>
+                    <p className="font-medium break-words">{restaurant.name}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Email</p>
-                    <p className="font-medium">{restaurant.email}</p>
+                    <p className="font-medium break-all">{restaurant.email}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Phone</p>
-                    <p className="font-medium">{restaurant.phone}</p>
+                    <p className="font-medium break-words">{restaurant.phone}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Cuisines</p>
-                    <p className="font-medium">{restaurant.cuisines?.join(', ')}</p>
+                    <p className="font-medium break-words">{restaurant.cuisines?.join(', ')}</p>
                   </div>
                   <div className="md:col-span-2">
                     <p className="text-sm text-gray-600">Description</p>
-                    <p className="font-medium">{restaurant.description}</p>
+                    <p className="font-medium break-words">{restaurant.description}</p>
                   </div>
                   <div className="md:col-span-2">
                     <p className="text-sm text-gray-600">Address</p>
-                    <p className="font-medium">
+                    <p className="font-medium break-words">
                       {restaurant.address.street}, {restaurant.address.city},{' '}
                       {restaurant.address.state} - {restaurant.address.zipCode}
                     </p>
@@ -1231,8 +1231,8 @@ const RestaurantDashboard = () => {
 
         {/* Restaurant Form Modal */}
         {showRestaurantForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 my-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 pt-[calc(88px+env(safe-area-inset-top))] pb-[calc(120px+env(safe-area-inset-bottom))] z-[1300] overflow-y-auto">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 pb-24 sm:pb-6 my-4">
               <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
                 {restaurant ? 'Edit Restaurant' : 'Register Restaurant'}
               </h2>
@@ -1252,7 +1252,7 @@ const RestaurantDashboard = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Email *</label>
                     <input
@@ -1320,7 +1320,7 @@ const RestaurantDashboard = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Street</label>
                     <input
@@ -1393,7 +1393,7 @@ const RestaurantDashboard = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">
                       Opening Time
@@ -1477,7 +1477,7 @@ const RestaurantDashboard = () => {
                   </p>
                 </div>
 
-                <div className="flex justify-end space-x-4 mt-6">
+                <div className="sticky bottom-0 bg-white pt-3 pb-[calc(8px+env(safe-area-inset-bottom))] flex justify-end space-x-3 sm:space-x-4 mt-6">
                   <button
                     type="button"
                     onClick={() => setShowRestaurantForm(false)}
@@ -1496,8 +1496,8 @@ const RestaurantDashboard = () => {
 
         {/* Menu Item Form Modal */}
         {showMenuForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
-            <div className="bg-white rounded-lg max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 my-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 pt-[calc(88px+env(safe-area-inset-top))] pb-[calc(120px+env(safe-area-inset-bottom))] z-[1300] overflow-y-auto">
+            <div className="bg-white rounded-lg max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 pb-24 sm:pb-6 my-4">
               <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
                 {editingItem ? 'Edit Menu Item' : 'Add Menu Item'}
               </h2>
@@ -1575,7 +1575,7 @@ const RestaurantDashboard = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">
                       Price (₹) *
@@ -1639,7 +1639,7 @@ const RestaurantDashboard = () => {
                     </button>
                   </div>
                   {(menuItemData.variants || []).map((variant, index) => (
-                    <div key={index} className="flex gap-3 mb-2 items-center">
+                    <div key={index} className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-2 items-stretch sm:items-center">
                       <input
                         type="text"
                         placeholder="Variant name"
@@ -1661,7 +1661,7 @@ const RestaurantDashboard = () => {
                           newVariants[index] = { ...newVariants[index], price: e.target.value };
                           setMenuItemData({ ...menuItemData, variants: newVariants });
                         }}
-                        className="w-20 sm:w-24 px-3 py-2 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+                        className="w-full sm:w-24 px-3 py-2 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
                       />
                       <button
                         type="button"
@@ -1680,8 +1680,8 @@ const RestaurantDashboard = () => {
                   )}
                 </div>
 
-                <div className="flex items-center space-x-6">
-                  <div className="flex items-center space-x-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                     <span className="text-sm font-medium text-gray-700">Dietary Type:</span>
                     <label className="flex items-center cursor-pointer">
                       <input
@@ -1722,7 +1722,7 @@ const RestaurantDashboard = () => {
                   </label>
                 </div>
 
-                <div className="flex justify-end space-x-4 mt-6">
+                <div className="sticky bottom-0 bg-white pt-3 pb-[calc(8px+env(safe-area-inset-bottom))] flex justify-end space-x-3 sm:space-x-4 mt-6">
                   <button
                     type="button"
                     onClick={() => {

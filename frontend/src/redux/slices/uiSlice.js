@@ -11,6 +11,12 @@ const uiSlice = createSlice({
     toggleCart: (state) => {
       state.cartOpen = !state.cartOpen;
     },
+    openCart: (state) => {
+      state.cartOpen = true;
+    },
+    closeCart: (state) => {
+      state.cartOpen = false;
+    },
     toggleMobileMenu: (state) => {
       state.mobileMenuOpen = !state.mobileMenuOpen;
     },
@@ -23,5 +29,5 @@ const uiSlice = createSlice({
   },
 });
 
-export const { toggleCart, toggleMobileMenu, openModal, closeModal } = uiSlice.actions;
+export const { toggleCart, openCart, closeCart, toggleMobileMenu, openModal, closeModal } = uiSlice.actions;
 export default uiSlice.reducer;

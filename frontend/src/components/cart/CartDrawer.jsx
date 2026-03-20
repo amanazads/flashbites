@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { XMarkIcon, TrashIcon, MinusIcon, PlusIcon } from '@heroicons/react/24/outline';
-import { toggleCart } from '../../redux/slices/uiSlice';
+import { toggleCart, closeCart } from '../../redux/slices/uiSlice';
 import { removeFromCart, updateQuantity, clearCart } from '../../redux/slices/cartSlice';
 import { formatCurrency } from '../../utils/formatters';
 import { calculateCartTotal } from '../../utils/helpers';
@@ -17,20 +17,27 @@ const CartDrawer = () => {
   const { cartOpen } = useSelector((state) => state.ui);
   const { items, restaurant } = useSelector((state) => state.cart);
   const { isAuthenticated } = useSelector((state) => state.auth);
+  const safeItems = isAuthenticated ? items : [];
 
-  const subtotal = calculateCartTotal(items);
+  const subtotal = calculateCartTotal(safeItems);
   const deliveryFee = restaurant?.deliveryFee || 0;
   const tax = subtotal * 0.05;
   const total = subtotal + deliveryFee + tax;
 
+  useEffect(() => {
+    if (!isAuthenticated && items.length > 0) {
+      dispatch(clearCart());
+    }
+  }, [isAuthenticated, items.length, dispatch]);
+
   const handleCheckout = () => {
     if (!isAuthenticated) {
       navigate('/login');
-      dispatch(toggleCart());
+      dispatch(closeCart());
       return;
     }
     navigate('/checkout');
-    dispatch(toggleCart());
+    dispatch(closeCart());
   };
 
   const toggleItemExpand = (itemId) => {
@@ -51,21 +58,13 @@ const CartDrawer = () => {
     <>
       {/* Overlay */}
       <div
-        className="fixed inset-0 bg-black/50 z-40 animate-fade-in"
+        className="fixed inset-0 bg-black/50 z-[1390] animate-fade-in"
         onClick={() => dispatch(toggleCart())}
       />
 
       {/* Drawer – full-screen on mobile, right-side panel on sm+ */}
-      <div className="fixed inset-0 z-50 sm:left-auto sm:w-[420px] bg-white shadow-2xl flex flex-col animate-slide-up sm:animate-slide-right">
+      <div className="fixed inset-0 z-[1400] sm:left-auto sm:w-[420px] bg-white shadow-2xl flex flex-col animate-slide-up sm:animate-slide-right overflow-hidden h-[100dvh]">
         {/* Safe-area top strip (notch/status bar background) */}
-        <div
-          className="bg-white sm:hidden"
-          style={{
-            height: 'env(safe-area-inset-top, 0px)',
-            borderBottom: '1px solid #F0F2F5'
-          }}
-        />
-
         {/* Header */}
         <div
           className="flex items-center justify-between gap-3 px-4 bg-white sticky top-0 z-10"
@@ -91,8 +90,11 @@ const CartDrawer = () => {
         </div>
 
         {/* Cart Items – Scrollable */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {items.length === 0 ? (
+        <div
+          className="flex-1 min-h-0 overflow-y-auto p-4 pb-[calc(8px+env(safe-area-inset-bottom,0px))]"
+          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+        >
+          {safeItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-16">
               <div
                 className="w-20 h-20 rounded-full mb-5 flex items-center justify-center"
@@ -116,7 +118,7 @@ const CartDrawer = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {items.map((item) => (
+              {safeItems.map((item) => (
                 <div
                   key={item._id}
                   className="flex gap-3 p-3 rounded-2xl hover:bg-gray-50/80 transition-colors"
@@ -200,10 +202,10 @@ const CartDrawer = () => {
         </div>
 
         {/* Footer */}
-        {items.length > 0 && (
+        {safeItems.length > 0 && (
           <div
             className="border-t p-4 space-y-3 bg-white"
-            style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid #F0F2F5' }}
+            style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid #F0F2F5' }}
           >
             {/* Price Breakdown */}
             <div className="space-y-1.5 text-sm rounded-2xl p-3" style={{ background: 'var(--bg-input)' }}>

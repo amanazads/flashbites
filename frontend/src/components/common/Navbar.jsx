@@ -19,7 +19,7 @@ import {
   UserCircleIcon as ProfileIconSolid,
 } from '@heroicons/react/24/solid';
 import { logout } from '../../redux/slices/authSlice';
-import { toggleCart } from '../../redux/slices/uiSlice';
+import { toggleCart, closeCart } from '../../redux/slices/uiSlice';
 import { useSwipeBack } from '../../hooks/useSwipeBack';
 import toast from 'react-hot-toast';
 import logo from '../../assets/logo.png';
@@ -33,6 +33,7 @@ const Navbar = () => {
   const dispatch = useDispatch();
   const { isAuthenticated, user } = useSelector((s) => s.auth);
   const { items } = useSelector((s) => s.cart);
+  const { cartOpen } = useSelector((s) => s.ui);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [mobileSearch, setMobileSearch] = useState('');
@@ -41,7 +42,7 @@ const Navbar = () => {
   // Enable swipe-right gesture to go back (mobile)
   useSwipeBack();
 
-  const cartCount = items.reduce((t, i) => t + i.quantity, 0);
+  const cartCount = isAuthenticated ? items.reduce((t, i) => t + i.quantity, 0) : 0;
   const isCustomer = !user || user.role === 'user';
   const searchRoutes = ['/', '/restaurants'];
   const shouldShowSearch = isCustomer && (searchRoutes.some((path) => location.pathname === path || location.pathname.startsWith(path + '/')) || location.pathname.startsWith('/restaurant/'));
@@ -73,6 +74,10 @@ const Navbar = () => {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  useEffect(() => {
+    dispatch(closeCart());
+  }, [location.pathname, dispatch]);
 
   /* ─ Nav tab definitions ─ */
   let tabs = [];
@@ -110,13 +115,19 @@ const Navbar = () => {
         className="mobile-top-nav lg:hidden fixed top-0 left-0 right-0 z-[1200] bg-white"
         style={{ 
           boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-          paddingTop: 'max(12px, env(safe-area-inset-top))',
           paddingLeft: 'env(safe-area-inset-left)',
           paddingRight: 'env(safe-area-inset-right)',
         }}
       >
+        <div
+          className="bg-white"
+          style={{
+            height: 'max(18px, calc(env(safe-area-inset-top) + 10px))',
+            borderBottom: '2px solid #F0F2F5'
+          }}
+        />
         <div className="px-3 sm:px-4 flex items-center justify-between gap-2"
-          style={{ minHeight: '56px' }}>
+          style={{ minHeight: '56px', paddingTop: '4px' }}>
 
           {/* Back button — visible on non-home pages, also supports swipe-right */}
           {location.pathname !== '/' && (
@@ -251,7 +262,7 @@ const Navbar = () => {
 
             {/* Right actions */}
             <div className="flex items-center gap-3 flex-shrink-0">
-              {shouldShowSearch && (
+              {isCustomer && (
                 <Link to="/restaurants" className={`text-sm font-medium transition-colors ${isActive('/restaurants') ? 'text-brand' : 'text-gray-600 hover:text-gray-900'}`}
                   style={isActive('/restaurants') ? { color: BRAND } : {}}>
                   Restaurants
@@ -327,7 +338,7 @@ const Navbar = () => {
       {/* ═══════════════════════════════════════
           MOBILE FLOATING BOTTOM NAV — Fixed, not scrollable
       ═══════════════════════════════════════ */}
-      {!location.pathname.startsWith('/checkout') && !location.pathname.startsWith('/cart') && (
+      {!location.pathname.startsWith('/checkout') && !location.pathname.startsWith('/cart') && !cartOpen && (
       <div
         className="mobile-bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-[1200]"
         style={{
@@ -346,14 +357,23 @@ const Navbar = () => {
           }}
         >
           {tabs.map((tab) => {
-            const active = tab.isCart ? false : isActive(tab.path);
+            const active = tab.isCart ? cartOpen : isActive(tab.path);
             const Icon = active ? tab.IconS : tab.Icon;
             return (
               <button
                 key={tab.path}
                 onClick={() => {
-                  if (tab.isCart) dispatch(toggleCart());
-                  else navigate(tab.path === '/profile' && !isAuthenticated ? '/login' : tab.path);
+                  if (tab.isCart) {
+                    if (!isAuthenticated) {
+                      dispatch(closeCart());
+                      navigate('/login');
+                      return;
+                    }
+                    dispatch(toggleCart());
+                  } else {
+                    dispatch(closeCart());
+                    navigate(tab.path === '/profile' && !isAuthenticated ? '/login' : tab.path);
+                  }
                 }}
                 className={`flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-2xl transition-all duration-200 touch-feedback`}
                 style={tab.isCart ? {} : active ? { background: '#FFF0ED' } : {}}

@@ -698,7 +698,11 @@ const Home = () => {
               placeholder="Search for restaurants, dishes..."
             />
             {searchQ && (
-              <button type="submit" className="flex-shrink-0 text-sm font-semibold" style={{ color: BRAND }}>
+              <button
+                type="submit"
+                className="flex-shrink-0 inline-flex items-center justify-center h-8 px-3 rounded-lg text-sm font-semibold leading-none"
+                style={{ color: BRAND }}
+              >
                 Search
               </button>
             )}

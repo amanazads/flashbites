@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchRestaurantById } from '../redux/slices/restaurantSlice';
 import { getRestaurantMenuItems } from '../api/restaurantApi';
 import { StarIcon, ClockIcon, MapPinIcon } from '@heroicons/react/24/solid';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import MenuCard from '../components/restaurant/MenuCard';
 import ReviewsList from '../components/restaurant/ReviewsList';
 import { Loader } from '../components/common/Loader';
@@ -20,6 +21,7 @@ const RestaurantDetail = () => {
   const dispatch = useDispatch();
   const { currentRestaurant: restaurant, loading } = useSelector((state) => state.restaurant);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [menuSearch, setMenuSearch] = useState('');
   const [menuItems, setMenuItems] = useState([]);
   const [loadingMenu, setLoadingMenu] = useState(true);
 
@@ -54,13 +56,17 @@ const RestaurantDetail = () => {
   const cuisineStr = Array.isArray(restaurant.cuisines) ? restaurant.cuisines.join(', ') : restaurant.cuisine || '';
   const seoDesc = `Order from ${restaurant.name} on FlashBites. ${cuisineStr} cuisine. Rating: ${restaurant.rating}★. Delivery in ${restaurant.deliveryTime} mins. ${isOpen ? 'Open now!' : ''}`;
 
-  const categories = ['All', ...FOOD_CATEGORIES];
-  const filteredMenu = selectedCategory === 'All'
-    ? menuItems
-    : menuItems?.filter(item => item.category === selectedCategory);
+  const categories = ['All', ...Array.from(new Set((menuItems || []).map((item) => item.category).filter(Boolean)))];
+  const normalizedSearch = menuSearch.trim().toLowerCase();
+  const filteredMenu = (menuItems || []).filter((item) => {
+    const categoryMatch = selectedCategory === 'All' || item.category === selectedCategory;
+    const searchMatch = !normalizedSearch
+      || `${item.name || ''} ${item.description || ''}`.toLowerCase().includes(normalizedSearch);
+    return categoryMatch && searchMatch;
+  });
 
   return (
-    <div className="min-h-screen" style={{ background: '#F8F6F5' }}>
+    <div style={{ background: '#F8F6F5' }}>
       <SEO
         title={`${restaurant.name} – Order Online | FlashBites`}
         description={seoDesc}
@@ -164,11 +170,42 @@ const RestaurantDetail = () => {
           )}
         </div>
 
+        <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-sm mb-6 space-y-3">
+          <div className="search-bar">
+            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+            <input
+              type="text"
+              value={menuSearch}
+              onChange={(e) => setMenuSearch(e.target.value)}
+              placeholder={`Search in ${restaurant.name} menu...`}
+            />
+          </div>
+          <div className="overflow-x-auto scrollbar-hide">
+            <div className="flex gap-2 min-w-max">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                    selectedCategory === category
+                      ? 'text-white border-transparent'
+                      : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+                  }`}
+                  style={selectedCategory === category ? { background: BRAND } : {}}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Menu Items Grouped by Category */}
         <div className="space-y-8">
-          {categories.map((category) => {
-            const catItems = category === 'All' ? [] : menuItems?.filter(item => item.category === category);
-            if (category === 'All' || !catItems || catItems.length === 0) return null;
+          {categories.filter((category) => category !== 'All').map((category) => {
+            const catItems = filteredMenu?.filter((item) => item.category === category);
+            if (!catItems || catItems.length === 0) return null;
             
             return (
               <div key={category} className="bg-white rounded-2xl shadow-sm overflow-hidden p-6 pb-2">
@@ -187,9 +224,9 @@ const RestaurantDetail = () => {
             );
           })}
           
-          {(!menuItems || menuItems.length === 0) && (
+          {filteredMenu.length === 0 && (
             <div className="text-center py-12 bg-white rounded-2xl shadow-sm">
-              <p className="text-gray-500">No items found for this restaurant.</p>
+              <p className="text-gray-500">No menu items match your search in this restaurant.</p>
             </div>
           )}
         </div>

@@ -58,8 +58,10 @@ export const getCurrentUser = createAsyncThunk(
       const response = await authApi.getCurrentUser();
       return response.data;
     } catch (error) {
-      const errorMsg = error.response?.data?.message || error.message || 'Failed to fetch user';
-      return rejectWithValue(errorMsg);
+      return rejectWithValue({
+        message: error.response?.data?.message || error.message || 'Failed to fetch user',
+        status: error.response?.status,
+      });
     }
   }
 );
@@ -146,12 +148,25 @@ const authSlice = createSlice({
         }
       })
       .addCase(getCurrentUser.rejected, (state, action) => {
-        // Silently fail if user fetch fails - they're still logged in
-        // Only log in development
-        if (import.meta.env.DEV) {
-          console.warn('Failed to fetch current user:', action.payload || action.error?.message);
+        const status = action.payload?.status;
+
+        if (status === 401 || status === 403) {
+          state.user = null;
+          state.token = null;
+          state.isAuthenticated = false;
+          Preferences.remove({ key: 'token' });
+          Preferences.remove({ key: 'accessToken' });
+          Preferences.remove({ key: 'refreshToken' });
+          Preferences.remove({ key: 'sessionStartedAt' });
+          localStorage.removeItem('token');
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('sessionStartedAt');
         }
-        // Don't clear auth state - user is still logged in, just couldn't fetch updated data
+
+        if (import.meta.env.DEV) {
+          console.warn('Failed to fetch current user:', action.payload?.message || action.error?.message);
+        }
       });
   },
 });

@@ -3,11 +3,11 @@ import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from
 import { useDispatch, useSelector } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async';
-import { IonApp, IonContent, IonPage } from '@ionic/react';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Preferences } from '@capacitor/preferences';
 import { getCurrentUser } from './redux/slices/authSlice';
+import { clearCart } from './redux/slices/cartSlice';
 import { useNotifications } from './hooks/useNotifications';
 
 // Firebase initialization (analytics)
@@ -125,7 +125,8 @@ const RoleRedirector = () => {
 
 function App() {
   const dispatch = useDispatch();
-  const { isAuthenticated } = useSelector((state) => state.auth);
+  const { isAuthenticated, token } = useSelector((state) => state.auth);
+  const cartItemsCount = useSelector((state) => state.cart.items.length);
   
   // Initialize notification system
   useNotifications();
@@ -158,33 +159,35 @@ function App() {
   }, [isNative]);
 
   useEffect(() => {
-    // Restore session on app restart / page refresh.
-    // Skip if Redux already has a user (right after login/register).
-    if (!isAuthenticated) {
-      const restoreSession = async () => {
-        let token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+    const restoreSession = async () => {
+      let persistedToken = localStorage.getItem('token') || localStorage.getItem('accessToken');
 
-        // On Capacitor, also check Preferences (the native persistent store)
-        if (!token && window.Capacitor) {
-          try {
-            const { value } = await Preferences.get({ key: 'token' });
-            token = value;
-            if (!token) {
-              const { value: v2 } = await Preferences.get({ key: 'accessToken' });
-              token = v2;
-            }
-          } catch (e) {
-            // Preferences unavailable — fall through
+      if (!persistedToken && window.Capacitor) {
+        try {
+          const { value } = await Preferences.get({ key: 'token' });
+          persistedToken = value;
+          if (!persistedToken) {
+            const { value: v2 } = await Preferences.get({ key: 'accessToken' });
+            persistedToken = v2;
           }
+        } catch {
+          // ignore
         }
+      }
 
-        if (token) {
-          dispatch(getCurrentUser());
-        }
-      };
-      restoreSession();
+      if (persistedToken) {
+        dispatch(getCurrentUser());
+      }
+    };
+
+    restoreSession();
+  }, [dispatch]);
+
+  useEffect(() => {
+    if ((!isAuthenticated || !token) && cartItemsCount > 0) {
+      dispatch(clearCart());
     }
-  }, [dispatch, isAuthenticated]);
+  }, [isAuthenticated, token, cartItemsCount, dispatch]);
 
   const AppShell = () => {
     const location = useLocation();
@@ -192,10 +195,9 @@ function App() {
     const isAuthPage = authPaths.some((path) => location.pathname.startsWith(path));
 
     return (
-      <IonPage>
+      <div className="min-h-screen">
         {!isAuthPage && <Navbar />}
-        <IonContent fullscreen className="app-ion-content" forceOverscroll={false}>
-          <main className={`flex-1 w-full relative z-0 bg-white lg:bg-[var(--bg-app)] ${isAuthPage ? '' : 'content-mobile-safe'}`}>
+        <main className={`w-full relative z-0 bg-white lg:bg-[var(--bg-app)] ${isAuthPage ? '' : 'content-mobile-safe'}`}>
             <React.Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public Routes */}
@@ -299,16 +301,15 @@ function App() {
               </footer>
             )}
             <CartDrawer />
-          </main>
-        </IonContent>
-      </IonPage>
+        </main>
+      </div>
     );
   };
 
 
 
   return (
-    <IonApp>
+    <div className="min-h-screen bg-[var(--bg-app)]">
       <ErrorBoundary>
         {/* Global default title – overridden per-page by <SEO> components */}
         <Helmet defaultTitle="FlashBites" titleTemplate="%s | FlashBites" />
@@ -367,7 +368,7 @@ function App() {
           />
         </Router>
       </ErrorBoundary>
-    </IonApp>
+    </div>
   );
 }
 

@@ -62,9 +62,6 @@ html, body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Prevents parallax and unwanted scroll animations on iOS */
-  -webkit-transform: translate3d(0, 0, 0);
-  -webkit-perspective: 1000;
 }
 
 html { scroll-behavior: smooth; }
@@ -90,6 +87,9 @@ ion-app,
 
 .app-ion-content::part(scroll) {
   padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .mobile-top-nav {
@@ -493,33 +493,6 @@ input, textarea, select {
 
 @media (min-width: 768px) {
   .page-wrapper { padding-bottom: 0; }
-}
-
-/* Prevent parallax and unwanted scroll transforms */
-body, html, #root {
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  -webkit-perspective: 1000;
-  perspective: 1000;
-}
-
-/* Fixed elements should remain truly fixed */
-.fixed {
-  position: fixed !important;
-  -webkit-transform: translate3d(0, 0, 0);
-  transform: translate3d(0, 0, 0);
-}
-
-/* Sticky positioning with proper 3D fixes for iOS */
-.sticky {
-  -webkit-transform: translate3d(0, 0, 0);
-  transform: translate3d(0, 0, 0);
-}
-
-/* Ensure scrollable containers don't affect fixed elements */
-main {
-  -webkit-transform: translate3d(0, 0, 0);
-  transform: translate3d(0, 0, 0);
 }
 
 /* ─────────────────────────────────────────
