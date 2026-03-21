@@ -68,9 +68,9 @@ const Checkout = () => {
   useEffect(() => {
     if (selectedAddress && restaurant?.location?.coordinates) {
       const address = addresses.find(addr => addr._id === selectedAddress);
-      if (address && address.location?.coordinates) {
+      if (address && Array.isArray(address.coordinates) && address.coordinates.length >= 2) {
         const [restLng, restLat] = restaurant.location.coordinates;
-        const [addrLng, addrLat] = address.location.coordinates;
+        const [addrLng, addrLat] = address.coordinates;
         const distance = calculateDistance(restLat, restLng, addrLat, addrLng);
         setDeliveryDistance(parseFloat(distance));
       }
@@ -137,8 +137,13 @@ const Checkout = () => {
       const result = await dispatch(createOrder(orderData));
       
       if (createOrder.fulfilled.match(result)) {
-        const orderId = result.payload.order._id;
-        const orderTotal = result.payload.order.total;
+        const createdOrder = result.payload?.data?.order;
+        if (!createdOrder?._id) {
+          throw new Error('Order was created but response payload is missing order details');
+        }
+
+        const orderId = createdOrder._id;
+        const orderTotal = createdOrder.total;
         
         // Clear cart first to prevent re-submission
         dispatch(clearCart());
@@ -164,9 +169,9 @@ const Checkout = () => {
               description: `Order #${orderId.slice(-8)}`,
               order_id: razorpayResponse.data.orderId,
               prefill: {
-                name: result.payload.order.user?.name || '',
-                email: result.payload.order.user?.email || '',
-                contact: result.payload.order.user?.phone || ''
+                name: createdOrder.user?.name || '',
+                email: createdOrder.user?.email || '',
+                contact: createdOrder.user?.phone || ''
               },
               theme: {
                 color: '#FF6B6B'
@@ -214,7 +219,7 @@ const Checkout = () => {
               },
               notes: {
                 order_id: orderId,
-                customer_id: result.payload.order.user?._id || ''
+                customer_id: createdOrder.user?._id || ''
               }
             };
 

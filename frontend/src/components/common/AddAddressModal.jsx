@@ -13,12 +13,14 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
     landmark: ''
   });
   const [loading, setLoading] = useState(false);
+  const [isPinVerified, setIsPinVerified] = useState(false);
 
   if (!isOpen) return null;
 
   const handlePincodeChange = async (e) => {
     const value = e.target.value.replace(/\D/g, '').slice(0, 6);
     setFormData(prev => ({ ...prev, zipCode: value }));
+    setIsPinVerified(false);
 
     if (value.length === 6) {
       try {
@@ -32,11 +34,14 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
             city: postOffice.District,
             state: postOffice.State
           }));
+          setIsPinVerified(true);
           toast.success("City and State auto-detected");
         } else {
+          setIsPinVerified(false);
           toast.error("Invalid PIN code entered");
         }
       } catch (error) {
+        setIsPinVerified(false);
         console.error("Failed to fetch pincode details", error);
       }
     }
@@ -47,6 +52,11 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
     
     if (!formData.street || !formData.city || !formData.state || !formData.zipCode) {
       toast.error('Please fill all required fields');
+      return;
+    }
+
+    if (!isPinVerified) {
+      toast.error('Please enter a valid PIN code');
       return;
     }
 
@@ -65,6 +75,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
         zipCode: '',
         landmark: ''
       });
+      setIsPinVerified(false);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to add address');
     } finally {
@@ -130,6 +141,9 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               required
             />
+            {formData.zipCode.length === 6 && !isPinVerified && (
+              <p className="mt-1 text-xs text-red-600">Please verify a valid PIN code.</p>
+            )}
           </div>
 
           {/* Landmark */}

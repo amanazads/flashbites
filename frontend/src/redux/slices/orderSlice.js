@@ -6,7 +6,7 @@ export const fetchUserOrders = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await orderApi.getUserOrders();
-      return response.data;
+      return response;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message);
     }
@@ -20,7 +20,7 @@ export const createOrder = createAsyncThunk(
       console.log('Creating order with data:', orderData);
       const response = await orderApi.createOrder(orderData);
       console.log('Order API response:', response);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Order creation error:', error);
       console.error('Error response:', error.response?.data);
@@ -49,14 +49,14 @@ const orderSlice = createSlice({
       })
       .addCase(fetchUserOrders.fulfilled, (state, action) => {
         state.loading = false;
-        state.orders = action.payload.orders;
+        state.orders = action.payload?.data?.orders || [];
       })
       .addCase(fetchUserOrders.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
       .addCase(createOrder.fulfilled, (state, action) => {
-        state.currentOrder = action.payload.order;
+        state.currentOrder = action.payload?.data?.order || null;
       });
   },
 });

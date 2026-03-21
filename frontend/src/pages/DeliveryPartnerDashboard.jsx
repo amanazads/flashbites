@@ -104,9 +104,9 @@ const DeliveryPartnerDashboard = () => {
         getAssignedOrders(),
         getDeliveryStats()
       ]);
-      setAvailableOrders(availableRes.data.orders || []);
-      setAssignedOrders(assignedRes.data.orders || []);
-      setStats(statsRes.data || {});
+      setAvailableOrders(availableRes?.data?.orders || []);
+      setAssignedOrders(assignedRes?.data?.orders || []);
+      setStats(statsRes?.data || {});
     } catch (error) {
       toast.error('Failed to load dashboard data');
     } finally {

@@ -98,6 +98,21 @@ const initializeSocket = (server) => {
     socket.on('ping', () => {
       socket.emit('pong');
     });
+
+    // Order tracking rooms for live location updates.
+    socket.on('join_order_room', (orderId) => {
+      if (!orderId) return;
+      socket.join(`order_${orderId}`);
+      socket.join(`order-${orderId}`);
+      console.log(`📍 Joined order tracking rooms: ${orderId}`);
+    });
+
+    socket.on('leave_order_room', (orderId) => {
+      if (!orderId) return;
+      socket.leave(`order_${orderId}`);
+      socket.leave(`order-${orderId}`);
+      console.log(`📍 Left order tracking rooms: ${orderId}`);
+    });
   });
 
   console.log('✅ Socket.IO initialized');

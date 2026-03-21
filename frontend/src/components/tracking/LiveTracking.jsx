@@ -60,6 +60,14 @@ const LiveTracking = ({ orderId, socket }) => {
   const [deliveryPartnerPosition, setDeliveryPartnerPosition] = useState(null);
   const mapRef = useRef(null);
 
+  const isValidCoordinatePair = (lat, lng) => (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lng) <= 180 &&
+    !(Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001)
+  );
+
   // Fetch initial tracking data
   useEffect(() => {
     const fetchTracking = async () => {
@@ -140,12 +148,26 @@ const LiveTracking = ({ orderId, socket }) => {
     );
   }
 
-  const restaurantPosition = trackingData.restaurant?.location?.coordinates 
+  const restaurantPosition = trackingData.restaurant?.location?.coordinates &&
+    isValidCoordinatePair(
+      trackingData.restaurant.location.coordinates[1],
+      trackingData.restaurant.location.coordinates[0]
+    )
     ? [trackingData.restaurant.location.coordinates[1], trackingData.restaurant.location.coordinates[0]]
     : null;
 
-  const deliveryPosition = trackingData.deliveryAddress?.coordinates?.coordinates
+  const deliveryPosition = trackingData.deliveryAddress?.coordinates?.coordinates &&
+    isValidCoordinatePair(
+      trackingData.deliveryAddress.coordinates.coordinates[1],
+      trackingData.deliveryAddress.coordinates.coordinates[0]
+    )
     ? [trackingData.deliveryAddress.coordinates.coordinates[1], trackingData.deliveryAddress.coordinates.coordinates[0]]
+    : Array.isArray(trackingData.deliveryAddress?.coordinates) &&
+      isValidCoordinatePair(
+        trackingData.deliveryAddress.coordinates[1],
+        trackingData.deliveryAddress.coordinates[0]
+      )
+    ? [trackingData.deliveryAddress.coordinates[1], trackingData.deliveryAddress.coordinates[0]]
     : null;
 
   // Calculate map center (middle point between restaurant and delivery)
@@ -155,10 +177,17 @@ const LiveTracking = ({ orderId, socket }) => {
 
   // Create route line from tracking history
   const routePath = trackingData.trackingHistory?.length > 0
-    ? trackingData.trackingHistory.map(point => [
-        point.location.coordinates[1],
-        point.location.coordinates[0]
-      ])
+    ? trackingData.trackingHistory
+        .map((point) => {
+          if (Array.isArray(point?.location?.coordinates)) {
+            return [point.location.coordinates[1], point.location.coordinates[0]];
+          }
+          if (Number.isFinite(point?.latitude) && Number.isFinite(point?.longitude)) {
+            return [point.latitude, point.longitude];
+          }
+          return null;
+        })
+        .filter(Boolean)
     : [];
 
   // Add current position to route if available
@@ -286,10 +315,19 @@ const LiveTracking = ({ orderId, socket }) => {
             {trackingData.trackingHistory.slice().reverse().map((point, index) => (
               <div key={index} className="flex items-center justify-between text-sm border-b border-gray-100 pb-2">
                 <div>
-                  <span className="text-gray-600">
-                    Lat: {point.location.coordinates[1].toFixed(6)}, 
-                    Lng: {point.location.coordinates[0].toFixed(6)}
-                  </span>
+                  {Array.isArray(point?.location?.coordinates) ? (
+                    <span className="text-gray-600">
+                      Lat: {point.location.coordinates[1].toFixed(6)}, 
+                      Lng: {point.location.coordinates[0].toFixed(6)}
+                    </span>
+                  ) : Number.isFinite(point?.latitude) && Number.isFinite(point?.longitude) ? (
+                    <span className="text-gray-600">
+                      Lat: {point.latitude.toFixed(6)}, 
+                      Lng: {point.longitude.toFixed(6)}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">Location unavailable</span>
+                  )}
                   {point.status && (
                     <span className="ml-2 text-primary-600 font-medium">
                       ({point.status})

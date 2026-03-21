@@ -91,6 +91,26 @@ export const useNotifications = () => {
     return saved !== null ? JSON.parse(saved) : true;
   });
   const authAxiosRef = useRef(null);
+  const recentNotificationKeysRef = useRef(new Map());
+
+  const shouldNotifyForKey = useCallback((key, ttlMs = 15000) => {
+    if (!key) return true;
+    const now = Date.now();
+
+    recentNotificationKeysRef.current.forEach((timestamp, existingKey) => {
+      if (now - timestamp > ttlMs) {
+        recentNotificationKeysRef.current.delete(existingKey);
+      }
+    });
+
+    const previousTimestamp = recentNotificationKeysRef.current.get(key);
+    if (previousTimestamp && now - previousTimestamp < ttlMs) {
+      return false;
+    }
+
+    recentNotificationKeysRef.current.set(key, now);
+    return true;
+  }, []);
 
   // Initialize socket + audio + FCM
   useEffect(() => {
@@ -121,7 +141,11 @@ export const useNotifications = () => {
         onForegroundMessage((payload) => {
           console.log('📨 FCM foreground message:', payload);
           const { title, body } = payload.notification || {};
-          if (title) {
+          const orderId = payload?.data?.orderId || payload?.data?.order_id || '';
+          const status = payload?.data?.status || '';
+          const fcmKey = `fcm:${orderId}:${status}:${title || ''}:${body || ''}`;
+
+          if (title && shouldNotifyForKey(fcmKey)) {
             if (soundEnabled) notificationSound.playNotification('new-order');
             toast(
               <div className="flex items-center gap-3">
@@ -179,7 +203,7 @@ export const useNotifications = () => {
         document.removeEventListener('touchstart', initAudio);
       };
     }
-  }, [token, user]);
+  }, [token, user, shouldNotifyForKey, soundEnabled]);
 
   // ─── Toast helper ─────────────────
   const showToast = useCallback((emoji, title, subtitle, borderColor = '#444') => {
@@ -209,6 +233,9 @@ export const useNotifications = () => {
   // ─── Handlers ─────────────────────
   const handleNewOrder = useCallback((data) => {
     console.log('🆕 New order received:', data);
+    const key = `socket:new-order:${data?.order?._id || ''}`;
+    if (!shouldNotifyForKey(key)) return;
+
     if (soundEnabled && data.sound !== false) notificationSound.playNotification('new-order');
 
     showToast(
@@ -222,10 +249,13 @@ export const useNotifications = () => {
       `Order #${data.order._id?.slice(-6)} – Total: ₹${data.order.total || 0}`,
       { tag: 'new-order', url: '/dashboard' }
     );
-  }, [soundEnabled, showToast]);
+  }, [soundEnabled, showToast, shouldNotifyForKey]);
 
   const handleOrderUpdate = useCallback((data) => {
     console.log('📦 Order update received:', data);
+    const key = `socket:order-update:${data?.order?._id || ''}:${data?.order?.status || ''}`;
+    if (!shouldNotifyForKey(key)) return;
+
     if (soundEnabled && data.sound !== false) notificationSound.playNotification('order-update');
 
     const statusMessages = {
@@ -245,10 +275,13 @@ export const useNotifications = () => {
       `Order #${data.order?._id?.slice(-6)}`,
       { tag: 'order-update', url: '/orders' }
     );
-  }, [soundEnabled, showToast]);
+  }, [soundEnabled, showToast, shouldNotifyForKey]);
 
   const handleDeliveryUpdate = useCallback((data) => {
     console.log('🚚 Delivery update:', data);
+    const key = `socket:delivery-update:${data?.delivery?.orderId || ''}:${data?.delivery?.status || ''}:${data?.delivery?.message || ''}`;
+    if (!shouldNotifyForKey(key)) return;
+
     if (soundEnabled && data.sound !== false) notificationSound.playNotification('order-update');
 
     showToast('🚚', 'Delivery Update', data.delivery?.message);
@@ -257,7 +290,7 @@ export const useNotifications = () => {
       data.delivery?.message || 'Your delivery is on the way',
       { tag: 'delivery-update', url: '/orders' }
     );
-  }, [soundEnabled, showToast]);
+  }, [soundEnabled, showToast, shouldNotifyForKey]);
 
   // ─── Socket listeners ──────────────
   useEffect(() => {
@@ -265,6 +298,9 @@ export const useNotifications = () => {
 
     // Delivery partner handlers
     const handleDeliveryNewOrder = (data) => {
+      const key = `socket:new-order-available:${data?.order?._id || ''}`;
+      if (!shouldNotifyForKey(key)) return;
+
       if (soundEnabled && data.sound !== false) notificationSound.playNotification('new-order');
       showToast('🆕', 'New Order Available!', `Order #${data.order?._id?.slice(-6)} · ₹${data.order?.deliveryFee || 0} fee`, '#f59e0b');
       sendSystemNotification(
@@ -275,6 +311,9 @@ export const useNotifications = () => {
     };
 
     const handleDeliveryAssigned = (data) => {
+      const key = `socket:order-assigned:${data?.order?._id || ''}`;
+      if (!shouldNotifyForKey(key)) return;
+
       if (soundEnabled && data.sound !== false) notificationSound.playNotification('order-update');
       showToast('✅', 'Order Assigned!', `Order #${data.order?._id?.slice(-6)}`, '#22c55e');
       sendSystemNotification(
@@ -285,6 +324,9 @@ export const useNotifications = () => {
     };
 
     const handleDeliveryCancelled = (data) => {
+      const key = `socket:order-cancelled:${data?.order?._id || ''}`;
+      if (!shouldNotifyForKey(key)) return;
+
       if (soundEnabled) notificationSound.playError();
       showToast('❌', 'Order Cancelled', `Order #${data.order?._id?.slice(-6)}`, '#ef4444');
       sendSystemNotification(
@@ -318,7 +360,7 @@ export const useNotifications = () => {
       socketService.off('order-assigned');
       socketService.off('order-cancelled');
     };
-  }, [connected, user, handleNewOrder, handleOrderUpdate, handleDeliveryUpdate, soundEnabled, showToast]);
+  }, [connected, user, handleNewOrder, handleOrderUpdate, handleDeliveryUpdate, soundEnabled, showToast, shouldNotifyForKey]);
 
   const toggleSound = useCallback(() => {
     const newValue = !soundEnabled;

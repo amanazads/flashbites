@@ -3,11 +3,14 @@ const User = require('../models/User');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { 
   notifyUserDeliveryAssigned,
-  notifyDeliveryPartnerAssignment
+  notifyDeliveryPartnerAssignment,
+  notifyOrderStatus,
+  notifyUser
 } = require('../utils/notificationService');
 const {
   notifyDeliveryPartnerOrderAssigned,
-  notifyUserOrderUpdate
+  notifyUserOrderUpdate,
+  notifyRestaurantNewOrder: socketNotifyRestaurant
 } = require('../services/socketService');
 
 // @desc    Get all available orders for delivery partners
@@ -144,8 +147,46 @@ exports.markAsDelivered = async (req, res) => {
 
     const updatedOrder = await Order.findById(orderId)
       .populate('userId', 'name phone')
-      .populate('restaurantId', 'name address phone location')
+      .populate('restaurantId', 'name address phone location ownerId')
       .populate('addressId');
+
+    try {
+      // Notify customer delivery completion.
+      await notifyOrderStatus(updatedOrder, 'delivered');
+
+      // Notify restaurant owner that delivery partner completed this order.
+      if (updatedOrder.restaurantId?.ownerId) {
+        const orderRef = updatedOrder.orderNumber || updatedOrder._id.toString().slice(-8);
+        await notifyUser(updatedOrder.restaurantId.ownerId, {
+          title: '✅ Order Delivered',
+          message: `Order #${orderRef} was marked delivered by delivery partner`,
+          type: 'restaurant_order_delivered',
+          priority: 'medium',
+          data: {
+            orderId: updatedOrder._id,
+            orderNumber: orderRef,
+            deliveredBy: req.user._id
+          }
+        });
+      }
+
+      // Real-time restaurant update for dashboard/order list refresh.
+      const restaurantIdStr = updatedOrder.restaurantId?._id?.toString();
+      if (restaurantIdStr) {
+        socketNotifyRestaurant(restaurantIdStr, {
+          ...updatedOrder.toObject(),
+          type: 'ORDER_DELIVERED',
+          message: `Order #${updatedOrder._id.toString().slice(-8)} delivered by delivery partner`
+        });
+      }
+
+      // Real-time customer update.
+      if (updatedOrder.userId?._id) {
+        notifyUserOrderUpdate(updatedOrder.userId._id.toString(), updatedOrder);
+      }
+    } catch (notifyError) {
+      console.error('Delivery completion notification error:', notifyError);
+    }
 
     return successResponse(res, 200, 'Order marked as delivered successfully', { order: updatedOrder });
   } catch (error) {
@@ -234,15 +275,21 @@ exports.getStats = async (req, res) => {
 exports.updateLocation = async (req, res) => {
   try {
     const { latitude, longitude, orderId } = req.body;
+    const lat = Number(latitude);
+    const lng = Number(longitude);
 
-    if (!latitude || !longitude) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       return errorResponse(res, 400, 'Latitude and longitude are required');
+    }
+
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return errorResponse(res, 400, 'Invalid latitude or longitude');
     }
 
     // Update user location
     await User.findByIdAndUpdate(req.user._id, {
       $set: {
-        'location.coordinates': [longitude, latitude],
+        'location.coordinates': [lng, lat],
         lastLocationUpdate: new Date()
       }
     });
@@ -258,7 +305,7 @@ exports.updateLocation = async (req, res) => {
       if (order) {
         order.deliveryPartnerLocation = {
           type: 'Point',
-          coordinates: [longitude, latitude],
+          coordinates: [lng, lat],
           lastUpdated: new Date()
         };
 
@@ -266,7 +313,7 @@ exports.updateLocation = async (req, res) => {
         order.trackingHistory.push({
           location: {
             type: 'Point',
-            coordinates: [longitude, latitude]
+            coordinates: [lng, lat]
           },
           timestamp: new Date(),
           status: order.status
@@ -280,14 +327,20 @@ exports.updateLocation = async (req, res) => {
           // Notify user tracking this order
           io.to(`order_${orderId}`).emit('delivery_location_update', {
             orderId,
-            location: { latitude, longitude },
+            location: { latitude: lat, longitude: lng },
+            timestamp: new Date()
+          });
+
+          io.to(`order-${orderId}`).emit('delivery_location_update', {
+            orderId,
+            location: { latitude: lat, longitude: lng },
             timestamp: new Date()
           });
         }
       }
     }
 
-    return successResponse(res, 200, 'Location updated successfully', { latitude, longitude });
+    return successResponse(res, 200, 'Location updated successfully', { latitude: lat, longitude: lng });
   } catch (error) {
     console.error('Update location error:', error);
     return errorResponse(res, 500, 'Failed to update location');

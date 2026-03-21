@@ -2,6 +2,127 @@ const User = require('../models/User');
 const Address = require('../models/Address');
 const AccountDeletionRequest = require('../models/AccountDeletionRequest');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
+const axios = require('axios');
+
+const INDIA_PIN_REGEX = /^[1-9][0-9]{5}$/;
+
+const normalizeText = (value = '') => String(value).trim();
+
+const normalizeCoordinates = (coordinates) => {
+  if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
+  const lng = Number(coordinates[0]);
+  const lat = Number(coordinates[1]);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  if (Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001) return null;
+
+  return [lng, lat];
+};
+
+const validatePincode = async (zipCode) => {
+  const response = await axios.get(`https://api.postalpincode.in/pincode/${zipCode}`, { timeout: 5000 });
+  const data = response?.data?.[0];
+
+  if (!data || data.Status !== 'Success' || !Array.isArray(data.PostOffice) || data.PostOffice.length === 0) {
+    return null;
+  }
+
+  const postOffice = data.PostOffice[0];
+  return {
+    district: normalizeText(postOffice.District),
+    state: normalizeText(postOffice.State)
+  };
+};
+
+const geocodeAddress = async ({ zipCode, city, state }) => {
+  const queries = [
+    `${zipCode}, ${city}, ${state}, India`,
+    `${zipCode}, ${state}, India`,
+    `${zipCode}, India`
+  ];
+
+  for (const query of queries) {
+    const response = await axios.get('https://nominatim.openstreetmap.org/search', {
+      timeout: 7000,
+      headers: {
+        'User-Agent': 'FlashBites/1.0 (support@flashbites.in)'
+      },
+      params: {
+        q: query,
+        format: 'json',
+        limit: 1
+      }
+    });
+
+    const first = response?.data?.[0];
+    if (first && first.lat && first.lon) {
+      const lat = Number(first.lat);
+      const lng = Number(first.lon);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return [lng, lat];
+      }
+    }
+  }
+
+  return null;
+};
+
+const validateAndBuildAddressPayload = async (input, fallback = {}) => {
+  const zipCode = normalizeText(input.zipCode ?? fallback.zipCode);
+  const city = normalizeText(input.city ?? fallback.city);
+  const state = normalizeText(input.state ?? fallback.state);
+
+  if (!zipCode || !city || !state) {
+    return { error: 'City, state and PIN code are required' };
+  }
+
+  if (!INDIA_PIN_REGEX.test(zipCode)) {
+    return { error: 'Please enter a valid 6-digit Indian PIN code' };
+  }
+
+  const pinMeta = await validatePincode(zipCode);
+  if (!pinMeta) {
+    return { error: 'Invalid PIN code. Please enter a valid serviceable location.' };
+  }
+
+  const cityLc = city.toLowerCase();
+  const districtLc = pinMeta.district.toLowerCase();
+  const stateLc = state.toLowerCase();
+  const validStateLc = pinMeta.state.toLowerCase();
+
+  const cityMatches = cityLc.includes(districtLc) || districtLc.includes(cityLc);
+  const stateMatches = stateLc === validStateLc;
+
+  if (!cityMatches || !stateMatches) {
+    return {
+      error: `PIN code ${zipCode} belongs to ${pinMeta.district}, ${pinMeta.state}. Please correct city/state.`
+    };
+  }
+
+  let coordinates = normalizeCoordinates(input.coordinates ?? fallback.coordinates);
+  if (!coordinates) {
+    coordinates = await geocodeAddress({ zipCode, city, state });
+  }
+
+  coordinates = normalizeCoordinates(coordinates);
+  if (!coordinates) {
+    return { error: 'Unable to verify address location. Please enter a valid address.' };
+  }
+
+  return {
+    payload: {
+      type: normalizeText(input.type ?? fallback.type || 'home'),
+      street: normalizeText(input.street ?? fallback.street),
+      city,
+      state,
+      zipCode,
+      landmark: normalizeText(input.landmark ?? fallback.landmark),
+      coordinates,
+      isDefault: Boolean(input.isDefault ?? fallback.isDefault)
+    }
+  };
+};
 
 // @desc    Update user profile
 // @route   PUT /api/users/profile
@@ -27,10 +148,17 @@ exports.updateProfile = async (req, res) => {
 // @access  Private
 exports.addAddress = async (req, res) => {
   try {
-    const { type, street, city, state, zipCode, landmark, coordinates, isDefault } = req.body;
+    const { payload, error } = await validateAndBuildAddressPayload(req.body);
+    if (error) {
+      return errorResponse(res, 400, error);
+    }
+
+    if (!payload.street) {
+      return errorResponse(res, 400, 'Street address is required');
+    }
 
     // If this is set as default, unset other default addresses
-    if (isDefault) {
+    if (payload.isDefault) {
       await Address.updateMany(
         { userId: req.user._id },
         { isDefault: false }
@@ -39,14 +167,7 @@ exports.addAddress = async (req, res) => {
 
     const address = await Address.create({
       userId: req.user._id,
-      type,
-      street,
-      city,
-      state,
-      zipCode,
-      landmark,
-      coordinates,
-      isDefault
+      ...payload
     });
 
     successResponse(res, 201, 'Address added successfully', { address });
@@ -85,9 +206,25 @@ exports.updateAddress = async (req, res) => {
       return errorResponse(res, 404, 'Address not found');
     }
 
+    const { payload, error } = await validateAndBuildAddressPayload(req.body, address.toObject());
+    if (error) {
+      return errorResponse(res, 400, error);
+    }
+
+    if (!payload.street) {
+      return errorResponse(res, 400, 'Street address is required');
+    }
+
+    if (payload.isDefault) {
+      await Address.updateMany(
+        { userId: req.user._id, _id: { $ne: req.params.id } },
+        { isDefault: false }
+      );
+    }
+
     const updatedAddress = await Address.findByIdAndUpdate(
       req.params.id,
-      { $set: req.body },
+      { $set: payload },
       { new: true, runValidators: true }
     );
 

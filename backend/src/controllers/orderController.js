@@ -25,6 +25,28 @@ const {
 } = require('../services/socketService');
 const { calculateDistance, calculateDeliveryCharge } = require('../utils/calculateDistance');
 
+const getAddressCoordinates = (addressLike) => {
+  if (!addressLike) return null;
+
+  if (Array.isArray(addressLike.coordinates) && addressLike.coordinates.length >= 2) {
+    const lng = Number(addressLike.coordinates[0]);
+    const lat = Number(addressLike.coordinates[1]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return [lng, lat];
+    }
+  }
+
+  if (addressLike.location && Array.isArray(addressLike.location.coordinates) && addressLike.location.coordinates.length >= 2) {
+    const lng = Number(addressLike.location.coordinates[0]);
+    const lat = Number(addressLike.location.coordinates[1]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return [lng, lat];
+    }
+  }
+
+  return null;
+};
+
 // Cancellation policy rules
 const CANCELLATION_RULES = {
   pending: { allowed: true, fee: 0, message: 'Free cancellation' },
@@ -192,22 +214,46 @@ exports.createOrder = async (req, res) => {
 
     // Calculate distance-based delivery fee (platform-controlled)
     let deliveryFee = 30; // Default ₹30
-    
+    const restaurantCoords = getAddressCoordinates(restaurant.location ? { coordinates: restaurant.location.coordinates } : null);
+
+    if (!restaurantCoords) {
+      return errorResponse(res, 400, 'Restaurant location is not configured properly');
+    }
+
+    let selectedAddressDoc = null;
+    let deliveryCoords = null;
+
     if (addressId) {
-      const address = await Address.findById(addressId);
-      if (address && address.location && address.location.coordinates && 
-          restaurant.location && restaurant.location.coordinates) {
-        const [addrLng, addrLat] = address.location.coordinates;
-        const [restLng, restLat] = restaurant.location.coordinates;
-        const distance = calculateDistance(restLat, restLng, addrLat, addrLng);
-        
-        if (distance > 20) {
-          return errorResponse(res, 400, "Delivery is not available in your area. Maximum delivery distance is 20km.");
-        }
-        
-        deliveryFee = calculateDeliveryCharge(distance);
+      selectedAddressDoc = await Address.findOne({ _id: addressId, userId: req.user._id });
+      if (!selectedAddressDoc) {
+        return errorResponse(res, 404, 'Delivery address not found');
+      }
+
+      deliveryCoords = getAddressCoordinates(selectedAddressDoc);
+    } else if (deliveryAddress) {
+      deliveryCoords = getAddressCoordinates(deliveryAddress);
+      if (!deliveryCoords) {
+        return errorResponse(res, 400, 'Delivery address location is required. Please use a verified address.');
       }
     }
+
+    if (!deliveryCoords) {
+      return errorResponse(res, 400, 'Unable to verify delivery address location. Please update your address.');
+    }
+
+    const [addrLng, addrLat] = deliveryCoords;
+    const [restLng, restLat] = restaurantCoords;
+    const distance = calculateDistance(restLat, restLng, addrLat, addrLng);
+
+    if (!Number.isFinite(distance)) {
+      return errorResponse(res, 400, 'Unable to calculate delivery distance for the selected address');
+    }
+
+    if (distance > 20) {
+      return errorResponse(res, 400, 'Delivery is not available in your area. Maximum delivery distance is 20km.');
+    }
+
+    deliveryFee = calculateDeliveryCharge(distance);
 
     const tax = subtotal * 0.05; // 5% tax
     let discount = 0;
@@ -249,7 +295,17 @@ exports.createOrder = async (req, res) => {
       userId: req.user._id,
       restaurantId,
       addressId: addressId || null,
-      deliveryAddress: deliveryAddress || null,
+      deliveryAddress: deliveryAddress
+        ? { ...deliveryAddress, coordinates: deliveryCoords }
+        : selectedAddressDoc
+        ? {
+            street: selectedAddressDoc.street,
+            city: selectedAddressDoc.city,
+            state: selectedAddressDoc.state,
+            zipCode: selectedAddressDoc.zipCode,
+            coordinates: deliveryCoords
+          }
+        : null,
       items: orderItems,
       subtotal,
       deliveryFee,
@@ -509,6 +565,7 @@ exports.updateOrderStatus = async (req, res) => {
         select: 'name phone address ownerId',
         populate: { path: 'ownerId', select: '_id name email' }
       })
+      .populate('addressId')
       .populate('items.menuItemId', 'name price');
 
     console.log('✓ [updateOrderStatus] Order populated successfully');

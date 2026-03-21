@@ -84,7 +84,7 @@ const OrderDetail = () => {
   const handleCancelOrder = async (reason) => {
     setCancelling(true);
     try {
-      await cancelOrder(id, { reason });
+      await cancelOrder(id, reason);
       toast.success('Order cancelled successfully');
       setShowCancellationModal(false);
       fetchOrderDetails();
