@@ -112,7 +112,7 @@ const validateAndBuildAddressPayload = async (input, fallback = {}) => {
 
   return {
     payload: {
-      type: normalizeText(input.type ?? fallback.type || 'home'),
+      type: normalizeText(input.type ?? fallback.type ?? 'home'),
       street: normalizeText(input.street ?? fallback.street),
       city,
       state,
