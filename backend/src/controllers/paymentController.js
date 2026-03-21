@@ -6,6 +6,11 @@ const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STR
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 
+const isProduction = process.env.NODE_ENV === 'production';
+const razorpayKeyId = process.env.RAZORPAY_KEY_ID || '';
+
+const isLiveRazorpayKey = (key) => typeof key === 'string' && key.startsWith('rzp_live_');
+
 // Initialize Razorpay only if credentials are provided
 const razorpay = process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET 
   ? new Razorpay({
@@ -53,6 +58,10 @@ exports.createStripePaymentIntent = async (req, res) => {
 exports.createRazorpayOrder = async (req, res) => {
   try {
     console.log('💳 Creating Razorpay order...');
+
+    if (isProduction && !isLiveRazorpayKey(razorpayKeyId)) {
+      return errorResponse(res, 503, 'Razorpay live key is not configured for production');
+    }
     
     // Check if Razorpay is configured
     if (!razorpay) {
@@ -139,6 +148,19 @@ exports.verifyPayment = async (req, res) => {
       }
       
       const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = gatewayResponse;
+
+      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+        return errorResponse(res, 400, 'Incomplete Razorpay response payload');
+      }
+
+      if (isProduction && !isLiveRazorpayKey(razorpayKeyId)) {
+        return errorResponse(res, 503, 'Razorpay live key is not configured for production');
+      }
+
+      if (payment.transactionId && payment.transactionId !== razorpay_order_id) {
+        console.error('❌ Razorpay order ID mismatch with payment record');
+        return errorResponse(res, 400, 'Payment order mismatch');
+      }
       
       console.log('🔐 Verifying Razorpay signature...');
       console.log('Order ID:', razorpay_order_id);

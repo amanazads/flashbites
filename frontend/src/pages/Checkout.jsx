@@ -19,6 +19,8 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
   : null;
 
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
+const isProdBuild = import.meta.env.PROD;
+const isLiveRazorpayKey = (key) => typeof key === 'string' && key.startsWith('rzp_live_');
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -152,6 +154,14 @@ const Checkout = () => {
         if (paymentMethod === 'upi' || paymentMethod === 'card') {
           // Razorpay payment for both UPI and Card
           try {
+            if (!RAZORPAY_KEY_ID) {
+              throw new Error('Razorpay key is missing in frontend environment');
+            }
+
+            if (isProdBuild && !isLiveRazorpayKey(RAZORPAY_KEY_ID)) {
+              throw new Error('Live Razorpay key is not configured for production build');
+            }
+
             toast.loading('Initializing payment...');
             
             // Create Razorpay order
@@ -188,7 +198,7 @@ const Checkout = () => {
                   toast.dismiss();
                   toast.loading('Verifying payment...');
                   
-                  const verifyResult = await verifyPayment({
+                  await verifyPayment({
                     paymentId: razorpayResponse.data.paymentId,
                     gateway: 'razorpay',
                     gatewayResponse: {
@@ -206,7 +216,7 @@ const Checkout = () => {
                   console.error('Error details:', error.response?.data || error.message);
                   
                   toast.dismiss();
-                  toast.success('Payment completed! Waiting for restaurant confirmation');
+                  toast.error('Payment verification failed. Please contact support with your order ID.');
                   navigate(`/orders/${orderId}`);
                 }
               },
