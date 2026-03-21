@@ -144,7 +144,7 @@ const DeliveryPartnerDashboard = () => {
   const OrderCard = ({ order, isAssigned }) => (
     <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
       {/* Order Header */}
-      <div className="flex justify-between items-start mb-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-4">
         <div>
           <h3 className="text-lg font-bold text-gray-900">Order #{order._id.slice(-6)}</h3>
           <p className="text-sm text-gray-600">{new Date(order.createdAt).toLocaleString()}</p>
@@ -161,8 +161,8 @@ const DeliveryPartnerDashboard = () => {
       {/* Restaurant Info */}
       <div className="mb-4 pb-4 border-b">
         <h4 className="font-semibold text-gray-900 mb-2">🏪 Pickup From:</h4>
-        <p className="text-sm font-medium">{order.restaurantId?.name}</p>
-        <p className="text-sm text-gray-600">{order.restaurantId?.address?.street}</p>
+        <p className="text-sm font-medium break-words">{order.restaurantId?.name}</p>
+        <p className="text-sm text-gray-600 break-words">{order.restaurantId?.address?.street}</p>
         <p className="text-sm text-gray-600">
           {order.restaurantId?.address?.city}, {order.restaurantId?.address?.state}
         </p>
@@ -174,8 +174,8 @@ const DeliveryPartnerDashboard = () => {
       {/* Delivery Info */}
       <div className="mb-4 pb-4 border-b">
         <h4 className="font-semibold text-gray-900 mb-2">📍 Deliver To:</h4>
-        <p className="text-sm font-medium">{order.userId?.name}</p>
-        <p className="text-sm text-gray-600">{order.addressId?.street}, {order.addressId?.landmark}</p>
+        <p className="text-sm font-medium break-words">{order.userId?.name}</p>
+        <p className="text-sm text-gray-600 break-words">{order.addressId?.street}, {order.addressId?.landmark}</p>
         <p className="text-sm text-gray-600">
           {order.addressId?.city}, {order.addressId?.state} - {order.addressId?.zipCode}
         </p>
@@ -200,7 +200,7 @@ const DeliveryPartnerDashboard = () => {
       </div>
 
       {/* Payment Info */}
-      <div className="flex justify-between items-center mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <div>
           <p className="text-sm text-gray-600">Order Total</p>
           <p className="text-lg font-bold text-gray-900">{formatCurrency(order.total)}</p>
@@ -252,7 +252,7 @@ const DeliveryPartnerDashboard = () => {
       <div className="max-w-7xl mx-auto container-px">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex justify-between items-start mb-4">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 Delivery Partner Dashboard

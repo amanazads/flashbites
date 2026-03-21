@@ -322,7 +322,7 @@ const OrderDetail = () => {
           {/* Right Column - Summary */}
           <div className="space-y-6">
             {/* Payment & Bill Summary */}
-            <div className="bg-white rounded-lg shadow p-4 sm:p-6 sticky top-20 md:top-24">
+            <div className="bg-white rounded-lg shadow p-4 sm:p-6 md:sticky md:top-24">
               <h2 className="text-xl font-bold mb-4">Bill Details</h2>
               
               <div className="space-y-3 mb-4 pb-4 border-b">

@@ -211,7 +211,7 @@ const LiveTracking = ({ orderId, socket }) => {
         </div>
         
         {trackingData.deliveryPartner && (
-          <div className="flex items-center space-x-4 text-sm text-gray-600">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-600">
             <div>
               <span className="font-medium">Delivery Partner:</span> {trackingData.deliveryPartner.name}
             </div>
@@ -240,7 +240,7 @@ const LiveTracking = ({ orderId, socket }) => {
         <MapContainer
           center={mapCenter}
           zoom={13}
-          style={{ height: '500px', width: '100%' }}
+          style={{ height: 'min(65vh, 500px)', width: '100%' }}
           ref={mapRef}
         >
           <TileLayer
@@ -313,7 +313,7 @@ const LiveTracking = ({ orderId, socket }) => {
           <h4 className="text-md font-semibold text-gray-900 mb-3">Tracking History</h4>
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {trackingData.trackingHistory.slice().reverse().map((point, index) => (
-              <div key={index} className="flex items-center justify-between text-sm border-b border-gray-100 pb-2">
+              <div key={index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-sm border-b border-gray-100 pb-2">
                 <div>
                   {Array.isArray(point?.location?.coordinates) ? (
                     <span className="text-gray-600">
