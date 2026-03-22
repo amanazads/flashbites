@@ -693,7 +693,7 @@ const Home = () => {
         <div className="section-header">
           <h2 className="section-title">
             {selectedAddress
-              ? `${nearbyRests.length > 0 ? nearbyRests.length + ' Restaurants near ' : 'Restaurants near '} ${selectedAddress.city}`
+              ? `${restaurants.length > 0 ? restaurants.length + ' Restaurants near ' : 'Restaurants near '} ${selectedAddress.city}`
               : 'All Restaurants'}
           </h2>
           <Link to="/restaurants" className="section-link flex items-center gap-1">
