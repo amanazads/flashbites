@@ -1,9 +1,74 @@
 const Restaurant = require('../models/Restaurant');
 const MenuItem = require('../models/MenuItem');
 const mongoose = require('mongoose');
+const axios = require('axios');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { calculateDistance } = require('../utils/calculateDistance');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/imageUpload');
+
+const isFiniteNumber = (value) => Number.isFinite(Number(value));
+
+const normalizeCoordPair = (first, second) => {
+  const lng = Number(first);
+  const lat = Number(second);
+  if (!isFiniteNumber(lat) || !isFiniteNumber(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return [lng, lat];
+};
+
+const resolveLocationFromBody = (payload = {}) => {
+  const location = payload.location;
+
+  if (location?.coordinates?.length >= 2) {
+    const normalized = normalizeCoordPair(location.coordinates[0], location.coordinates[1]);
+    if (normalized) return { type: 'Point', coordinates: normalized };
+  }
+
+  if (location?.lat != null && location?.lng != null) {
+    const normalized = normalizeCoordPair(location.lng, location.lat);
+    if (normalized) return { type: 'Point', coordinates: normalized };
+  }
+
+  if (payload.lat != null && payload.lng != null) {
+    const normalized = normalizeCoordPair(payload.lng, payload.lat);
+    if (normalized) return { type: 'Point', coordinates: normalized };
+  }
+
+  if (payload.latitude != null && payload.longitude != null) {
+    const normalized = normalizeCoordPair(payload.longitude, payload.latitude);
+    if (normalized) return { type: 'Point', coordinates: normalized };
+  }
+
+  return null;
+};
+
+const geocodeRestaurantAddress = async ({ name, address = {} }) => {
+  const parts = [address.street, address.city, address.state, address.zipCode, name, 'India']
+    .filter(Boolean);
+
+  if (parts.length < 2 && !address.city && !name) return null;
+
+  try {
+    const response = await axios.get('https://nominatim.openstreetmap.org/search', {
+      timeout: 8000,
+      headers: {
+        'User-Agent': 'FlashBites/1.0 (support@flashbites.in)'
+      },
+      params: {
+        q: parts.length ? parts.join(', ') : (address.city ? `${address.city}, India` : `${name}, India`),
+        format: 'json',
+        limit: 1
+      }
+    });
+
+    const first = response?.data?.[0];
+    if (!first?.lat || !first?.lon) return null;
+    const normalized = normalizeCoordPair(first.lon, first.lat);
+    return normalized ? { type: 'Point', coordinates: normalized } : null;
+  } catch {
+    return null;
+  }
+};
 
 // @desc    Create restaurant
 // @route   POST /api/restaurants
@@ -20,6 +85,15 @@ exports.createRestaurant = async (req, res) => {
 
     if (deliveryRadiusKm == null && deliveryRadius != null) {
       deliveryRadiusKm = deliveryRadius;
+    }
+
+    let resolvedLocation = resolveLocationFromBody({ location, ...req.body });
+    if (!resolvedLocation) {
+      resolvedLocation = await geocodeRestaurantAddress({ name, address });
+    }
+
+    if (!resolvedLocation) {
+      return errorResponse(res, 400, 'Restaurant location is required. Please provide a valid address or coordinates.');
     }
 
     // Check if user already has a restaurant
@@ -42,7 +116,7 @@ exports.createRestaurant = async (req, res) => {
       description,
       cuisines,
       address,
-      location,
+      location: resolvedLocation,
       timing,
       deliveryFee,
       deliveryTime,
@@ -237,6 +311,16 @@ exports.updateRestaurant = async (req, res) => {
 
     if (req.body.deliveryRadiusKm == null && req.body.deliveryRadius != null) {
       req.body.deliveryRadiusKm = req.body.deliveryRadius;
+    }
+
+    if (!req.body.location && req.body.address) {
+      const resolvedLocation = await geocodeRestaurantAddress({
+        name: req.body.name || restaurant.name,
+        address: req.body.address
+      });
+      if (resolvedLocation) {
+        req.body.location = resolvedLocation;
+      }
     }
 
     const updatedRestaurant = await Restaurant.findByIdAndUpdate(
