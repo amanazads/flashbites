@@ -215,6 +215,70 @@ const sendPasswordResetSuccessEmail = async (email, name) => {
   }
 };
 
+// Send order cancellation email with refund details
+const sendOrderCancelledEmail = async ({
+  email,
+  name,
+  orderRef,
+  restaurantName,
+  total,
+  refundAmount,
+  paymentMethod,
+  cancellationReason
+}) => {
+  try {
+    const isCod = paymentMethod === 'cod';
+    const refundLine = isCod
+      ? 'This was a Cash on Delivery order, so no refund is required.'
+      : `Refund Amount: <b>₹${refundAmount.toFixed(2)}</b> (processed to your original payment method within 5-7 business days).`;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #ef4444; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0;">Order Cancelled</h1>
+        </div>
+        <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333;">Hi ${name || 'there'},</h2>
+          <p style="color: #666; font-size: 16px;">Your order <b>#${orderRef}</b> from <b>${restaurantName || 'FlashBites'}</b> has been cancelled.</p>
+          <div style="background-color: white; padding: 16px; border-radius: 8px; margin: 16px 0; border: 1px solid #e5e7eb;">
+            <p style="margin: 0; color: #111827;"><b>Order Total:</b> ₹${total.toFixed(2)}</p>
+            <p style="margin: 8px 0 0 0; color: #111827;"><b>Payment Method:</b> ${paymentMethod?.toUpperCase() || 'N/A'}</p>
+            <p style="margin: 8px 0 0 0; color: #111827;">${refundLine}</p>
+            ${cancellationReason ? `<p style="margin: 8px 0 0 0; color: #6b7280;"><b>Reason:</b> ${cancellationReason}</p>` : ''}
+          </div>
+          <p style="color: #999; font-size: 14px;">If you have any questions, reply to this email and we will help you.</p>
+        </div>
+      </div>
+    `;
+
+    const subject = `FlashBites - Order #${orderRef} Cancelled`;
+    const textContent = `Your order #${orderRef} has been cancelled. ${isCod ? 'No refund is required for COD orders.' : `Refund Amount: ₹${refundAmount.toFixed(2)} (5-7 business days).`}`;
+
+    if (process.env.MAILTRAP_API_TOKEN) {
+      await sendMailtrapAPI(email, subject, htmlContent, textContent);
+      return true;
+    }
+
+    if (!transporter) {
+      console.warn('⚠️ Email service not configured, skipping cancellation email');
+      return true;
+    }
+
+    const mailOptions = {
+      from: process.env.MAILTRAP_FROM_EMAIL || 'FlashBites <noreply@flashbites.in>',
+      to: email,
+      subject,
+      html: htmlContent
+    };
+
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error('Order cancellation email error:', error.message);
+    return false;
+  }
+};
+
 // Send contact form email
 const sendContactEmail = async ({ name, email, phone, subject, message }) => {
   try {
@@ -273,5 +337,6 @@ module.exports = {
   sendOTPEmail,
   sendWelcomeEmail,
   sendPasswordResetSuccessEmail,
-  sendContactEmail
+  sendContactEmail,
+  sendOrderCancelledEmail
 };

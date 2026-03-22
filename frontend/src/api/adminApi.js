@@ -39,3 +39,11 @@ export const getAccountDeletionRequests = (params) => {
 export const reviewAccountDeletionRequest = (id, payload) => {
   return axios.patch(`/admin/account-deletion-requests/${id}/review`, payload);
 };
+
+export const getPlatformSettings = () => {
+  return axios.get('/admin/settings');
+};
+
+export const updatePlatformSettings = (payload) => {
+  return axios.put('/admin/settings', payload);
+};

@@ -5,11 +5,11 @@ require('dotenv').config();
 
 const sampleCoupons = [
   {
-    code: 'FLASH50',
-    description: 'Flat ₹50 off on orders above ₹299',
+    code: 'FLASH120',
+    description: 'Flat ₹120 off on orders above ₹249',
     discountType: 'fixed',
-    discountValue: 50,
-    minOrderValue: 299,
+    discountValue: 120,
+    minOrderValue: 249,
     maxDiscount: null,
     validFrom: new Date('2026-01-01'),
     validTill: new Date('2026-12-31'),
@@ -17,10 +17,10 @@ const sampleCoupons = [
     isActive: true
   },
   {
-    code: 'FIRST20',
-    description: '20% off on your first order (max ₹100)',
+    code: 'FLASH100',
+    description: 'Flat ₹100 off on orders above ₹199',
     discountType: 'percentage',
-    discountValue: 20,
+    discountValue: 100,
     minOrderValue: 199,
     maxDiscount: 100,
     validFrom: new Date('2026-01-01'),
@@ -29,29 +29,17 @@ const sampleCoupons = [
     isActive: true
   },
   {
-    code: 'SAVE100',
-    description: 'Flat ₹100 off on orders above ₹500',
+    code: 'SAVE160',
+    description: 'Flat ₹160 off on orders above ₹399',
     discountType: 'fixed',
-    discountValue: 100,
-    minOrderValue: 500,
+    discountValue: 160,
+    minOrderValue: 399,
     maxDiscount: null,
     validFrom: new Date('2026-01-01'),
     validTill: new Date('2026-12-31'),
     usageLimit: null,
     isActive: true
   },
-  {
-    code: 'WEEKEND30',
-    description: '30% off on weekend orders (max ₹150)',
-    discountType: 'percentage',
-    discountValue: 30,
-    minOrderValue: 299,
-    maxDiscount: 150,
-    validFrom: new Date('2026-01-01'),
-    validTill: new Date('2026-12-31'),
-    usageLimit: 500,
-    isActive: true
-  }
 ];
 
 const addCoupons = async () => {

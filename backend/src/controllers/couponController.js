@@ -4,7 +4,7 @@ const { successResponse, errorResponse } = require('../utils/responseHandler');
 // Validate and apply coupon
 exports.validateCoupon = async (req, res) => {
   try {
-    const { code, orderValue } = req.body;
+    const { code, orderValue, restaurantId } = req.body;
 
     if (!code || !orderValue) {
       return errorResponse(res, 400, 'Coupon code and order value are required');
@@ -24,6 +24,21 @@ exports.validateCoupon = async (req, res) => {
     const now = new Date();
     if (now < coupon.validFrom || now > coupon.validTill) {
       return errorResponse(res, 400, 'Coupon has expired or is not yet valid');
+    }
+
+    // Check restaurant applicability
+    if (coupon.applicableRestaurants && coupon.applicableRestaurants.length > 0) {
+      if (!restaurantId || !coupon.applicableRestaurants.some((id) => id.toString() === restaurantId.toString())) {
+        return errorResponse(res, 400, 'Coupon is not valid for this restaurant');
+      }
+    }
+
+    // Check user applicability
+    if (coupon.userSpecific) {
+      const userId = req.user?._id?.toString();
+      if (!userId || !coupon.applicableUsers.some((id) => id.toString() === userId)) {
+        return errorResponse(res, 400, 'Coupon is not valid for this user');
+      }
     }
 
     // Check minimum order value
@@ -70,10 +85,12 @@ exports.validateCoupon = async (req, res) => {
 // Get available coupons
 exports.getAvailableCoupons = async (req, res) => {
   try {
-    const { orderValue } = req.query;
+    const { orderValue, restaurantId } = req.query;
     const now = new Date();
 
-    const coupons = await Coupon.find({
+    const userId = req.user?._id?.toString();
+
+    const query = {
       isActive: true,
       validFrom: { $lte: now },
       validTill: { $gte: now },
@@ -82,7 +99,33 @@ exports.getAvailableCoupons = async (req, res) => {
         { usageLimit: null },
         { $expr: { $lt: ['$usedCount', '$usageLimit'] } }
       ]
-    }).select('code description discountType discountValue minOrderValue maxDiscount');
+    };
+
+    if (restaurantId) {
+      query.$or = query.$or || [];
+      query.$and = [
+        {
+          $or: [
+            { applicableRestaurants: { $size: 0 } },
+            { applicableRestaurants: { $exists: false } },
+            { applicableRestaurants: restaurantId }
+          ]
+        }
+      ];
+    }
+
+    if (userId) {
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { userSpecific: false },
+          { applicableUsers: userId }
+        ]
+      });
+    }
+
+    const coupons = await Coupon.find(query)
+      .select('code description discountType discountValue minOrderValue maxDiscount');
 
     return successResponse(res, { coupons }, 'Available coupons fetched successfully');
   } catch (error) {

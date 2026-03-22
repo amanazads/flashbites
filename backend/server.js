@@ -38,6 +38,7 @@ const notificationRoutes = require('./src/routes/notificationRoutes');
 const couponRoutes = require('./src/routes/couponRoutes');
 const deliveryPartnerRoutes = require('./src/routes/deliveryPartnerRoutes');
 const contactRoutes = require('./src/routes/contactRoutes');
+const settingsRoutes = require('./src/routes/settingsRoutes');
 
 // Import error handler
 const errorHandler = require('./src/middleware/errorHandler');
@@ -192,6 +193,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/delivery', deliveryPartnerRoutes);
 app.use('/api/contact', contactLimiter, contactRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

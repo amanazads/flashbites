@@ -18,7 +18,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { getRestaurants } from '../api/restaurantApi';
 import { getAllPartnerApplications, approvePartner, rejectPartner } from '../api/partnerApi';
-import { getComprehensiveAnalytics, getAccountDeletionRequests, reviewAccountDeletionRequest, updateUserRole } from '../api/adminApi';
+import { getComprehensiveAnalytics, getAccountDeletionRequests, reviewAccountDeletionRequest, updateUserRole, getPlatformSettings, updatePlatformSettings } from '../api/adminApi';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
 import axios from '../api/axios';
@@ -48,6 +48,17 @@ const AdminPanel = () => {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsPeriod, setAnalyticsPeriod] = useState('30');
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
+  const [platformSettings, setPlatformSettings] = useState(null);
+  const [settingsForm, setSettingsForm] = useState({
+    platformFee: 25,
+    taxRate: 5,
+    deliveryChargeRules: [
+      { minDistance: 0, maxDistance: 5, charge: 0 },
+      { minDistance: 5, maxDistance: 15, charge: 25 },
+      { minDistance: 15, maxDistance: 9999, charge: 30 }
+    ]
+  });
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const [stats, setStats] = useState({
     totalRestaurants: 0,
     totalUsers: 0,
@@ -129,6 +140,12 @@ const AdminPanel = () => {
     }
   }, [activeTab, selectedRestaurantId]);
 
+  useEffect(() => {
+    if (activeTab === 'fees') {
+      fetchPlatformSettings();
+    }
+  }, [activeTab]);
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -181,6 +198,65 @@ const AdminPanel = () => {
       console.error('Failed to load admin data:', error);
       toast.error('Failed to load data');
       setLoading(false);
+    }
+  };
+
+  const fetchPlatformSettings = async () => {
+    try {
+      const response = await getPlatformSettings();
+      const settings = response?.data?.settings;
+      if (settings) {
+        setPlatformSettings(settings);
+        setSettingsForm({
+          platformFee: settings.platformFee ?? 25,
+          taxRate: (settings.taxRate ?? 0.05) * 100,
+          deliveryChargeRules: settings.deliveryChargeRules || [
+            { minDistance: 0, maxDistance: 5, charge: 0 },
+            { minDistance: 5, maxDistance: 15, charge: 25 },
+            { minDistance: 15, maxDistance: 9999, charge: 30 }
+          ]
+        });
+      }
+    } catch (error) {
+      toast.error('Failed to load platform settings');
+    }
+  };
+
+  const handleSettingsChange = (field, value) => {
+    setSettingsForm((prev) => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleDeliveryRuleChange = (index, field, value) => {
+    setSettingsForm((prev) => {
+      const rules = [...prev.deliveryChargeRules];
+      rules[index] = { ...rules[index], [field]: value };
+      return { ...prev, deliveryChargeRules: rules };
+    });
+  };
+
+  const savePlatformSettings = async () => {
+    try {
+      setSettingsSaving(true);
+      const payload = {
+        platformFee: Number(settingsForm.platformFee),
+        taxRate: Number(settingsForm.taxRate) / 100,
+        deliveryChargeRules: settingsForm.deliveryChargeRules.map((rule) => ({
+          minDistance: Number(rule.minDistance),
+          maxDistance: Number(rule.maxDistance),
+          charge: Number(rule.charge)
+        }))
+      };
+
+      await updatePlatformSettings(payload);
+      toast.success('Platform settings updated');
+      fetchPlatformSettings();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update settings');
+    } finally {
+      setSettingsSaving(false);
     }
   };
 
@@ -521,6 +597,16 @@ const AdminPanel = () => {
                 Overview
               </button>
               <button
+                onClick={() => setActiveTab('fees')}
+                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                  activeTab === 'fees'
+                    ? 'border-b-2 border-primary-500 text-primary-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Fees & Charges
+              </button>
+              <button
                 onClick={() => setActiveTab('restaurants')}
                 className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
                   activeTab === 'restaurants'
@@ -617,6 +703,87 @@ const AdminPanel = () => {
                       </button>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'fees' && (
+              <div>
+                <h2 className="text-xl font-bold mb-4">Fees & Charges</h2>
+                <div className="bg-gray-50 rounded-lg p-4 sm:p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Platform Fee (INR)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={settingsForm.platformFee}
+                        onChange={(e) => handleSettingsChange('platformFee', e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Tax Rate (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={settingsForm.taxRate}
+                        onChange={(e) => handleSettingsChange('taxRate', e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <h3 className="text-sm font-bold text-gray-800 mb-3">Delivery Charge Rules</h3>
+                    <div className="space-y-3">
+                      {settingsForm.deliveryChargeRules.map((rule, index) => (
+                        <div key={index} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-500 mb-1">Min KM</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={rule.minDistance}
+                              onChange={(e) => handleDeliveryRuleChange(index, 'minDistance', e.target.value)}
+                              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-500 mb-1">Max KM</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={rule.maxDistance}
+                              onChange={(e) => handleDeliveryRuleChange(index, 'maxDistance', e.target.value)}
+                              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-500 mb-1">Charge (INR)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={rule.charge}
+                              onChange={(e) => handleDeliveryRuleChange(index, 'charge', e.target.value)}
+                              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      onClick={savePlatformSettings}
+                      disabled={settingsSaving}
+                      className="px-5 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold disabled:opacity-60"
+                    >
+                      {settingsSaving ? 'Saving...' : 'Save Settings'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

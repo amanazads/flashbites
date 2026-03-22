@@ -204,9 +204,9 @@ instance.interceptors.response.use(
     if (status === 401) {
       // Only treat as a real session expiry if the user is explicitly on/navigating to a protected page.
       // Background calls (FCM token, /auth/me, socket setup, etc.) should NOT wipe the session.
-      const protectedRoutes = ['/checkout', '/orders', '/profile', '/auth/logout', '/users/addresses'];
+      const protectedRoutes = ['/checkout', '/orders', '/payment', '/profile', '/auth/logout', '/users/addresses'];
       const isProtectedRequest = protectedRoutes.some(route => url.includes(route));
-      const protectedPagePrefixes = ['/checkout', '/orders', '/profile', '/notifications', '/dashboard', '/delivery-dashboard', '/admin'];
+      const protectedPagePrefixes = ['/checkout', '/orders', '/payment', '/profile', '/notifications', '/dashboard', '/delivery-dashboard', '/admin'];
       const isOnProtectedPage = protectedPagePrefixes.some((prefix) => window.location.pathname.startsWith(prefix));
 
       // Only clear tokens + redirect when this is a user-facing protected action, not a background call.

@@ -17,7 +17,9 @@ const {
   deleteCoupon,
   getComprehensiveAnalytics,
   getAccountDeletionRequests,
-  reviewAccountDeletionRequest
+  reviewAccountDeletionRequest,
+  getPlatformSettings,
+  updatePlatformSettings
 } = require('../controllers/adminController');
 
 router.use(protect, restrictTo('admin')); // All admin routes
@@ -32,6 +34,9 @@ router.patch('/users/:id/block', blockUser);
 router.patch('/users/:id/role', updateUserRole);
 router.get('/account-deletion-requests', getAccountDeletionRequests);
 router.patch('/account-deletion-requests/:id/review', reviewAccountDeletionRequest);
+
+router.get('/settings', getPlatformSettings);
+router.put('/settings', updatePlatformSettings);
 
 // Coupon management routes
 router.route('/coupons')

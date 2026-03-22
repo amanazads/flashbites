@@ -8,7 +8,29 @@ const Coupon = require('../models/Coupon');
 const Address = require('../models/Address');
 const Notification = require('../models/Notification');
 const AccountDeletionRequest = require('../models/AccountDeletionRequest');
+const PlatformSettings = require('../models/PlatformSettings');
 const { notifyCouponAvailable, notifyUser } = require('../utils/notificationService');
+
+const normalizeSettingsPayload = (payload = {}) => {
+  const platformFee = Number(payload.platformFee);
+  const taxRate = Number(payload.taxRate);
+
+  const deliveryChargeRules = Array.isArray(payload.deliveryChargeRules)
+    ? payload.deliveryChargeRules
+        .map(rule => ({
+          minDistance: Number(rule.minDistance),
+          maxDistance: Number(rule.maxDistance),
+          charge: Number(rule.charge)
+        }))
+        .filter(rule => Number.isFinite(rule.minDistance) && Number.isFinite(rule.maxDistance) && Number.isFinite(rule.charge))
+    : null;
+
+  return {
+    platformFee: Number.isFinite(platformFee) ? platformFee : undefined,
+    taxRate: Number.isFinite(taxRate) ? taxRate : undefined,
+    deliveryChargeRules: deliveryChargeRules && deliveryChargeRules.length > 0 ? deliveryChargeRules : undefined
+  };
+};
 
 // @desc    Get admin dashboard statistics
 // @route   GET /api/admin/dashboard
@@ -150,6 +172,42 @@ exports.getAllOrders = async (req, res) => {
     });
   } catch (error) {
     errorResponse(res, 500, 'Failed to get orders', error.message);
+  }
+};
+
+// @desc    Get platform settings
+// @route   GET /api/admin/settings
+// @access  Private (Admin)
+exports.getPlatformSettings = async (req, res) => {
+  try {
+    let settings = await PlatformSettings.findOne().lean();
+    if (!settings) {
+      settings = await PlatformSettings.create({});
+      settings = settings.toObject();
+    }
+
+    successResponse(res, 200, 'Platform settings retrieved', { settings });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to get platform settings', error.message);
+  }
+};
+
+// @desc    Update platform settings
+// @route   PUT /api/admin/settings
+// @access  Private (Admin)
+exports.updatePlatformSettings = async (req, res) => {
+  try {
+    const updates = normalizeSettingsPayload(req.body);
+
+    const settings = await PlatformSettings.findOneAndUpdate(
+      {},
+      { $set: updates },
+      { new: true, upsert: true, runValidators: true }
+    ).lean();
+
+    successResponse(res, 200, 'Platform settings updated', { settings });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to update platform settings', error.message);
   }
 };
 

@@ -7,20 +7,10 @@ import { getAddresses } from '../api/userApi';
 import { formatCurrency } from '../utils/formatters';
 import { calculateCartTotal } from '../utils/helpers';
 import { calculateDistance } from '../utils/helpers';
-import { createRazorpayOrder, verifyPayment } from '../api/paymentApi';
-import { updateOrderStatus } from '../api/orderApi';
 import { validateCoupon } from '../api/couponApi';
+import { getPlatformSettings } from '../api/settingsApi';
 import AddAddressModal from '../components/common/AddAddressModal';
 import toast from 'react-hot-toast';
-import { loadStripe } from '@stripe/stripe-js';
-
-const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY 
-  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
-  : null;
-
-const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
-const isProdBuild = import.meta.env.PROD;
-const isLiveRazorpayKey = (key) => typeof key === 'string' && key.startsWith('rzp_live_');
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -35,6 +25,7 @@ const Checkout = () => {
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponLoading, setCouponLoading] = useState(false);
   const [deliveryDistance, setDeliveryDistance] = useState(0);
+  const [platformSettings, setPlatformSettings] = useState(null);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -43,6 +34,7 @@ const Checkout = () => {
     }
 
     fetchAddresses();
+    fetchPlatformSettings();
   }, [items, navigate]);
 
   const fetchAddresses = async () => {
@@ -66,6 +58,28 @@ const Checkout = () => {
     toast.success('Address added successfully!');
   };
 
+  const fetchPlatformSettings = async () => {
+    try {
+      const response = await getPlatformSettings();
+      setPlatformSettings(response?.data?.settings || null);
+    } catch {
+      setPlatformSettings(null);
+    }
+  };
+
+  const calculateDeliveryFee = (distance, rules) => {
+    const tiers = Array.isArray(rules) && rules.length > 0
+      ? rules
+      : [
+          { minDistance: 0, maxDistance: 5, charge: 0 },
+          { minDistance: 5, maxDistance: 15, charge: 25 },
+          { minDistance: 15, maxDistance: 9999, charge: 30 }
+        ];
+
+    const tier = tiers.find((t) => distance >= t.minDistance && distance < t.maxDistance);
+    return tier ? tier.charge : 0;
+  };
+
   // Calculate distance when address or restaurant changes
   useEffect(() => {
     if (selectedAddress && restaurant?.location?.coordinates) {
@@ -81,8 +95,13 @@ const Checkout = () => {
 
   const subtotal = calculateCartTotal(items);
   const discount = appliedCoupon?.discount || 0;
-  const tax = (subtotal - discount) * 0.05;
-  const total = subtotal + tax - discount;
+  const platformFee = Number(platformSettings?.platformFee || 25);
+  const taxRate = Number(platformSettings?.taxRate || 0.05);
+  const deliveryFee = deliveryDistance > 0
+    ? calculateDeliveryFee(deliveryDistance, platformSettings?.deliveryChargeRules)
+    : 0;
+  const tax = Math.max(subtotal - discount, 0) * taxRate;
+  const total = subtotal + deliveryFee + platformFee + tax - discount;
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -92,7 +111,7 @@ const Checkout = () => {
 
     setCouponLoading(true);
     try {
-      const response = await validateCoupon(couponCode, subtotal);
+      const response = await validateCoupon(couponCode, subtotal, restaurant?._id);
       if (response.success) {
         setAppliedCoupon(response.data.coupon);
         toast.success(response.message || 'Coupon applied successfully!');
@@ -152,103 +171,7 @@ const Checkout = () => {
         
         // Handle payment based on method
         if (paymentMethod === 'upi' || paymentMethod === 'card') {
-          // Razorpay payment for both UPI and Card
-          try {
-            if (!RAZORPAY_KEY_ID) {
-              throw new Error('Razorpay key is missing in frontend environment');
-            }
-
-            if (isProdBuild && !isLiveRazorpayKey(RAZORPAY_KEY_ID)) {
-              throw new Error('Live Razorpay key is not configured for production build');
-            }
-
-            toast.loading('Initializing payment...');
-            
-            // Create Razorpay order
-            const razorpayResponse = await createRazorpayOrder(orderId, orderTotal);
-            
-            if (!razorpayResponse.success) {
-              throw new Error('Failed to initialize payment');
-            }
-
-            const options = {
-              key: RAZORPAY_KEY_ID,
-              amount: razorpayResponse.data.amount,
-              currency: razorpayResponse.data.currency,
-              name: 'FlashBites',
-              description: `Order #${orderId.slice(-8)}`,
-              order_id: razorpayResponse.data.orderId,
-              prefill: {
-                name: createdOrder.user?.name || '',
-                email: createdOrder.user?.email || '',
-                contact: createdOrder.user?.phone || ''
-              },
-              theme: {
-                color: '#FF6B6B'
-              },
-              method: {
-                upi: paymentMethod === 'upi',
-                card: paymentMethod === 'card',
-                netbanking: false,
-                wallet: false
-              },
-              handler: async function (response) {
-                try {
-                  // Payment successful - verify on backend
-                  toast.dismiss();
-                  toast.loading('Verifying payment...');
-                  
-                  await verifyPayment({
-                    paymentId: razorpayResponse.data.paymentId,
-                    gateway: 'razorpay',
-                    gatewayResponse: {
-                      razorpay_payment_id: response.razorpay_payment_id,
-                      razorpay_order_id: response.razorpay_order_id,
-                      razorpay_signature: response.razorpay_signature
-                    }
-                  });
-                  
-                  toast.dismiss();
-                  toast.success('💳 Payment successful! Waiting for restaurant confirmation');
-                  navigate(`/orders/${orderId}`);
-                } catch (error) {
-                  console.error('❌ Payment verification failed:', error);
-                  console.error('Error details:', error.response?.data || error.message);
-                  
-                  toast.dismiss();
-                  toast.error('Payment verification failed. Please contact support with your order ID.');
-                  navigate(`/orders/${orderId}`);
-                }
-              },
-              modal: {
-                ondismiss: function() {
-                  toast.dismiss();
-                  toast.error('Payment cancelled. Order created but not paid.');
-                  navigate(`/orders/${orderId}`);
-                }
-              },
-              notes: {
-                order_id: orderId,
-                customer_id: createdOrder.user?._id || ''
-              }
-            };
-
-            toast.dismiss();
-            const razorpay = new window.Razorpay(options);
-            razorpay.open();
-            
-          } catch (error) {
-            console.error('❌ Razorpay initialization error:', error);
-            toast.dismiss();
-            
-            if (error.message?.includes('Failed to initialize')) {
-              toast.error('Payment gateway error. Please try COD or contact support');
-            } else {
-              toast.error('Failed to initialize payment. Order created - you can pay later');
-            }
-            
-            navigate(`/orders/${orderId}`);
-          }
+          navigate(`/payment/${orderId}`, { state: { paymentMethod } });
         } else if (paymentMethod === 'cod') {
           // Cash on delivery - no payment needed
           toast.success('Order placed successfully! Pay on delivery');
@@ -427,6 +350,14 @@ const Checkout = () => {
                   <span>Subtotal</span>
                   <span className="font-medium text-gray-700">{formatCurrency(subtotal)}</span>
                 </div>
+                <div className="flex justify-between text-gray-500">
+                  <span>Delivery Fee</span>
+                  <span className="font-medium text-gray-700">{formatCurrency(deliveryFee)}</span>
+                </div>
+                <div className="flex justify-between text-gray-500">
+                  <span>Platform Fee</span>
+                  <span className="font-medium text-gray-700">{formatCurrency(platformFee)}</span>
+                </div>
                 {appliedCoupon && (
                   <div className="flex justify-between text-green-600 font-semibold">
                     <span>Discount ({appliedCoupon.code})</span>
@@ -434,7 +365,7 @@ const Checkout = () => {
                   </div>
                 )}
                 <div className="flex justify-between text-gray-500">
-                  <span>Tax (5%)</span>
+                  <span>Tax ({Math.round((taxRate || 0) * 100)}%)</span>
                   <span className="font-medium text-gray-700">{formatCurrency(tax)}</span>
                 </div>
                 <div className="flex justify-between text-[15px] font-bold pt-2 border-t border-gray-200">

@@ -1,9 +1,13 @@
 const Order = require('../models/Order');
+const Payment = require('../models/Payment');
 const Restaurant = require('../models/Restaurant');
 const MenuItem = require('../models/MenuItem');
 const Address = require('../models/Address');
+const PlatformSettings = require('../models/PlatformSettings');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
+const { sendOrderCancelledEmail } = require('../utils/emailService');
 const axios = require('axios');
+const Razorpay = require('razorpay');
 const { 
   notifyOrderStatus, 
   notifyRestaurantNewOrder, 
@@ -24,7 +28,15 @@ const {
   notifyDeliveryPartnerOrderAssigned,
   notifyDeliveryPartnerOrderCancelled: socketNotifyDeliveryPartnerCancelled
 } = require('../services/socketService');
-const { calculateDistance, calculateDeliveryCharge } = require('../utils/calculateDistance');
+const { calculateDistance, calculateDeliveryCharge, DEFAULT_DELIVERY_CHARGES } = require('../utils/calculateDistance');
+
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
+const razorpay = process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET
+  ? new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
+    })
+  : null;
 
 const INDIA_BOUNDS = {
   latMin: 6,
@@ -307,7 +319,7 @@ exports.createOrder = async (req, res) => {
 
 
     // Calculate distance-based delivery fee (platform-controlled)
-    let deliveryFee = 30; // Default ₹30
+    let deliveryFee = 0;
     let restaurantCoords = getAddressCoordinates(restaurant.location ? { coordinates: restaurant.location.coordinates } : null);
 
     if (!restaurantCoords || !isInIndia(restaurantCoords[1], restaurantCoords[0])) {
@@ -394,9 +406,6 @@ exports.createOrder = async (req, res) => {
       return errorResponse(res, 400, 'Delivery is not available in your area. Maximum delivery distance is 20km.');
     }
 
-    deliveryFee = calculateDeliveryCharge(distance);
-
-    const tax = subtotal * 0.05; // 5% tax
     let discount = 0;
 
     // Apply coupon if provided
@@ -406,26 +415,43 @@ exports.createOrder = async (req, res) => {
       
       if (coupon) {
         const now = new Date();
-        if (now >= coupon.validFrom && now <= coupon.validTill) {
-          if (subtotal >= coupon.minOrderValue) {
-            if (coupon.discountType === 'percentage') {
-              discount = (subtotal * coupon.discountValue) / 100;
-              if (coupon.maxDiscount && discount > coupon.maxDiscount) {
-                discount = coupon.maxDiscount;
-              }
-            } else {
-              discount = coupon.discountValue;
+        const isValidWindow = now >= coupon.validFrom && now <= coupon.validTill;
+        const meetsMinOrder = subtotal >= coupon.minOrderValue;
+        const underUsageLimit = !coupon.usageLimit || coupon.usedCount < coupon.usageLimit;
+        const matchesRestaurant = !coupon.applicableRestaurants?.length
+          || coupon.applicableRestaurants.some((id) => id.toString() === restaurantId.toString());
+        const matchesUser = !coupon.userSpecific
+          || coupon.applicableUsers?.some((id) => id.toString() === req.user._id.toString());
+
+        if (isValidWindow && meetsMinOrder && underUsageLimit && matchesRestaurant && matchesUser) {
+          if (coupon.discountType === 'percentage') {
+            discount = (subtotal * coupon.discountValue) / 100;
+            if (coupon.maxDiscount && discount > coupon.maxDiscount) {
+              discount = coupon.maxDiscount;
             }
-            
-            // Update coupon usage
-            coupon.usedCount += 1;
-            await coupon.save();
+          } else {
+            discount = coupon.discountValue;
           }
+
+          // Update coupon usage
+          coupon.usedCount += 1;
+          await coupon.save();
         }
       }
     }
 
-    const total = subtotal + deliveryFee + tax - discount;
+    let settings = await PlatformSettings.findOne().lean();
+    if (!settings) {
+      settings = { platformFee: 25, taxRate: 0.05, deliveryChargeRules: DEFAULT_DELIVERY_CHARGES };
+    }
+
+    deliveryFee = calculateDeliveryCharge(distance, settings.deliveryChargeRules);
+    const platformFee = Number(settings.platformFee || 0);
+    const taxRate = Number(settings.taxRate || 0);
+    const taxBase = subtotal - discount;
+    const tax = taxBase > 0 ? taxBase * taxRate : 0;
+
+    const total = subtotal + deliveryFee + platformFee + tax - discount;
     // Calculate estimated delivery time
     const estimatedDelivery = new Date();
     const deliveryMinutes = parseInt(restaurant.deliveryTime) || 30;
@@ -450,6 +476,7 @@ exports.createOrder = async (req, res) => {
       items: orderItems,
       subtotal,
       deliveryFee,
+      platformFee,
       tax,
       discount,
       couponCode,
@@ -830,11 +857,6 @@ exports.cancelOrder = async (req, res) => {
     order.cancellationFee = cancellationFee;
     order.refundAmount = refundAmount;
     
-    // Update payment status for refund
-    if (order.paymentStatus === 'completed' && refundAmount > 0) {
-      order.paymentStatus = 'refunded';
-    }
-    
     await order.save();
     console.log('✓ [cancelOrder] Order updated, refund amount:', refundAmount);
 
@@ -854,6 +876,19 @@ exports.cancelOrder = async (req, res) => {
       
       // Notify via email service
       await notifyOrderStatus(populatedOrder, 'cancelled');
+
+      if (populatedOrder.userId?.email) {
+        await sendOrderCancelledEmail({
+          email: populatedOrder.userId.email,
+          name: populatedOrder.userId.name,
+          orderRef: populatedOrder.orderNumber || populatedOrder._id.toString().slice(-8),
+          restaurantName: populatedOrder.restaurantId?.name,
+          total: populatedOrder.total || 0,
+          refundAmount: refundAmount > 0 ? refundAmount : 0,
+          paymentMethod: populatedOrder.paymentMethod,
+          cancellationReason: populatedOrder.cancellationReason
+        });
+      }
       
       // Send real-time notification to user
       if (populatedOrder.userId) {
@@ -874,6 +909,47 @@ exports.cancelOrder = async (req, res) => {
       }
     } catch (notifError) {
       console.error('⚠️ [cancelOrder] Notification error (non-fatal):', notifError.message);
+    }
+
+    // Initiate refund for non-COD orders after email notification
+    if (order.paymentMethod !== 'cod' && refundAmount > 0 && order.paymentStatus === 'completed') {
+      try {
+        const payment = await Payment.findOne({ orderId: order._id, status: 'success' }).sort('-createdAt');
+        if (payment) {
+          let refunded = false;
+
+          if (payment.gateway === 'razorpay' && razorpay) {
+            const razorpayPaymentId = payment.gatewayResponse?.razorpay_payment_id;
+            if (razorpayPaymentId) {
+              await razorpay.payments.refund(razorpayPaymentId, {
+                amount: Math.round(refundAmount * 100)
+              });
+              refunded = true;
+            }
+          }
+
+          if (payment.gateway === 'stripe' && stripe && payment.transactionId) {
+            await stripe.refunds.create({
+              payment_intent: payment.transactionId,
+              amount: Math.round(refundAmount * 100)
+            });
+            refunded = true;
+          }
+
+          if (refunded) {
+            payment.status = 'refunded';
+            payment.refundAmount = refundAmount;
+            payment.refundReason = order.cancellationReason || 'Order cancelled';
+            payment.refundedAt = new Date();
+            await payment.save();
+
+            order.paymentStatus = 'refunded';
+            await order.save();
+          }
+        }
+      } catch (refundError) {
+        console.error('⚠️ [cancelOrder] Refund failed:', refundError.message);
+      }
     }
 
     successResponse(res, 200, 'Order cancelled successfully', { order: populatedOrder });

@@ -32,6 +32,7 @@ const RestaurantDashboard = React.lazy(() => import('./pages/RestaurantDashboard
 const DeliveryPartnerDashboard = React.lazy(() => import('./pages/DeliveryPartnerDashboard'));
 const AdminPanel = React.lazy(() => import('./pages/AdminPanel'));
 const Checkout = React.lazy(() => import('./pages/Checkout'));
+const Payment = React.lazy(() => import('./pages/Payment'));
 const Orders = React.lazy(() => import('./pages/Orders'));
 const OrderDetail = React.lazy(() => import('./pages/OrderDetail'));
 const Profile = React.lazy(() => import('./pages/Profile'));
@@ -222,6 +223,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Checkout />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/payment/:orderId"
+                element={
+                  <ProtectedRoute>
+                    <Payment />
                   </ProtectedRoute>
                 }
               />

@@ -18,20 +18,16 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 };
 
 // Calculate delivery charge based on distance (platform-controlled)
-const calculateDeliveryCharge = (distance) => {
-  const DELIVERY_CHARGES = [
-    { minDistance: 0, maxDistance: 2, charge: 20 },      // 0-2 km: ₹20
-    { minDistance: 2, maxDistance: 5, charge: 30 },      // 2-5 km: ₹30
-    { minDistance: 5, maxDistance: 10, charge: 50 },     // 5-10 km: ₹50
-    { minDistance: 10, maxDistance: 20, charge: 80 },    // 10-20 km: ₹80
-    { minDistance: 20, maxDistance: Infinity, charge: 100 } // 20+ km: ₹100
-  ];
+const DEFAULT_DELIVERY_CHARGES = [
+  { minDistance: 0, maxDistance: 5, charge: 0 },
+  { minDistance: 5, maxDistance: 15, charge: 25 },
+  { minDistance: 15, maxDistance: 9999, charge: 30 }
+];
 
-  const tier = DELIVERY_CHARGES.find(
-    (tier) => distance >= tier.minDistance && distance < tier.maxDistance
-  );
-  
-  return tier ? tier.charge : 100; // Default to ₹100 if no tier found
+const calculateDeliveryCharge = (distance, rules = DEFAULT_DELIVERY_CHARGES) => {
+  const tiers = Array.isArray(rules) && rules.length > 0 ? rules : DEFAULT_DELIVERY_CHARGES;
+  const tier = tiers.find((tier) => distance >= tier.minDistance && distance < tier.maxDistance);
+  return tier ? tier.charge : 0;
 };
 
-module.exports = { calculateDistance, calculateDeliveryCharge };
+module.exports = { calculateDistance, calculateDeliveryCharge, DEFAULT_DELIVERY_CHARGES };
