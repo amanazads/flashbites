@@ -123,6 +123,21 @@ const getAddressCoordinates = (addressLike) => {
     if (normalized) return normalized;
   }
 
+  if (addressLike.location && addressLike.location.lat != null && addressLike.location.lng != null) {
+    const normalized = normalizeCoordPair(addressLike.location.lng, addressLike.location.lat);
+    if (normalized) return normalized;
+  }
+
+  if (addressLike.lat != null && addressLike.lng != null) {
+    const normalized = normalizeCoordPair(addressLike.lng, addressLike.lat);
+    if (normalized) return normalized;
+  }
+
+  if (addressLike.latitude != null && addressLike.longitude != null) {
+    const normalized = normalizeCoordPair(addressLike.longitude, addressLike.latitude);
+    if (normalized) return normalized;
+  }
+
   return null;
 };
 
