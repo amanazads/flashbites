@@ -1,12 +1,7 @@
 {
   "appId": "com.flashbites.app",
-  "appName": "Flashbites",
-  "webDir": "dist",
-  "server": {
-    "hostname": "flashbites.in",
-    "androidScheme": "https",
-    "iosScheme": "https"
-  }
+  "appName": "FlashBites",
+  "webDir": "dist"
 }
 
 

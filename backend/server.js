@@ -54,7 +54,10 @@ app.set('trust proxy', 1);
   await connectDB();
 
 // Security middleware
-app.use(helmet()); // Set security headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false
+})); // API server; CSP handled by frontend
 // Note: express-mongo-sanitize v2.2.0 has compatibility issues with Express v5
 // Consider using input validation instead or wait for library update
 // app.use(mongoSanitize({ replaceWith: '_' })); // Sanitize data against NoSQL injection
@@ -62,17 +65,41 @@ app.use(helmet()); // Set security headers
 // Use helmet's XSS protection and input validation instead
 // app.use(xss()); // Prevent XSS attacks
 
-// Rate limiting
-const limiter = rateLimit({
+// Rate limiting (global + sensitive routes)
+const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // Increased limit for development
+  max: process.env.NODE_ENV === 'production' ? 300 : 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: 'Too many requests from this IP, please try again later.',
-  skip: (req) => {
-    // Skip rate limiting for admin routes
-    return req.path.startsWith('/api/admin');
-  }
+  skip: (req) => req.path.startsWith('/api/admin')
 });
-app.use('/api/', limiter);
+
+const authLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: process.env.NODE_ENV === 'production' ? 30 : 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many auth attempts. Please try again later.'
+});
+
+const paymentLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 60 : 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many payment requests. Please try again later.'
+});
+
+const contactLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: process.env.NODE_ENV === 'production' ? 20 : 80,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many messages sent. Please try again later.'
+});
+
+app.use('/api/', globalLimiter);
 
 // CORS configuration
 const allowedOrigins = [
@@ -152,19 +179,19 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // API Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/orders', orderRoutes);
-app.use('/api/payments', paymentRoutes);
+app.use('/api/payments', paymentLimiter, paymentRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/partners', partnerRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/delivery', deliveryPartnerRoutes);
-app.use('/api/contact', contactRoutes);
+app.use('/api/contact', contactLimiter, contactRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

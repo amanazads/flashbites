@@ -66,8 +66,7 @@ exports.protect = async (req, res, next) => {
     
     return res.status(401).json({
       success: false,
-      message: 'Authentication failed. Please login again',
-      error: error.message
+      message: 'Authentication failed. Please login again'
     });
   }
 };
