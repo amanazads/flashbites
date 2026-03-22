@@ -1,6 +1,7 @@
 // Script to add sample coupons
 const mongoose = require('mongoose');
 const Coupon = require('../src/models/Coupon');
+const User = require('../src/models/User');
 require('dotenv').config();
 
 const sampleCoupons = [
@@ -44,15 +45,41 @@ const sampleCoupons = [
 
 const addCoupons = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+    if (!mongoUri) {
+      throw new Error('Missing MONGO_URI (or MONGODB_URI)');
+    }
+
+    await mongoose.connect(mongoUri);
     console.log('Connected to MongoDB');
 
-    // Clear existing coupons (optional)
-    await Coupon.deleteMany({});
-    console.log('Cleared existing coupons');
+    const adminEmail = process.env.ADMIN_EMAIL;
+    let adminUser = null;
+    if (adminEmail) {
+      adminUser = await User.findOne({ email: adminEmail, role: 'admin' }).select('_id');
+    }
+
+    if (!adminUser) {
+      adminUser = await User.findOne({ role: 'admin' }).select('_id');
+    }
+
+    if (!adminUser) {
+      throw new Error('No admin user found. Set ADMIN_EMAIL or create an admin user first.');
+    }
+
+    // Clear existing coupons if explicitly requested
+    if (process.env.CLEAR_EXISTING_COUPONS === 'true') {
+      await Coupon.deleteMany({});
+      console.log('Cleared existing coupons');
+    }
 
     // Insert sample coupons
-    const result = await Coupon.insertMany(sampleCoupons);
+    const result = await Coupon.insertMany(
+      sampleCoupons.map((coupon) => ({
+        ...coupon,
+        createdBy: adminUser._id
+      }))
+    );
     console.log(`Added ${result.length} coupons successfully:`);
     result.forEach(coupon => {
       console.log(`- ${coupon.code}: ${coupon.description}`);

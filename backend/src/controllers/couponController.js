@@ -66,7 +66,7 @@ exports.validateCoupon = async (req, res) => {
       discount = coupon.discountValue;
     }
 
-    return successResponse(res, {
+    return successResponse(res, 200, 'Coupon applied successfully', {
       valid: true,
       coupon: {
         code: coupon.code,
@@ -75,7 +75,7 @@ exports.validateCoupon = async (req, res) => {
         discountValue: coupon.discountValue,
         discount: Math.round(discount)
       }
-    }, 'Coupon applied successfully');
+    });
   } catch (error) {
     console.error('Validate coupon error:', error);
     return errorResponse(res, 500, 'Failed to validate coupon');
@@ -127,7 +127,7 @@ exports.getAvailableCoupons = async (req, res) => {
     const coupons = await Coupon.find(query)
       .select('code description discountType discountValue minOrderValue maxDiscount');
 
-    return successResponse(res, { coupons }, 'Available coupons fetched successfully');
+    return successResponse(res, 200, 'Available coupons fetched successfully', { coupons });
   } catch (error) {
     console.error('Get available coupons error:', error);
     return errorResponse(res, 500, 'Failed to fetch coupons');
@@ -138,6 +138,12 @@ exports.getAvailableCoupons = async (req, res) => {
 exports.createCoupon = async (req, res) => {
   try {
     const couponData = req.body;
+    if (!couponData?.code) {
+      return errorResponse(res, 400, 'Coupon code is required');
+    }
+    if (!req.user?._id) {
+      return errorResponse(res, 401, 'Not authorized');
+    }
     
     // Check if coupon code already exists
     const existingCoupon = await Coupon.findOne({ code: couponData.code.toUpperCase() });
@@ -145,10 +151,13 @@ exports.createCoupon = async (req, res) => {
       return errorResponse(res, 400, 'Coupon code already exists');
     }
 
-    const coupon = new Coupon(couponData);
-    await coupon.save();
+    const coupon = await Coupon.create({
+      ...couponData,
+      code: couponData.code.toUpperCase(),
+      createdBy: req.user._id
+    });
 
-    return successResponse(res, { coupon }, 'Coupon created successfully', 201);
+    return successResponse(res, 201, 'Coupon created successfully', { coupon });
   } catch (error) {
     console.error('Create coupon error:', error);
     return errorResponse(res, 500, 'Failed to create coupon');
@@ -159,7 +168,7 @@ exports.createCoupon = async (req, res) => {
 exports.getAllCoupons = async (req, res) => {
   try {
     const coupons = await Coupon.find().sort({ createdAt: -1 });
-    return successResponse(res, { coupons }, 'Coupons fetched successfully');
+    return successResponse(res, 200, 'Coupons fetched successfully', { coupons });
   } catch (error) {
     console.error('Get all coupons error:', error);
     return errorResponse(res, 500, 'Failed to fetch coupons');
@@ -172,17 +181,17 @@ exports.updateCoupon = async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    const coupon = await Coupon.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    );
+    if (updateData.code) {
+      updateData.code = updateData.code.toUpperCase();
+    }
+
+    const coupon = await Coupon.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
 
     if (!coupon) {
       return errorResponse(res, 404, 'Coupon not found');
     }
 
-    return successResponse(res, { coupon }, 'Coupon updated successfully');
+    return successResponse(res, 200, 'Coupon updated successfully', { coupon });
   } catch (error) {
     console.error('Update coupon error:', error);
     return errorResponse(res, 500, 'Failed to update coupon');
@@ -200,7 +209,7 @@ exports.deleteCoupon = async (req, res) => {
       return errorResponse(res, 404, 'Coupon not found');
     }
 
-    return successResponse(res, null, 'Coupon deleted successfully');
+    return successResponse(res, 200, 'Coupon deleted successfully');
   } catch (error) {
     console.error('Delete coupon error:', error);
     return errorResponse(res, 500, 'Failed to delete coupon');
