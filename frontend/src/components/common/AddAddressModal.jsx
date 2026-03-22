@@ -14,6 +14,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
   });
   const [loading, setLoading] = useState(false);
   const [isPinVerified, setIsPinVerified] = useState(false);
+  const [pinLookupFailed, setPinLookupFailed] = useState(false);
 
   if (!isOpen) return null;
 
@@ -21,6 +22,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
     const value = e.target.value.replace(/\D/g, '').slice(0, 6);
     setFormData(prev => ({ ...prev, zipCode: value }));
     setIsPinVerified(false);
+    setPinLookupFailed(false);
 
     if (value.length === 6) {
       try {
@@ -38,10 +40,12 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
           toast.success("City and State auto-detected");
         } else {
           setIsPinVerified(false);
-          toast.error("Invalid PIN code entered");
+          setPinLookupFailed(true);
+          toast.error("PIN verification unavailable. Please enter city/state manually.");
         }
       } catch (error) {
         setIsPinVerified(false);
+        setPinLookupFailed(true);
         console.error("Failed to fetch pincode details", error);
       }
     }
@@ -55,14 +59,17 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
       return;
     }
 
-    if (!isPinVerified) {
-      toast.error('Please enter a valid PIN code');
+    if (formData.zipCode.length !== 6) {
+      toast.error('Please enter a valid 6-digit PIN code');
       return;
     }
 
     setLoading(true);
     try {
       const response = await addAddress(formData);
+      if (pinLookupFailed && !isPinVerified) {
+        toast('PIN verification skipped due to network issue. Address will be validated on save.', { icon: 'ℹ️' });
+      }
       toast.success('Address added successfully');
       onAddressAdded(response.data.address);
       onClose();
@@ -76,6 +83,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
         landmark: ''
       });
       setIsPinVerified(false);
+      setPinLookupFailed(false);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to add address');
     } finally {
@@ -141,8 +149,11 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               required
             />
-            {formData.zipCode.length === 6 && !isPinVerified && (
+            {formData.zipCode.length === 6 && !isPinVerified && !pinLookupFailed && (
               <p className="mt-1 text-xs text-red-600">Please verify a valid PIN code.</p>
+            )}
+            {formData.zipCode.length === 6 && pinLookupFailed && (
+              <p className="mt-1 text-xs text-amber-600">PIN lookup unavailable. You can still save the address.</p>
             )}
           </div>
 

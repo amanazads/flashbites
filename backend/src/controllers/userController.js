@@ -90,11 +90,12 @@ const validateAndBuildAddressPayload = async (input, fallback = {}) => {
   }
 
   const pinMeta = await validatePincode(zipCode);
-  if (!pinMeta) {
+  const strictPinCheck = process.env.NODE_ENV === 'production';
+  if (!pinMeta && strictPinCheck) {
     return { error: 'Invalid PIN code. Please enter a valid serviceable location.' };
   }
 
-  if (!pinMeta.unavailable) {
+  if (pinMeta && !pinMeta.unavailable) {
     const cityLc = city.toLowerCase();
     const districtLc = pinMeta.district.toLowerCase();
     const stateLc = state.toLowerCase();

@@ -25,23 +25,68 @@ const {
 } = require('../services/socketService');
 const { calculateDistance, calculateDeliveryCharge } = require('../utils/calculateDistance');
 
+const INDIA_BOUNDS = {
+  latMin: 6,
+  latMax: 38,
+  lngMin: 68,
+  lngMax: 98
+};
+
+const isInIndia = (lat, lng) => (
+  lat >= INDIA_BOUNDS.latMin &&
+  lat <= INDIA_BOUNDS.latMax &&
+  lng >= INDIA_BOUNDS.lngMin &&
+  lng <= INDIA_BOUNDS.lngMax
+);
+
+const normalizeCoordPair = (first, second) => {
+  const lng = Number(first);
+  const lat = Number(second);
+  const altLng = Number(second);
+  const altLat = Number(first);
+
+  const valid1 = Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  const valid2 = Number.isFinite(altLat) && Number.isFinite(altLng) && altLat >= -90 && altLat <= 90 && altLng >= -180 && altLng <= 180;
+
+  if (valid1 && valid2) {
+    const inIndia1 = isInIndia(lat, lng);
+    const inIndia2 = isInIndia(altLat, altLng);
+    if (inIndia1 && !inIndia2) return [lng, lat];
+    if (!inIndia1 && inIndia2) return [altLng, altLat];
+    return [lng, lat];
+  }
+
+  if (valid1) return [lng, lat];
+  if (valid2) return [altLng, altLat];
+  return null;
+};
+
 const getAddressCoordinates = (addressLike) => {
   if (!addressLike) return null;
 
   if (Array.isArray(addressLike.coordinates) && addressLike.coordinates.length >= 2) {
-    const lng = Number(addressLike.coordinates[0]);
-    const lat = Number(addressLike.coordinates[1]);
-    if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      return [lng, lat];
-    }
+    const normalized = normalizeCoordPair(addressLike.coordinates[0], addressLike.coordinates[1]);
+    if (normalized) return normalized;
+  }
+
+  if (addressLike.coordinates && Array.isArray(addressLike.coordinates.coordinates)) {
+    const normalized = normalizeCoordPair(addressLike.coordinates.coordinates[0], addressLike.coordinates.coordinates[1]);
+    if (normalized) return normalized;
+  }
+
+  if (addressLike.latitude != null && addressLike.longitude != null) {
+    const normalized = normalizeCoordPair(addressLike.longitude, addressLike.latitude);
+    if (normalized) return normalized;
+  }
+
+  if (addressLike.lat != null && addressLike.lng != null) {
+    const normalized = normalizeCoordPair(addressLike.lng, addressLike.lat);
+    if (normalized) return normalized;
   }
 
   if (addressLike.location && Array.isArray(addressLike.location.coordinates) && addressLike.location.coordinates.length >= 2) {
-    const lng = Number(addressLike.location.coordinates[0]);
-    const lat = Number(addressLike.location.coordinates[1]);
-    if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      return [lng, lat];
-    }
+    const normalized = normalizeCoordPair(addressLike.location.coordinates[0], addressLike.location.coordinates[1]);
+    if (normalized) return normalized;
   }
 
   return null;
@@ -244,12 +289,28 @@ exports.createOrder = async (req, res) => {
     const [addrLng, addrLat] = deliveryCoords;
     const [restLng, restLat] = restaurantCoords;
     const distance = calculateDistance(restLat, restLng, addrLat, addrLng);
+    const maxDistanceKm = Number(process.env.MAX_DELIVERY_DISTANCE_KM || 20);
 
     if (!Number.isFinite(distance)) {
       return errorResponse(res, 400, 'Unable to calculate delivery distance for the selected address');
     }
 
-    if (distance > 20) {
+    if (distance > maxDistanceKm) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('Delivery distance check failed', {
+          distanceKm: distance,
+          maxDistanceKm,
+          restaurantCoords: restaurantCoords,
+          deliveryCoords: deliveryCoords,
+          restaurantId,
+          addressId
+        });
+        return errorResponse(
+          res,
+          400,
+          `Delivery not available (distance ${distance.toFixed(2)}km > ${maxDistanceKm}km). Please update your address.`
+        );
+      }
       return errorResponse(res, 400, 'Delivery is not available in your area. Maximum delivery distance is 20km.');
     }
 
