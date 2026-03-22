@@ -2,6 +2,7 @@ const Restaurant = require('../models/Restaurant');
 const MenuItem = require('../models/MenuItem');
 const mongoose = require('mongoose');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
+const { calculateDistance } = require('../utils/calculateDistance');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/imageUpload');
 
 // @desc    Create restaurant
@@ -9,13 +10,17 @@ const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/imageUplo
 // @access  Private (Restaurant Owner)
 exports.createRestaurant = async (req, res) => {
   try {
-    let { name, email, phone, description, cuisines, address, location, timing, deliveryFee, deliveryTime } = req.body;
+    let { name, email, phone, description, cuisines, address, location, timing, deliveryFee, deliveryTime, deliveryRadiusKm, deliveryRadius } = req.body;
 
     // Parse JSON strings from FormData
     if (typeof cuisines === 'string') cuisines = JSON.parse(cuisines);
     if (typeof address === 'string') address = JSON.parse(address);
     if (typeof location === 'string') location = JSON.parse(location);
     if (typeof timing === 'string') timing = JSON.parse(timing);
+
+    if (deliveryRadiusKm == null && deliveryRadius != null) {
+      deliveryRadiusKm = deliveryRadius;
+    }
 
     // Check if user already has a restaurant
     const existingRestaurant = await Restaurant.findOne({ ownerId: req.user._id });
@@ -41,6 +46,7 @@ exports.createRestaurant = async (req, res) => {
       timing,
       deliveryFee,
       deliveryTime,
+      deliveryRadiusKm,
       image: imageUrl
     });
 
@@ -64,7 +70,8 @@ exports.getAllRestaurants = async (req, res) => {
       minRating,
       sortBy = '-rating',
       page = 1,
-      limit = 30
+      limit = 30,
+      city
     } = req.query;
 
     let query = { isActive: true, isApproved: true };
@@ -77,6 +84,10 @@ exports.getAllRestaurants = async (req, res) => {
     // Search by name
     if (search) {
       query.name = { $regex: search, $options: 'i' };
+    }
+
+    if (city) {
+      query['address.city'] = { $regex: city, $options: 'i' };
     }
 
     // Filter by rating
@@ -97,21 +108,38 @@ exports.getAllRestaurants = async (req, res) => {
 
     // Geospatial search
     if (lat && lng) {
-      restaurants = await Restaurant.find({
+      const latNum = parseFloat(lat);
+      const lngNum = parseFloat(lng);
+      const maxDistance = parseInt(radius, 10);
+
+      const candidates = await Restaurant.find({
         ...query,
         location: {
           $near: {
             $geometry: {
               type: 'Point',
-              coordinates: [parseFloat(lng), parseFloat(lat)]
+              coordinates: [lngNum, latNum]
             },
-            $maxDistance: parseInt(radius)
+            $maxDistance: maxDistance
           }
         }
       })
         .select(projection)
-        .limit(safeLimit)
+        .limit(200)
         .lean();
+
+      restaurants = candidates
+        .map((r) => {
+          const coords = r.location?.coordinates || [];
+          if (coords.length !== 2) return null;
+          const distanceKm = calculateDistance(latNum, lngNum, coords[1], coords[0]);
+          const allowedKm = Number(r.deliveryRadiusKm || 20);
+          if (!Number.isFinite(distanceKm)) return null;
+          if (distanceKm > allowedKm) return null;
+          return { ...r, distanceKm: Number(distanceKm.toFixed(2)) };
+        })
+        .filter(Boolean)
+        .slice(0, safeLimit);
     } else {
       restaurants = await Restaurant.find(query)
         .sort(effectiveSort)
@@ -184,6 +212,10 @@ exports.updateRestaurant = async (req, res) => {
         await deleteFromCloudinary(restaurant.image);
       }
       req.body.image = await uploadToCloudinary(req.file.buffer, 'flashbites/restaurants');
+    }
+
+    if (req.body.deliveryRadiusKm == null && req.body.deliveryRadius != null) {
+      req.body.deliveryRadiusKm = req.body.deliveryRadius;
     }
 
     const updatedRestaurant = await Restaurant.findByIdAndUpdate(

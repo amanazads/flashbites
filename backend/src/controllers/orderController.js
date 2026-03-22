@@ -219,7 +219,7 @@ exports.createOrder = async (req, res) => {
 
     // Verify restaurant exists and is active
     const restaurant = await Restaurant.findById(restaurantId)
-      .select('name ownerId isActive isApproved acceptingOrders location deliveryTime')
+      .select('name ownerId isActive isApproved acceptingOrders location deliveryTime deliveryRadiusKm address')
       .lean();
     
     if (!restaurant) {
@@ -349,7 +349,7 @@ exports.createOrder = async (req, res) => {
     const [addrLng, addrLat] = deliveryCoords;
     const [restLng, restLat] = restaurantCoords;
     const distance = calculateDistance(restLat, restLng, addrLat, addrLng);
-    const maxDistanceKm = Number(process.env.MAX_DELIVERY_DISTANCE_KM || 20);
+    const maxDistanceKm = Number(restaurant.deliveryRadiusKm || process.env.MAX_DELIVERY_DISTANCE_KM || 20);
 
     if (!Number.isFinite(distance)) {
       return errorResponse(res, 400, 'Unable to calculate delivery distance for the selected address');

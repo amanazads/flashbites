@@ -202,7 +202,6 @@ const Home = () => {
   const pickerRef = useRef(null);
 
   /* ── Filtered restaurants ── */
-  const [nearbyRests, setNearbyRests] = useState([]);
   const [noServiceArea, setNoServiceArea] = useState(false);
 
   /* ── Category + search ── */
@@ -272,61 +271,28 @@ const Home = () => {
 
   // Live location disabled: no GPS prompt or auto-fill.
 
-  /* ─────────────────────────────────────────────
-     FILTER LOGIC  
-     Priority:
-       1. Real GPS coords (non-zero) → distance ≤ 20km
-       2. Address has [0,0] coords  → skip distance, use city-name matching
-       3. No address selected        → show all restaurants
-  ────────────────────────────────────────────── */
-  const filterByCoords = useCallback((lat, lng, cityLabel = '') => {
-    const cluster = findCluster(cityLabel);
-    const typedCity = cityLabel.toLowerCase().trim();
-    const userHasGps = (lat !== 0 || lng !== 0);
+  useEffect(() => {
+    if (!selectedAddress) {
+      setNoServiceArea(false);
+      return;
+    }
 
-    const withDist = restaurants.map((r) => {
-      const rCity = (r.address?.city || '').toLowerCase().trim();
+    const lat = Number(selectedAddress.latitude || 0);
+    const lng = Number(selectedAddress.longitude || 0);
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
 
-      // 1) Restaurant has real GPS → use precise distance
-      if (hasRealCoords(r) && userHasGps) {
-        const [rLng, rLat] = r.location.coordinates;
-        return { ...r, distance: calculateDistance(lat, lng, rLat, rLng) };
-      }
-
-      // 2) Cluster match  (e.g. "Ataria" → shows Sidhauli/Sitapur cluster restaurants)
-      if (cluster && rCity && cluster.some(k => rCity.includes(k) || k.includes(rCity))) {
-        return { ...r, distance: 5 };
-      }
-
-      // 3) If user has real GPS but restaurant has [0,0] coords — match by city name
-      if (userHasGps && typedCity && rCity &&
-          (rCity.includes(typedCity) || typedCity.includes(rCity))) {
-        return { ...r, distance: 10 };
-      }
-
-      // 4) Pure city-name substring match (for manually typed areas)
-      if (typedCity && rCity &&
-          (rCity.includes(typedCity) || typedCity.includes(rCity) ||
-           typedCity.split(' ').some(w => w.length > 2 && rCity.includes(w)))) {
-        return { ...r, distance: 10 };
-      }
-
-      return { ...r, distance: Infinity };
-    });
-
-    const nearby = withDist
-      .filter(r => r.distance <= DELIVERY_RADIUS_KM)
-      .sort((a, b) => a.distance - b.distance);
-
-    setNearbyRests(nearby);
-    setNoServiceArea(nearby.length === 0);
-  }, [restaurants]);
+    if (hasCoords) {
+      dispatch(fetchRestaurants({ lat, lng, radius: 50000 }));
+    } else if (selectedAddress.city) {
+      dispatch(fetchRestaurants({ city: selectedAddress.city }));
+    }
+  }, [selectedAddress, dispatch]);
 
   useEffect(() => {
-    if (selectedAddress && restaurants.length) {
-      filterByCoords(selectedAddress.latitude, selectedAddress.longitude, selectedAddress.city);
+    if (selectedAddress) {
+      setNoServiceArea(restaurants.length === 0 && !loading);
     }
-  }, [selectedAddress, restaurants, filterByCoords]);
+  }, [selectedAddress, restaurants, loading]);
 
   /* ── Select a saved address ── */
   const handleSelectSavedAddress = async (addr) => {
@@ -379,7 +345,7 @@ const Home = () => {
     if (searchQ.trim()) navigate(`/restaurants?search=${encodeURIComponent(searchQ.trim())}`);
   };
 
-  const baseList = selectedAddress ? nearbyRests : restaurants;
+  const baseList = restaurants;
   const allFiltered = activeCat === 'all' ? baseList : baseList.filter((r) => r.cuisines?.some((c) => c.toLowerCase() === activeCat.toLowerCase()));
 
   return (

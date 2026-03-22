@@ -69,6 +69,12 @@ const restaurantSchema = new mongoose.Schema({
     type: String,
     default: '30-40 mins'
   },
+  deliveryRadiusKm: {
+    type: Number,
+    default: 20,
+    min: 1,
+    max: 100
+  },
   rating: {
     type: Number,
     default: 0,
