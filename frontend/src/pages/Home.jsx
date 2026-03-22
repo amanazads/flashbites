@@ -162,29 +162,7 @@ const hasRealCoords = (r) => {
   return Array.isArray(coords) && coords.length === 2 && (coords[0] !== 0 || coords[1] !== 0);
 };
 
-/* Reverse-geocode lat/lng to city name using Nominatim */
-const reverseGeocode = async (lat, lng) => {
-  try {
-    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=10&accept-language=en`;
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'FlashBites/1.0 (info.flashbites@gmail.com)',
-        'Accept-Language': 'en',
-      },
-    });
-    const data = await res.json();
-    return (
-      data?.address?.city ||
-      data?.address?.town ||
-      data?.address?.village ||
-      data?.address?.county ||
-      data?.display_name?.split(',')[0] ||
-      null
-    );
-  } catch {
-    return null;
-  }
-};
+// Live location is intentionally disabled. Users select a delivery location manually.
 
 /* Geocode a typed address/city string */
 const geocodeAddress = async (query) => {
@@ -218,12 +196,9 @@ const Home = () => {
   const [showAddressPicker, setShowAddressPicker] = useState(false);
   const [manualInput, setManualInput] = useState('');
   const [geocoding, setGeocoding] = useState(false);
-  const [gpsLoading, setGpsLoading] = useState(false);
-  const [gpsDenied, setGpsDenied] = useState(false);
-  const [showGpsBanner, setShowGpsBanner] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    return localStorage.getItem(LOCATION_BANNER_DISMISSED_KEY) !== 'true';
-  });
+  const [gpsLoading] = useState(false);
+  const [gpsDenied] = useState(false);
+  const [showGpsBanner] = useState(false);
   const pickerRef = useRef(null);
 
   /* ── Filtered restaurants ── */
@@ -262,7 +237,7 @@ const Home = () => {
     }
   }, [isAuthenticated]);
 
-  // Restore selected address and permission/banner state across page navigation
+  // Restore selected address across page navigation
   useEffect(() => {
     try {
       const savedAddress = localStorage.getItem(SELECTED_ADDRESS_KEY);
@@ -271,14 +246,6 @@ const Home = () => {
         if (parsed && typeof parsed === 'object') {
           setSelectedAddress(parsed);
         }
-      }
-
-      const permissionState = localStorage.getItem(LOCATION_PERMISSION_STATE_KEY);
-      if (permissionState === 'granted' || permissionState === 'denied') {
-        setShowGpsBanner(false);
-      }
-      if (permissionState === 'denied') {
-        setGpsDenied(true);
       }
     } catch {
       // ignore invalid persisted state
@@ -303,38 +270,7 @@ const Home = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  /* ─────────────────────────────────────────────
-     GPS PERMISSION — request on mount, auto-fill
-  ────────────────────────────────────────────── */
-  const requestGps = useCallback(() => {
-    if (!navigator.geolocation) { setGpsDenied(true); return; }
-    setGpsLoading(true);
-    setShowGpsBanner(false);
-    localStorage.setItem(LOCATION_BANNER_DISMISSED_KEY, 'true');
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        const city = await reverseGeocode(latitude, longitude);
-        setGpsLoading(false);
-        localStorage.setItem(LOCATION_PERMISSION_STATE_KEY, 'granted');
-        if (city) {
-          setSelectedAddress({ label: city, city, latitude, longitude, fromGps: true });
-          toast.success(`Location detected: ${city}`);
-        } else {
-          // GPS coords obtained but city unknown — still use them for distance
-          setSelectedAddress({ label: 'Current Location', city: '', latitude, longitude, fromGps: true });
-          toast.success('Using your current location');
-        }
-      },
-      (err) => {
-        setGpsLoading(false);
-        setGpsDenied(true);
-        localStorage.setItem(LOCATION_PERMISSION_STATE_KEY, 'denied');
-        if (err.code === 1) toast('Location permission denied. Use the address picker instead.', { icon: '📍' });
-      },
-      { timeout: 20000, maximumAge: 120000 }
-    );
-  }, []);
+  // Live location disabled: no GPS prompt or auto-fill.
 
   /* ─────────────────────────────────────────────
      FILTER LOGIC  
@@ -482,11 +418,10 @@ const Home = () => {
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Deliver to</p>
               <p className="text-[14.5px] font-bold text-gray-900 truncate mt-0.5">
-                {geocoding ? 'Finding location…' : selectedAddress ? selectedAddress.label : 'Select delivery address'}
+                {geocoding ? 'Finding location…' : selectedAddress ? selectedAddress.label : 'Select delivery location'}
               </p>
             </div>
             {selectedAddress ? (
-              // ← div NOT button (fixes button-in-button DOM nesting error)
               <div
                 role="button"
                 tabIndex={0}
@@ -621,65 +556,24 @@ const Home = () => {
       </div>
 
       {/* ══════════════════════════════════
-          GPS PERMISSION BANNER
+          LOCATION SELECTION NOTICE
       ══════════════════════════════════ */}
-      {!selectedAddress && !gpsLoading && showGpsBanner && !gpsDenied && (
-        <div className="container-px pb-2">
-          <div
-            className="flex items-center gap-3 px-4 py-3 rounded-2xl"
-            style={{ background: 'linear-gradient(135deg, #1C1C1C 0%, #2D1515 100%)', boxShadow: '0 2px 12px rgba(226,55,68,0.15)' }}
-          >
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'rgba(226,55,68,0.25)' }}
-            >
-              <MapPinIcon className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white text-[13px] font-bold leading-tight">Enable location access</p>
-              <p className="text-white/50 text-[11px] mt-0.5">See restaurants near you</p>
-            </div>
-            <button
-              onClick={requestGps}
-              className="flex-shrink-0 text-[12px] font-bold px-3 py-1.5 rounded-xl text-white"
-              style={{ background: BRAND }}
-            >
-              Allow
-            </button>
-            <div
-              role="button"
-              tabIndex={0}
-                onClick={() => {
-                  setShowGpsBanner(false);
-                  localStorage.setItem(LOCATION_BANNER_DISMISSED_KEY, 'true');
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setShowGpsBanner(false);
-                    localStorage.setItem(LOCATION_BANNER_DISMISSED_KEY, 'true');
-                  }
-                }}
-              className="w-6 h-6 rounded-full flex items-center justify-center cursor-pointer flex-shrink-0"
-              style={{ background: 'rgba(255,255,255,0.12)' }}
-            >
-              <XMarkIcon className="w-3.5 h-3.5 text-white/60" />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* GPS loading indicator */}
-      {gpsLoading && (
+      {!selectedAddress && (
         <div className="container-px pb-2">
           <div
             className="flex items-center gap-3 px-4 py-3 rounded-2xl"
             style={{ background: '#F5F7FA' }}
           >
-            <svg className="animate-spin w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke={BRAND} strokeWidth="4" />
-              <path className="opacity-75" fill={BRAND} d="M4 12a8 8 0 018-8v8z" />
-            </svg>
-            <p className="text-[13px] font-semibold text-gray-600">Detecting your location…</p>
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: '#FEF2F3' }}
+            >
+              <MapPinIcon className="w-5 h-5" style={{ color: BRAND }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-bold text-gray-800">Choose delivery location</p>
+              <p className="text-[11px] text-gray-500">We show restaurants within 20km of your selected address.</p>
+            </div>
           </div>
         </div>
       )}
