@@ -5,21 +5,21 @@ import { fetchRestaurants, setFilters } from '../redux/slices/restaurantSlice';
 import RestaurantCard from '../components/restaurant/RestaurantCard';
 import { Loader } from '../components/common/Loader';
 import { CUISINES } from '../utils/constants';
-import { MagnifyingGlassIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
+import { AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 
 const CUISINE_TABS = [
-  { id: 'All',           label: 'All',       emoji: '🍽️' },
-  { id: 'Pizza',         label: 'Pizza',     emoji: '🍕' },
-  { id: 'Burger',        label: 'Burgers',   emoji: '🍔' },
-  { id: 'Indian',        label: 'Thali',     emoji: '🍛' },
-  { id: 'Chinese',       label: 'Noodles',   emoji: '🥡' },
-  { id: 'Italian',       label: 'Pasta',     emoji: '🍝' },
-  { id: 'Japanese',      label: 'Sushi',     emoji: '🍣' },
-  { id: 'Mexican',       label: 'Mexican',   emoji: '🌮' },
-  { id: 'Thai',          label: 'Thai',      emoji: '🍜' },
-  { id: 'Fast Food',     label: 'Fast Food', emoji: '🍟' },
-  { id: 'Desserts',      label: 'Desserts',  emoji: '🍰' },
-  { id: 'Coffee',        label: 'Drinks',    emoji: '☕' },
+  { id: 'All',       label: 'All',       image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80' },
+  { id: 'Pizza',     label: 'Pizza',     image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=120&q=80' },
+  { id: 'Burger',    label: 'Burgers',   image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=120&q=80' },
+  { id: 'Indian',    label: 'Thali',     image: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=120&q=80' },
+  { id: 'Chinese',   label: 'Noodles',   image: 'https://images.unsplash.com/photo-1526318896980-cf78c088247c?w=120&q=80' },
+  { id: 'Italian',   label: 'Pasta',     image: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=120&q=80' },
+  { id: 'Japanese',  label: 'Sushi',     image: 'https://images.unsplash.com/photo-1546069901-d5bfd2cbfb1f?w=120&q=80' },
+  { id: 'Mexican',   label: 'Mexican',   image: 'https://images.unsplash.com/photo-1617191519105-d07b98b10b88?w=120&q=80' },
+  { id: 'Thai',      label: 'Thai',      image: 'https://images.unsplash.com/photo-1553621042-f6e147245754?w=120&q=80' },
+  { id: 'Fast Food', label: 'Fast Food', image: 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=120&q=80' },
+  { id: 'Desserts',  label: 'Desserts',  image: 'https://images.unsplash.com/photo-1505253216365-1dce1a8f94a5?w=120&q=80' },
+  { id: 'Coffee',    label: 'Drinks',    image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=120&q=80' },
 ];
 
 const SORT_OPTIONS = ['Ratings 4.0+', 'New to you', 'Fastest delivery', 'Free delivery'];
@@ -56,24 +56,31 @@ const RestaurantPage = () => {
 
       {/* ── Sticky cuisine tab row ── */}
       <div
-        className="sticky top-[56px] sm:top-[72px] bg-white z-10"
+        className="sticky top-[56px] sm:top-[72px] max-[388px]:top-[48px] bg-white z-10"
         style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}
       >
-        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-          <div className="flex gap-1 overflow-x-auto scrollbar-hide py-3">
+        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 max-[388px]:px-1">
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide py-3 max-[388px]:py-2">
             {CUISINE_TABS.map((tab) => {
               const active = selectedCuisine === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => handleCuisine(tab.id)}
-                  className="flex-shrink-0 flex flex-col items-center px-3 py-2 rounded-2xl transition-all duration-200 min-w-[52px]"
+                  className="flex-shrink-0 flex flex-col items-center px-3 py-2 max-[388px]:px-2.5 max-[388px]:py-1.5 rounded-2xl transition-all duration-200 min-w-[52px] max-[388px]:min-w-[46px]"
                   style={active
                     ? { background: '#FFF0ED', color: BRAND }
                     : { color: '#9CA3AF' }}
                 >
-                  <span className="text-2xl leading-none">{tab.emoji}</span>
-                  <span className="text-[11px] font-semibold mt-1 whitespace-nowrap"
+                  <img
+                    src={tab.image}
+                    alt={tab.label}
+                    className={`h-8 w-8 max-[388px]:h-7 max-[388px]:w-7 rounded-full object-cover ${
+                      active ? 'ring-2 ring-[#FF523B]' : 'ring-1 ring-black/5'
+                    }`}
+                    loading="lazy"
+                  />
+                  <span className="text-[11px] max-[388px]:text-[10px] font-semibold mt-1 whitespace-nowrap"
                     style={active ? { color: BRAND } : { color: '#6B7280' }}>
                     {tab.label}
                   </span>
@@ -87,9 +94,9 @@ const RestaurantPage = () => {
         </div>
 
         {/* Sort pills */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 max-[388px]:px-3 pb-3 max-[388px]:pb-2">
           <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-            <button className="flex-shrink-0 flex items-center gap-1 bg-white border border-gray-200 text-gray-600 text-xs font-semibold px-3 py-1.5 rounded-xl shadow-sm hover:border-gray-300 transition-all">
+            <button className="flex-shrink-0 flex items-center gap-1 bg-white border border-gray-200 text-gray-600 text-xs max-[388px]:text-[11px] font-semibold px-3 py-1.5 max-[388px]:px-2.5 max-[388px]:py-1 rounded-xl shadow-sm hover:border-gray-300 transition-all">
               <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" />
               Filters
             </button>
@@ -97,7 +104,7 @@ const RestaurantPage = () => {
               <button
                 key={s}
                 onClick={() => setActiveSort(activeSort === s ? null : s)}
-                className="flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all whitespace-nowrap"
+                className="flex-shrink-0 text-xs max-[388px]:text-[11px] font-semibold px-3 py-1.5 max-[388px]:px-2.5 max-[388px]:py-1 rounded-xl border transition-all whitespace-nowrap"
                 style={activeSort === s
                   ? { background: BRAND, color: 'white', borderColor: 'transparent' }
                   : { background: 'white', color: '#6B7280', borderColor: '#E5E7EB' }}
@@ -110,11 +117,11 @@ const RestaurantPage = () => {
       </div>
 
       {/* ── Content ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 max-[388px]:px-3 py-5 max-[388px]:py-4">
         <div className="mb-5">
-          <h1 className="text-xl font-bold text-gray-900">Restaurants near you</h1>
+          <h1 className="text-xl max-[388px]:text-lg font-bold text-gray-900">Restaurants near you</h1>
           {!loading && (
-            <p className="text-sm text-gray-400 mt-0.5">
+            <p className="text-sm max-[388px]:text-xs text-gray-400 mt-0.5">
               {restaurants.length} restaurants{selectedCuisine !== 'All' ? ` · ${selectedCuisine}` : ''}
             </p>
           )}
@@ -123,19 +130,19 @@ const RestaurantPage = () => {
         {loading ? (
           <Loader />
         ) : restaurants.length === 0 ? (
-          <div className="text-center py-24">
-            <div className="text-6xl mb-4 animate-float">🍽️</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">No restaurants found</h3>
-            <p className="text-gray-400 text-sm mb-5">Try adjusting your filter</p>
+          <div className="text-center py-24 max-[388px]:py-20">
+            <div className="text-6xl max-[388px]:text-5xl mb-4 animate-float">🍽️</div>
+            <h3 className="text-xl max-[388px]:text-lg font-bold text-gray-900 mb-2">No restaurants found</h3>
+            <p className="text-gray-400 text-sm max-[388px]:text-xs mb-5">Try adjusting your filter</p>
             <button
               onClick={() => { setSelectedCuisine('All'); dispatch(setFilters({ cuisine: null, search: null })); }}
-              className="btn-primary text-sm"
+              className="btn-primary text-sm max-[388px]:text-xs"
             >
               Clear filters
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 max-[388px]:gap-3">
             {restaurants.map((r) => (
               <RestaurantCard key={r._id} restaurant={r} />
             ))}

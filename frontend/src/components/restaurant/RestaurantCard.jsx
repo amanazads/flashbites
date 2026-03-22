@@ -57,10 +57,10 @@ const RestaurantCard = ({ restaurant: r }) => {
         />
 
         {/* Top-left badges */}
-        <div className="absolute top-3 left-3 flex items-center gap-1.5">
+        <div className="absolute top-3 left-3 flex items-center gap-1.5 max-[300px]:top-2 max-[300px]:left-2">
           {isOpen && !outOfRange && rating >= 4.5 && (
             <span
-              className="text-white text-[10px] font-bold px-2 py-1 rounded-lg"
+              className="text-white text-[10px] max-[300px]:text-[9px] font-bold px-2 py-1 max-[300px]:px-1.5 max-[300px]:py-0.5 rounded-lg"
               style={{ background: 'rgba(226,55,68,0.92)', backdropFilter: 'blur(4px)' }}
             >
               TOP RATED
@@ -68,7 +68,7 @@ const RestaurantCard = ({ restaurant: r }) => {
           )}
           {isOpen && !outOfRange && rating < 4.5 && (
             <span
-              className="text-white text-[10px] font-bold px-2 py-1 rounded-lg"
+              className="text-white text-[10px] max-[300px]:text-[9px] font-bold px-2 py-1 max-[300px]:px-1.5 max-[300px]:py-0.5 rounded-lg"
               style={{ background: 'rgba(226,55,68,0.88)', backdropFilter: 'blur(4px)' }}
             >
               {r.isPureVeg ? 'PURE VEG' : `₹${discount} OFF`}
@@ -78,7 +78,7 @@ const RestaurantCard = ({ restaurant: r }) => {
 
         {/* Rating badge — bottom right */}
         <div
-          className="absolute bottom-3 left-3 flex items-center gap-0.5 text-white text-[11px] font-bold px-2 py-1 rounded-lg shadow-md"
+          className="absolute bottom-3 left-3 flex items-center gap-0.5 text-white text-[11px] max-[300px]:text-[10px] font-bold px-2 py-1 max-[300px]:px-1.5 max-[300px]:py-0.5 rounded-lg shadow-md"
           style={{ background: ratingBg }}
         >
           <StarIcon className="h-3 w-3" />
@@ -88,11 +88,11 @@ const RestaurantCard = ({ restaurant: r }) => {
         {/* Closed overlay */}
         {!isOpen && (
           <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1.5">
-            <span className="bg-white text-gray-900 text-[11px] font-bold px-3 py-1.5 rounded-lg shadow">
+            <span className="bg-white text-gray-900 text-[11px] max-[300px]:text-[10px] font-bold px-3 py-1.5 max-[300px]:px-2.5 max-[300px]:py-1 rounded-lg shadow">
               Closed Now
             </span>
             {opensAt && (
-              <span className="text-white/75 text-[10px]">Opens at {opensAt}</span>
+              <span className="text-white/75 text-[10px] max-[300px]:text-[9px]">Opens at {opensAt}</span>
             )}
           </div>
         )}
@@ -100,26 +100,26 @@ const RestaurantCard = ({ restaurant: r }) => {
         {/* Out of range overlay */}
         {isOpen && outOfRange && (
           <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1.5">
-            <span className="bg-white text-gray-900 text-[11px] font-bold px-3 py-1.5 rounded-lg shadow text-center">
+            <span className="bg-white text-gray-900 text-[11px] max-[300px]:text-[10px] font-bold px-3 py-1.5 max-[300px]:px-2.5 max-[300px]:py-1 rounded-lg shadow text-center">
               Coming Soon to Your Area
             </span>
-            <span className="text-white/70 text-[10px]">{r.distance?.toFixed(1)} km away</span>
+            <span className="text-white/70 text-[10px] max-[300px]:text-[9px]">{r.distance?.toFixed(1)} km away</span>
           </div>
         )}
       </div>
 
       {/* ── Info ── */}
-        <div className="p-2.5 xs:p-3.5" style={{ opacity: unavailable ? 0.7 : 1 }}>
+        <div className="p-2.5 xs:p-3.5 max-[300px]:p-2" style={{ opacity: unavailable ? 0.7 : 1 }}>
           <div className="flex items-start justify-between gap-2 mb-0.5">
-            <h3 className="text-[13px] xs:text-[15px] font-bold text-gray-900 leading-tight flex-1 line-clamp-1">{r.name}</h3>
+            <h3 className="text-[13px] xs:text-[15px] max-[300px]:text-[12px] font-bold text-gray-900 leading-tight flex-1 line-clamp-1">{r.name}</h3>
           </div>
 
-        <p className="text-[12px] text-gray-400 mb-2 line-clamp-1 font-medium">
+        <p className="text-[12px] max-[300px]:text-[11px] text-gray-400 mb-2 line-clamp-1 font-medium">
           {Array.isArray(r.cuisines) ? r.cuisines.join(', ') : r.cuisine || 'Multi-cuisine'}
         </p>
 
         {/* Meta row */}
-        <div className="flex items-center gap-0 text-[12px] font-medium text-gray-500 border-t border-gray-100 pt-2.5 mt-2.5">
+        <div className="flex items-center gap-0 text-[12px] max-[300px]:text-[11px] font-medium text-gray-500 border-t border-gray-100 pt-2.5 mt-2.5">
           <span className="flex items-center gap-1 flex-1">
             <ClockIcon className="h-3.5 w-3.5" style={{ color: BRAND }} />
             {String(r.deliveryTime || '30').replace(/\s*min\s*$/i, '')} min
@@ -144,7 +144,7 @@ const RestaurantCard = ({ restaurant: r }) => {
             >
               <span className="text-[9px] font-black" style={{ color: BRAND }}>%</span>
             </div>
-            <span className="text-[11px] font-semibold" style={{ color: BRAND }}>
+            <span className="text-[11px] max-[300px]:text-[10px] font-semibold" style={{ color: BRAND }}>
               Flat ₹{discount} OFF
             </span>
           </div>

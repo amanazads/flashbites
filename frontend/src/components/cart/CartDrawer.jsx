@@ -72,7 +72,7 @@ const CartDrawer = () => {
         {/* Safe-area top strip (notch/status bar background) */}
         {/* Header */}
         <div
-          className="flex items-center justify-between gap-3 px-4 bg-white sticky top-0 z-10"
+          className="flex items-center justify-between gap-3 px-4 max-[388px]:px-3 bg-white sticky top-0 z-10"
           style={{
             paddingTop: 'max(12px, env(safe-area-inset-top, 0px))',
             paddingBottom: '12px',
@@ -80,9 +80,9 @@ const CartDrawer = () => {
           }}
         >
           <div className="min-w-0">
-            <h2 className="text-[17px] font-bold text-gray-900 truncate">Your Cart</h2>
+            <h2 className="text-[17px] max-[388px]:text-[15px] font-bold text-gray-900 truncate">Your Cart</h2>
             {restaurant && (
-              <p className="text-xs text-gray-400 truncate mt-0.5">from {restaurant.name}</p>
+              <p className="text-xs max-[388px]:text-[11px] text-gray-400 truncate mt-0.5">from {restaurant.name}</p>
             )}
           </div>
           <button
@@ -96,7 +96,7 @@ const CartDrawer = () => {
 
         {/* Cart Items – Scrollable */}
         <div
-          className="flex-1 min-h-0 overflow-y-auto p-4 pb-[calc(8px+env(safe-area-inset-bottom,0px))]"
+          className="flex-1 min-h-0 overflow-y-auto p-4 max-[388px]:p-3 pb-[calc(8px+env(safe-area-inset-bottom,0px))]"
           style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
         >
           {safeItems.length === 0 ? (
@@ -111,14 +111,14 @@ const CartDrawer = () => {
                   <path d="M16 10a4 4 0 01-8 0" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </div>
-              <p className="font-semibold text-gray-900 text-[16px] mb-1">Your cart is empty</p>
-              <p className="text-gray-400 text-sm mb-4">Add items from a restaurant to get started</p>
+              <p className="font-semibold text-gray-900 text-[16px] max-[388px]:text-[15px] mb-1">Your cart is empty</p>
+              <p className="text-gray-400 text-sm max-[388px]:text-xs mb-4">Add items from a restaurant to get started</p>
               <button
                 onClick={() => {
                   dispatch(closeCart());
                   navigate('/restaurants');
                 }}
-                className="text-sm font-semibold px-5 py-2.5 rounded-xl touch-feedback transition-colors"
+                className="text-sm max-[388px]:text-xs font-semibold px-5 max-[388px]:px-4 py-2.5 max-[388px]:py-2 rounded-xl touch-feedback transition-colors"
                 style={{ background: '#FEF2F3', color: BRAND }}
               >
                 Browse Restaurants
@@ -128,7 +128,7 @@ const CartDrawer = () => {
                   dispatch(closeCart());
                   navigate('/');
                 }}
-                className="mt-3 text-sm font-semibold px-5 py-2.5 rounded-xl touch-feedback transition-colors"
+                className="mt-3 text-sm max-[388px]:text-xs font-semibold px-5 max-[388px]:px-4 py-2.5 max-[388px]:py-2 rounded-xl touch-feedback transition-colors"
                 style={{ background: '#F9FAFB', color: '#374151' }}
               >
                 Go Home
@@ -139,7 +139,7 @@ const CartDrawer = () => {
               {safeItems.map((item) => (
                 <div
                   key={item._id}
-                  className="flex gap-3 p-3 rounded-2xl hover:bg-gray-50/80 transition-colors"
+                  className="flex gap-3 p-3 max-[388px]:p-2.5 rounded-2xl hover:bg-gray-50/80 transition-colors"
                   style={{ border: '1px solid #F0F2F5' }}
                 >
                   {/* Item Image */}
@@ -147,19 +147,19 @@ const CartDrawer = () => {
                     <img
                       src={item.image}
                       alt={item.name}
-                      className="w-[64px] h-[64px] object-cover rounded-xl flex-shrink-0"
+                      className="w-[64px] h-[64px] max-[388px]:w-[56px] max-[388px]:h-[56px] object-cover rounded-xl flex-shrink-0"
                     />
                   )}
 
                   {/* Item Details */}
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-gray-900 text-[13px] leading-tight line-clamp-2">
+                    <h4 className="font-semibold text-gray-900 text-[13px] max-[388px]:text-[12px] leading-tight line-clamp-2">
                       {item.name}
                     </h4>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {formatCurrency(Number(item.price) || 0)} each
                     </p>
-                    <p className="text-[13px] font-bold mt-0.5" style={{ color: BRAND }}>
+                    <p className="text-[13px] max-[388px]:text-[12px] font-bold mt-0.5" style={{ color: BRAND }}>
                       {formatCurrency((Number(item.price) || 0) * (item.quantity || 1))}
                     </p>
 
@@ -167,7 +167,7 @@ const CartDrawer = () => {
                     <div className="flex items-center gap-2 mt-2">
                       <button
                         onClick={() => dispatch(updateQuantity({ itemId: item._id, quantity: item.quantity - 1 }))}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center touch-feedback transition-colors"
+                        className="w-7 h-7 max-[388px]:w-6 max-[388px]:h-6 rounded-lg flex items-center justify-center touch-feedback transition-colors"
                         style={{ border: `1.5px solid ${BRAND}`, color: BRAND }}
                         aria-label="Decrease quantity"
                       >
@@ -176,7 +176,7 @@ const CartDrawer = () => {
                       <span className="w-5 text-center font-bold text-sm tabular-nums">{item.quantity}</span>
                       <button
                         onClick={() => dispatch(updateQuantity({ itemId: item._id, quantity: item.quantity + 1 }))}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center touch-feedback transition-colors"
+                        className="w-7 h-7 max-[388px]:w-6 max-[388px]:h-6 rounded-lg flex items-center justify-center touch-feedback transition-colors"
                         style={{ background: BRAND, color: 'white' }}
                         aria-label="Increase quantity"
                       >
@@ -186,7 +186,7 @@ const CartDrawer = () => {
                       {/* Remove Button */}
                       <button
                         onClick={() => dispatch(removeFromCart(item._id))}
-                        className="ml-auto p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg touch-feedback transition-colors"
+                        className="ml-auto p-1.5 max-[388px]:p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg touch-feedback transition-colors"
                         aria-label="Remove item"
                       >
                         <TrashIcon className="h-4 w-4" />
@@ -211,7 +211,7 @@ const CartDrawer = () => {
                   });
                   if (result.isConfirmed) dispatch(clearCart());
                 }}
-                className="w-full mt-4 py-2 px-4 text-red-600 hover:text-red-700 hover:bg-red-50 text-sm font-medium rounded-lg transition-colors"
+                className="w-full mt-4 py-2 px-4 text-red-600 hover:text-red-700 hover:bg-red-50 text-sm max-[388px]:text-xs font-medium rounded-lg transition-colors"
               >
                 Clear Cart
               </button>
@@ -222,11 +222,11 @@ const CartDrawer = () => {
         {/* Footer */}
         {safeItems.length > 0 && (
           <div
-            className="border-t p-4 space-y-3 bg-white"
+            className="border-t p-4 max-[388px]:p-3 space-y-3 bg-white"
             style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid #F0F2F5' }}
           >
             {/* Price Breakdown */}
-            <div className="space-y-1.5 text-sm rounded-2xl p-3" style={{ background: 'var(--bg-input)' }}>
+            <div className="space-y-1.5 text-sm max-[388px]:text-xs rounded-2xl p-3" style={{ background: 'var(--bg-input)' }}>
               <div className="flex justify-between text-gray-500">
                 <span>Subtotal</span>
                 <span className="font-medium text-gray-700">{formatCurrency(subtotal)}</span>
@@ -239,7 +239,7 @@ const CartDrawer = () => {
                 <span>Tax (5%)</span>
                 <span className="font-medium text-gray-700">{formatCurrency(tax)}</span>
               </div>
-              <div className="flex justify-between text-[15px] font-bold pt-2 border-t border-gray-200">
+              <div className="flex justify-between text-[15px] max-[388px]:text-[14px] font-bold pt-2 border-t border-gray-200">
                 <span>Total</span>
                 <span style={{ color: BRAND }}>{formatCurrency(total)}</span>
               </div>
@@ -248,7 +248,7 @@ const CartDrawer = () => {
             {/* Checkout Button */}
             <button
               onClick={handleCheckout}
-              className="w-full py-3.5 text-[15px] font-bold text-white rounded-xl touch-feedback transition-all"
+              className="w-full py-3.5 max-[388px]:py-3 text-[15px] max-[388px]:text-[14px] font-bold text-white rounded-xl touch-feedback transition-all"
               style={{ background: 'linear-gradient(135deg, #E23744 0%, #C92535 100%)', boxShadow: '0 4px 14px rgba(226,55,68,0.35)' }}
             >
               Proceed to Checkout · {formatCurrency(total)}
@@ -260,7 +260,7 @@ const CartDrawer = () => {
                 dispatch(closeCart());
                 navigate('/restaurants');
               }}
-              className="w-full py-2 text-sm font-semibold touch-feedback text-gray-400 hover:text-gray-600 transition-colors"
+              className="w-full py-2 text-sm max-[388px]:text-xs font-semibold touch-feedback text-gray-400 hover:text-gray-600 transition-colors"
             >
               Continue Shopping
             </button>
@@ -269,7 +269,7 @@ const CartDrawer = () => {
                 dispatch(closeCart());
                 navigate('/');
               }}
-              className="w-full py-2 text-sm font-semibold touch-feedback text-gray-400 hover:text-gray-600 transition-colors"
+              className="w-full py-2 text-sm max-[388px]:text-xs font-semibold touch-feedback text-gray-400 hover:text-gray-600 transition-colors"
             >
               Go Home
             </button>

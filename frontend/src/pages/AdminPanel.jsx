@@ -862,26 +862,26 @@ const AdminPanel = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-8 max-[388px]:py-4">
       <div className="max-w-7xl mx-auto container-px">
         {/* Header */}
-        <div className="mb-6 sm:mb-8 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
+        <div className="mb-6 sm:mb-8 max-[388px]:mb-5 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Admin Panel</h1>
-            <p className="mt-2 text-sm sm:text-base text-gray-600">
+            <h1 className="text-2xl sm:text-3xl max-[388px]:text-xl font-bold text-gray-900">Admin Panel</h1>
+            <p className="mt-2 text-sm sm:text-base max-[388px]:text-xs text-gray-600">
               Manage restaurants, users, and platform settings
             </p>
           </div>
           <div className="w-full sm:w-auto flex gap-2">
             <button
               onClick={() => setAutoRefreshEnabled((prev) => !prev)}
-              className={`w-full sm:w-auto px-4 py-2 rounded-lg text-white ${autoRefreshEnabled ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
+              className={`w-full sm:w-auto px-4 py-2 max-[388px]:px-3 max-[388px]:py-2 max-[388px]:text-xs rounded-lg text-white ${autoRefreshEnabled ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
             >
               {autoRefreshEnabled ? 'Stop Auto Refresh' : 'Start Auto Refresh'}
             </button>
             <button
               onClick={fetchData}
-              className="w-full sm:w-auto px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+              className="w-full sm:w-auto px-4 py-2 max-[388px]:px-3 max-[388px]:py-2 max-[388px]:text-xs bg-primary-500 text-white rounded-lg hover:bg-primary-600"
             >
               Refresh Now
             </button>
@@ -889,15 +889,15 @@ const AdminPanel = () => {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-[388px]:gap-4 mb-8 max-[388px]:mb-6">
+          <div className="bg-white rounded-lg shadow p-6 max-[388px]:p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <BuildingStorefrontIcon className="h-8 w-8 text-primary-500" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Restaurants</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalRestaurants}</p>
+                <p className="text-2xl max-[388px]:text-xl font-bold text-gray-900">{stats.totalRestaurants}</p>
                 {stats.pendingApprovals > 0 && (
                   <p className="text-xs text-primary-600">{stats.pendingApprovals} pending approval</p>
                 )}
@@ -905,38 +905,38 @@ const AdminPanel = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-6 max-[388px]:p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <UserGroupIcon className="h-8 w-8 text-blue-500" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
+                <p className="text-2xl max-[388px]:text-xl font-bold text-gray-900">{stats.totalUsers}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-6 max-[388px]:p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <ShoppingBagIcon className="h-8 w-8 text-green-500" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Orders</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+                <p className="text-2xl max-[388px]:text-xl font-bold text-gray-900">{stats.totalOrders}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-6 max-[388px]:p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <CurrencyDollarIcon className="h-8 w-8 text-purple-500" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">₹{stats.totalRevenue.toLocaleString()}</p>
+                <p className="text-2xl max-[388px]:text-xl font-bold text-gray-900">₹{stats.totalRevenue.toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -948,7 +948,7 @@ const AdminPanel = () => {
             <nav className="flex -mb-px overflow-x-auto whitespace-nowrap scrollbar-hide">
               <button
                 onClick={() => setActiveTab('overview')}
-                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
                   activeTab === 'overview'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -958,7 +958,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('fees')}
-                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
                   activeTab === 'fees'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -968,7 +968,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('content')}
-                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
                   activeTab === 'content'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -978,7 +978,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('restaurants')}
-                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
                   activeTab === 'restaurants'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -988,7 +988,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('coupons')}
-                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
                   activeTab === 'coupons'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -998,7 +998,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('users')}
-                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
                   activeTab === 'users'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1008,7 +1008,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('menu-items')}
-                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
                   activeTab === 'menu-items'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1018,7 +1018,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('orders')}
-                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
                   activeTab === 'orders'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1028,7 +1028,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('partners')}
-                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
                   activeTab === 'partners'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1041,7 +1041,7 @@ const AdminPanel = () => {
                   setActiveTab('analytics');
                   fetchAnalytics();
                 }}
-                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
                   activeTab === 'analytics'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1051,7 +1051,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('deletionRequests')}
-                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
                   activeTab === 'deletionRequests'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1062,7 +1062,7 @@ const AdminPanel = () => {
             </nav>
           </div>
 
-          <div className="p-4 sm:p-6">
+          <div className="p-4 sm:p-6 max-[388px]:p-3">
             {activeTab === 'overview' && (
               <div>
                 <h2 className="text-xl font-bold mb-4">Platform Overview</h2>

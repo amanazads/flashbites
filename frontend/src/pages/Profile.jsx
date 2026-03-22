@@ -46,18 +46,18 @@ const InstagramIcon = () => (
 const MenuRow = ({ icon: Icon, label, sublabel, badge, onClick, to, danger }) => {
   const content = (
     <div
-      className="flex items-center gap-3.5 px-4 py-3.5 w-full transition-colors active:bg-gray-50"
+      className="flex items-center gap-3.5 max-[388px]:gap-3 px-4 py-3.5 w-full transition-colors active:bg-gray-50"
       style={{ cursor: 'pointer' }}
     >
       <div
-        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+        className="w-9 h-9 max-[388px]:w-8 max-[388px]:h-8 rounded-xl flex items-center justify-center flex-shrink-0"
         style={{ background: danger ? '#FFF0F0' : BRAND_BG }}
       >
         <Icon className="w-[18px] h-[18px]" style={{ color: danger ? '#E23744' : BRAND }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-[14.5px] font-semibold leading-tight ${danger ? 'text-red-500' : 'text-gray-800'}`}>{label}</p>
-        {sublabel && <p className="text-[12px] text-gray-400 mt-0.5">{sublabel}</p>}
+        <p className={`text-[14.5px] max-[388px]:text-[13px] font-semibold leading-tight ${danger ? 'text-red-500' : 'text-gray-800'}`}>{label}</p>
+        {sublabel && <p className="text-[12px] max-[388px]:text-[11px] text-gray-400 mt-0.5">{sublabel}</p>}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         {badge && (
@@ -105,37 +105,37 @@ const Profile = () => {
 
   if (!isAuthenticated || !user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-app)' }}>
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 max-[388px]:px-4" style={{ background: 'var(--bg-app)' }}>
         <div
           className="w-full max-w-sm bg-white rounded-3xl overflow-hidden text-center"
           style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.10)' }}
         >
           {/* Header strip */}
           <div
-            className="px-6 pt-10 pb-8"
+            className="px-6 pt-10 pb-8 max-[388px]:px-4 max-[388px]:pt-8 max-[388px]:pb-6"
             style={{ background: 'linear-gradient(135deg, #1C1C1C 0%, #3D1A1A 100%)' }}
           >
             <div
-              className="w-20 h-20 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+              className="w-20 h-20 max-[388px]:w-16 max-[388px]:h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
               style={{ background: 'rgba(226,55,68,0.25)' }}
             >
               <UserCircleIcon className="w-10 h-10 text-white" />
             </div>
-            <p className="text-white text-[20px] font-black" style={{ letterSpacing: '-0.02em' }}>Your Profile</p>
-            <p className="text-white/50 text-[13px] mt-1">Sign in to manage your account</p>
+            <p className="text-white text-[20px] max-[388px]:text-[18px] font-black" style={{ letterSpacing: '-0.02em' }}>Your Profile</p>
+            <p className="text-white/50 text-[13px] max-[388px]:text-[12px] mt-1">Sign in to manage your account</p>
           </div>
 
           <div className="p-6 space-y-3">
             <Link
               to="/login"
-              className="block w-full py-3.5 rounded-2xl text-[15px] font-bold text-white text-center"
+              className="block w-full py-3.5 max-[388px]:py-3 rounded-2xl text-[15px] max-[388px]:text-[14px] font-bold text-white text-center"
               style={{ background: 'linear-gradient(135deg, #E23744, #C92535)', boxShadow: '0 4px 14px rgba(226,55,68,0.3)' }}
             >
               Sign In
             </Link>
             <Link
               to="/register"
-              className="block w-full py-3.5 rounded-2xl text-[15px] font-bold text-gray-700 text-center bg-gray-100"
+              className="block w-full py-3.5 max-[388px]:py-3 rounded-2xl text-[15px] max-[388px]:text-[14px] font-bold text-gray-700 text-center bg-gray-100"
             >
               Create Account
             </Link>
@@ -150,7 +150,7 @@ const Profile = () => {
               <Link
                 key={link.to}
                 to={link.to}
-                className="flex items-center justify-between px-4 py-3 rounded-xl bg-gray-50 text-[13px] font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                className="flex items-center justify-between px-4 py-3 max-[388px]:px-3 max-[388px]:py-2.5 rounded-xl bg-gray-50 text-[13px] max-[388px]:text-[12px] font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 {link.label}
                 <ChevronRightIcon className="w-4 h-4 text-gray-400" />
@@ -158,7 +158,7 @@ const Profile = () => {
             ))}
           </div>
         </div>
-        <p className="text-center text-[11px] text-gray-300 mt-6">
+        <p className="text-center text-[11px] max-[388px]:text-[10px] text-gray-300 mt-6">
           © {new Date().getFullYear()} FlashBites · All rights reserved
         </p>
       </div>
@@ -325,12 +325,12 @@ const Profile = () => {
           style={{ background: BRAND, transform: 'translate(-30%, 30%)' }}
         />
 
-        <div className="relative px-5 max-w-md sm:max-w-lg mx-auto">
+        <div className="relative px-5 max-[388px]:px-4 max-w-md sm:max-w-lg mx-auto">
           {/* Avatar + name */}
           <div className="flex items-end gap-4">
             {/* Avatar */}
             <div
-              className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center text-white text-[28px] font-bold flex-shrink-0"
+              className="w-[72px] h-[72px] max-[388px]:w-[60px] max-[388px]:h-[60px] rounded-2xl flex items-center justify-center text-white text-[28px] max-[388px]:text-[22px] font-bold flex-shrink-0"
               style={{
                 background: `linear-gradient(135deg, ${BRAND} 0%, #C92535 100%)`,
                 boxShadow: '0 8px 24px rgba(226,55,68,0.45)',
@@ -341,21 +341,21 @@ const Profile = () => {
 
             <div className="flex-1 min-w-0 pb-1">
               <h1
-                className="text-white text-[22px] font-bold leading-tight truncate"
+                className="text-white text-[22px] max-[388px]:text-[18px] font-bold leading-tight truncate"
                 style={{ letterSpacing: '-0.02em' }}
               >
                 {user?.name || 'User'}
               </h1>
-              <p className="text-white/50 text-[13px] mt-0.5 truncate">{user?.email}</p>
+              <p className="text-white/50 text-[13px] max-[388px]:text-[12px] mt-0.5 truncate">{user?.email}</p>
               {user?.phone && (
-                <p className="text-white/40 text-[12px] mt-0.5">{user.phone}</p>
+                <p className="text-white/40 text-[12px] max-[388px]:text-[11px] mt-0.5">{user.phone}</p>
               )}
             </div>
 
             {/* Edit button */}
             <button
               onClick={() => { setActiveTab('profile'); setIsEditing(true); }}
-              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold text-white transition-colors mb-1"
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 max-[388px]:px-2.5 max-[388px]:py-1 rounded-xl text-[12px] max-[388px]:text-[11px] font-semibold text-white transition-colors mb-1"
               style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(4px)' }}
             >
               <PencilIcon className="w-3.5 h-3.5" />
@@ -366,7 +366,7 @@ const Profile = () => {
       </div>
 
       {/* ── Tab pills (overlapping hero) ── */}
-      <div className="sticky top-0 z-30 px-5 max-w-md sm:max-w-lg mx-auto -mt-[20px]">
+      <div className="sticky top-0 z-30 px-5 max-[388px]:px-4 max-w-md sm:max-w-lg mx-auto -mt-[20px]">
         <div
           className="flex rounded-2xl overflow-hidden border"
           style={{
@@ -382,7 +382,7 @@ const Profile = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className="flex-1 py-3 text-[14px] font-semibold transition-all"
+              className="flex-1 py-3 max-[388px]:py-2.5 text-[14px] max-[388px]:text-[13px] font-semibold transition-all"
               style={
                 activeTab === tab.id
                   ? { color: BRAND, borderBottom: `2px solid ${BRAND}`, background: BRAND_BG }
@@ -396,7 +396,7 @@ const Profile = () => {
       </div>
 
       {/* ── Content ── */}
-      <div className="px-4 pt-4 pb-28 max-w-md sm:max-w-lg mx-auto space-y-4">
+      <div className="px-4 pt-4 pb-28 max-[388px]:px-3 max-[388px]:pb-24 max-w-md sm:max-w-lg mx-auto space-y-4">
 
         {/* ═══════╗
             PROFILE TAB
@@ -410,7 +410,7 @@ const Profile = () => {
                 style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
               >
                 <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100">
-                  <h2 className="text-[15px] font-bold text-gray-900">Edit Profile</h2>
+                  <h2 className="text-[15px] max-[388px]:text-[14px] font-bold text-gray-900">Edit Profile</h2>
                   <button
                     onClick={() => setIsEditing(false)}
                     className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
@@ -424,7 +424,7 @@ const Profile = () => {
                     { label: 'Phone', key: 'phone', type: 'tel', placeholder: '+91 XXXXX XXXXX' },
                   ].map((f) => (
                     <div key={f.key}>
-                      <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+                      <label className="block text-[11px] max-[388px]:text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
                         {f.label}
                       </label>
                       <input
@@ -437,7 +437,7 @@ const Profile = () => {
                     </div>
                   ))}
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+                    <label className="block text-[11px] max-[388px]:text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
                       Email
                     </label>
                     <input
@@ -447,20 +447,20 @@ const Profile = () => {
                       className="input-field"
                       style={{ opacity: 0.5, cursor: 'not-allowed' }}
                     />
-                    <p className="text-[11px] text-gray-400 mt-1">Email cannot be changed</p>
+                    <p className="text-[11px] max-[388px]:text-[10px] text-gray-400 mt-1">Email cannot be changed</p>
                   </div>
                   <div className="flex gap-3 pt-1">
                     <button
                       type="button"
                       onClick={() => setIsEditing(false)}
-                      className="flex-1 py-3 rounded-xl text-[14px] font-semibold text-gray-600 bg-gray-100 transition-colors hover:bg-gray-200"
+                      className="flex-1 py-3 max-[388px]:py-2.5 rounded-xl text-[14px] max-[388px]:text-[13px] font-semibold text-gray-600 bg-gray-100 transition-colors hover:bg-gray-200"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={savingProfile}
-                      className="flex-1 py-3 rounded-xl text-[14px] font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-60"
+                      className="flex-1 py-3 max-[388px]:py-2.5 rounded-xl text-[14px] max-[388px]:text-[13px] font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-60"
                       style={{ background: `linear-gradient(135deg, ${BRAND}, #C92535)`, boxShadow: '0 4px 14px rgba(226,55,68,0.3)' }}
                     >
                       {savingProfile ? (
@@ -483,7 +483,7 @@ const Profile = () => {
                 style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
               >
                 <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Personal Info</p>
+                  <p className="text-[11px] max-[388px]:text-[10px] font-bold uppercase tracking-widest text-gray-400">Personal Info</p>
                 </div>
                 {[
                   { label: 'Name', value: user?.name || '—' },
@@ -495,8 +495,8 @@ const Profile = () => {
                     className="flex items-center justify-between px-4 py-3.5"
                     style={{ borderBottom: i < arr.length - 1 ? '1px solid #F5F5F5' : 'none' }}
                   >
-                    <p className="text-[13px] text-gray-400 font-medium">{row.label}</p>
-                    <p className="text-[14px] font-semibold text-gray-800 text-right max-w-[200px] truncate">
+                    <p className="text-[13px] max-[388px]:text-[12px] text-gray-400 font-medium">{row.label}</p>
+                    <p className="text-[14px] max-[388px]:text-[13px] font-semibold text-gray-800 text-right max-w-[200px] truncate">
                       {row.value}
                     </p>
                   </div>
@@ -507,7 +507,7 @@ const Profile = () => {
             {/* ── Menu sections ── */}
             {menuSections.map((section) => (
               <div key={section.title}>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">
+                <p className="text-[11px] max-[388px]:text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">
                   {section.title}
                 </p>
                 <div
@@ -523,11 +523,11 @@ const Profile = () => {
 
             {/* ── Social links ── */}
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">
+              <p className="text-[11px] max-[388px]:text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">
                 Follow Us
               </p>
               <div
-                className="bg-white rounded-2xl p-4 flex items-center gap-3"
+                className="bg-white rounded-2xl p-4 max-[388px]:p-3 flex items-center gap-3"
                 style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
               >
                 {[
@@ -539,7 +539,7 @@ const Profile = () => {
                     href={s.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-[13px] transition-colors hover:opacity-80"
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 max-[388px]:py-2 rounded-xl font-semibold text-[13px] max-[388px]:text-[12px] transition-colors hover:opacity-80"
                     style={{ background: '#F5F7FA', color: s.color }}
                   >
                     <s.Icon />
@@ -552,7 +552,7 @@ const Profile = () => {
             {/* ── Sign out ── */}
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[14.5px] font-bold transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-3.5 max-[388px]:py-3 rounded-2xl text-[14.5px] max-[388px]:text-[13px] font-bold transition-colors"
               style={{ background: '#FFF0F0', color: BRAND }}
             >
               <ArrowRightOnRectangleIcon className="w-5 h-5" />
@@ -562,7 +562,7 @@ const Profile = () => {
             {user?.role === 'user' && (
               <Link
                 to="/account-delete"
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[14.5px] font-bold transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-3.5 max-[388px]:py-3 rounded-2xl text-[14.5px] max-[388px]:text-[13px] font-bold transition-colors"
                 style={{ background: '#FFE4E6', color: '#DC2626' }}
               >
                 <TrashIcon className="w-5 h-5" />
@@ -570,7 +570,7 @@ const Profile = () => {
               </Link>
             )}
 
-            <p className="text-center text-[11px] text-gray-300 pb-2">
+            <p className="text-center text-[11px] max-[388px]:text-[10px] text-gray-300 pb-2">
               © {new Date().getFullYear()} FlashBites · All rights reserved
             </p>
           </>
@@ -584,7 +584,7 @@ const Profile = () => {
             {/* Add button */}
             <button
               onClick={() => setShowAddressForm(!showAddressForm)}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[14px] font-bold text-white transition-all"
+              className="w-full flex items-center justify-center gap-2 py-3.5 max-[388px]:py-3 rounded-2xl text-[14px] max-[388px]:text-[13px] font-bold text-white transition-all"
               style={{
                 background: showAddressForm
                   ? '#6B7280'
@@ -607,7 +607,7 @@ const Profile = () => {
                 style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
               >
                 <div className="px-4 pt-4 pb-3 border-b border-gray-100">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">New Address</p>
+                  <p className="text-[11px] max-[388px]:text-[10px] font-bold uppercase tracking-widest text-gray-400">New Address</p>
                 </div>
                 <div className="p-4 space-y-3">
                   {/* Type selector */}
@@ -620,7 +620,7 @@ const Profile = () => {
                           key={t}
                           type="button"
                           onClick={() => setAddressData({ ...addressData, type: t })}
-                          className="flex-1 py-2 rounded-xl text-[13px] font-semibold capitalize transition-all"
+                          className="flex-1 py-2 rounded-xl text-[13px] max-[388px]:text-[12px] font-semibold capitalize transition-all"
                           style={
                             active
                               ? { background: cfg.bg, color: cfg.color, border: `1.5px solid ${cfg.color}` }
@@ -656,7 +656,7 @@ const Profile = () => {
 
                   <button
                     type="submit"
-                    className="w-full py-3 rounded-xl text-[14px] font-bold text-white"
+                    className="w-full py-3 max-[388px]:py-2.5 rounded-xl text-[14px] max-[388px]:text-[13px] font-bold text-white"
                     style={{ background: `linear-gradient(135deg, ${BRAND}, #C92535)`, boxShadow: '0 4px 14px rgba(226,55,68,0.3)' }}
                   >
                     Save Address
@@ -668,17 +668,17 @@ const Profile = () => {
             {/* Address list */}
             {addresses.length === 0 ? (
               <div
-                className="bg-white rounded-2xl p-10 text-center"
+                className="bg-white rounded-2xl p-10 max-[388px]:p-8 text-center"
                 style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
               >
                 <div
-                  className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                  className="w-16 h-16 max-[388px]:w-14 max-[388px]:h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
                   style={{ background: BRAND_BG }}
                 >
                   <MapPinIcon className="w-8 h-8" style={{ color: BRAND }} />
                 </div>
-                <p className="font-bold text-gray-800 text-[16px]">No saved addresses</p>
-                <p className="text-[13px] text-gray-400 mt-1">Add your home or work address for faster checkout</p>
+                <p className="font-bold text-gray-800 text-[16px] max-[388px]:text-[14px]">No saved addresses</p>
+                <p className="text-[13px] max-[388px]:text-[12px] text-gray-400 mt-1">Add your home or work address for faster checkout</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -690,10 +690,10 @@ const Profile = () => {
                       className="bg-white rounded-2xl overflow-hidden"
                       style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
                     >
-                      <div className="flex items-start gap-3 p-4">
+                      <div className="flex items-start gap-3 p-4 max-[388px]:p-3">
                         {/* Icon */}
                         <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+                          className="w-10 h-10 max-[388px]:w-9 max-[388px]:h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
                           style={{ background: cfg.bg }}
                         >
                           <MapPinIcon className="w-5 h-5" style={{ color: cfg.color }} />
@@ -709,12 +709,12 @@ const Profile = () => {
                               {cfg.label}
                             </span>
                           </div>
-                          <p className="text-[14px] font-semibold text-gray-900 leading-snug">{a.street}</p>
-                          <p className="text-[12px] text-gray-400 mt-0.5">
+                          <p className="text-[14px] max-[388px]:text-[13px] font-semibold text-gray-900 leading-snug">{a.street}</p>
+                          <p className="text-[12px] max-[388px]:text-[11px] text-gray-400 mt-0.5">
                             {a.city}, {a.state} – {a.zipCode}
                           </p>
                           {a.landmark && (
-                            <p className="text-[12px] text-gray-400">Near: {a.landmark}</p>
+                            <p className="text-[12px] max-[388px]:text-[11px] text-gray-400">Near: {a.landmark}</p>
                           )}
                         </div>
 

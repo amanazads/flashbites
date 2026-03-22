@@ -186,17 +186,17 @@ const Payment = () => {
 
   return (
     <div className="min-h-screen w-full bg-white lg:bg-[var(--bg-app)]">
-      <div className="max-w-5xl mx-auto container-px py-6 pb-24">
-        <div className="flex flex-col md:flex-row gap-6">
+      <div className="max-w-5xl mx-auto container-px py-6 pb-24 max-[400px]:py-4 max-[400px]:pb-16">
+        <div className="flex flex-col md:flex-row gap-6 max-[400px]:gap-4">
           <div className="flex-1 space-y-6">
-            <div className="bg-white rounded-2xl shadow-soft p-5">
-              <h1 className="text-2xl font-bold text-gray-900">Complete Payment</h1>
+            <div className="bg-white rounded-2xl shadow-soft p-5 max-[400px]:p-3.5">
+              <h1 className="text-2xl font-bold text-gray-900 max-[400px]:text-xl">Complete Payment</h1>
               <p className="text-sm text-gray-500 mt-1">
                 Order #{order._id.slice(-8)} · {order.restaurantId?.name || 'Restaurant'}
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-soft p-5">
+            <div className="bg-white rounded-2xl shadow-soft p-5 max-[400px]:p-3.5">
               <h2 className="text-base font-bold text-gray-900 mb-3">Choose payment method</h2>
               <div className="space-y-2">
                 {[
@@ -205,7 +205,7 @@ const Payment = () => {
                 ].map((method) => (
                   <label
                     key={method.value}
-                    className={`flex items-center gap-3 p-3 rounded-xl border transition ${
+                    className={`flex items-center gap-3 p-3 rounded-xl border transition max-[400px]:p-2.5 ${
                       paymentMethod === method.value ? 'border-red-400 bg-red-50' : 'border-gray-200'
                     }`}
                   >
@@ -243,7 +243,7 @@ const Payment = () => {
           </div>
 
           <div className="w-full md:w-[340px]">
-            <div className="bg-white rounded-2xl shadow-soft p-5 sticky top-6">
+            <div className="bg-white rounded-2xl shadow-soft p-5 sticky top-6 max-[400px]:static max-[400px]:p-3.5">
               <h2 className="text-base font-bold text-gray-900 mb-3">Order summary</h2>
               <div className="space-y-2 text-sm">
                 {summary?.items?.map((item) => (

@@ -353,6 +353,8 @@ input, textarea, select {
   .cat-card svg { transition: transform 0.2s; }
   .cat-card:hover svg { color: var(--brand); }
   .cat-card.active svg { color: white; }
+  .cat-card img { transition: transform 0.2s; }
+  .cat-card:hover img { transform: scale(1.05); }
 
   /* ── Promo banner ── */
   .promo-banner {

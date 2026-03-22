@@ -19,99 +19,22 @@ import {
 } from '@heroicons/react/24/outline';
 
 const BRAND = '#E23744';
+const ALL_CATEGORY_IMAGE = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80';
+const SEARCH_IMAGE = 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=120&q=80';
 const LOCATION_BANNER_DISMISSED_KEY = 'fb_location_banner_dismissed';
 const LOCATION_PERMISSION_STATE_KEY = 'fb_location_permission_state';
 const SELECTED_ADDRESS_KEY = 'fb_selected_address';
 
 /* ───── Category definitions with SVG icon paths ───── */
 const CATEGORIES = [
-  {
-    id: 'Pizza', label: 'Pizza',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="w-7 h-7">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
-        <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-        <circle cx="8" cy="9" r="1" fill="currentColor" stroke="none"/>
-        <circle cx="14" cy="14" r="1" fill="currentColor" stroke="none"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'Burger', label: 'Burgers',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="w-7 h-7">
-        <path d="M3 11h18M3 14h18" strokeLinecap="round"/>
-        <path d="M5 14v2a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2"/>
-        <path d="M5 11V9a7 7 0 0 1 14 0v2"/>
-        <circle cx="8" cy="7" r="1" fill="currentColor" stroke="none"/>
-        <circle cx="12" cy="6" r="1" fill="currentColor" stroke="none"/>
-        <circle cx="16" cy="7" r="1" fill="currentColor" stroke="none"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'Indian', label: 'Thali',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="w-7 h-7">
-        <circle cx="12" cy="12" r="9"/>
-        <path d="M9 12a3 3 0 0 0 6 0"/>
-        <circle cx="8" cy="9.5" r="1.5" fill="currentColor" stroke="none"/>
-        <circle cx="16" cy="9.5" r="1.5" fill="currentColor" stroke="none"/>
-        <path d="M8 15h8" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'Chinese', label: 'Noodles',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="w-7 h-7">
-        <path d="M4 9c0-1.1.9-2 2-2h12a2 2 0 0 1 2 2v2H4V9z"/>
-        <path d="M4 11v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/>
-        <path d="M9 5v2M12 4v3M15 5v2"/>
-        <path d="M7 14h10" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'Fast Food', label: 'Fries',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="w-7 h-7">
-        <path d="M8 3v8M12 2v9M16 3v8"/>
-        <path d="M6 11h12l-1 8a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1l-1-8z"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'Desserts', label: 'Desserts',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="w-7 h-7">
-        <path d="M12 2c-3 0-6 2-6 5v1h12V7c0-3-3-5-6-5z"/>
-        <rect x="3" y="8" width="18" height="3" rx="1.5"/>
-        <path d="M5 11v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8"/>
-        <path d="M9 15h6" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'Coffee', label: 'Drinks',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="w-7 h-7">
-        <path d="M17 8h1a4 4 0 0 1 0 8h-1"/>
-        <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z"/>
-        <path d="M6 2v2M10 2v2M14 2v2" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'Salads', label: 'Salads',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="w-7 h-7">
-        <path d="M12 2C6 2 3 6 3 10c0 2 1 3.5 2 4.5S8 22 12 22s6-6 7-7.5S21 12 21 10c0-4-3-8-9-8z"/>
-        <path d="M9 10c1-1.5 3-2 5-1" strokeLinecap="round"/>
-        <path d="M8 14c1.5 1 4 1 6 0" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
+  { id: 'Pizza', label: 'Pizza', image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=120&q=80' },
+  { id: 'Burger', label: 'Burgers', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=120&q=80' },
+  { id: 'Indian', label: 'Thali', image: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=120&q=80' },
+  { id: 'Chinese', label: 'Noodles', image: 'https://images.unsplash.com/photo-1526318896980-cf78c088247c?w=120&q=80' },
+  { id: 'Fast Food', label: 'Fries', image: 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=120&q=80' },
+  { id: 'Desserts', label: 'Desserts', image: 'https://images.unsplash.com/photo-1505253216365-1dce1a8f94a5?w=120&q=80' },
+  { id: 'Coffee', label: 'Drinks', image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=120&q=80' },
+  { id: 'Salads', label: 'Salads', image: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=120&q=80' },
 ];
 
 /* ───── Promo banners (Figma-matched) ───── */
@@ -384,23 +307,23 @@ const Home = () => {
   const promosToShow = promoBanners.length > 0 ? promoBanners : PROMOS;
 
   return (
-    <div className="page-wrapper flex justify-center lg:pt-10">
+    <div className="page-wrapper flex justify-center lg:pt-10 max-[388px]:pt-4">
       <SEO
         title="Order Food Online – Best Restaurants Near You"
         description="Order fresh, hot food online from top restaurants near you. Fast delivery, exclusive restaurant deals, and 500+ menu options. FlashBites – India's fastest food delivery."
         url="/"
         keywords="food delivery, order food online, restaurant near me, online food order India, FlashBites, fast delivery food, food app India"
       />
-      <div className="max-w-7xl mx-auto w-full">
+      <div className="max-w-7xl mx-auto w-full max-[388px]:px-3">
 
       {/* ══════════════════════════════════
           DELIVERY ADDRESS SELECTOR
       ══════════════════════════════════ */}
-      <div className="container-px pt-5 pb-3">
+      <div className="container-px pt-5 pb-3 max-[388px]:pt-3 max-[388px]:pb-2">
         <div ref={pickerRef} className="relative">
           <button
             onClick={() => setShowAddressPicker(!showAddressPicker)}
-            className="w-full flex items-center gap-3 px-4 py-3.5 bg-white rounded-2xl text-left transition-all"
+            className="w-full flex items-center gap-3 px-4 py-3.5 bg-white rounded-2xl text-left transition-all max-[388px]:px-3 max-[388px]:py-3"
             style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.08)', border: showAddressPicker ? `1.5px solid ${BRAND}` : '1.5px solid transparent' }}
           >
             <div
@@ -417,8 +340,8 @@ const Home = () => {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Deliver to</p>
-              <p className="text-[14.5px] font-bold text-gray-900 truncate mt-0.5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 max-[388px]:text-[9px]">Deliver to</p>
+              <p className="text-[14.5px] font-bold text-gray-900 truncate mt-0.5 max-[388px]:text-[13px]">
                 {geocoding ? 'Finding location…' : selectedAddress ? selectedAddress.label : 'Select delivery location'}
               </p>
             </div>
@@ -448,9 +371,9 @@ const Home = () => {
               style={{ boxShadow: '0 12px 40px rgba(0,0,0,0.14)' }}
             >
               {/* Manual input */}
-              <form onSubmit={handleManualGeocode} className="p-4 border-b border-gray-100">
+              <form onSubmit={handleManualGeocode} className="p-4 border-b border-gray-100 max-[388px]:p-3">
                 <div
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl max-[388px]:px-2.5 max-[388px]:py-2"
                   style={{ background: '#F5F7FA', border: '1.5px solid transparent' }}
                 >
                   <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -459,13 +382,13 @@ const Home = () => {
                     value={manualInput}
                     onChange={(e) => setManualInput(e.target.value)}
                     placeholder="Type city or area name…"
-                    className="flex-1 bg-transparent outline-none text-[14px] font-medium text-gray-800 placeholder-gray-400"
+                    className="flex-1 bg-transparent outline-none text-[14px] font-medium text-gray-800 placeholder-gray-400 max-[388px]:text-[13px]"
                     autoFocus
                   />
                   {manualInput && (
                     <button
                       type="submit"
-                      className="text-[12px] font-bold px-3 py-1 rounded-lg text-white flex-shrink-0"
+                      className="text-[12px] font-bold px-3 py-1 rounded-lg text-white flex-shrink-0 max-[388px]:px-2.5"
                       style={{ background: BRAND }}
                     >
                       Go
@@ -582,10 +505,15 @@ const Home = () => {
       {/* ══════════════════════════════════
           SEARCH BAR
       ══════════════════════════════════ */}
-      <div className="container-px pb-5 lg:hidden">
+      <div className="container-px pb-5 lg:hidden max-[388px]:pb-3">
         <form onSubmit={handleSearch}>
           <div className="search-bar">
-            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+            <img
+              src={SEARCH_IMAGE}
+              alt=""
+              className="h-5 w-5 rounded-full object-cover flex-shrink-0"
+              loading="lazy"
+            />
             <input
               type="text"
               value={searchQ}
@@ -595,7 +523,7 @@ const Home = () => {
             {searchQ && (
               <button
                 type="submit"
-                className="flex-shrink-0 inline-flex items-center justify-center h-8 px-3 rounded-lg text-sm font-semibold leading-none"
+                className="flex-shrink-0 inline-flex items-center justify-center h-8 px-3 rounded-lg text-sm font-semibold leading-none max-[388px]:px-2 max-[388px]:text-xs"
                 style={{ color: BRAND }}
               >
                 Search
@@ -615,18 +543,18 @@ const Home = () => {
               className="promo-banner snap-start flex-shrink-0 touch-feedback relative"
               style={{
                 background: p.bg,
-                width: 'clamp(260px, 75vw, 420px)',
-                minWidth: '260px',
-                minHeight: '145px',
+                width: 'clamp(230px, 78vw, 420px)',
+                minWidth: '230px',
+                minHeight: '135px',
                 borderRadius: '20px',
               }}
             >
               <div className="flex-1 min-w-0 pr-2 z-10">
                 <p className="text-white/70 text-[10px] font-bold uppercase tracking-wider mb-1.5">{p.tag}</p>
-                <p className="text-white text-xl sm:text-2xl font-extrabold leading-tight mb-2" style={{ letterSpacing: '-0.02em' }}>{p.bold}</p>
-                <p className="text-white/60 text-xs mb-3 line-clamp-2">{p.sub}</p>
+                <p className="text-white text-xl sm:text-2xl font-extrabold leading-tight mb-2 max-[388px]:text-lg" style={{ letterSpacing: '-0.02em' }}>{p.bold}</p>
+                <p className="text-white/60 text-xs mb-3 line-clamp-2 max-[388px]:text-[11px]">{p.sub}</p>
                 <button
-                  className="text-white font-semibold text-sm px-5 py-2 rounded-xl"
+                  className="text-white font-semibold text-sm px-5 py-2 rounded-xl max-[388px]:text-xs max-[388px]:px-4 max-[388px]:py-1.5"
                   style={{ background: 'rgba(255,255,255,0.22)', backdropFilter: 'blur(4px)' }}
                 >
                   {p.cta}
@@ -646,7 +574,7 @@ const Home = () => {
       {/* Categories */}
       <div className="mb-6 container-px">
         <div className="section-header">
-          <h2 className="section-title">Categories</h2>
+          <h2 className="section-title max-[388px]:text-[16px]">Categories</h2>
           <Link to="/restaurants" className="section-link">See all</Link>
         </div>
         <div className="snap-scroll-row">
@@ -655,10 +583,12 @@ const Home = () => {
             onClick={() => setActiveCat('all')}
             className={`cat-card snap-start ${activeCat === 'all' ? 'active' : ''}`}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="w-7 h-7"
-              style={activeCat === 'all' ? { color: 'white' } : { color: '#9CA3AF' }}>
-              <path d="M3 6h18M3 12h18M3 18h18" strokeLinecap="round"/>
-            </svg>
+            <img
+              src={ALL_CATEGORY_IMAGE}
+              alt="All"
+              className={`h-8 w-8 rounded-full object-cover ${activeCat === 'all' ? 'ring-2 ring-white/90' : 'ring-1 ring-black/5'}`}
+              loading="lazy"
+            />
             <span className="text-xs font-semibold" style={activeCat === 'all' ? { color: 'white' } : { color: '#6B7280' }}>All</span>
           </button>
 
@@ -668,9 +598,12 @@ const Home = () => {
               onClick={() => setActiveCat(cat.id)}
               className={`cat-card snap-start ${activeCat === cat.id ? 'active' : ''}`}
             >
-              <span style={activeCat === cat.id ? { color: 'white' } : { color: '#9CA3AF' }}>
-                {cat.icon}
-              </span>
+              <img
+                src={cat.image}
+                alt={cat.label}
+                className={`h-8 w-8 rounded-full object-cover ${activeCat === cat.id ? 'ring-2 ring-white/90' : 'ring-1 ring-black/5'}`}
+                loading="lazy"
+              />
               <span className="text-xs font-semibold whitespace-nowrap" style={activeCat === cat.id ? { color: 'white' } : { color: '#6B7280' }}>
                 {cat.label}
               </span>
@@ -683,7 +616,7 @@ const Home = () => {
       {!loading && restaurants.length > 0 && (
         <div className="mb-6 container-px">
           <div className="section-header">
-            <h2 className="section-title flex items-center gap-1.5">
+            <h2 className="section-title flex items-center gap-1.5 max-[388px]:text-[16px]">
               <FireIcon className="h-5 w-5" style={{ color: BRAND }} />
               Featured
             </h2>
@@ -695,7 +628,7 @@ const Home = () => {
                 key={r._id}
                 to={`/restaurant/${r._id}`}
                 className="snap-start flex-shrink-0 group"
-              style={{ width: 'clamp(190px, 48vw, 260px)', minWidth: '190px' }}
+              style={{ width: 'clamp(170px, 55vw, 260px)', minWidth: '170px' }}
               >
                 <div className="card relative" style={{ borderRadius: '16px', overflow: 'hidden' }}>
                   <div className="relative" style={{ height: '160px' }}>

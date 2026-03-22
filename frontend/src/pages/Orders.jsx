@@ -189,29 +189,29 @@ const Orders = () => {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <div className="max-w-md mx-auto min-h-screen">
+      <div className="max-w-md mx-auto min-h-screen max-[388px]:px-1">
 
         {/* ── Header ── */}
         <div
-          className="sticky top-0 z-20 px-4 pt-5 pb-4 bg-white"
+          className="sticky top-0 z-20 px-4 pt-5 pb-4 max-[388px]:px-3 max-[388px]:pt-4 max-[388px]:pb-3 bg-white"
           style={{ borderBottom: '1px solid #F0F2F5', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}
         >
           <div className="flex items-center gap-3 mb-4">
             <button
               onClick={() => navigate(-1)}
-              className="w-9 h-9 rounded-xl flex items-center justify-center bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors flex-shrink-0"
+              className="w-9 h-9 max-[388px]:w-8 max-[388px]:h-8 rounded-xl flex items-center justify-center bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors flex-shrink-0"
             >
               <ArrowLeftIcon className="w-5 h-5" />
             </button>
             <h1
-              className="text-[20px] font-bold text-gray-900 flex-1"
+              className="text-[20px] max-[388px]:text-[18px] font-bold text-gray-900 flex-1"
               style={{ letterSpacing: '-0.02em' }}
             >
               My Orders
             </h1>
             {uniqueOrders.length > 0 && (
               <span
-                className="text-[12px] font-bold px-2.5 py-1 rounded-full"
+                className="text-[12px] max-[388px]:text-[11px] font-bold px-2.5 py-1 rounded-full"
                 style={{ background: '#FEF2F3', color: BRAND }}
               >
                 {uniqueOrders.length}
@@ -221,7 +221,7 @@ const Orders = () => {
 
           {/* Pill tabs */}
           <div
-            className="flex rounded-2xl p-1"
+            className="flex rounded-2xl p-1 max-[388px]:p-0.5"
             style={{ background: '#F0F2F5' }}
           >
             {[
@@ -231,7 +231,7 @@ const Orders = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13.5px] font-semibold transition-all"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 max-[388px]:py-2 rounded-xl text-[13.5px] max-[388px]:text-[12px] font-semibold transition-all"
                 style={
                   activeTab === tab.id
                     ? { background: 'white', color: BRAND, boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }
@@ -241,7 +241,7 @@ const Orders = () => {
                 {tab.label}
                 {tab.count > 0 && (
                   <span
-                    className="text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center"
+                    className="text-[10px] font-bold w-5 h-5 max-[388px]:w-4 max-[388px]:h-4 rounded-full flex items-center justify-center"
                     style={
                       activeTab === tab.id
                         ? { background: BRAND, color: 'white' }
@@ -257,7 +257,7 @@ const Orders = () => {
         </div>
 
         {/* ── Content ── */}
-        <div className="px-4 py-4 pb-28">
+        <div className="px-4 py-4 pb-28 max-[388px]:px-3 max-[388px]:pb-24">
           {loading ? (
             <Loader />
           ) : displayOrders.length === 0 ? (

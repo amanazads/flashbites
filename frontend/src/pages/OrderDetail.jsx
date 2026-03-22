@@ -123,23 +123,23 @@ const OrderDetail = () => {
   const isDelivered = order.status === 'delivered';
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6 sm:py-8">
+    <div className="min-h-screen bg-gray-50 py-6 sm:py-8 max-[388px]:py-4">
       <div className="max-w-6xl mx-auto container-px">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-6 max-[388px]:mb-4">
           <button
             onClick={() => navigate('/orders')}
-            className="text-primary-600 hover:text-primary-700 mb-4"
+            className="text-primary-600 hover:text-primary-700 mb-4 max-[388px]:text-sm"
           >
             ← Back to Orders
           </button>
           <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold mb-2">Order Details</h1>
+              <h1 className="text-2xl sm:text-3xl max-[388px]:text-xl font-bold mb-2">Order Details</h1>
               <p className="text-gray-600">Order #{order._id.slice(-8).toUpperCase()}</p>
-              <p className="text-sm text-gray-500">{formatDateTime(order.createdAt)}</p>
+              <p className="text-sm max-[388px]:text-xs text-gray-500">{formatDateTime(order.createdAt)}</p>
             </div>
-            <span className={`badge text-sm sm:text-lg px-3 sm:px-4 py-1.5 sm:py-2 ${ORDER_STATUS_COLORS[order.status]}`}>
+            <span className={`badge text-sm sm:text-lg max-[388px]:text-xs px-3 sm:px-4 max-[388px]:px-2 py-1.5 sm:py-2 max-[388px]:py-1 ${ORDER_STATUS_COLORS[order.status]}`}>
               {ORDER_STATUS_LABELS[order.status]}
             </span>
           </div>
@@ -147,17 +147,17 @@ const OrderDetail = () => {
 
         {/* Order Status Timeline */}
         {!isCancelled && (
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
-            <h2 className="text-xl font-bold mb-6">Order Status</h2>
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6 max-[388px]:p-3 mb-6 max-[388px]:mb-4">
+            <h2 className="text-xl max-[388px]:text-lg font-bold mb-6 max-[388px]:mb-4">Order Status</h2>
             <div className="relative overflow-x-auto -mx-2 px-2">
-              <div className="flex justify-between items-center min-w-[420px] xs:min-w-[520px] sm:min-w-[640px]">
+              <div className="flex justify-between items-center min-w-[420px] xs:min-w-[520px] sm:min-w-[640px] max-[388px]:min-w-[360px]">
                 {getOrderStatusSteps().map((step, index) => {
                   const Icon = step.icon;
                   return (
                     <div key={step.key} className="flex-1 relative">
                       <div className="flex flex-col items-center">
                         <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                          className={`w-12 h-12 max-[388px]:w-10 max-[388px]:h-10 rounded-full flex items-center justify-center ${
                             step.completed
                               ? 'bg-green-500 text-white'
                               : step.current
@@ -165,10 +165,10 @@ const OrderDetail = () => {
                               : 'bg-gray-200 text-gray-400'
                           }`}
                         >
-                          <Icon className="h-6 w-6" />
+                          <Icon className="h-6 w-6 max-[388px]:h-5 max-[388px]:w-5" />
                         </div>
                         <p
-                          className={`mt-2 text-xs text-center font-medium ${
+                          className={`mt-2 text-xs max-[388px]:text-[11px] text-center font-medium ${
                             step.completed || step.current ? 'text-gray-900' : 'text-gray-400'
                           }`}
                         >
@@ -189,8 +189,8 @@ const OrderDetail = () => {
               </div>
             </div>
             {order.estimatedDelivery && !isDelivered && (
-              <div className="mt-6 text-center">
-                <p className="text-sm text-gray-600">
+              <div className="mt-6 max-[388px]:mt-4 text-center">
+                <p className="text-sm max-[388px]:text-xs text-gray-600">
                   Estimated Delivery: <span className="font-semibold text-primary-600">
                     {formatDateTime(order.estimatedDelivery)}
                   </span>
@@ -209,7 +209,7 @@ const OrderDetail = () => {
 
         {/* Cancelled Status */}
         {isCancelled && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-[388px]:p-4 mb-6 max-[388px]:mb-4">
             <div className="flex items-center">
               <XCircleIcon className="h-8 w-8 text-red-500 mr-3" />
               <div>
@@ -227,12 +227,12 @@ const OrderDetail = () => {
           </div>
         )}
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-3 gap-6 max-[388px]:gap-4">
           {/* Left Column - Main Details */}
           <div className="md:col-span-2 space-y-6">
             {/* Restaurant Info */}
-            <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-              <h2 className="text-xl font-bold mb-4">Restaurant Details</h2>
+            <div className="bg-white rounded-lg shadow p-4 sm:p-6 max-[388px]:p-4">
+              <h2 className="text-xl max-[388px]:text-lg font-bold mb-4">Restaurant Details</h2>
               <Link
                 to={`/restaurant/${order.restaurantId._id}`}
                 className="flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-gray-50 p-3 rounded-lg transition"
@@ -251,13 +251,13 @@ const OrderDetail = () => {
                     </div>
                   )}
                 </div>
-                <span className="text-primary-600 text-xs sm:text-sm">View Menu →</span>
+                <span className="text-primary-600 text-xs sm:text-sm max-[388px]:text-[11px]">View Menu →</span>
               </Link>
             </div>
 
             {/* Order Items */}
-            <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-              <h2 className="text-xl font-bold mb-4">Order Items</h2>
+            <div className="bg-white rounded-lg shadow p-4 sm:p-6 max-[388px]:p-4">
+              <h2 className="text-xl max-[388px]:text-lg font-bold mb-4">Order Items</h2>
               <div className="space-y-4">
                 {order.items.map((item, index) => (
                   <div key={index} className="flex flex-col sm:flex-row sm:items-center border-b pb-4 last:border-b-0 last:pb-0 gap-3">
@@ -280,8 +280,8 @@ const OrderDetail = () => {
             </div>
 
             {/* Delivery Address */}
-            <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-              <h2 className="text-xl font-bold mb-4">Delivery Address</h2>
+            <div className="bg-white rounded-lg shadow p-4 sm:p-6 max-[388px]:p-4">
+              <h2 className="text-xl max-[388px]:text-lg font-bold mb-4">Delivery Address</h2>
               <div className="flex">
                 <MapPinIcon className="h-6 w-6 text-primary-600 mr-3 flex-shrink-0" />
                 <div>
@@ -293,7 +293,7 @@ const OrderDetail = () => {
                         {order.addressId.city}, {order.addressId.state} - {order.addressId.zipCode}
                       </p>
                       {order.addressId.landmark && (
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-sm max-[388px]:text-xs text-gray-600 mt-1">
                           Landmark: {order.addressId.landmark}
                         </p>
                       )}
@@ -310,8 +310,8 @@ const OrderDetail = () => {
                   )}
                   {order.deliveryInstructions && (
                     <div className="mt-3 bg-yellow-50 p-3 rounded border border-yellow-200">
-                      <p className="text-sm font-semibold text-yellow-800">Delivery Instructions:</p>
-                      <p className="text-sm text-yellow-700">{order.deliveryInstructions}</p>
+                      <p className="text-sm max-[388px]:text-xs font-semibold text-yellow-800">Delivery Instructions:</p>
+                      <p className="text-sm max-[388px]:text-xs text-yellow-700">{order.deliveryInstructions}</p>
                     </div>
                   )}
                 </div>
@@ -322,42 +322,42 @@ const OrderDetail = () => {
           {/* Right Column - Summary */}
           <div className="space-y-6">
             {/* Payment & Bill Summary */}
-            <div className="bg-white rounded-lg shadow p-4 sm:p-6 md:sticky md:top-24">
-              <h2 className="text-xl font-bold mb-4">Bill Details</h2>
+            <div className="bg-white rounded-lg shadow p-4 sm:p-6 max-[388px]:p-4 md:sticky md:top-24">
+              <h2 className="text-xl max-[388px]:text-lg font-bold mb-4">Bill Details</h2>
               
               <div className="space-y-3 mb-4 pb-4 border-b">
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm max-[388px]:text-xs">
                   <span className="text-gray-600">Subtotal</span>
                   <span className="font-medium">{formatCurrency(order.subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm max-[388px]:text-xs">
                   <span className="text-gray-600">Delivery Fee</span>
                   <span className="font-medium">{formatCurrency(order.deliveryFee)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm max-[388px]:text-xs">
                   <span className="text-gray-600">Tax (5%)</span>
                   <span className="font-medium">{formatCurrency(order.tax)}</span>
                 </div>
                 {order.discount > 0 && (
-                  <div className="flex justify-between text-sm text-green-600">
+                  <div className="flex justify-between text-sm max-[388px]:text-xs text-green-600">
                     <span>Discount {order.couponCode && `(${order.couponCode})`}</span>
                     <span className="font-medium">-{formatCurrency(order.discount)}</span>
                   </div>
                 )}
               </div>
 
-              <div className="flex justify-between text-lg font-bold mb-4">
+              <div className="flex justify-between text-lg max-[388px]:text-base font-bold mb-4">
                 <span>Total Amount</span>
                 <span className="text-primary-600">{formatCurrency(order.total)}</span>
               </div>
 
               {/* Payment Method */}
-              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+              <div className="bg-gray-50 rounded-lg p-4 max-[388px]:p-3 mb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <CreditCardIcon className="h-5 w-5 text-gray-600 mr-2" />
                     <div>
-                      <p className="text-sm text-gray-600">Payment Method</p>
+                      <p className="text-sm max-[388px]:text-xs text-gray-600">Payment Method</p>
                       <p className="font-semibold capitalize">
                         {order.paymentMethod === 'cod' ? 'Cash on Delivery' : 
                          order.paymentMethod === 'card' ? 'Credit/Debit Card' :
@@ -385,14 +385,14 @@ const OrderDetail = () => {
                 </div>
                 {order.paymentStatus === 'completed' && order.status === 'pending' && (
                   <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
-                    <p className="text-xs text-blue-800">
+                    <p className="text-xs max-[388px]:text-[11px] text-blue-800">
                       ✓ Payment received! Your order is waiting for restaurant confirmation.
                     </p>
                   </div>
                 )}
                 {order.paymentStatus === 'pending' && order.paymentMethod !== 'cod' && (
                   <div className="mt-3 p-3 bg-yellow-50 rounded border border-yellow-200">
-                    <p className="text-xs text-yellow-800">
+                    <p className="text-xs max-[388px]:text-[11px] text-yellow-800">
                       ⚠️ Payment gateway not integrated. Restaurant owner should not process this order until payment is confirmed.
                     </p>
                   </div>
@@ -449,11 +449,11 @@ const OrderDetail = () => {
 
             {/* Help & Support */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="font-semibold mb-4">Need Help?</h3>
+              <h3 className="font-semibold mb-4 max-[388px]:text-sm">Need Help?</h3>
               
               {/* Restaurant Contact */}
               <div className="mb-4 pb-4 border-b">
-                <p className="text-sm text-gray-600 mb-2">
+                <p className="text-sm max-[388px]:text-xs text-gray-600 mb-2">
                   For order-related queries, contact the restaurant:
                 </p>
                 <div className="space-y-2">
@@ -484,7 +484,7 @@ const OrderDetail = () => {
 
               {/* FlashBites Support */}
               <div>
-                <p className="text-sm text-gray-600 mb-2">
+                <p className="text-sm max-[388px]:text-xs text-gray-600 mb-2">
                   For platform support:
                 </p>
                 <div className="space-y-2">
