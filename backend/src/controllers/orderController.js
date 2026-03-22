@@ -3,6 +3,7 @@ const Restaurant = require('../models/Restaurant');
 const MenuItem = require('../models/MenuItem');
 const Address = require('../models/Address');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
+const axios = require('axios');
 const { 
   notifyOrderStatus, 
   notifyRestaurantNewOrder, 
@@ -58,6 +59,39 @@ const normalizeCoordPair = (first, second) => {
 
   if (valid1) return [lng, lat];
   if (valid2) return [altLng, altLat];
+  return null;
+};
+
+const geocodeAddressFromFields = async ({ street, city, state, zipCode }) => {
+  const parts = [street, city, state, zipCode, 'India'].filter(Boolean);
+  if (parts.length < 2) return null;
+
+  try {
+    const response = await axios.get('https://nominatim.openstreetmap.org/search', {
+      timeout: 7000,
+      headers: {
+        'User-Agent': 'FlashBites/1.0 (support@flashbites.in)'
+      },
+      params: {
+        q: parts.join(', '),
+        format: 'json',
+        limit: 1
+      }
+    });
+
+    const first = response?.data?.[0];
+    if (first && first.lat && first.lon) {
+      const lat = Number(first.lat);
+      const lng = Number(first.lon);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        const normalized = normalizeCoordPair(lng, lat);
+        return normalized && isInIndia(normalized[1], normalized[0]) ? normalized : null;
+      }
+    }
+  } catch {
+    return null;
+  }
+
   return null;
 };
 
@@ -261,7 +295,7 @@ exports.createOrder = async (req, res) => {
     let deliveryFee = 30; // Default ₹30
     const restaurantCoords = getAddressCoordinates(restaurant.location ? { coordinates: restaurant.location.coordinates } : null);
 
-    if (!restaurantCoords) {
+    if (!restaurantCoords || !isInIndia(restaurantCoords[1], restaurantCoords[0])) {
       return errorResponse(res, 400, 'Restaurant location is not configured properly');
     }
 
@@ -275,8 +309,19 @@ exports.createOrder = async (req, res) => {
       }
 
       deliveryCoords = getAddressCoordinates(selectedAddressDoc);
+      if (!deliveryCoords || !isInIndia(deliveryCoords[1], deliveryCoords[0])) {
+        const geocoded = await geocodeAddressFromFields(selectedAddressDoc);
+        if (geocoded) {
+          deliveryCoords = geocoded;
+          await Address.findByIdAndUpdate(selectedAddressDoc._id, { $set: { coordinates: geocoded } });
+        }
+      }
     } else if (deliveryAddress) {
       deliveryCoords = getAddressCoordinates(deliveryAddress);
+      if (!deliveryCoords || !isInIndia(deliveryCoords[1], deliveryCoords[0])) {
+        const geocoded = await geocodeAddressFromFields(deliveryAddress);
+        if (geocoded) deliveryCoords = geocoded;
+      }
       if (!deliveryCoords) {
         return errorResponse(res, 400, 'Delivery address location is required. Please use a verified address.');
       }
@@ -297,18 +342,20 @@ exports.createOrder = async (req, res) => {
 
     if (distance > maxDistanceKm) {
       if (process.env.NODE_ENV !== 'production') {
-        console.warn('Delivery distance check failed', {
-          distanceKm: distance,
+        const debugData = {
+          distanceKm: Number(distance.toFixed(2)),
           maxDistanceKm,
-          restaurantCoords: restaurantCoords,
-          deliveryCoords: deliveryCoords,
+          restaurantCoords,
+          deliveryCoords,
           restaurantId,
           addressId
-        });
+        };
+        console.warn('Delivery distance check failed', debugData);
         return errorResponse(
           res,
           400,
-          `Delivery not available (distance ${distance.toFixed(2)}km > ${maxDistanceKm}km). Please update your address.`
+          `Delivery not available (distance ${distance.toFixed(2)}km > ${maxDistanceKm}km). Please update your address.`,
+          debugData
         );
       }
       return errorResponse(res, 400, 'Delivery is not available in your area. Maximum delivery distance is 20km.');
