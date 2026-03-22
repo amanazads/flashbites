@@ -16,13 +16,27 @@ import {
   PencilSquareIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
-import { getRestaurants } from '../api/restaurantApi';
+import { getRestaurants, updateRestaurant } from '../api/restaurantApi';
 import { getAllPartnerApplications, approvePartner, rejectPartner } from '../api/partnerApi';
-import { getComprehensiveAnalytics, getAccountDeletionRequests, reviewAccountDeletionRequest, updateUserRole, getPlatformSettings, updatePlatformSettings } from '../api/adminApi';
+import {
+  getComprehensiveAnalytics,
+  getAccountDeletionRequests,
+  reviewAccountDeletionRequest,
+  updateUserRole,
+  getPlatformSettings,
+  updatePlatformSettings,
+  blockUser,
+  getCoupons,
+  createCoupon,
+  updateCoupon,
+  deleteCoupon
+} from '../api/adminApi';
+import { updateOrderStatus, cancelOrder } from '../api/orderApi';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
 import axios from '../api/axios';
 import socketService from '../services/socketService';
+import RestaurantLocationModal from '../components/admin/RestaurantLocationModal';
 
 const MENU_CATEGORIES = ['Starters', 'Main Course', 'Desserts', 'Beverages', 'Breads', 'Rice', 'Snacks', 'Fast Food', 'Pizza', 'Burger', 'South Indian', 'North Indian', 'Chinese'];
 const ROLE_OPTIONS = [
@@ -30,6 +44,16 @@ const ROLE_OPTIONS = [
   { value: 'restaurant_owner', label: 'Restaurant Owner' },
   { value: 'delivery_partner', label: 'Delivery Partner' },
   { value: 'admin', label: 'Admin' },
+];
+
+const ORDER_STATUS_OPTIONS = [
+  'pending',
+  'confirmed',
+  'preparing',
+  'ready',
+  'out_for_delivery',
+  'delivered',
+  'cancelled'
 ];
 
 const AdminPanel = () => {
@@ -56,9 +80,14 @@ const AdminPanel = () => {
       { minDistance: 0, maxDistance: 5, charge: 0 },
       { minDistance: 5, maxDistance: 15, charge: 25 },
       { minDistance: 15, maxDistance: 9999, charge: 30 }
-    ]
+    ],
+    promoBanners: []
   });
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [coupons, setCoupons] = useState([]);
+  const [couponsLoading, setCouponsLoading] = useState(false);
+  const [editingRestaurant, setEditingRestaurant] = useState(null);
+  const [savingRestaurant, setSavingRestaurant] = useState(false);
   const [stats, setStats] = useState({
     totalRestaurants: 0,
     totalUsers: 0,
@@ -141,8 +170,14 @@ const AdminPanel = () => {
   }, [activeTab, selectedRestaurantId]);
 
   useEffect(() => {
-    if (activeTab === 'fees') {
+    if (activeTab === 'fees' || activeTab === 'content') {
       fetchPlatformSettings();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'coupons') {
+      fetchCoupons();
     }
   }, [activeTab]);
 
@@ -214,11 +249,243 @@ const AdminPanel = () => {
             { minDistance: 0, maxDistance: 5, charge: 0 },
             { minDistance: 5, maxDistance: 15, charge: 25 },
             { minDistance: 15, maxDistance: 9999, charge: 30 }
-          ]
+          ],
+          promoBanners: settings.promoBanners || []
         });
       }
     } catch (error) {
       toast.error('Failed to load platform settings');
+    }
+  };
+
+  const fetchCoupons = async () => {
+    try {
+      setCouponsLoading(true);
+      const response = await getCoupons({ limit: 200 });
+      const list = response?.data?.coupons || response?.data?.data?.coupons || [];
+      setCoupons(list);
+    } catch (error) {
+      toast.error('Failed to load coupons');
+    } finally {
+      setCouponsLoading(false);
+    }
+  };
+
+  const handleCreateCoupon = async () => {
+    const restaurantOptions = restaurants
+      .map((r) => `<option value="${r._id}">${r.name}</option>`)
+      .join('');
+
+    const result = await Swal.fire({
+      title: 'Create Coupon',
+      html: `
+        <input id="swal-code" class="swal2-input" placeholder="CODE" />
+        <textarea id="swal-desc" class="swal2-textarea" placeholder="Description"></textarea>
+        <select id="swal-discountType" class="swal2-select">
+          <option value="percentage">Percentage</option>
+          <option value="fixed">Fixed</option>
+        </select>
+        <input id="swal-discountValue" class="swal2-input" type="number" min="0" placeholder="Discount value" />
+        <input id="swal-minOrder" class="swal2-input" type="number" min="0" placeholder="Min order value" />
+        <input id="swal-maxDiscount" class="swal2-input" type="number" min="0" placeholder="Max discount (optional)" />
+        <input id="swal-validFrom" class="swal2-input" type="date" />
+        <input id="swal-validTill" class="swal2-input" type="date" />
+        <input id="swal-usageLimit" class="swal2-input" type="number" min="0" placeholder="Usage limit (optional)" />
+        <label class="swal2-checkbox" style="display:flex;align-items:center;gap:8px;">
+          <input id="swal-isActive" type="checkbox" checked /> Active
+        </label>
+        <label class="swal2-checkbox" style="display:flex;align-items:center;gap:8px;">
+          <input id="swal-autoApply" type="checkbox" /> Auto apply
+        </label>
+        <label class="swal2-checkbox" style="display:flex;align-items:center;gap:8px;">
+          <input id="swal-userSpecific" type="checkbox" /> User specific
+        </label>
+        <input id="swal-userIds" class="swal2-input" placeholder="User IDs (comma-separated)" />
+        <select id="swal-restaurants" class="swal2-select" multiple style="height:120px;">
+          ${restaurantOptions}
+        </select>
+        <p style="font-size:12px;color:#6B7280;margin-top:4px;">Leave restaurants empty for all restaurants.</p>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Create',
+      preConfirm: () => {
+        const code = document.getElementById('swal-code')?.value?.trim();
+        const description = document.getElementById('swal-desc')?.value?.trim();
+        const discountType = document.getElementById('swal-discountType')?.value;
+        const discountValue = Number(document.getElementById('swal-discountValue')?.value);
+        const minOrderValue = Number(document.getElementById('swal-minOrder')?.value || 0);
+        const maxDiscountValue = document.getElementById('swal-maxDiscount')?.value;
+        const maxDiscount = maxDiscountValue ? Number(maxDiscountValue) : null;
+        const validFrom = document.getElementById('swal-validFrom')?.value;
+        const validTill = document.getElementById('swal-validTill')?.value;
+        const usageLimitValue = document.getElementById('swal-usageLimit')?.value;
+        const usageLimit = usageLimitValue ? Number(usageLimitValue) : null;
+        const isActive = document.getElementById('swal-isActive')?.checked;
+        const autoApply = document.getElementById('swal-autoApply')?.checked;
+        const userSpecific = document.getElementById('swal-userSpecific')?.checked;
+        const userIdsRaw = document.getElementById('swal-userIds')?.value || '';
+        const userIds = userIdsRaw
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean);
+        const selected = document.getElementById('swal-restaurants')?.selectedOptions || [];
+        const applicableRestaurants = Array.from(selected).map((opt) => opt.value);
+
+        if (!code || !description || !discountType || Number.isNaN(discountValue)) {
+          Swal.showValidationMessage('Provide code, description, discount type, and discount value');
+          return false;
+        }
+        if (!validFrom || !validTill) {
+          Swal.showValidationMessage('Provide valid start and end dates');
+          return false;
+        }
+
+        return {
+          code,
+          description,
+          discountType,
+          discountValue,
+          minOrderValue,
+          maxDiscount,
+          validFrom,
+          validTill,
+          usageLimit,
+          isActive,
+          autoApply,
+          userSpecific,
+          applicableUsers: userSpecific ? userIds : [],
+          applicableRestaurants
+        };
+      }
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await createCoupon(result.value);
+      toast.success('Coupon created');
+      fetchCoupons();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to create coupon');
+    }
+  };
+
+  const handleEditCoupon = async (coupon) => {
+    const restaurantOptions = restaurants
+      .map((r) => `<option value="${r._id}" ${coupon.applicableRestaurants?.some((id) => id.toString() === r._id.toString()) ? 'selected' : ''}>${r.name}</option>`)
+      .join('');
+
+    const result = await Swal.fire({
+      title: 'Edit Coupon',
+      html: `
+        <input id="swal-code" class="swal2-input" placeholder="CODE" value="${coupon.code || ''}" />
+        <textarea id="swal-desc" class="swal2-textarea" placeholder="Description">${coupon.description || ''}</textarea>
+        <select id="swal-discountType" class="swal2-select">
+          <option value="percentage" ${coupon.discountType === 'percentage' ? 'selected' : ''}>Percentage</option>
+          <option value="fixed" ${coupon.discountType === 'fixed' ? 'selected' : ''}>Fixed</option>
+        </select>
+        <input id="swal-discountValue" class="swal2-input" type="number" min="0" placeholder="Discount value" value="${coupon.discountValue || 0}" />
+        <input id="swal-minOrder" class="swal2-input" type="number" min="0" placeholder="Min order value" value="${coupon.minOrderValue || 0}" />
+        <input id="swal-maxDiscount" class="swal2-input" type="number" min="0" placeholder="Max discount (optional)" value="${coupon.maxDiscount || ''}" />
+        <input id="swal-validFrom" class="swal2-input" type="date" value="${coupon.validFrom ? coupon.validFrom.slice(0, 10) : ''}" />
+        <input id="swal-validTill" class="swal2-input" type="date" value="${coupon.validTill ? coupon.validTill.slice(0, 10) : ''}" />
+        <input id="swal-usageLimit" class="swal2-input" type="number" min="0" placeholder="Usage limit (optional)" value="${coupon.usageLimit || ''}" />
+        <label class="swal2-checkbox" style="display:flex;align-items:center;gap:8px;">
+          <input id="swal-isActive" type="checkbox" ${coupon.isActive ? 'checked' : ''} /> Active
+        </label>
+        <label class="swal2-checkbox" style="display:flex;align-items:center;gap:8px;">
+          <input id="swal-autoApply" type="checkbox" ${coupon.autoApply ? 'checked' : ''} /> Auto apply
+        </label>
+        <label class="swal2-checkbox" style="display:flex;align-items:center;gap:8px;">
+          <input id="swal-userSpecific" type="checkbox" ${coupon.userSpecific ? 'checked' : ''} /> User specific
+        </label>
+        <input id="swal-userIds" class="swal2-input" placeholder="User IDs (comma-separated)" value="${coupon.applicableUsers?.join(', ') || ''}" />
+        <select id="swal-restaurants" class="swal2-select" multiple style="height:120px;">
+          ${restaurantOptions}
+        </select>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Save',
+      preConfirm: () => {
+        const code = document.getElementById('swal-code')?.value?.trim();
+        const description = document.getElementById('swal-desc')?.value?.trim();
+        const discountType = document.getElementById('swal-discountType')?.value;
+        const discountValue = Number(document.getElementById('swal-discountValue')?.value);
+        const minOrderValue = Number(document.getElementById('swal-minOrder')?.value || 0);
+        const maxDiscountValue = document.getElementById('swal-maxDiscount')?.value;
+        const maxDiscount = maxDiscountValue ? Number(maxDiscountValue) : null;
+        const validFrom = document.getElementById('swal-validFrom')?.value;
+        const validTill = document.getElementById('swal-validTill')?.value;
+        const usageLimitValue = document.getElementById('swal-usageLimit')?.value;
+        const usageLimit = usageLimitValue ? Number(usageLimitValue) : null;
+        const isActive = document.getElementById('swal-isActive')?.checked;
+        const autoApply = document.getElementById('swal-autoApply')?.checked;
+        const userSpecific = document.getElementById('swal-userSpecific')?.checked;
+        const userIdsRaw = document.getElementById('swal-userIds')?.value || '';
+        const userIds = userIdsRaw
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean);
+        const selected = document.getElementById('swal-restaurants')?.selectedOptions || [];
+        const applicableRestaurants = Array.from(selected).map((opt) => opt.value);
+
+        if (!code || !description || !discountType || Number.isNaN(discountValue)) {
+          Swal.showValidationMessage('Provide code, description, discount type, and discount value');
+          return false;
+        }
+        if (!validFrom || !validTill) {
+          Swal.showValidationMessage('Provide valid start and end dates');
+          return false;
+        }
+
+        return {
+          code,
+          description,
+          discountType,
+          discountValue,
+          minOrderValue,
+          maxDiscount,
+          validFrom,
+          validTill,
+          usageLimit,
+          isActive,
+          autoApply,
+          userSpecific,
+          applicableUsers: userSpecific ? userIds : [],
+          applicableRestaurants
+        };
+      }
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await updateCoupon(coupon._id, result.value);
+      toast.success('Coupon updated');
+      fetchCoupons();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update coupon');
+    }
+  };
+
+  const handleDeleteCoupon = async (coupon) => {
+    const result = await Swal.fire({
+      title: 'Delete this coupon?',
+      text: coupon.code,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      confirmButtonText: 'Delete'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await deleteCoupon(coupon._id);
+      toast.success('Coupon deleted');
+      fetchCoupons();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to delete coupon');
     }
   };
 
@@ -247,6 +514,16 @@ const AdminPanel = () => {
           minDistance: Number(rule.minDistance),
           maxDistance: Number(rule.maxDistance),
           charge: Number(rule.charge)
+        })),
+        promoBanners: (settingsForm.promoBanners || []).map((banner, index) => ({
+          tag: banner.tag || '',
+          bold: banner.bold || '',
+          sub: banner.sub || '',
+          cta: banner.cta || '',
+          bg: banner.bg || '',
+          img: banner.img || '',
+          isActive: banner.isActive !== false,
+          sortOrder: Number.isFinite(Number(banner.sortOrder)) ? Number(banner.sortOrder) : index
         }))
       };
 
@@ -389,6 +666,89 @@ const AdminPanel = () => {
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Failed to update user role');
     }
+  };
+
+  const handleToggleUserBlock = async (userId, isActive) => {
+    try {
+      await blockUser(userId, !isActive);
+      toast.success(isActive ? 'User blocked' : 'User unblocked');
+      fetchData();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update user status');
+    }
+  };
+
+  const handleOrderStatusChange = async (orderId, nextStatus) => {
+    try {
+      await updateOrderStatus(orderId, nextStatus);
+      toast.success('Order status updated');
+      fetchData();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update order status');
+    }
+  };
+
+  const handleCancelOrder = async (order) => {
+    const result = await Swal.fire({
+      title: 'Cancel this order?',
+      input: 'textarea',
+      inputLabel: 'Reason for cancellation',
+      inputPlaceholder: 'Optional reason',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      confirmButtonText: 'Cancel Order'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await cancelOrder(order._id, result.value || 'Cancelled by admin');
+      toast.success('Order cancelled');
+      fetchData();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to cancel order');
+    }
+  };
+
+  const handleSaveRestaurantLocation = async (payload) => {
+    if (!editingRestaurant) return;
+    try {
+      setSavingRestaurant(true);
+      await updateRestaurant(editingRestaurant._id, payload);
+      toast.success('Restaurant updated');
+      setEditingRestaurant(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update restaurant');
+    } finally {
+      setSavingRestaurant(false);
+    }
+  };
+
+  const handleAddBanner = () => {
+    setSettingsForm((prev) => ({
+      ...prev,
+      promoBanners: [
+        ...(prev.promoBanners || []),
+        { tag: '', bold: '', sub: '', cta: '', bg: '', img: '', isActive: true, sortOrder: prev.promoBanners?.length || 0 }
+      ]
+    }));
+  };
+
+  const handleUpdateBanner = (index, field, value) => {
+    setSettingsForm((prev) => {
+      const next = [...(prev.promoBanners || [])];
+      next[index] = { ...next[index], [field]: value };
+      return { ...prev, promoBanners: next };
+    });
+  };
+
+  const handleRemoveBanner = (index) => {
+    setSettingsForm((prev) => {
+      const next = [...(prev.promoBanners || [])];
+      next.splice(index, 1);
+      return { ...prev, promoBanners: next };
+    });
   };
 
   const fetchRestaurantMenu = async (restaurantId) => {
@@ -607,6 +967,16 @@ const AdminPanel = () => {
                 Fees & Charges
               </button>
               <button
+                onClick={() => setActiveTab('content')}
+                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                  activeTab === 'content'
+                    ? 'border-b-2 border-primary-500 text-primary-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Content
+              </button>
+              <button
                 onClick={() => setActiveTab('restaurants')}
                 className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
                   activeTab === 'restaurants'
@@ -615,6 +985,16 @@ const AdminPanel = () => {
                 }`}
               >
                 Restaurants ({restaurants.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('coupons')}
+                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium ${
+                  activeTab === 'coupons'
+                    ? 'border-b-2 border-primary-500 text-primary-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Coupons ({coupons.length})
               </button>
               <button
                 onClick={() => setActiveTab('users')}
@@ -788,6 +1168,191 @@ const AdminPanel = () => {
               </div>
             )}
 
+            {activeTab === 'content' && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold">Homepage Banners</h2>
+                  <button
+                    onClick={handleAddBanner}
+                    className="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold"
+                  >
+                    Add Banner
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  {(settingsForm.promoBanners || []).length === 0 && (
+                    <div className="text-sm text-gray-500">No banners configured yet.</div>
+                  )}
+                  {(settingsForm.promoBanners || []).map((banner, index) => (
+                    <div key={index} className="rounded-xl border border-gray-200 p-4 bg-white">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">Tag</label>
+                          <input
+                            type="text"
+                            value={banner.tag || ''}
+                            onChange={(e) => handleUpdateBanner(index, 'tag', e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">CTA</label>
+                          <input
+                            type="text"
+                            value={banner.cta || ''}
+                            onChange={(e) => handleUpdateBanner(index, 'cta', e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">Headline</label>
+                          <input
+                            type="text"
+                            value={banner.bold || ''}
+                            onChange={(e) => handleUpdateBanner(index, 'bold', e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">Subtext</label>
+                          <input
+                            type="text"
+                            value={banner.sub || ''}
+                            onChange={(e) => handleUpdateBanner(index, 'sub', e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">Background</label>
+                          <input
+                            type="text"
+                            value={banner.bg || ''}
+                            onChange={(e) => handleUpdateBanner(index, 'bg', e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                            placeholder="CSS gradient or color"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">Image URL</label>
+                          <input
+                            type="text"
+                            value={banner.img || ''}
+                            onChange={(e) => handleUpdateBanner(index, 'img', e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
+                        <label className="flex items-center gap-2 text-sm text-gray-600">
+                          <input
+                            type="checkbox"
+                            checked={banner.isActive !== false}
+                            onChange={(e) => handleUpdateBanner(index, 'isActive', e.target.checked)}
+                          />
+                          Active
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">Sort</span>
+                          <input
+                            type="number"
+                            value={banner.sortOrder ?? index}
+                            onChange={(e) => handleUpdateBanner(index, 'sortOrder', e.target.value)}
+                            className="w-20 rounded-lg border border-gray-200 px-2 py-1 text-sm"
+                          />
+                        </div>
+                        <button
+                          onClick={() => handleRemoveBanner(index)}
+                          className="ml-auto text-sm font-semibold text-red-500"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={savePlatformSettings}
+                    disabled={settingsSaving}
+                    className="px-5 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold disabled:opacity-60"
+                  >
+                    {settingsSaving ? 'Saving...' : 'Save Content'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'coupons' && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold">Coupon Management</h2>
+                  <button
+                    onClick={handleCreateCoupon}
+                    className="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold"
+                  >
+                    New Coupon
+                  </button>
+                </div>
+                {couponsLoading ? (
+                  <div className="text-center py-6 text-gray-500">Loading coupons...</div>
+                ) : coupons.length === 0 ? (
+                  <div className="text-center py-6 text-gray-500">No coupons created yet.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Discount</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Validity</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {coupons.map((coupon) => (
+                          <tr key={coupon._id}>
+                            <td className="px-4 py-3 text-sm font-semibold text-gray-900">{coupon.code}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">
+                              {coupon.discountType === 'percentage'
+                                ? `${coupon.discountValue}%`
+                                : formatCurrency(coupon.discountValue)}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-500">
+                              {coupon.validFrom?.slice(0, 10)} → {coupon.validTill?.slice(0, 10)}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${coupon.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                {coupon.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleEditCoupon(coupon)}
+                                  className="inline-flex items-center px-2.5 py-1.5 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
+                                >
+                                  <PencilSquareIcon className="h-4 w-4 mr-1" />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCoupon(coupon)}
+                                  className="inline-flex items-center px-2.5 py-1.5 bg-red-100 text-red-700 rounded-md hover:bg-red-200"
+                                >
+                                  <TrashIcon className="h-4 w-4 mr-1" />
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
             {activeTab === 'restaurants' && (
               <div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center mb-4">
@@ -848,6 +1413,11 @@ const AdminPanel = () => {
                               }`}>
                                 {restaurant.isApproved ? 'Approved' : 'Pending'}
                               </span>
+                              <span className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                restaurant.isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-700'
+                              }`}>
+                                {restaurant.isActive ? 'Active' : 'Inactive'}
+                              </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                               {!restaurant.isApproved ? (
@@ -870,9 +1440,28 @@ const AdminPanel = () => {
                                   </button>
                                 </div>
                               ) : (
-                                <div className="flex items-center text-green-600">
-                                  <CheckCircleIcon className="h-5 w-5 mr-1" />
-                                  <span>Approved</span>
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    onClick={() => setEditingRestaurant(restaurant)}
+                                    className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                  >
+                                    <PencilSquareIcon className="h-4 w-4 mr-1" />
+                                    Edit Location
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        await updateRestaurant(restaurant._id, { isActive: !restaurant.isActive });
+                                        toast.success(restaurant.isActive ? 'Restaurant deactivated' : 'Restaurant activated');
+                                        fetchData();
+                                      } catch (error) {
+                                        toast.error(error?.response?.data?.message || 'Failed to update restaurant');
+                                      }
+                                    }}
+                                    className={`inline-flex items-center px-3 py-1 rounded-md transition-colors ${restaurant.isActive ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
+                                  >
+                                    {restaurant.isActive ? 'Deactivate' : 'Activate'}
+                                  </button>
                                 </div>
                               )}
                             </td>
@@ -933,6 +1522,12 @@ const AdminPanel = () => {
                                   <option key={option.value} value={option.value}>{option.label}</option>
                                 ))}
                               </select>
+                              <button
+                                onClick={() => handleToggleUserBlock(user._id, user.isActive)}
+                                className={`ml-2 inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-semibold ${user.isActive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}
+                              >
+                                {user.isActive ? 'Block' : 'Unblock'}
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -996,6 +1591,24 @@ const AdminPanel = () => {
                             <p className="text-xs text-gray-500 mt-1 capitalize">
                               {order.paymentMethod || 'N/A'}
                             </p>
+                            <div className="mt-3 flex flex-wrap items-center gap-2 justify-start sm:justify-end">
+                              <select
+                                value={order.status}
+                                onChange={(e) => handleOrderStatusChange(order._id, e.target.value)}
+                                className="border border-gray-300 rounded-md px-2 py-1 text-xs bg-white"
+                              >
+                                {ORDER_STATUS_OPTIONS.map((status) => (
+                                  <option key={status} value={status}>{ORDER_STATUS_LABELS[status] || status}</option>
+                                ))}
+                              </select>
+                              <button
+                                onClick={() => handleCancelOrder(order)}
+                                disabled={order.status === 'cancelled'}
+                                className="px-2.5 py-1 text-xs font-semibold rounded-md bg-red-100 text-red-700 disabled:opacity-60"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           </div>
                         </div>
                         
@@ -1582,6 +2195,15 @@ const AdminPanel = () => {
           </div>
         </div>
       </div>
+
+      {editingRestaurant && (
+        <RestaurantLocationModal
+          restaurant={editingRestaurant}
+          saving={savingRestaurant}
+          onClose={() => setEditingRestaurant(null)}
+          onSave={handleSaveRestaurantLocation}
+        />
+      )}
     </div>
   );
 };

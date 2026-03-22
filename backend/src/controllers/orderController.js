@@ -828,7 +828,8 @@ exports.cancelOrder = async (req, res) => {
       return errorResponse(res, 404, 'Order not found');
     }
 
-    if (order.userId.toString() !== req.user._id.toString()) {
+    const isAdmin = req.user?.role === 'admin';
+    if (!isAdmin && order.userId.toString() !== req.user._id.toString()) {
       console.log('❌ [cancelOrder] Unauthorized access attempt');
       return errorResponse(res, 403, 'Not authorized');
     }
@@ -853,7 +854,7 @@ exports.cancelOrder = async (req, res) => {
     // Update order
     order.status = 'cancelled';
     order.cancelledAt = new Date();
-    order.cancellationReason = req.body.reason || 'Cancelled by user';
+    order.cancellationReason = req.body.reason || (isAdmin ? 'Cancelled by admin' : 'Cancelled by user');
     order.cancellationFee = cancellationFee;
     order.refundAmount = refundAmount;
     

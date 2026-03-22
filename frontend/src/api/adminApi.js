@@ -47,3 +47,19 @@ export const getPlatformSettings = () => {
 export const updatePlatformSettings = (payload) => {
   return axios.put('/admin/settings', payload);
 };
+
+export const getCoupons = (params) => {
+  return axios.get('/admin/coupons', { params });
+};
+
+export const createCoupon = (payload) => {
+  return axios.post('/admin/coupons', payload);
+};
+
+export const updateCoupon = (id, payload) => {
+  return axios.put(`/admin/coupons/${id}`, payload);
+};
+
+export const deleteCoupon = (id) => {
+  return axios.delete(`/admin/coupons/${id}`);
+};

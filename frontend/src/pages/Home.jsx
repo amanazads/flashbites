@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchRestaurants } from '../redux/slices/restaurantSlice';
 import { getAddresses } from '../api/userApi';
+import { getPlatformSettings } from '../api/settingsApi';
 import RestaurantCard from '../components/restaurant/RestaurantCard';
 import { Loader } from '../components/common/Loader';
 import { calculateDistance } from '../utils/helpers';
@@ -204,6 +205,7 @@ const Home = () => {
   /* ── Filtered restaurants ── */
   const [noServiceArea, setNoServiceArea] = useState(false);
   const [usedCityFallback, setUsedCityFallback] = useState(false);
+  const [promoBanners, setPromoBanners] = useState([]);
 
   /* ── Category + search ── */
   const [activeCat, setActiveCat] = useState('all');
@@ -226,6 +228,24 @@ const Home = () => {
 
     boot();
   }, [dispatch]);
+
+  useEffect(() => {
+    const loadPromos = async () => {
+      try {
+        const response = await getPlatformSettings();
+        const settings = response?.data?.settings || null;
+        const banners = Array.isArray(settings?.promoBanners) ? settings.promoBanners : [];
+        const active = banners
+          .filter((b) => b && b.isActive !== false)
+          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+        setPromoBanners(active);
+      } catch {
+        setPromoBanners([]);
+      }
+    };
+
+    loadPromos();
+  }, []);
 
   // Load saved addresses if authenticated
   useEffect(() => {
@@ -361,6 +381,7 @@ const Home = () => {
 
   const baseList = restaurants;
   const allFiltered = activeCat === 'all' ? baseList : baseList.filter((r) => r.cuisines?.some((c) => c.toLowerCase() === activeCat.toLowerCase()));
+  const promosToShow = promoBanners.length > 0 ? promoBanners : PROMOS;
 
   return (
     <div className="page-wrapper flex justify-center lg:pt-10">
@@ -587,9 +608,9 @@ const Home = () => {
       {/* Promo banners — Figma style */}
       <div className="mb-6 container-px">
         <div className="snap-scroll-row">
-          {PROMOS.map((p) => (
+          {promosToShow.map((p, index) => (
             <Link
-              key={p.id}
+              key={p.id || p.tag || index}
               to="/restaurants"
               className="promo-banner snap-start flex-shrink-0 touch-feedback relative"
               style={{

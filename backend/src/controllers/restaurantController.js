@@ -313,6 +313,11 @@ exports.updateRestaurant = async (req, res) => {
       req.body.deliveryRadiusKm = req.body.deliveryRadius;
     }
 
+    const normalizedLocation = resolveLocationFromBody(req.body);
+    if (normalizedLocation) {
+      req.body.location = normalizedLocation;
+    }
+
     if (!req.body.location && req.body.address) {
       const resolvedLocation = await geocodeRestaurantAddress({
         name: req.body.name || restaurant.name,

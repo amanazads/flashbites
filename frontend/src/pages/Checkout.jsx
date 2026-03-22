@@ -96,7 +96,7 @@ const Checkout = () => {
   const subtotal = calculateCartTotal(items);
   const discount = appliedCoupon?.discount || 0;
   const platformFee = Number(platformSettings?.platformFee || 25);
-  const taxRate = Number(platformSettings?.taxRate || 0.05);
+  const taxRate = Number(platformSettings?.taxRate || 0.10);
   const deliveryFee = deliveryDistance > 0
     ? calculateDeliveryFee(deliveryDistance, platformSettings?.deliveryChargeRules)
     : 0;

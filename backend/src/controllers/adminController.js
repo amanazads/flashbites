@@ -25,10 +25,26 @@ const normalizeSettingsPayload = (payload = {}) => {
         .filter(rule => Number.isFinite(rule.minDistance) && Number.isFinite(rule.maxDistance) && Number.isFinite(rule.charge))
     : null;
 
+  const promoBanners = Array.isArray(payload.promoBanners)
+    ? payload.promoBanners
+        .map((banner, index) => ({
+          tag: typeof banner.tag === 'string' ? banner.tag.trim() : undefined,
+          bold: typeof banner.bold === 'string' ? banner.bold.trim() : undefined,
+          sub: typeof banner.sub === 'string' ? banner.sub.trim() : undefined,
+          cta: typeof banner.cta === 'string' ? banner.cta.trim() : undefined,
+          bg: typeof banner.bg === 'string' ? banner.bg.trim() : undefined,
+          img: typeof banner.img === 'string' ? banner.img.trim() : undefined,
+          isActive: banner.isActive !== undefined ? Boolean(banner.isActive) : true,
+          sortOrder: Number.isFinite(Number(banner.sortOrder)) ? Number(banner.sortOrder) : index
+        }))
+        .filter((banner) => banner.bold || banner.sub || banner.img)
+    : null;
+
   return {
     platformFee: Number.isFinite(platformFee) ? platformFee : undefined,
     taxRate: Number.isFinite(taxRate) ? taxRate : undefined,
-    deliveryChargeRules: deliveryChargeRules && deliveryChargeRules.length > 0 ? deliveryChargeRules : undefined
+    deliveryChargeRules: deliveryChargeRules && deliveryChargeRules.length > 0 ? deliveryChargeRules : undefined,
+    promoBanners: promoBanners ? promoBanners : undefined
   };
 };
 
