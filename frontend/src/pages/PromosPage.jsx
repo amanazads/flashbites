@@ -239,7 +239,7 @@ const PromosPage = () => {
         url="/promos"
       />
 
-      <div className="max-w-lg mx-auto min-h-screen">
+      <div className="max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto min-h-screen">
         {/* ── Header ── */}
         <div
           className="sticky top-0 z-20 px-4 pt-5 pb-4 bg-white"
@@ -305,7 +305,7 @@ const PromosPage = () => {
               </div>
               <button
                 onClick={() => navigate('/login')}
-                className="text-[12px] font-bold px-3 py-1.5 rounded-lg text-white flex-shrink-0"
+                className="w-full sm:w-auto text-[12px] font-bold px-3 py-1.5 rounded-lg text-white flex-shrink-0"
                 style={{ background: BRAND }}
               >
                 Login

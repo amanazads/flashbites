@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 
 const sourceIcon = process.argv[2];
-const sourceLogo = process.argv[3]; // optional: full logo with text
+const sourceLogo = process.argv[3]; // optional: logo image (also 1:1)
 
 if (!sourceIcon || !fs.existsSync(sourceIcon)) {
   console.error('Usage: node generate-icons.js <icon.png> [logo-with-text.png]');
@@ -50,7 +50,6 @@ const IOS_ICONS = [
 
 async function generateIcon(src, outputPath, size) {
   await sharp(src)
-    .trim()
     .resize(size, size, {
       fit: 'contain',
       position: 'centre',
@@ -81,17 +80,12 @@ async function run() {
     await generateIcon(sourceIcon, path.join(IOS_BASE, name), size);
   }
 
-  // Web: favicon (32x32 and 48x48)
+  // Web assets
   console.log('\n🌐 Generating web assets...');
-  await generateIcon(sourceIcon, path.join(WEB_PUBLIC, 'logo.png'), 512);
-  await generateIcon(sourceIcon, path.join(WEB_ASSETS, 'logo.png'), 512);
-
-  // Full logo with text (for Navbar etc.)
-  if (sourceLogo && fs.existsSync(sourceLogo)) {
-    await sharp(sourceLogo).resize(400).png().toFile(path.join(WEB_PUBLIC, 'logo-full.png'));
-    await sharp(sourceLogo).resize(400).png().toFile(path.join(WEB_ASSETS, 'logo-full.png'));
-    console.log('✅ Full logo (with text) saved');
-  }
+  const logoSource = (sourceLogo && fs.existsSync(sourceLogo)) ? sourceLogo : sourceIcon;
+  fs.copyFileSync(logoSource, path.join(WEB_PUBLIC, 'logo.png'));
+  fs.copyFileSync(logoSource, path.join(WEB_ASSETS, 'logo.png'));
+  console.log('✅ logo.png copied as-is');
 
   // Favicon ICO (using the 48x48 version)
   await sharp(sourceIcon)

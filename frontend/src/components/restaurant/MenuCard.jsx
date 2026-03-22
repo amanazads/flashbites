@@ -89,7 +89,7 @@ const MenuCard = ({ item, restaurant, disabled = false }) => {
   };
 
   return (
-    <div className="bg-white p-4 pb-6 flex flex-row items-start justify-between gap-4 border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
+    <div className="bg-white p-4 pb-6 flex flex-col sm:flex-row items-start justify-between gap-4 border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
       
       {/* Left side: Item Info */}
       <div className="flex-1 min-w-0 pr-2">
@@ -154,8 +154,8 @@ const MenuCard = ({ item, restaurant, disabled = false }) => {
 
       {/* Right side: Image and Add Button (absolute positioning overlap style like Zomato/Swiggy) */}
       {item.image && (
-        <div className="relative flex-shrink-0 mb-4 ml-2">
-          <div className="w-[110px] h-[110px] sm:w-[130px] sm:h-[130px] rounded-2xl overflow-hidden shadow-sm border border-gray-100 bg-gray-50">
+        <div className="relative flex-shrink-0 mb-2 sm:mb-4 sm:ml-2 w-full sm:w-auto">
+          <div className="w-full sm:w-[130px] h-[180px] sm:h-[130px] rounded-2xl overflow-hidden shadow-sm border border-gray-100 bg-gray-50">
             <img
               src={item.image}
               alt={item.name}
@@ -163,8 +163,7 @@ const MenuCard = ({ item, restaurant, disabled = false }) => {
               loading="lazy"
             />
           </div>
-          
-          <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 flex items-center justify-center w-full z-10">
+          <div className="mt-3 flex items-center justify-center sm:absolute sm:-bottom-4 sm:left-1/2 sm:transform sm:-translate-x-1/2 sm:w-full z-10">
             <ActionButton />
           </div>
         </div>

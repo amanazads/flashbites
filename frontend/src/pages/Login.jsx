@@ -119,7 +119,7 @@ const Login = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                   <input type="checkbox" className="h-4 w-4 rounded" style={{ accentColor: BRAND }} />
                   Remember me

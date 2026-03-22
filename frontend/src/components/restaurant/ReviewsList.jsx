@@ -29,20 +29,20 @@ const ReviewsList = ({ restaurantId }) => {
   if (loading) return <Loader />;
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
+    <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
       <h2 className="text-2xl font-bold mb-6">Customer Reviews</h2>
 
       {/* Rating Summary */}
       {stats && (
         <div className="mb-8 pb-6 border-b">
-          <div className="flex items-center gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-6">
             <div className="text-center">
               <div className="text-5xl font-bold text-primary-500">{stats.averageRating.toFixed(1)}</div>
               <StarRating rating={stats.averageRating} readonly size="md" />
               <p className="text-sm text-gray-600 mt-1">{stats.totalReviews} reviews</p>
             </div>
 
-            <div className="flex-1">
+            <div className="flex-1 w-full">
               {[5, 4, 3, 2, 1].map((star) => {
                 const count = stats.ratingDistribution[star] || 0;
                 const percentage = stats.totalReviews > 0 ? (count / stats.totalReviews) * 100 : 0;
@@ -89,17 +89,17 @@ const ReviewsList = ({ restaurantId }) => {
               </div>
 
               {review.comment && (
-                <p className="text-gray-700 mt-3 ml-13">{review.comment}</p>
+                <p className="text-gray-700 mt-3 sm:ml-13">{review.comment}</p>
               )}
 
               {review.images && review.images.length > 0 && (
-                <div className="flex gap-2 mt-3 ml-13">
+                <div className="flex gap-2 mt-3 sm:ml-13 overflow-x-auto">
                   {review.images.map((image, index) => (
                     <img
                       key={index}
                       src={image}
                       alt={`Review ${index + 1}`}
-                      className="w-20 h-20 rounded-lg object-cover cursor-pointer hover:opacity-75 transition"
+                      className="w-20 h-20 rounded-lg object-cover cursor-pointer hover:opacity-75 transition flex-shrink-0"
                     />
                   ))}
                 </div>

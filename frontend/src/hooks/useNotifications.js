@@ -53,8 +53,8 @@ const sendSystemNotification = async (title, body, data = {}) => {
       if (Notification.permission === 'granted') {
         const n = new Notification(title, {
           body,
-          icon: '/logo.png',
-          badge: '/favicon-32.png',
+          icon: '/2.png',
+          badge: '/2.png',
           tag: data.tag || 'flashbites',
           requireInteraction: true,
         });

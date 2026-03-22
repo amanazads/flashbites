@@ -46,15 +46,15 @@ const Contact = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight sm:text-5xl">
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight sm:text-5xl">
             Get in touch
           </h1>
-          <p className="mt-4 text-lg text-gray-500">
+          <p className="mt-4 text-base sm:text-lg text-gray-500">
             Have a question, feedback, or need support? We're here to help! Fill out the form below and our team will get back to you within 24 hours.
           </p>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl overflow-hidden shadow-soft">
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-3">
             
             {/* Contact Information Sidebar */}

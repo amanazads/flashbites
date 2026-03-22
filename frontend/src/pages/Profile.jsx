@@ -325,7 +325,7 @@ const Profile = () => {
           style={{ background: BRAND, transform: 'translate(-30%, 30%)' }}
         />
 
-        <div className="relative px-5 max-w-md mx-auto">
+        <div className="relative px-5 max-w-md sm:max-w-lg mx-auto">
           {/* Avatar + name */}
           <div className="flex items-end gap-4">
             {/* Avatar */}
@@ -366,7 +366,7 @@ const Profile = () => {
       </div>
 
       {/* ── Tab pills (overlapping hero) ── */}
-      <div className="sticky top-0 z-30 px-5 max-w-md mx-auto -mt-[20px]">
+      <div className="sticky top-0 z-30 px-5 max-w-md sm:max-w-lg mx-auto -mt-[20px]">
         <div
           className="flex rounded-2xl overflow-hidden border"
           style={{
@@ -396,7 +396,7 @@ const Profile = () => {
       </div>
 
       {/* ── Content ── */}
-      <div className="px-4 pt-4 pb-28 max-w-md mx-auto space-y-4">
+      <div className="px-4 pt-4 pb-28 max-w-md sm:max-w-lg mx-auto space-y-4">
 
         {/* ═══════╗
             PROFILE TAB

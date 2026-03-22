@@ -149,8 +149,8 @@ const OrderDetail = () => {
         {!isCancelled && (
           <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
             <h2 className="text-xl font-bold mb-6">Order Status</h2>
-            <div className="relative overflow-x-auto">
-              <div className="flex justify-between items-center min-w-[520px] sm:min-w-[640px]">
+            <div className="relative overflow-x-auto -mx-2 px-2">
+              <div className="flex justify-between items-center min-w-[420px] xs:min-w-[520px] sm:min-w-[640px]">
                 {getOrderStatusSteps().map((step, index) => {
                   const Icon = step.icon;
                   return (
@@ -235,14 +235,14 @@ const OrderDetail = () => {
               <h2 className="text-xl font-bold mb-4">Restaurant Details</h2>
               <Link
                 to={`/restaurant/${order.restaurantId._id}`}
-                className="flex items-center hover:bg-gray-50 p-3 rounded-lg transition"
+                className="flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-gray-50 p-3 rounded-lg transition"
               >
                 <img
                   src={order.restaurantId.image || 'https://via.placeholder.com/80'}
                   alt={order.restaurantId.name}
-                  className="w-16 h-16 rounded-lg object-cover"
+                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover"
                 />
-                <div className="ml-4 flex-1">
+                <div className="sm:ml-3 flex-1 min-w-0">
                   <h3 className="font-semibold text-lg">{order.restaurantId.name}</h3>
                   {order.restaurantId.phone && (
                     <div className="flex items-center text-sm text-gray-600 mt-1">
@@ -251,7 +251,7 @@ const OrderDetail = () => {
                     </div>
                   )}
                 </div>
-                <span className="text-primary-600 text-sm">View Menu →</span>
+                <span className="text-primary-600 text-xs sm:text-sm">View Menu →</span>
               </Link>
             </div>
 
@@ -260,18 +260,18 @@ const OrderDetail = () => {
               <h2 className="text-xl font-bold mb-4">Order Items</h2>
               <div className="space-y-4">
                 {order.items.map((item, index) => (
-                  <div key={index} className="flex items-center border-b pb-4 last:border-b-0 last:pb-0 gap-3">
+                  <div key={index} className="flex flex-col sm:flex-row sm:items-center border-b pb-4 last:border-b-0 last:pb-0 gap-3">
                     <img
                       src={item.image || 'https://via.placeholder.com/60'}
                       alt={item.name}
-                      className="w-16 h-16 rounded-lg object-cover"
+                      className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover"
                     />
                     <div className="flex-1 min-w-0">
                       <h4 className="font-semibold">{item.name}</h4>
                       <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
                       <p className="text-sm text-gray-600">{formatCurrency(item.price)} each</p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right sm:text-left">
                       <p className="font-semibold">{formatCurrency(item.price * item.quantity)}</p>
                     </div>
                   </div>

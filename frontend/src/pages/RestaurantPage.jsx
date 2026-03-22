@@ -55,11 +55,9 @@ const RestaurantPage = () => {
     <div className="page-wrapper">
 
       {/* ── Sticky cuisine tab row ── */}
-      <div className="sticky bg-white z-10"
-        style={{
-          top: '60px',        /* height of mobile top bar */
-          boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
-        }}
+      <div
+        className="sticky top-[56px] sm:top-[72px] bg-white z-10"
+        style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}
       >
         <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
           <div className="flex gap-1 overflow-x-auto scrollbar-hide py-3">

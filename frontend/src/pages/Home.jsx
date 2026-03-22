@@ -947,7 +947,7 @@ const Home = () => {
       {/* ══════════════════════════════════
           APP DOWNLOAD CTA (from Figma)
       ══════════════════════════════════ */}
-      <div className="container-px mt-10 mb-6">
+      <div className="hidden sm:block container-px mt-10 mb-6">
         <div className="app-download-section">
           <h2 className="text-2xl sm:text-3xl font-extrabold mb-3 relative z-10">
             Get the FlashBites app for better experience
@@ -955,12 +955,12 @@ const Home = () => {
           <p className="text-gray-400 text-sm mb-6 max-w-md mx-auto relative z-10">
             Faster ordering, real-time tracking, and exclusive app-only deals delivered to your fingertips.
           </p>
-          <div className="flex items-center justify-center gap-4 relative z-10">
-            <button className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-5 py-3 rounded-xl transition-all text-sm font-semibold">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 relative z-10">
+            <button className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 px-5 py-3 rounded-xl transition-all text-sm font-semibold">
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.523 2H6.477C5.662 2 5 2.662 5 3.477v17.046C5 21.338 5.662 22 6.477 22h11.046c.815 0 1.477-.662 1.477-1.477V3.477C19 2.662 18.338 2 17.523 2zM12 21a1 1 0 110-2 1 1 0 010 2zm5-3H7V4h10v14z"/></svg>
               App Store
             </button>
-            <button className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-5 py-3 rounded-xl transition-all text-sm font-semibold">
+            <button className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 px-5 py-3 rounded-xl transition-all text-sm font-semibold">
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M3 20.5v-17c0-.83.67-1.5 1.5-1.5.31 0 .6.1.84.27L17.35 10a1.5 1.5 0 010 4L5.34 21.73A1.5 1.5 0 013 20.5z"/></svg>
               Play Store
             </button>
@@ -973,7 +973,7 @@ const Home = () => {
       ══════════════════════════════════ */}
       <div className="px-4 mt-6 pb-4">
         <h2 className="section-title mb-4">Why FlashBites?</h2>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[
             {
               icon: (

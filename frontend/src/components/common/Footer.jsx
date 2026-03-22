@@ -15,7 +15,7 @@ const Footer = () => {
               <img
                 src={logo}
                 alt="FlashBites"
-                className="h-10 sm:h-11 w-auto object-contain"
+                className="h-10 w-10 object-contain"
                 style={{ filter: 'brightness(1.25) contrast(1.15) drop-shadow(0 1px 1px rgba(0,0,0,0.35))' }}
               />
             </div>

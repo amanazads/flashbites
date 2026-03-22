@@ -149,7 +149,7 @@ const Navbar = () => {
           {/* Brand logo — centre/left on mobile */}
           <div className="flex-1 min-w-0">
             <Link to="/" className="flex items-center gap-2 min-w-0">
-              <img src={logo} alt="FlashBites" className="h-7 w-auto flex-shrink-0" />
+              <img src={logo} alt="FlashBites" className="h-7 w-7 object-contain flex-shrink-0" />
               <span
                 className="text-[15px] font-black tracking-tight text-gray-900 truncate hidden xs:block"
                 style={{ letterSpacing: '-0.02em' }}

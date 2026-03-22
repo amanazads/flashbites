@@ -8,15 +8,15 @@ const NotificationSettings = () => {
   } = useNotifications();
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+    <div className="bg-white rounded-2xl shadow-md p-4 sm:p-6 max-w-2xl mx-auto">
+      <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-6 flex items-center">
         <span className="mr-3">🔔</span>
         Notification Settings
       </h2>
 
       {/* Sound Notifications */}
       <div className="mb-6 p-4 rounded-lg bg-gray-50 border border-gray-200">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h3 className="font-semibold text-gray-700">Sound Notifications</h3>
             <p className="text-sm text-gray-500">
@@ -31,14 +31,14 @@ const NotificationSettings = () => {
 
       {/* Browser Notifications */}
       <div className="mb-6 p-4 rounded-lg bg-gray-50 border border-gray-200">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h3 className="font-semibold text-gray-700">Browser Notifications</h3>
             <p className="text-sm text-gray-500">
               Receive notifications even when tab is not active
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {notificationPermission === 'granted' && (
               <span className="text-sm font-medium text-green-600">✓ Enabled</span>
             )}
@@ -48,7 +48,7 @@ const NotificationSettings = () => {
             {notificationPermission === 'default' && (
               <button
                 onClick={requestNotificationPermission}
-                className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition text-sm font-medium"
+                className="w-full sm:w-auto px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition text-sm font-medium"
               >
                 Enable
               </button>

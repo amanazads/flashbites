@@ -26,14 +26,14 @@ messaging.onBackgroundMessage((payload) => {
   const notificationTitle = title || 'FlashBites';
   const notificationOptions = {
     body: body || 'You have a new notification',
-    icon: icon || '/logo.png',
-    badge: badge || '/favicon-32.png',
+    icon: icon || '/2.png',
+    badge: badge || '/2.png',
     tag: tag || data.tag || 'flashbites-notification',
     data: data,
     requireInteraction: true,
     vibrate: [200, 100, 200],
     actions: data.actionUrl ? [
-      { action: 'open', title: 'View', icon: '/logo.png' }
+      { action: 'open', title: 'View', icon: '/2.png' }
     ] : [],
   };
 

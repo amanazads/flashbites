@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { XMarkIcon, TrashIcon, MinusIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { toggleCart, closeCart } from '../../redux/slices/uiSlice';
 import { removeFromCart, updateQuantity, clearCart } from '../../redux/slices/cartSlice';
@@ -13,6 +13,7 @@ const BRAND = '#E23744';
 const CartDrawer = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const [expandedItems, setExpandedItems] = useState(new Set());
   const { cartOpen } = useSelector((state) => state.ui);
   const { items, restaurant } = useSelector((state) => state.cart);
@@ -29,6 +30,10 @@ const CartDrawer = () => {
       dispatch(clearCart());
     }
   }, [isAuthenticated, items.length, dispatch]);
+
+  useEffect(() => {
+    dispatch(closeCart());
+  }, [location.pathname, dispatch]);
 
   const handleCheckout = () => {
     if (!isAuthenticated) {
@@ -59,7 +64,7 @@ const CartDrawer = () => {
       {/* Overlay */}
       <div
         className="fixed inset-0 bg-black/50 z-[1390] animate-fade-in"
-        onClick={() => dispatch(toggleCart())}
+        onClick={() => dispatch(closeCart())}
       />
 
       {/* Drawer – full-screen on mobile, right-side panel on sm+ */}
@@ -81,7 +86,7 @@ const CartDrawer = () => {
             )}
           </div>
           <button
-            onClick={() => dispatch(toggleCart())}
+            onClick={() => dispatch(closeCart())}
             className="p-2 -mr-1 bg-gray-100 hover:bg-gray-200 rounded-full flex-shrink-0 touch-feedback transition-colors"
             aria-label="Close cart"
           >
@@ -109,11 +114,24 @@ const CartDrawer = () => {
               <p className="font-semibold text-gray-900 text-[16px] mb-1">Your cart is empty</p>
               <p className="text-gray-400 text-sm mb-4">Add items from a restaurant to get started</p>
               <button
-                onClick={() => dispatch(toggleCart())}
+                onClick={() => {
+                  dispatch(closeCart());
+                  navigate('/restaurants');
+                }}
                 className="text-sm font-semibold px-5 py-2.5 rounded-xl touch-feedback transition-colors"
                 style={{ background: '#FEF2F3', color: BRAND }}
               >
                 Browse Restaurants
+              </button>
+              <button
+                onClick={() => {
+                  dispatch(closeCart());
+                  navigate('/');
+                }}
+                className="mt-3 text-sm font-semibold px-5 py-2.5 rounded-xl touch-feedback transition-colors"
+                style={{ background: '#F9FAFB', color: '#374151' }}
+              >
+                Go Home
               </button>
             </div>
           ) : (
@@ -135,7 +153,7 @@ const CartDrawer = () => {
 
                   {/* Item Details */}
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-gray-900 text-[13px] leading-tight line-clamp-1">
+                    <h4 className="font-semibold text-gray-900 text-[13px] leading-tight line-clamp-2">
                       {item.name}
                     </h4>
                     <p className="text-xs text-gray-400 mt-0.5">
@@ -238,10 +256,22 @@ const CartDrawer = () => {
 
             {/* Continue Shopping */}
             <button
-              onClick={() => dispatch(toggleCart())}
+              onClick={() => {
+                dispatch(closeCart());
+                navigate('/restaurants');
+              }}
               className="w-full py-2 text-sm font-semibold touch-feedback text-gray-400 hover:text-gray-600 transition-colors"
             >
               Continue Shopping
+            </button>
+            <button
+              onClick={() => {
+                dispatch(closeCart());
+                navigate('/');
+              }}
+              className="w-full py-2 text-sm font-semibold touch-feedback text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Go Home
             </button>
           </div>
         )}

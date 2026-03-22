@@ -142,7 +142,7 @@ const RestaurantDetail = () => {
       {/* Menu Section */}
       <div className="max-w-7xl mx-auto container-px py-8">
         {/* Restaurant Quick Stats */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
           <div className="bg-white rounded-xl p-4 text-center shadow-sm">
             <div className="text-2xl font-bold" style={{ color: BRAND }}>{menuItems?.length || 0}</div>
             <div className="text-sm text-gray-600">Menu Items</div>
