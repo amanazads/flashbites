@@ -203,6 +203,7 @@ const Home = () => {
 
   /* ── Filtered restaurants ── */
   const [noServiceArea, setNoServiceArea] = useState(false);
+  const [usedCityFallback, setUsedCityFallback] = useState(false);
 
   /* ── Category + search ── */
   const [activeCat, setActiveCat] = useState('all');
@@ -274,6 +275,7 @@ const Home = () => {
   useEffect(() => {
     if (!selectedAddress) {
       setNoServiceArea(false);
+      setUsedCityFallback(false);
       return;
     }
 
@@ -282,6 +284,7 @@ const Home = () => {
     const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
 
     if (hasCoords) {
+      setUsedCityFallback(false);
       dispatch(fetchRestaurants({ lat, lng, radius: 50000 }));
     } else if (selectedAddress.city) {
       dispatch(fetchRestaurants({ city: selectedAddress.city }));
@@ -293,6 +296,18 @@ const Home = () => {
       setNoServiceArea(restaurants.length === 0 && !loading);
     }
   }, [selectedAddress, restaurants, loading]);
+
+  useEffect(() => {
+    if (!selectedAddress || loading || usedCityFallback) return;
+    const lat = Number(selectedAddress.latitude || 0);
+    const lng = Number(selectedAddress.longitude || 0);
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
+
+    if (hasCoords && selectedAddress.city && restaurants.length === 0) {
+      setUsedCityFallback(true);
+      dispatch(fetchRestaurants({ city: selectedAddress.city }));
+    }
+  }, [selectedAddress, restaurants, loading, usedCityFallback, dispatch]);
 
   /* ── Select a saved address ── */
   const handleSelectSavedAddress = async (addr) => {
@@ -335,7 +350,6 @@ const Home = () => {
 
   const clearAddress = () => {
     setSelectedAddress(null);
-    setNearbyRests([]);
     setNoServiceArea(false);
     localStorage.removeItem(SELECTED_ADDRESS_KEY);
   };

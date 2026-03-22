@@ -62,9 +62,9 @@ const normalizeCoordPair = (first, second) => {
   return null;
 };
 
-const geocodeAddressFromFields = async ({ street, city, state, zipCode }) => {
-  const parts = [street, city, state, zipCode, 'India'].filter(Boolean);
-  if (parts.length < 2) return null;
+const geocodeAddressFromFields = async ({ street, city, state, zipCode, name }) => {
+  const parts = [street, city, state, zipCode, name, 'India'].filter(Boolean);
+  if (parts.length < 2 && !city) return null;
 
   try {
     const response = await axios.get('https://nominatim.openstreetmap.org/search', {
@@ -73,7 +73,7 @@ const geocodeAddressFromFields = async ({ street, city, state, zipCode }) => {
         'User-Agent': 'FlashBites/1.0 (support@flashbites.in)'
       },
       params: {
-        q: parts.join(', '),
+        q: parts.length ? parts.join(', ') : `${city}, India`,
         format: 'json',
         limit: 1
       }
@@ -293,10 +293,13 @@ exports.createOrder = async (req, res) => {
 
     // Calculate distance-based delivery fee (platform-controlled)
     let deliveryFee = 30; // Default ₹30
-    const restaurantCoords = getAddressCoordinates(restaurant.location ? { coordinates: restaurant.location.coordinates } : null);
+    let restaurantCoords = getAddressCoordinates(restaurant.location ? { coordinates: restaurant.location.coordinates } : null);
 
     if (!restaurantCoords || !isInIndia(restaurantCoords[1], restaurantCoords[0])) {
-      const geocodedRestaurant = await geocodeAddressFromFields(restaurant.address || {});
+      const geocodedRestaurant = await geocodeAddressFromFields({
+        ...restaurant.address,
+        name: restaurant.name
+      });
       if (geocodedRestaurant) {
         restaurantCoords = geocodedRestaurant;
         await Restaurant.findByIdAndUpdate(restaurantId, {
