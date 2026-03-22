@@ -108,25 +108,46 @@ exports.getAllRestaurants = async (req, res) => {
 
     // Geospatial search
     if (lat && lng) {
-      const latNum = parseFloat(lat);
-      const lngNum = parseFloat(lng);
+      const latNum = Number(lat);
+      const lngNum = Number(lng);
       const maxDistance = parseInt(radius, 10);
 
-      const candidates = await Restaurant.find({
+      if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+        return errorResponse(res, 400, 'Invalid latitude/longitude');
+      }
+
+      const geoQuery = {
         ...query,
-        location: {
-          $near: {
-            $geometry: {
-              type: 'Point',
-              coordinates: [lngNum, latNum]
-            },
-            $maxDistance: maxDistance
+        'location.type': 'Point',
+        'location.coordinates.0': { $type: 'number' },
+        'location.coordinates.1': { $type: 'number' }
+      };
+
+      let candidates = [];
+
+      try {
+        candidates = await Restaurant.find({
+          ...geoQuery,
+          location: {
+            $near: {
+              $geometry: {
+                type: 'Point',
+                coordinates: [lngNum, latNum]
+              },
+              $maxDistance: maxDistance
+            }
           }
-        }
-      })
-        .select(projection)
-        .limit(200)
-        .lean();
+        })
+          .select(projection)
+          .limit(200)
+          .lean();
+      } catch (error) {
+        // Fallback when geo index has bad data; filter in memory.
+        candidates = await Restaurant.find(geoQuery)
+          .select(projection)
+          .limit(1000)
+          .lean();
+      }
 
       restaurants = candidates
         .map((r) => {
