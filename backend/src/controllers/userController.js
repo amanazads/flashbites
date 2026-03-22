@@ -21,18 +21,22 @@ const normalizeCoordinates = (coordinates) => {
 };
 
 const validatePincode = async (zipCode) => {
-  const response = await axios.get(`https://api.postalpincode.in/pincode/${zipCode}`, { timeout: 5000 });
-  const data = response?.data?.[0];
+  try {
+    const response = await axios.get(`https://api.postalpincode.in/pincode/${zipCode}`, { timeout: 5000 });
+    const data = response?.data?.[0];
 
-  if (!data || data.Status !== 'Success' || !Array.isArray(data.PostOffice) || data.PostOffice.length === 0) {
-    return null;
+    if (!data || data.Status !== 'Success' || !Array.isArray(data.PostOffice) || data.PostOffice.length === 0) {
+      return null;
+    }
+
+    const postOffice = data.PostOffice[0];
+    return {
+      district: normalizeText(postOffice.District),
+      state: normalizeText(postOffice.State)
+    };
+  } catch {
+    return { unavailable: true };
   }
-
-  const postOffice = data.PostOffice[0];
-  return {
-    district: normalizeText(postOffice.District),
-    state: normalizeText(postOffice.State)
-  };
 };
 
 const geocodeAddress = async ({ zipCode, city, state }) => {
@@ -43,25 +47,29 @@ const geocodeAddress = async ({ zipCode, city, state }) => {
   ];
 
   for (const query of queries) {
-    const response = await axios.get('https://nominatim.openstreetmap.org/search', {
-      timeout: 7000,
-      headers: {
-        'User-Agent': 'FlashBites/1.0 (support@flashbites.in)'
-      },
-      params: {
-        q: query,
-        format: 'json',
-        limit: 1
-      }
-    });
+    try {
+      const response = await axios.get('https://nominatim.openstreetmap.org/search', {
+        timeout: 7000,
+        headers: {
+          'User-Agent': 'FlashBites/1.0 (support@flashbites.in)'
+        },
+        params: {
+          q: query,
+          format: 'json',
+          limit: 1
+        }
+      });
 
-    const first = response?.data?.[0];
-    if (first && first.lat && first.lon) {
-      const lat = Number(first.lat);
-      const lng = Number(first.lon);
-      if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        return [lng, lat];
+      const first = response?.data?.[0];
+      if (first && first.lat && first.lon) {
+        const lat = Number(first.lat);
+        const lng = Number(first.lon);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          return [lng, lat];
+        }
       }
+    } catch {
+      // Try the next query variant.
     }
   }
 
@@ -86,18 +94,20 @@ const validateAndBuildAddressPayload = async (input, fallback = {}) => {
     return { error: 'Invalid PIN code. Please enter a valid serviceable location.' };
   }
 
-  const cityLc = city.toLowerCase();
-  const districtLc = pinMeta.district.toLowerCase();
-  const stateLc = state.toLowerCase();
-  const validStateLc = pinMeta.state.toLowerCase();
+  if (!pinMeta.unavailable) {
+    const cityLc = city.toLowerCase();
+    const districtLc = pinMeta.district.toLowerCase();
+    const stateLc = state.toLowerCase();
+    const validStateLc = pinMeta.state.toLowerCase();
 
-  const cityMatches = cityLc.includes(districtLc) || districtLc.includes(cityLc);
-  const stateMatches = stateLc === validStateLc;
+    const cityMatches = cityLc.includes(districtLc) || districtLc.includes(cityLc);
+    const stateMatches = stateLc === validStateLc;
 
-  if (!cityMatches || !stateMatches) {
-    return {
-      error: `PIN code ${zipCode} belongs to ${pinMeta.district}, ${pinMeta.state}. Please correct city/state.`
-    };
+    if (!cityMatches || !stateMatches) {
+      return {
+        error: `PIN code ${zipCode} belongs to ${pinMeta.district}, ${pinMeta.state}. Please correct city/state.`
+      };
+    }
   }
 
   let coordinates = normalizeCoordinates(input.coordinates ?? fallback.coordinates);
