@@ -33,6 +33,10 @@ const buildQuery = (restaurant) => {
     return `${address.city}, India`;
   }
 
+  if (restaurant.name) {
+    return `${restaurant.name}, India`;
+  }
+
   return null;
 };
 

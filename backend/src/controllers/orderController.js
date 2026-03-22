@@ -64,7 +64,7 @@ const normalizeCoordPair = (first, second) => {
 
 const geocodeAddressFromFields = async ({ street, city, state, zipCode, name }) => {
   const parts = [street, city, state, zipCode, name, 'India'].filter(Boolean);
-  if (parts.length < 2 && !city) return null;
+  if (parts.length < 2 && !city && !name) return null;
 
   try {
     const response = await axios.get('https://nominatim.openstreetmap.org/search', {
@@ -73,7 +73,7 @@ const geocodeAddressFromFields = async ({ street, city, state, zipCode, name }) 
         'User-Agent': 'FlashBites/1.0 (support@flashbites.in)'
       },
       params: {
-        q: parts.length ? parts.join(', ') : `${city}, India`,
+        q: parts.length ? parts.join(', ') : (city ? `${city}, India` : `${name}, India`),
         format: 'json',
         limit: 1
       }
