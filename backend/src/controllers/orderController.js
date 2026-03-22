@@ -296,6 +296,21 @@ exports.createOrder = async (req, res) => {
     const restaurantCoords = getAddressCoordinates(restaurant.location ? { coordinates: restaurant.location.coordinates } : null);
 
     if (!restaurantCoords || !isInIndia(restaurantCoords[1], restaurantCoords[0])) {
+      const geocodedRestaurant = await geocodeAddressFromFields(restaurant.address || {});
+      if (geocodedRestaurant) {
+        restaurantCoords = geocodedRestaurant;
+        await Restaurant.findByIdAndUpdate(restaurantId, {
+          $set: {
+            location: {
+              type: 'Point',
+              coordinates: geocodedRestaurant
+            }
+          }
+        });
+      }
+    }
+
+    if (!restaurantCoords || !isInIndia(restaurantCoords[1], restaurantCoords[0])) {
       return errorResponse(res, 400, 'Restaurant location is not configured properly');
     }
 
