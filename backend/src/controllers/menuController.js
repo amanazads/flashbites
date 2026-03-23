@@ -72,6 +72,30 @@ exports.addMenuItem = async (req, res) => {
   try {
     const { name, description, price, category, categories, isVeg, tags, prepTime, isAvailable, variants } = req.body;
     const normalizedCategories = parseCategories(categories, category);
+    const parsedPrice = Number(price);
+
+    let parsedVariants = [];
+    if (variants) {
+      try {
+        const raw = typeof variants === 'string' ? JSON.parse(variants) : variants;
+        parsedVariants = Array.isArray(raw) ? raw : [];
+      } catch {
+        parsedVariants = [];
+      }
+    }
+
+    // Ignore incomplete variant rows so optional variant UI can't block add-item.
+    const sanitizedVariants = parsedVariants
+      .filter((v) => {
+        const hasName = String(v?.name || '').trim().length > 0;
+        const hasPrice = v?.price !== '' && v?.price !== null && v?.price !== undefined;
+        const validPrice = Number.isFinite(Number(v?.price));
+        return hasName && hasPrice && validPrice;
+      })
+      .map((v) => ({
+        name: String(v.name).trim(),
+        price: Number(v.price)
+      }));
 
     // Validate required fields with detailed errors
     const missing = [];
@@ -82,6 +106,10 @@ exports.addMenuItem = async (req, res) => {
 
     if (missing.length > 0) {
       return errorResponse(res, 400, `Missing required fields: ${missing.join(', ')}`);
+    }
+
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+      return errorResponse(res, 400, 'Price must be a valid number greater than 0');
     }
 
     const invalidCategories = normalizedCategories.filter((c) => !ALLOWED_MENU_CATEGORIES.includes(c));
@@ -107,7 +135,7 @@ exports.addMenuItem = async (req, res) => {
       restaurantId: req.params.restaurantId,
       name: name.trim(),
       description: description.trim(),
-      price: parseFloat(price),
+      price: parsedPrice,
       category: normalizedCategories[0],
       categories: normalizedCategories,
       image: imageUrl,
@@ -115,7 +143,7 @@ exports.addMenuItem = async (req, res) => {
       isAvailable: isAvailable === 'true' || isAvailable === true || isAvailable === undefined,
       tags: tags ? (Array.isArray(tags) ? tags : [tags]) : [],
       prepTime: prepTime ? parseInt(prepTime) : 20,
-      variants: variants ? (typeof variants === 'string' ? JSON.parse(variants) : variants) : []
+      variants: sanitizedVariants
     };
 
     const menuItem = await MenuItem.create(menuItemData);

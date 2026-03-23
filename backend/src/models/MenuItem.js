@@ -112,7 +112,7 @@ menuItemSchema.index({ restaurantId: 1, isAvailable: 1 });
 menuItemSchema.index({ category: 1 });
 menuItemSchema.index({ categories: 1 });
 
-menuItemSchema.pre('validate', function(next) {
+menuItemSchema.pre('validate', function() {
   if ((!this.categories || this.categories.length === 0) && this.category) {
     this.categories = [this.category];
   }
@@ -120,8 +120,6 @@ menuItemSchema.pre('validate', function(next) {
   if ((!this.category || this.category.trim() === '') && Array.isArray(this.categories) && this.categories.length > 0) {
     this.category = this.categories[0];
   }
-
-  next();
 });
 
 module.exports = mongoose.model('MenuItem', menuItemSchema);
