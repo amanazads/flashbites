@@ -174,7 +174,27 @@ export const sendPhoneOTP = async (phoneNumber) => {
     window.confirmationResult = confirmationResult;
     return confirmationResult;
   } catch (error) {
-    // Reset reCAPTCHA on error so user can retry
+    const code = extractFirebaseAuthCode(error);
+
+    // A stale/expired app credential can happen in WebView; re-init reCAPTCHA and retry once.
+    if (code === 'auth/invalid-app-credential' || code === 'auth/captcha-check-failed') {
+      if (window.recaptchaVerifier) {
+        try { window.recaptchaVerifier.clear(); } catch (e) { /* ignore */ }
+        window.recaptchaVerifier = null;
+        window.recaptchaWidgetPromise = null;
+      }
+
+      const freshVerifier = setupRecaptcha();
+      if (window.recaptchaWidgetPromise) {
+        await window.recaptchaWidgetPromise;
+      }
+
+      const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, freshVerifier);
+      window.confirmationResult = confirmationResult;
+      return confirmationResult;
+    }
+
+    // Reset reCAPTCHA on non-retryable errors so user can retry manually.
     if (window.recaptchaVerifier) {
       try { window.recaptchaVerifier.clear(); } catch (e) { /* ignore */ }
       window.recaptchaVerifier = null;
@@ -184,8 +204,18 @@ export const sendPhoneOTP = async (phoneNumber) => {
   }
 };
 
+const extractFirebaseAuthCode = (error) => {
+  if (typeof error?.code === 'string' && error.code.startsWith('auth/')) {
+    return error.code;
+  }
+
+  const message = String(error?.message || '');
+  const match = message.match(/auth\/[a-z-]+/i);
+  return match ? match[0].toLowerCase() : '';
+};
+
 export const getReadableFirebaseAuthError = (error) => {
-  const code = error?.code || '';
+  const code = extractFirebaseAuthCode(error);
 
   if (code === 'auth/too-many-requests') {
     return 'Too many OTP attempts. Please try again later.';
@@ -200,9 +230,18 @@ export const getReadableFirebaseAuthError = (error) => {
     return 'This app domain is not authorized for Firebase Phone Auth.';
   }
   if (code === 'auth/captcha-check-failed' || code === 'auth/invalid-app-credential') {
-    return 'reCAPTCHA verification failed. Please refresh and try again.';
+    return 'Could not verify your request right now. Please check your internet and tap Send OTP again.';
   }
-  return error?.message || 'Failed to send OTP';
+  if (code === 'auth/invalid-verification-code') {
+    return 'The OTP is incorrect. Please enter the 6-digit code again.';
+  }
+  if (code === 'auth/code-expired') {
+    return 'This OTP has expired. Please request a new OTP.';
+  }
+  if (code === 'auth/missing-verification-code') {
+    return 'Please enter the OTP sent to your phone.';
+  }
+  return 'Something went wrong while verifying your phone. Please try again.';
 };
 
 /**

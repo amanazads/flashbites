@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { clearError, setAuthUser } from '../redux/slices/authSlice';
 import toast from 'react-hot-toast';
-import { validatePhone, validatePassword } from '../utils/validators';
+import { validateEmail, validatePhone, validatePassword } from '../utils/validators';
 import axios from '../api/axios';
 import { setupRecaptcha, sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../firebase';
 import logo from '../assets/logo.png';
@@ -51,26 +51,49 @@ const Register = () => {
   }, [resendCountdown]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'phone' || name === 'otp') {
+      const digitsOnly = value.replace(/\D/g, '');
+      setFormData({ ...formData, [name]: digitsOnly });
+      return;
+    }
+    setFormData({ ...formData, [name]: value });
+  };
+
+  const getRegistrationValidationError = () => {
+    if (!formData.name?.trim()) {
+      return 'Please enter your full name';
+    }
+    if (formData.name.trim().length < 2) {
+      return 'Full name should be at least 2 characters';
+    }
+    if (!formData.phone) {
+      return 'Please enter your phone number';
+    }
+    if (!validatePhone(formData.phone)) {
+      return 'Please enter a valid 10-digit phone number';
+    }
+    if (formData.email && !validateEmail(formData.email)) {
+      return 'Please enter a valid email address';
+    }
+    if (!formData.password) {
+      return 'Please enter a password';
+    }
+    if (!validatePassword(formData.password)) {
+      return 'Password must be at least 6 characters, with one uppercase, one lowercase, and one special character';
+    }
+    if (formData.password !== formData.confirmPassword) {
+      return 'Passwords do not match';
+    }
+    return '';
   };
 
   const handleSendOTP = async (e) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.phone || !formData.password) {
-      toast.error('Please fill in name, phone, and password');
-      return;
-    }
-    if (!validatePhone(formData.phone)) {
-      toast.error('Please enter a valid 10-digit phone number');
-      return;
-    }
-    if (!validatePassword(formData.password)) {
-      toast.error('Password must be at least 6 characters, with one uppercase, one lowercase, and one special character');
-      return;
-    }
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
+    const validationError = getRegistrationValidationError();
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
@@ -105,15 +128,21 @@ const Register = () => {
 
     setLoading(true);
     try {
-      // Verify OTP with Firebase and get ID token
-      const firebaseToken = await verifyPhoneOTP(formData.otp);
+      let firebaseToken = null;
+      try {
+        // Verify OTP with Firebase and get ID token
+        firebaseToken = await verifyPhoneOTP(formData.otp);
+      } catch (firebaseError) {
+        toast.error(getReadableFirebaseAuthError(firebaseError));
+        return;
+      }
 
       // Register with backend using Firebase token
       const response = await axios.post('/auth/register', {
-        name: formData.name,
+        name: formData.name.trim(),
         phone: formData.phone,
         password: formData.password,
-        email: formData.email || undefined,
+        email: formData.email?.trim() || undefined,
         firebaseToken,
       });
 
@@ -150,7 +179,8 @@ const Register = () => {
       const roleMap = { restaurant_owner: '/dashboard', delivery_partner: '/delivery-dashboard' };
       navigate(roleMap[userData.role] || '/');
     } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message || 'Registration failed';
+      const backendMessage = error.response?.data?.message;
+      const errorMessage = backendMessage || 'Could not create your account right now. Please try again.';
       toast.error(errorMessage);
 
       if (errorMessage.includes('Phone number already registered') || errorMessage.includes('already registered')) {

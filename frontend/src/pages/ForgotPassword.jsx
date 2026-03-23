@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from '../api/axios';
 import { setupRecaptcha, sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../firebase';
-import { validatePassword } from '../utils/validators';
+import { validatePassword, validatePhone } from '../utils/validators';
 
 const BRAND = '#FF523B';
 
@@ -20,13 +20,19 @@ const ForgotPassword = () => {
   const [firebaseToken, setFirebaseToken] = useState(null);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'phone' || name === 'otp') {
+      const digitsOnly = value.replace(/\D/g, '');
+      setFormData({ ...formData, [name]: digitsOnly });
+      return;
+    }
+    setFormData({ ...formData, [name]: value });
   };
 
   const handleSendOTP = async (e) => {
     e.preventDefault();
 
-    if (!formData.phone || formData.phone.length !== 10) {
+    if (!validatePhone(formData.phone)) {
       toast.error('Please enter a valid 10-digit phone number');
       return;
     }
@@ -61,7 +67,7 @@ const ForgotPassword = () => {
       toast.success('Phone verified successfully');
       setStep(3);
     } catch (error) {
-      toast.error('Invalid OTP. Please try again.');
+      toast.error(getReadableFirebaseAuthError(error));
     } finally {
       setLoading(false);
     }
