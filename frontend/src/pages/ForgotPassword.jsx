@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from '../api/axios';
-import { setupRecaptcha, sendPhoneOTP, verifyPhoneOTP } from '../firebase';
+import { setupRecaptcha, sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../firebase';
 import { validatePassword } from '../utils/validators';
 
 const BRAND = '#FF523B';
@@ -40,13 +40,7 @@ const ForgotPassword = () => {
       setStep(2);
     } catch (error) {
       console.error('Send OTP error:', error);
-      if (error.code === 'auth/too-many-requests') {
-        toast.error('Too many attempts. Please try again later.');
-      } else if (error.code === 'auth/invalid-phone-number') {
-        toast.error('Invalid phone number format');
-      } else {
-        toast.error(error.message || 'Failed to send OTP');
-      }
+      toast.error(getReadableFirebaseAuthError(error));
     } finally {
       setLoading(false);
     }
@@ -111,7 +105,7 @@ const ForgotPassword = () => {
       await sendPhoneOTP(phoneWithCode);
       toast.success('OTP resent to your phone');
     } catch (error) {
-      toast.error(error.message || 'Failed to resend OTP');
+      toast.error(getReadableFirebaseAuthError(error));
     } finally {
       setLoading(false);
     }

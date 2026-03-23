@@ -16,6 +16,18 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
+const requiredFirebaseKeys = [
+  'apiKey',
+  'authDomain',
+  'projectId',
+  'appId',
+];
+
+const isFirebaseAuthConfigured = () => requiredFirebaseKeys.every((k) => {
+  const value = firebaseConfig[k];
+  return !!value && value !== 'undefined' && value !== 'null';
+});
+
 // ─── FCM Messaging ────────────────────────────────────────────────────────────
 // FCM VAPID key from Firebase Console → Project Settings → Cloud Messaging → Web Push certificates
 const FCM_VAPID_KEY = import.meta.env.VITE_FCM_VAPID_KEY || '';
@@ -97,15 +109,28 @@ export const onForegroundMessage = async (callback) => {
  * Call this before sending OTP. The #recaptcha-container element must exist in the DOM.
  */
 export const setupRecaptcha = () => {
+  if (!isFirebaseAuthConfigured()) {
+    throw new Error('Firebase config missing. Please set VITE_FIREBASE_* env values.');
+  }
+
+  const containerId = 'recaptcha-container';
+  let container = document.getElementById(containerId);
+  if (!container) {
+    container = document.createElement('div');
+    container.id = containerId;
+    container.style.display = 'none';
+    document.body.appendChild(container);
+  }
+
   // Clear existing verifier to avoid conflicts on re-renders
   if (window.recaptchaVerifier) {
     try { window.recaptchaVerifier.clear(); } catch (e) { /* ignore */ }
     window.recaptchaVerifier = null;
   }
 
-  window.recaptchaVerifier = new RecaptchaVerifier(
+  const verifier = new RecaptchaVerifier(
     auth,
-    "recaptcha-container",
+    containerId,
     {
       size: "invisible",
       callback: () => {
@@ -114,11 +139,16 @@ export const setupRecaptcha = () => {
       "expired-callback": () => {
         // Response expired - ask user to retry
         window.recaptchaVerifier = null;
+        window.recaptchaWidgetPromise = null;
       }
     }
   );
 
-  return window.recaptchaVerifier;
+  window.recaptchaVerifier = verifier;
+  // Render immediately so OTP send doesn't fail on first interaction.
+  window.recaptchaWidgetPromise = verifier.render().catch(() => null);
+
+  return verifier;
 };
 
 /**
@@ -126,9 +156,17 @@ export const setupRecaptcha = () => {
  * @param {string} phoneNumber - e.g. "+911234567890"
  */
 export const sendPhoneOTP = async (phoneNumber) => {
-  const appVerifier = window.recaptchaVerifier;
+  if (!isFirebaseAuthConfigured()) {
+    throw new Error('Firebase Phone Auth is not configured. Please contact support.');
+  }
+
+  let appVerifier = window.recaptchaVerifier;
   if (!appVerifier) {
-    throw new Error('reCAPTCHA not initialized. Call setupRecaptcha() first.');
+    appVerifier = setupRecaptcha();
+  }
+
+  if (window.recaptchaWidgetPromise) {
+    await window.recaptchaWidgetPromise;
   }
 
   try {
@@ -140,9 +178,31 @@ export const sendPhoneOTP = async (phoneNumber) => {
     if (window.recaptchaVerifier) {
       try { window.recaptchaVerifier.clear(); } catch (e) { /* ignore */ }
       window.recaptchaVerifier = null;
+      window.recaptchaWidgetPromise = null;
     }
     throw error;
   }
+};
+
+export const getReadableFirebaseAuthError = (error) => {
+  const code = error?.code || '';
+
+  if (code === 'auth/too-many-requests') {
+    return 'Too many OTP attempts. Please try again later.';
+  }
+  if (code === 'auth/invalid-phone-number') {
+    return 'Invalid phone number format. Please check and retry.';
+  }
+  if (code === 'auth/configuration-not-found') {
+    return 'Firebase Phone Auth is not enabled for this project.';
+  }
+  if (code === 'auth/app-not-authorized') {
+    return 'This app domain is not authorized for Firebase Phone Auth.';
+  }
+  if (code === 'auth/captcha-check-failed' || code === 'auth/invalid-app-credential') {
+    return 'reCAPTCHA verification failed. Please refresh and try again.';
+  }
+  return error?.message || 'Failed to send OTP';
 };
 
 /**

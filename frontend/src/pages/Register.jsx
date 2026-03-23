@@ -5,7 +5,7 @@ import { clearError, setAuthUser } from '../redux/slices/authSlice';
 import toast from 'react-hot-toast';
 import { validatePhone, validatePassword } from '../utils/validators';
 import axios from '../api/axios';
-import { setupRecaptcha, sendPhoneOTP, verifyPhoneOTP } from '../firebase';
+import { setupRecaptcha, sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../firebase';
 import logo from '../assets/logo.png';
 
 const BRAND = '#FF523B';
@@ -77,7 +77,10 @@ const Register = () => {
     setLoading(true);
     try {
       // Ensure reCAPTCHA is ready (may already be pre-warmed)
-      if (!recaptchaReady.current) setupRecaptcha();
+      if (!recaptchaReady.current || !window.recaptchaVerifier) {
+        setupRecaptcha();
+        recaptchaReady.current = true;
+      }
       const phoneWithCode = `+91${formData.phone}`;
       await sendPhoneOTP(phoneWithCode);
       toast.success('OTP sent to your phone number');
@@ -86,13 +89,7 @@ const Register = () => {
     } catch (error) {
       console.error('Send OTP error:', error);
       recaptchaReady.current = false; // reset so next click re-inits
-      if (error.code === 'auth/too-many-requests') {
-        toast.error('Too many attempts. Please try again later.');
-      } else if (error.code === 'auth/invalid-phone-number') {
-        toast.error('Invalid phone number format');
-      } else {
-        toast.error(error.message || 'Failed to send OTP');
-      }
+      toast.error(getReadableFirebaseAuthError(error));
     } finally {
       setLoading(false);
     }
@@ -176,7 +173,7 @@ const Register = () => {
       setResendCountdown(30);
     } catch (error) {
       recaptchaReady.current = false;
-      toast.error(error.message || 'Failed to resend OTP');
+      toast.error(getReadableFirebaseAuthError(error));
     } finally {
       setLoading(false);
     }
