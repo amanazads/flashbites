@@ -8,6 +8,10 @@ export const getAllUsers = (params) => {
   return axios.get('/admin/users', { params });
 };
 
+export const getDeliveryPartnerDutyBoard = () => {
+  return axios.get('/admin/delivery-partners/duty-board');
+};
+
 export const getAllOrders = (params) => {
   return axios.get('/admin/orders', { params });
 };

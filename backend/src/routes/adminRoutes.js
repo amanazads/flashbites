@@ -6,6 +6,7 @@ const { restrictTo } = require('../middleware/roleAuth');
 const {
   getDashboardStats,
   getAllUsers,
+  getDeliveryPartnerDutyBoard,
   getAllOrders,
   approveRestaurant,
   blockUser,
@@ -27,6 +28,7 @@ router.use(protect, restrictTo('admin')); // All admin routes
 router.get('/dashboard', getDashboardStats);
 router.get('/analytics', getComprehensiveAnalytics);
 router.get('/users', getAllUsers);
+router.get('/delivery-partners/duty-board', getDeliveryPartnerDutyBoard);
 router.get('/orders', getAllOrders);
 router.get('/restaurants', getAllRestaurants);
 router.patch('/restaurants/:id/approve', approveRestaurant);

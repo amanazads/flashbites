@@ -161,6 +161,97 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
+// @desc    Get delivery partner duty board
+// @route   GET /api/admin/delivery-partners/duty-board
+// @access  Private (Admin)
+exports.getDeliveryPartnerDutyBoard = async (req, res) => {
+  try {
+    const partners = await User.find({ role: 'delivery_partner' })
+      .select('name phone email isActive isOnDuty dutyStatusUpdatedAt lastLocationUpdate location createdAt')
+      .sort({ isOnDuty: -1, dutyStatusUpdatedAt: -1, createdAt: -1 })
+      .lean();
+
+    const partnerIds = partners.map((p) => p._id);
+
+    const activeOrders = await Order.find({
+      deliveryPartnerId: { $in: partnerIds },
+      status: { $in: ['confirmed', 'ready', 'out_for_delivery'] }
+    })
+      .populate('restaurantId', 'name address')
+      .populate('addressId', 'street city state zipCode landmark')
+      .populate('userId', 'name phone')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const assignmentsByPartner = activeOrders.reduce((acc, order) => {
+      const pid = String(order.deliveryPartnerId);
+      if (!acc[pid]) acc[pid] = [];
+
+      acc[pid].push({
+        orderId: order._id,
+        orderNumber: order.orderNumber || String(order._id).slice(-8),
+        status: order.status,
+        assignedAt: order.createdAt,
+        customer: {
+          name: order.userId?.name || 'Customer',
+          phone: order.userId?.phone || ''
+        },
+        from: {
+          restaurantName: order.restaurantId?.name || 'Restaurant',
+          address: [
+            order.restaurantId?.address?.street,
+            order.restaurantId?.address?.city,
+            order.restaurantId?.address?.state,
+            order.restaurantId?.address?.zipCode
+          ].filter(Boolean).join(', ')
+        },
+        to: {
+          address: [
+            order.addressId?.street,
+            order.addressId?.landmark,
+            order.addressId?.city,
+            order.addressId?.state,
+            order.addressId?.zipCode
+          ].filter(Boolean).join(', ')
+        }
+      });
+
+      return acc;
+    }, {});
+
+    const dutyBoard = partners.map((partner) => {
+      const partnerAssignments = assignmentsByPartner[String(partner._id)] || [];
+
+      return {
+        _id: partner._id,
+        name: partner.name,
+        phone: partner.phone,
+        email: partner.email,
+        isActive: partner.isActive,
+        isOnDuty: Boolean(partner.isOnDuty),
+        dutyStatusUpdatedAt: partner.dutyStatusUpdatedAt || null,
+        lastLocationUpdate: partner.lastLocationUpdate || null,
+        location: partner.location,
+        activeAssignmentsCount: partnerAssignments.length,
+        activeAssignments: partnerAssignments,
+        currentAssignment: partnerAssignments[0] || null
+      };
+    });
+
+    return successResponse(res, 200, 'Delivery partner duty board fetched successfully', {
+      dutyBoard,
+      summary: {
+        totalPartners: dutyBoard.length,
+        onDutyCount: dutyBoard.filter((p) => p.isOnDuty).length,
+        offDutyCount: dutyBoard.filter((p) => !p.isOnDuty).length,
+        activelyDeliveringCount: dutyBoard.filter((p) => p.activeAssignmentsCount > 0).length
+      }
+    });
+  } catch (error) {
+    return errorResponse(res, 500, 'Failed to fetch delivery partner duty board', error.message);
+  }
+};
+
 // @desc    Get all orders
 // @route   GET /api/admin/orders
 // @access  Private (Admin)

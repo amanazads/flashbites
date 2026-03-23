@@ -67,6 +67,11 @@ exports.acceptOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
 
+    const deliveryPartner = await User.findById(req.user._id).select('isOnDuty');
+    if (!deliveryPartner?.isOnDuty) {
+      return errorResponse(res, 400, 'You are currently off duty. Turn on duty to accept orders.');
+    }
+
     const order = await Order.findById(orderId);
 
     if (!order) {
@@ -114,6 +119,62 @@ exports.acceptOrder = async (req, res) => {
   } catch (error) {
     console.error('Accept order error:', error);
     return errorResponse(res, 500, 'Failed to accept order');
+  }
+};
+
+// @desc    Get current delivery partner duty status
+// @route   GET /api/delivery/duty-status
+// @access  Private (Delivery Partner)
+exports.getDutyStatus = async (req, res) => {
+  try {
+    const deliveryPartner = await User.findById(req.user._id)
+      .select('isOnDuty dutyStatusUpdatedAt lastLocationUpdate location');
+
+    if (!deliveryPartner) {
+      return errorResponse(res, 404, 'Delivery partner not found');
+    }
+
+    return successResponse(res, 200, 'Duty status fetched successfully', {
+      isOnDuty: Boolean(deliveryPartner.isOnDuty),
+      dutyStatusUpdatedAt: deliveryPartner.dutyStatusUpdatedAt,
+      lastLocationUpdate: deliveryPartner.lastLocationUpdate,
+      location: deliveryPartner.location
+    });
+  } catch (error) {
+    console.error('Get duty status error:', error);
+    return errorResponse(res, 500, 'Failed to fetch duty status');
+  }
+};
+
+// @desc    Update delivery partner duty status
+// @route   PUT /api/delivery/duty-status
+// @access  Private (Delivery Partner)
+exports.updateDutyStatus = async (req, res) => {
+  try {
+    const { isOnDuty } = req.body;
+
+    if (typeof isOnDuty !== 'boolean') {
+      return errorResponse(res, 400, 'isOnDuty must be a boolean');
+    }
+
+    const updatedPartner = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        $set: {
+          isOnDuty,
+          dutyStatusUpdatedAt: new Date()
+        }
+      },
+      { new: true }
+    ).select('isOnDuty dutyStatusUpdatedAt');
+
+    return successResponse(res, 200, 'Duty status updated successfully', {
+      isOnDuty: Boolean(updatedPartner?.isOnDuty),
+      dutyStatusUpdatedAt: updatedPartner?.dutyStatusUpdatedAt
+    });
+  } catch (error) {
+    console.error('Update duty status error:', error);
+    return errorResponse(res, 500, 'Failed to update duty status');
   }
 };
 

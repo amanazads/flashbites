@@ -30,6 +30,16 @@ export const getDeliveryStats = async () => {
   return response.data;
 };
 
+export const getDutyStatus = async () => {
+  const response = await axios.get('/delivery/duty-status');
+  return response.data;
+};
+
+export const updateDutyStatus = async (isOnDuty) => {
+  const response = await axios.put('/delivery/duty-status', { isOnDuty });
+  return response.data;
+};
+
 export const updateDeliveryLocation = async (latitude, longitude, orderId = null) => {
   const response = await axios.put('/delivery/location', { 
     latitude, 

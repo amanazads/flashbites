@@ -6,7 +6,9 @@ import {
   getAssignedOrders,
   acceptOrder,
   markAsDelivered,
-  getDeliveryStats
+  getDeliveryStats,
+  getDutyStatus,
+  updateDutyStatus
 } from '../api/deliveryPartnerApi';
 import { useLocationTracking } from '../hooks/useLocationTracking';
 import { formatCurrency } from '../utils/formatters';
@@ -20,8 +22,11 @@ const DeliveryPartnerDashboard = () => {
   const [availableOrders, setAvailableOrders] = useState([]);
   const [assignedOrders, setAssignedOrders] = useState([]);
   const [stats, setStats] = useState({});
+  const [isOnDuty, setIsOnDuty] = useState(false);
+  const [dutyStatusUpdatedAt, setDutyStatusUpdatedAt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
+  const [dutyUpdating, setDutyUpdating] = useState(false);
   const [locationTrackingEnabled, setLocationTrackingEnabled] = useState(true);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
 
@@ -99,18 +104,40 @@ const DeliveryPartnerDashboard = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [availableRes, assignedRes, statsRes] = await Promise.all([
+      const [availableRes, assignedRes, statsRes, dutyRes] = await Promise.all([
         getAvailableOrders(),
         getAssignedOrders(),
-        getDeliveryStats()
+        getDeliveryStats(),
+        getDutyStatus()
       ]);
       setAvailableOrders(availableRes?.data?.orders || []);
       setAssignedOrders(assignedRes?.data?.orders || []);
       setStats(statsRes?.data || {});
+      setIsOnDuty(Boolean(dutyRes?.data?.isOnDuty));
+      setDutyStatusUpdatedAt(dutyRes?.data?.dutyStatusUpdatedAt || null);
     } catch (error) {
       toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDutyToggle = async () => {
+    setDutyUpdating(true);
+    try {
+      const nextDutyStatus = !isOnDuty;
+      const response = await updateDutyStatus(nextDutyStatus);
+      setIsOnDuty(Boolean(response?.data?.isOnDuty));
+      setDutyStatusUpdatedAt(response?.data?.dutyStatusUpdatedAt || null);
+      toast.success(nextDutyStatus ? 'You are now on duty' : 'You are now off duty');
+
+      if (nextDutyStatus) {
+        fetchData();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update duty status');
+    } finally {
+      setDutyUpdating(false);
     }
   };
 
@@ -219,10 +246,14 @@ const DeliveryPartnerDashboard = () => {
       {!isAssigned ? (
         <button
           onClick={() => handleAcceptOrder(order._id)}
-          disabled={actionLoading === order._id}
-          className="w-full btn-primary py-3 disabled:opacity-50"
+          disabled={actionLoading === order._id || !isOnDuty}
+          className="w-full btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {actionLoading === order._id ? 'Accepting...' : '✅ Accept Order'}
+          {actionLoading === order._id
+            ? 'Accepting...'
+            : isOnDuty
+              ? '✅ Accept Order'
+              : 'Go On Duty to Accept'}
         </button>
       ) : (
         <button
@@ -260,6 +291,13 @@ const DeliveryPartnerDashboard = () => {
               <p className="text-gray-600">Welcome back, {user?.name}! 🚴</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
+                  onClick={handleDutyToggle}
+                  disabled={dutyUpdating}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium text-white ${isOnDuty ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-600 hover:bg-emerald-700'} disabled:opacity-60`}
+                >
+                  {dutyUpdating ? 'Updating Duty...' : isOnDuty ? 'Go Off Duty' : 'Go On Duty'}
+                </button>
+                <button
                   onClick={() => setAutoRefreshEnabled((prev) => !prev)}
                   className={`px-3 py-2 rounded-lg text-sm font-medium text-white ${autoRefreshEnabled ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
                 >
@@ -272,6 +310,10 @@ const DeliveryPartnerDashboard = () => {
                   Refresh Now
                 </button>
               </div>
+              <p className={`mt-2 text-sm font-semibold ${isOnDuty ? 'text-green-700' : 'text-amber-700'}`}>
+                Duty Status: {isOnDuty ? 'On Duty' : 'Off Duty'}
+                {dutyStatusUpdatedAt ? ` • Updated ${new Date(dutyStatusUpdatedAt).toLocaleTimeString()}` : ''}
+              </p>
             </div>
             
             {/* Location Tracking Status */}

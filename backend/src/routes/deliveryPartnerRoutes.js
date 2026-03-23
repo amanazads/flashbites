@@ -26,6 +26,12 @@ router.get('/orders/history', deliveryPartnerController.getOrderHistory);
 // Get stats
 router.get('/stats', deliveryPartnerController.getStats);
 
+// Get current duty status
+router.get('/duty-status', deliveryPartnerController.getDutyStatus);
+
+// Update duty status
+router.put('/duty-status', deliveryPartnerController.updateDutyStatus);
+
 // Update location
 router.put('/location', deliveryPartnerController.updateLocation);
 

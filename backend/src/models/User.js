@@ -58,6 +58,14 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isOnDuty: {
+    type: Boolean,
+    default: false
+  },
+  dutyStatusUpdatedAt: {
+    type: Date,
+    default: null
+  },
   refreshToken: {
     type: String,
     default: null
@@ -92,6 +100,21 @@ const userSchema = new mongoose.Schema({
   },
   fcmToken: {
     type: String,
+    default: null
+  },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number],
+      default: [0, 0]
+    }
+  },
+  lastLocationUpdate: {
+    type: Date,
     default: null
   }
 }, { 
@@ -132,5 +155,6 @@ userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
 userSchema.index({ email: 1 }, { unique: true, sparse: true }); // Sparse allows multiple null values
 userSchema.index({ phone: 1 }, { unique: true });
 userSchema.index({ role: 1 });
+userSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('User', userSchema);

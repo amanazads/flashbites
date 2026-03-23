@@ -22,6 +22,7 @@ import {
   getComprehensiveAnalytics,
   getAccountDeletionRequests,
   reviewAccountDeletionRequest,
+  getDeliveryPartnerDutyBoard,
   updateUserRole,
   getPlatformSettings,
   updatePlatformSettings,
@@ -91,6 +92,13 @@ const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [partners, setPartners] = useState([]);
+  const [dutyBoard, setDutyBoard] = useState([]);
+  const [dutySummary, setDutySummary] = useState({
+    totalPartners: 0,
+    onDutyCount: 0,
+    offDutyCount: 0,
+    activelyDeliveringCount: 0
+  });
   const [menuItems, setMenuItems] = useState([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState('');
   const [menuLoading, setMenuLoading] = useState(false);
@@ -245,6 +253,22 @@ const AdminPanel = () => {
         setPartners(partnersRes.data?.partners || []);
       } catch (err) {
         console.log('Partners endpoint not available yet');
+      }
+
+      // Fetch delivery partner duty board
+      try {
+        const dutyBoardRes = await getDeliveryPartnerDutyBoard();
+        const dutyData = dutyBoardRes?.data?.data?.dutyBoard || [];
+        const summary = dutyBoardRes?.data?.data?.summary || {};
+        setDutyBoard(dutyData);
+        setDutySummary({
+          totalPartners: summary.totalPartners || 0,
+          onDutyCount: summary.onDutyCount || 0,
+          offDutyCount: summary.offDutyCount || 0,
+          activelyDeliveringCount: summary.activelyDeliveringCount || 0
+        });
+      } catch (err) {
+        console.log('Duty board endpoint not available yet');
       }
 
       // Fetch account deletion requests
@@ -1757,6 +1781,76 @@ const AdminPanel = () => {
                     </span>
                   </div>
                 </div>
+
+                <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4">
+                  <h3 className="text-base font-bold text-gray-900 mb-3">Live Duty Board</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div className="rounded-lg bg-gray-50 p-3">
+                      <p className="text-xs text-gray-500">Total Partners</p>
+                      <p className="text-lg font-bold text-gray-900">{dutySummary.totalPartners}</p>
+                    </div>
+                    <div className="rounded-lg bg-green-50 p-3">
+                      <p className="text-xs text-green-700">On Duty</p>
+                      <p className="text-lg font-bold text-green-800">{dutySummary.onDutyCount}</p>
+                    </div>
+                    <div className="rounded-lg bg-amber-50 p-3">
+                      <p className="text-xs text-amber-700">Off Duty</p>
+                      <p className="text-lg font-bold text-amber-800">{dutySummary.offDutyCount}</p>
+                    </div>
+                    <div className="rounded-lg bg-blue-50 p-3">
+                      <p className="text-xs text-blue-700">Actively Delivering</p>
+                      <p className="text-lg font-bold text-blue-800">{dutySummary.activelyDeliveringCount}</p>
+                    </div>
+                  </div>
+
+                  {dutyBoard.length === 0 ? (
+                    <div className="text-sm text-gray-500">No delivery partner duty data available yet.</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {dutyBoard.map((partner) => (
+                        <div key={partner._id} className="rounded-lg border border-gray-100 p-3">
+                          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                            <div>
+                              <p className="text-sm font-bold text-gray-900">{partner.name}</p>
+                              <p className="text-xs text-gray-600">{partner.phone || 'No phone'}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${partner.isOnDuty ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                                {partner.isOnDuty ? 'On Duty' : 'Off Duty'}
+                              </span>
+                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${partner.activeAssignmentsCount > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'}`}>
+                                Active Orders: {partner.activeAssignmentsCount}
+                              </span>
+                            </div>
+                          </div>
+
+                          {partner.currentAssignment ? (
+                            <div className="mt-3 rounded-lg bg-gray-50 p-3 text-sm">
+                              <p className="font-semibold text-gray-800">
+                                Order #{partner.currentAssignment.orderNumber} ({partner.currentAssignment.status.replace('_', ' ')})
+                              </p>
+                              <p className="mt-1 text-gray-700">
+                                From: {partner.currentAssignment.from.restaurantName}
+                              </p>
+                              <p className="text-xs text-gray-500 break-words">
+                                {partner.currentAssignment.from.address || 'Restaurant address unavailable'}
+                              </p>
+                              <p className="mt-2 text-gray-700">
+                                To: {partner.currentAssignment.customer.name}
+                              </p>
+                              <p className="text-xs text-gray-500 break-words">
+                                {partner.currentAssignment.to.address || 'Customer address unavailable'}
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-xs text-gray-500">No active route assigned currently.</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {partners.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     No partner applications yet
