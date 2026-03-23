@@ -6,6 +6,8 @@ const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { calculateDistance } = require('../utils/calculateDistance');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/imageUpload');
 
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const isFiniteNumber = (value) => Number.isFinite(Number(value));
 
 const normalizeCoordPair = (first, second) => {
@@ -254,6 +256,99 @@ exports.getAllRestaurants = async (req, res) => {
     });
   } catch (error) {
     errorResponse(res, 500, 'Failed to get restaurants', error.message);
+  }
+};
+
+// @desc    Search restaurants and menu items
+// @route   GET /api/restaurants/search
+// @access  Public
+exports.searchRestaurantsAndItems = async (req, res) => {
+  try {
+    const { q = '', city, limit = 8 } = req.query;
+    const term = String(q || '').trim();
+
+    if (term.length === 0) {
+      return successResponse(res, 200, 'Search results retrieved successfully', {
+        query: '',
+        restaurants: [],
+        items: []
+      });
+    }
+
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 8, 1), 20);
+    const regex = new RegExp(escapeRegex(term), 'i');
+
+    const restaurantQuery = {
+      isActive: true,
+      isApproved: true,
+      $or: [
+        { name: { $regex: regex } },
+        { cuisines: { $in: [regex] } }
+      ]
+    };
+
+    if (city) {
+      restaurantQuery['address.city'] = { $regex: city, $options: 'i' };
+    }
+
+    const restaurants = await Restaurant.find(restaurantQuery)
+      .select('name cuisines image rating deliveryTime address')
+      .sort({ rating: -1, createdAt: -1 })
+      .limit(safeLimit)
+      .lean();
+
+    const itemPipeline = [
+      {
+        $match: {
+          isAvailable: true,
+          $or: [
+            { name: { $regex: regex } },
+            { description: { $regex: regex } },
+            { category: { $regex: regex } },
+            { categories: { $elemMatch: { $regex: regex } } }
+          ]
+        }
+      },
+      {
+        $lookup: {
+          from: 'restaurants',
+          localField: 'restaurantId',
+          foreignField: '_id',
+          as: 'restaurant'
+        }
+      },
+      { $unwind: '$restaurant' },
+      {
+        $match: {
+          'restaurant.isActive': true,
+          'restaurant.isApproved': true,
+          ...(city ? { 'restaurant.address.city': { $regex: city, $options: 'i' } } : {})
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          price: 1,
+          image: 1,
+          category: 1,
+          categories: 1,
+          restaurantId: '$restaurant._id',
+          restaurantName: '$restaurant.name'
+        }
+      },
+      { $limit: safeLimit * 4 }
+    ];
+
+    const items = await MenuItem.aggregate(itemPipeline);
+
+    successResponse(res, 200, 'Search results retrieved successfully', {
+      query: term,
+      restaurants,
+      items
+    });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to search restaurants and menu items', error.message);
   }
 };
 

@@ -93,6 +93,35 @@ export const useNotifications = () => {
   const authAxiosRef = useRef(null);
   const recentNotificationKeysRef = useRef(new Map());
 
+  useEffect(() => {
+    const syncSoundFromStorage = () => {
+      const saved = localStorage.getItem('notificationSoundEnabled');
+      if (saved !== null) {
+        try {
+          setSoundEnabled(JSON.parse(saved));
+        } catch {
+          // ignore invalid persisted value
+        }
+      }
+    };
+
+    const syncSoundFromEvent = (event) => {
+      if (typeof event?.detail?.enabled === 'boolean') {
+        setSoundEnabled(event.detail.enabled);
+      } else {
+        syncSoundFromStorage();
+      }
+    };
+
+    window.addEventListener('storage', syncSoundFromStorage);
+    window.addEventListener('fb-notification-sound', syncSoundFromEvent);
+
+    return () => {
+      window.removeEventListener('storage', syncSoundFromStorage);
+      window.removeEventListener('fb-notification-sound', syncSoundFromEvent);
+    };
+  }, []);
+
   const shouldNotifyForKey = useCallback((key, ttlMs = 15000) => {
     if (!key) return true;
     const now = Date.now();
@@ -149,22 +178,22 @@ export const useNotifications = () => {
             if (soundEnabled) notificationSound.playNotification('new-order');
             toast(
               <div className="flex items-center gap-3">
-                <div className="text-2xl">🔔</div>
+                <div className="h-10 w-10 rounded-xl bg-[#FFF0ED] flex items-center justify-center text-xl">🔔</div>
                 <div>
-                  <p className="font-bold text-white mb-0.5">{title}</p>
-                  {body && <p className="text-sm text-gray-300">{body}</p>}
+                  <p className="font-bold text-gray-900 mb-0.5">{title}</p>
+                  {body && <p className="text-sm text-gray-600">{body}</p>}
                 </div>
               </div>,
               {
                 duration: 7000,
                 position: 'top-center',
                 style: {
-                  background: '#1A1A1A',
-                  color: '#fff',
+                  background: '#FFFFFF',
+                  color: '#111827',
                   borderRadius: '16px',
                   padding: '14px 18px',
-                  boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
-                  border: '1px solid #333',
+                  boxShadow: '0 14px 36px rgba(0,0,0,0.18)',
+                  border: '1px solid #F3F4F6',
                 },
               }
             );
@@ -209,21 +238,21 @@ export const useNotifications = () => {
   const showToast = useCallback((emoji, title, subtitle, borderColor = '#444') => {
     toast(
       <div className="flex items-center gap-3">
-        <div className="text-2xl">{emoji}</div>
+        <div className="h-10 w-10 rounded-xl bg-[#FFF0ED] flex items-center justify-center text-xl">{emoji}</div>
         <div>
-          <p className="font-bold text-white mb-0.5">{title}</p>
-          {subtitle && <p className="text-sm text-gray-300">{subtitle}</p>}
+          <p className="font-bold text-gray-900 mb-0.5">{title}</p>
+          {subtitle && <p className="text-sm text-gray-600">{subtitle}</p>}
         </div>
       </div>,
       {
         duration: 7000,
         position: 'top-center',
         style: {
-          background: '#1A1A1A',
-          color: '#fff',
+          background: '#FFFFFF',
+          color: '#111827',
           borderRadius: '16px',
           padding: '14px 18px',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.25)',
+          boxShadow: '0 14px 36px rgba(0,0,0,0.18)',
           border: `1px solid ${borderColor}`,
         },
       }
@@ -366,6 +395,7 @@ export const useNotifications = () => {
     const newValue = !soundEnabled;
     setSoundEnabled(newValue);
     localStorage.setItem('notificationSoundEnabled', JSON.stringify(newValue));
+    window.dispatchEvent(new CustomEvent('fb-notification-sound', { detail: { enabled: newValue } }));
     if (newValue) {
       notificationSound.playSuccess();
       toast.success('Sound notifications enabled 🔔');

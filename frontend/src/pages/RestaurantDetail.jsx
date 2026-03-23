@@ -57,19 +57,11 @@ const RestaurantDetail = () => {
   const cuisineStr = Array.isArray(restaurant.cuisines) ? restaurant.cuisines.join(', ') : restaurant.cuisine || '';
   const seoDesc = `Order from ${restaurant.name} on FlashBites. ${cuisineStr} cuisine. Rating: ${restaurant.rating}★. Delivery in ${restaurant.deliveryTime} mins. ${isOpen ? 'Open now!' : ''}`;
 
-  const baseCategories = [
-    'All',
-    'Pizza',
-    'Desserts',
-    'Burgers',
-    'Fast Food',
-    'Chinese',
-    'Beverages',
-    'Breads',
-    'Snacks',
-    'Main Course',
-  ];
-  const menuCategories = (menuItems || []).map((item) => item.category).filter(Boolean);
+  const baseCategories = ['All', ...FOOD_CATEGORIES];
+  const menuCategories = (menuItems || []).flatMap((item) => {
+    if (Array.isArray(item.categories) && item.categories.length > 0) return item.categories;
+    return item.category ? [item.category] : [];
+  }).filter(Boolean);
   const categories = Array.from(new Set([...baseCategories, ...menuCategories]));
   const normalizedSearch = menuSearch.trim().toLowerCase();
   const normalizedCategory = selectedCategory.toLowerCase();
@@ -88,10 +80,13 @@ const RestaurantDetail = () => {
   const categoryTerms = categoryKeywords[normalizedCategory] || [normalizedCategory];
   const filteredMenu = (menuItems || []).filter((item) => {
     const itemText = `${item.name || ''} ${item.description || ''}`.toLowerCase();
+    const itemCategories = Array.isArray(item.categories) && item.categories.length > 0
+      ? item.categories
+      : (item.category ? [item.category] : []);
     const isVeg = item?.isVeg === true || item?.isVegetarian === true || item?.veg === true;
     const isNonVeg = item?.isVeg === false || item?.isVegetarian === false || item?.veg === false;
     const categoryMatch = selectedCategory === 'All'
-      || item.category === selectedCategory
+      || itemCategories.includes(selectedCategory)
       || categoryTerms.some((term) => itemText.includes(term));
     const searchMatch = !normalizedSearch || itemText.includes(normalizedSearch);
     const dietMatch = dietFilter === 'all'
@@ -286,7 +281,12 @@ const RestaurantDetail = () => {
             style={{ maxHeight: 'calc(100vh - var(--nav-height-mob) - 220px)' }}
           >
             {categories.filter((category) => category !== 'All').map((category) => {
-              const catItems = filteredMenu?.filter((item) => item.category === category);
+              const catItems = filteredMenu?.filter((item) => {
+                const itemCategories = Array.isArray(item.categories) && item.categories.length > 0
+                  ? item.categories
+                  : (item.category ? [item.category] : []);
+                return itemCategories.includes(category);
+              });
               if (!catItems || catItems.length === 0) return null;
               
               return (

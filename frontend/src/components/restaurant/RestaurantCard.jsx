@@ -12,7 +12,7 @@ const getDiscount = (r) => {
   return Math.max(20, Math.min((r.rating || 4) * 10, 60));
 };
 
-const RestaurantCard = ({ restaurant: r }) => {
+const RestaurantCard = ({ restaurant: r, matchedItems = [], selectedCategory = null, matchedItemsTitle = null }) => {
   const discount = getDiscount(r);
   const rating = parseFloat(r.rating) || 4.0;
   const ratingBg = rating >= 4.5 ? '#1BA672' : rating >= 4.0 ? '#1BA672' : rating >= 3.5 ? '#E8A020' : '#E23744';
@@ -117,6 +117,30 @@ const RestaurantCard = ({ restaurant: r }) => {
         <p className="text-[12px] max-[300px]:text-[11px] text-gray-400 mb-2 line-clamp-1 font-medium">
           {Array.isArray(r.cuisines) ? r.cuisines.join(', ') : r.cuisine || 'Multi-cuisine'}
         </p>
+
+        {(selectedCategory || matchedItemsTitle) && matchedItems.length > 0 && (
+          <div className="mb-2.5">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-1">
+              {selectedCategory ? `${selectedCategory} items` : matchedItemsTitle}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {matchedItems.slice(0, 3).map((item) => (
+                <span
+                  key={item._id || item.name}
+                  className="text-[10px] font-semibold px-2 py-1 rounded-full"
+                  style={{ background: '#FEF2F3', color: BRAND }}
+                >
+                  {item.name}
+                </span>
+              ))}
+              {matchedItems.length > 3 && (
+                <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                  +{matchedItems.length - 3} more
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Meta row */}
         <div className="flex items-center gap-0 text-[12px] max-[300px]:text-[11px] font-medium text-gray-500 border-t border-gray-100 pt-2.5 mt-2.5">

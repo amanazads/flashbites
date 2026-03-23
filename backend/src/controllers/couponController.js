@@ -1,6 +1,13 @@
 const Coupon = require('../models/Coupon');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 
+const ALLOWED_COUPON_CREATOR_ROLES = ['admin', 'restaurant_owner'];
+
+const isCouponCreatorAllowed = (coupon) => {
+  const role = coupon?.createdBy?.role;
+  return ALLOWED_COUPON_CREATOR_ROLES.includes(role);
+};
+
 // Validate and apply coupon
 exports.validateCoupon = async (req, res) => {
   try {
@@ -14,9 +21,13 @@ exports.validateCoupon = async (req, res) => {
     const coupon = await Coupon.findOne({ 
       code: code.toUpperCase(),
       isActive: true 
+    }).populate({
+      path: 'createdBy',
+      select: 'role',
+      match: { role: { $in: ALLOWED_COUPON_CREATOR_ROLES } }
     });
 
-    if (!coupon) {
+    if (!coupon || !isCouponCreatorAllowed(coupon)) {
       return errorResponse(res, 404, 'Invalid coupon code');
     }
 
@@ -125,11 +136,76 @@ exports.getAvailableCoupons = async (req, res) => {
     }
 
     const coupons = await Coupon.find(query)
-      .select('code description discountType discountValue minOrderValue maxDiscount');
+      .select('code description discountType discountValue minOrderValue maxDiscount validTill createdBy')
+      .populate({
+        path: 'createdBy',
+        select: 'role',
+        match: { role: { $in: ALLOWED_COUPON_CREATOR_ROLES } }
+      });
 
-    return successResponse(res, 200, 'Available coupons fetched successfully', { coupons });
+    const filteredCoupons = coupons.filter(isCouponCreatorAllowed);
+
+    return successResponse(res, 200, 'Available coupons fetched successfully', { coupons: filteredCoupons });
   } catch (error) {
     console.error('Get available coupons error:', error);
+    return errorResponse(res, 500, 'Failed to fetch coupons');
+  }
+};
+
+// Public coupons for offers page
+exports.getPublicCoupons = async (req, res) => {
+  try {
+    const { orderValue, restaurantId } = req.query;
+    const now = new Date();
+
+    const query = {
+      isActive: true,
+      validFrom: { $lte: now },
+      validTill: { $gte: now },
+      minOrderValue: { $lte: Number(orderValue) || 0 },
+      $or: [
+        { usageLimit: null },
+        { $expr: { $lt: ['$usedCount', '$usageLimit'] } }
+      ]
+    };
+
+    if (restaurantId) {
+      query.$and = [
+        {
+          $or: [
+            { applicableRestaurants: { $size: 0 } },
+            { applicableRestaurants: { $exists: false } },
+            { applicableRestaurants: restaurantId }
+          ]
+        }
+      ];
+    }
+
+    const coupons = await Coupon.find(query)
+      .select('code description discountType discountValue minOrderValue maxDiscount validTill createdBy')
+      .populate({
+        path: 'createdBy',
+        select: 'role',
+        match: { role: { $in: ALLOWED_COUPON_CREATOR_ROLES } }
+      })
+      .sort({ createdAt: -1 });
+
+    const filteredCoupons = coupons
+      .filter(isCouponCreatorAllowed)
+      .map((coupon) => ({
+        _id: coupon._id,
+        code: coupon.code,
+        description: coupon.description,
+        discountType: coupon.discountType,
+        discountValue: coupon.discountValue,
+        minOrderValue: coupon.minOrderValue || 0,
+        maxDiscount: coupon.maxDiscount,
+        validTill: coupon.validTill
+      }));
+
+    return successResponse(res, 200, 'Public coupons fetched successfully', { coupons: filteredCoupons });
+  } catch (error) {
+    console.error('Get public coupons error:', error);
     return errorResponse(res, 500, 'Failed to fetch coupons');
   }
 };

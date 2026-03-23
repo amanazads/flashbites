@@ -3,11 +3,11 @@ import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from
 import { useDispatch, useSelector } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async';
+import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Preferences } from '@capacitor/preferences';
 import { getCurrentUser } from './redux/slices/authSlice';
-import { clearCart } from './redux/slices/cartSlice';
 import { useNotifications } from './hooks/useNotifications';
 
 // Firebase initialization (analytics)
@@ -124,10 +124,49 @@ const RoleRedirector = () => {
   return null;
 };
 
+const NativeBackHandler = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (Capacitor.getPlatform() === 'web' || !Capacitor.isPluginAvailable('App')) {
+      return;
+    }
+
+    let listener;
+
+    const register = async () => {
+      listener = await CapacitorApp.addListener('backButton', () => {
+        const isHome = location.pathname === '/';
+
+        if (!isHome) {
+          if (window.history.length > 1) {
+            navigate(-1);
+          } else {
+            navigate('/', { replace: true });
+          }
+          return;
+        }
+
+        // Prevent accidental app close from gesture when already on home screen.
+      });
+    };
+
+    register();
+
+    return () => {
+      if (listener) {
+        listener.remove();
+      }
+    };
+  }, [location.pathname, navigate]);
+
+  return null;
+};
+
 function App() {
   const dispatch = useDispatch();
-  const { isAuthenticated, token } = useSelector((state) => state.auth);
-  const cartItemsCount = useSelector((state) => state.cart.items.length);
+  const { isAuthenticated } = useSelector((state) => state.auth);
   
   // Initialize notification system
   useNotifications();
@@ -141,8 +180,8 @@ function App() {
       try {
         if (isNative && Capacitor.isPluginAvailable('StatusBar')) {
           await StatusBar.setOverlaysWebView({ overlay: false });
-          await StatusBar.setStyle({ style: Style.Dark });
-          await StatusBar.setBackgroundColor({ color: '#FFFFFF' });
+          await StatusBar.setStyle({ style: Style.Light });
+          await StatusBar.setBackgroundColor({ color: '#000000' });
           console.log('Status bar initialized successfully');
         }
       } catch (error) {
@@ -183,12 +222,6 @@ function App() {
 
     restoreSession();
   }, [dispatch]);
-
-  useEffect(() => {
-    if ((!isAuthenticated || !token) && cartItemsCount > 0) {
-      dispatch(clearCart());
-    }
-  }, [isAuthenticated, token, cartItemsCount, dispatch]);
 
   const AppShell = () => {
     const location = useLocation();
@@ -323,6 +356,7 @@ function App() {
         {/* Global default title – overridden per-page by <SEO> components */}
         <Helmet defaultTitle="FlashBites" titleTemplate="%s | FlashBites" />
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <NativeBackHandler />
           <RoleRedirector />
           <ScrollToTop />
           <AppShell />

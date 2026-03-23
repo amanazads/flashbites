@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 import { fetchRestaurants, setFilters } from '../redux/slices/restaurantSlice';
+import { searchRestaurantsAndItems } from '../api/restaurantApi';
 import RestaurantCard from '../components/restaurant/RestaurantCard';
 import { Loader } from '../components/common/Loader';
 import { CUISINES } from '../utils/constants';
@@ -31,20 +33,98 @@ const RestaurantPage = () => {
   const { restaurants, loading, filters } = useSelector((s) => s.restaurant);
   const [selectedCuisine, setSelectedCuisine] = useState('All');
   const [activeSort, setActiveSort] = useState(null);
+  const [searchResultRestaurants, setSearchResultRestaurants] = useState([]);
+  const [searchResultItems, setSearchResultItems] = useState([]);
+  const [searchMatchedItemsByRestaurant, setSearchMatchedItemsByRestaurant] = useState({});
+  const [searchLoading, setSearchLoading] = useState(false);
   const routerLocation = useLocation();
+  const params = new URLSearchParams(routerLocation.search);
+  const searchQuery = params.get('search')?.trim() || '';
+  const cuisineQuery = params.get('cuisine')?.trim() || '';
+  const inSearchMode = searchQuery.length > 0;
 
   useEffect(() => {
-    const params = new URLSearchParams(routerLocation.search);
-    const searchQ = params.get('search');
-    const cuisineQ = params.get('cuisine');
-    if (searchQ) dispatch(setFilters({ search: searchQ }));
-    if (cuisineQ) { setSelectedCuisine(cuisineQ); dispatch(setFilters({ cuisine: cuisineQ })); }
-    else dispatch(fetchRestaurants(filters));
-  }, [dispatch]);
+    if (!inSearchMode) {
+      setSearchResultItems([]);
+      setSearchMatchedItemsByRestaurant({});
+      setSearchResultRestaurants([]);
+      setSearchLoading(false);
+      return;
+    }
+
+    if (filters.search !== searchQuery) {
+      dispatch(setFilters({ search: searchQuery }));
+    }
+
+    let cancelled = false;
+
+    const runSearch = async () => {
+      setSearchLoading(true);
+      try {
+        const response = await searchRestaurantsAndItems({ q: searchQuery, limit: 30 });
+        const payload = response?.data || {};
+        if (cancelled) return;
+
+        const restaurantMap = new Map((payload?.restaurants || []).map((r) => [String(r._id), r]));
+        const matchesByRestaurant = {};
+
+        (payload?.items || []).forEach((item) => {
+          const rid = String(item.restaurantId || '');
+          if (!rid) return;
+
+          if (!restaurantMap.has(rid)) {
+            restaurantMap.set(rid, {
+              _id: rid,
+              name: item.restaurantName || 'Restaurant',
+              cuisines: [],
+              image: null,
+            });
+          }
+
+          if (!Array.isArray(matchesByRestaurant[rid])) {
+            matchesByRestaurant[rid] = [];
+          }
+          matchesByRestaurant[rid].push(item);
+        });
+
+        setSearchResultItems(payload?.items || []);
+        setSearchMatchedItemsByRestaurant(matchesByRestaurant);
+        setSearchResultRestaurants(Array.from(restaurantMap.values()));
+      } catch {
+        if (!cancelled) {
+          setSearchResultItems([]);
+          setSearchMatchedItemsByRestaurant({});
+          setSearchResultRestaurants([]);
+        }
+      } finally {
+        if (!cancelled) setSearchLoading(false);
+      }
+    };
+
+    runSearch();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, inSearchMode, searchQuery, filters.search]);
 
   useEffect(() => {
+    if (inSearchMode) return;
+
+    const nextCuisine = cuisineQuery || 'All';
+    setSelectedCuisine(nextCuisine);
+    dispatch(setFilters({ cuisine: cuisineQuery || null, search: '' }));
+  }, [dispatch, inSearchMode, cuisineQuery]);
+
+  useEffect(() => {
+    if (inSearchMode) return;
     dispatch(fetchRestaurants(filters));
-  }, [dispatch, filters]);
+  }, [dispatch, filters, inSearchMode]);
+
+  const sourceRestaurants = inSearchMode ? searchResultRestaurants : restaurants;
+  const displayedRestaurants = selectedCuisine === 'All'
+    ? sourceRestaurants
+    : sourceRestaurants.filter((r) => Array.isArray(r.cuisines) && r.cuisines.some((c) => String(c).toLowerCase() === selectedCuisine.toLowerCase()));
 
   const handleCuisine = (label) => {
     setSelectedCuisine(label);
@@ -119,17 +199,21 @@ const RestaurantPage = () => {
       {/* ── Content ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 max-[388px]:px-3 py-5 max-[388px]:py-4">
         <div className="mb-5">
-          <h1 className="text-xl max-[388px]:text-lg font-bold text-gray-900">Restaurants near you</h1>
-          {!loading && (
+          <h1 className="text-xl max-[388px]:text-lg font-bold text-gray-900">
+            {inSearchMode ? `Search results for "${searchQuery}"` : 'Restaurants near you'}
+          </h1>
+          {!loading && !searchLoading && (
             <p className="text-sm max-[388px]:text-xs text-gray-400 mt-0.5">
-              {restaurants.length} restaurants{selectedCuisine !== 'All' ? ` · ${selectedCuisine}` : ''}
+              {displayedRestaurants.length} restaurants
+              {inSearchMode ? ` · ${searchResultItems.length} items` : ''}
+              {selectedCuisine !== 'All' ? ` · ${selectedCuisine}` : ''}
             </p>
           )}
         </div>
 
-        {loading ? (
+        {(loading || searchLoading) ? (
           <Loader />
-        ) : restaurants.length === 0 ? (
+        ) : displayedRestaurants.length === 0 && (!inSearchMode || searchResultItems.length === 0) ? (
           <div className="text-center py-24 max-[388px]:py-20">
             <div className="text-6xl max-[388px]:text-5xl mb-4 animate-float">🍽️</div>
             <h3 className="text-xl max-[388px]:text-lg font-bold text-gray-900 mb-2">No restaurants found</h3>
@@ -142,11 +226,44 @@ const RestaurantPage = () => {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 max-[388px]:gap-3">
-            {restaurants.map((r) => (
-              <RestaurantCard key={r._id} restaurant={r} />
-            ))}
-          </div>
+          <>
+            {inSearchMode && searchResultItems.length > 0 && (
+              <div className="mb-6">
+                <h2 className="text-base font-bold text-gray-900 mb-3">Matched Menu Items</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {searchResultItems.slice(0, 24).map((item) => (
+                    <Link
+                      key={item._id}
+                      to={`/restaurant/${item.restaurantId}`}
+                      className="bg-white rounded-xl p-3 border border-gray-100 hover:border-gray-200 transition-colors"
+                    >
+                      <p className="text-sm font-semibold text-gray-900 line-clamp-1">{item.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{item.restaurantName || 'Restaurant'}</p>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-500">
+                          {Array.isArray(item.categories) && item.categories.length > 0 ? item.categories[0] : item.category || 'Menu Item'}
+                        </span>
+                        <span className="text-sm font-bold" style={{ color: BRAND }}>₹{item.price}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {displayedRestaurants.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 max-[388px]:gap-3">
+                {displayedRestaurants.map((r) => (
+                  <RestaurantCard
+                    key={r._id}
+                    restaurant={r}
+                    matchedItems={searchMatchedItemsByRestaurant[String(r._id)] || []}
+                    matchedItemsTitle={inSearchMode ? 'Matched items' : null}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

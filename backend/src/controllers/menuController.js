@@ -3,28 +3,94 @@ const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/imageUpload');
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const ALLOWED_MENU_CATEGORIES = [
+  'Starters',
+  'Main Course',
+  'Desserts',
+  'Beverages',
+  'Breads',
+  'Rice',
+  'Snacks',
+  'Fast Food',
+  'Pizza',
+  'Burger',
+  'South Indian',
+  'North Indian',
+  'Chinese',
+  'Paneer',
+  'Cake',
+  'Biryani',
+  'Veg Meal',
+  'Noodles',
+  'Sandwich',
+  'Dosa',
+  'Italian',
+  'Momos',
+  'Chaap',
+  'Fries',
+  'Shakes',
+  'Coffee'
+];
+
+const parseCategories = (categories, category) => {
+  let normalized = [];
+
+  if (categories) {
+    if (Array.isArray(categories)) {
+      normalized = categories;
+    } else if (typeof categories === 'string') {
+      try {
+        const parsed = JSON.parse(categories);
+        if (Array.isArray(parsed)) {
+          normalized = parsed;
+        } else if (typeof parsed === 'string') {
+          normalized = [parsed];
+        }
+      } catch {
+        normalized = categories.split(',');
+      }
+    }
+  }
+
+  if (normalized.length === 0 && category) {
+    normalized = [category];
+  }
+
+  return Array.from(
+    new Set(
+      normalized
+        .map((c) => String(c || '').trim())
+        .filter(Boolean)
+    )
+  );
+};
+
 // @desc    Add menu item
 // @route   POST /api/restaurants/:restaurantId/menu
 // @access  Private (Owner)
 exports.addMenuItem = async (req, res) => {
   try {
-    const { name, description, price, category, isVeg, tags, prepTime, isAvailable, variants } = req.body;
+    const { name, description, price, category, categories, isVeg, tags, prepTime, isAvailable, variants } = req.body;
+    const normalizedCategories = parseCategories(categories, category);
 
     // Validate required fields with detailed errors
     const missing = [];
     if (!name) missing.push('name');
     if (!description) missing.push('description');
     if (!price) missing.push('price');
-    if (!category) missing.push('category');
+    if (normalizedCategories.length === 0) missing.push('categories');
 
     if (missing.length > 0) {
       return errorResponse(res, 400, `Missing required fields: ${missing.join(', ')}`);
     }
 
-    // Validate category is in allowed enum
-    const allowedCategories = ['Starters', 'Main Course', 'Desserts', 'Beverages', 'Breads', 'Rice', 'Snacks', 'Fast Food', 'Pizza', 'Burger', 'South Indian', 'North Indian', 'Chinese'];
-    if (!allowedCategories.includes(category)) {
-      return errorResponse(res, 400, `Invalid category "${category}". Must be one of: ${allowedCategories.join(', ')}`);
+    const invalidCategories = normalizedCategories.filter((c) => !ALLOWED_MENU_CATEGORIES.includes(c));
+    if (invalidCategories.length > 0) {
+      return errorResponse(
+        res,
+        400,
+        `Invalid categories: ${invalidCategories.join(', ')}. Must be one of: ${ALLOWED_MENU_CATEGORIES.join(', ')}`
+      );
     }
 
     // Handle image upload
@@ -42,7 +108,8 @@ exports.addMenuItem = async (req, res) => {
       name: name.trim(),
       description: description.trim(),
       price: parseFloat(price),
-      category,
+      category: normalizedCategories[0],
+      categories: normalizedCategories,
       image: imageUrl,
       isVeg: isVeg === 'true' || isVeg === true,
       isAvailable: isAvailable === 'true' || isAvailable === true || isAvailable === undefined,
@@ -73,7 +140,9 @@ exports.getMenuByRestaurant = async (req, res) => {
     const { category, isVeg, search, limit = 200 } = req.query;
     let query = { restaurantId: req.params.restaurantId };
 
-    if (category) query.category = category;
+    if (category) {
+      query.$or = [{ category }, { categories: category }];
+    }
     if (isVeg) query.isVeg = isVeg === 'true';
     if (search) query.name = { $regex: escapeRegex(search), $options: 'i' };
 
@@ -127,6 +196,21 @@ exports.updateMenuItem = async (req, res) => {
       } catch (e) {
         console.error('Failed to parse variants string', e);
       }
+    }
+
+    const normalizedCategories = parseCategories(req.body.categories, req.body.category);
+    if (normalizedCategories.length > 0) {
+      const invalidCategories = normalizedCategories.filter((c) => !ALLOWED_MENU_CATEGORIES.includes(c));
+      if (invalidCategories.length > 0) {
+        return errorResponse(
+          res,
+          400,
+          `Invalid categories: ${invalidCategories.join(', ')}. Must be one of: ${ALLOWED_MENU_CATEGORIES.join(', ')}`
+        );
+      }
+
+      req.body.categories = normalizedCategories;
+      req.body.category = normalizedCategories[0];
     }
 
     // Use $set to only update provided fields — never wipe existing data

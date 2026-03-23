@@ -1,6 +1,8 @@
 const webpush = require('web-push');
 const Notification = require('../models/Notification');
 const PushSubscription = require('../models/PushSubscription');
+const User = require('../models/User');
+const { admin } = require('../config/firebaseAdmin');
 
 // Configure web-push with VAPID keys
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -78,14 +80,86 @@ const sendPushNotification = async (userId, payload) => {
   }
 };
 
+// Send FCM/APNS notification using saved token (for native lockscreen + tray delivery)
+const sendFcmNotification = async (userId, payload) => {
+  try {
+    const user = await User.findById(userId).select('fcmToken').lean();
+    const token = user?.fcmToken;
+    if (!token) return;
+
+    const rawData = payload?.data || {};
+    const data = Object.keys(rawData).reduce((acc, key) => {
+      const value = rawData[key];
+      if (value !== undefined && value !== null) {
+        acc[key] = String(value);
+      }
+      return acc;
+    }, {});
+
+    const message = {
+      token,
+      notification: {
+        title: payload.title || 'FlashBites',
+        body: payload.message || 'You have a new update'
+      },
+      data: {
+        ...data,
+        type: String(payload.type || 'general_notification'),
+        priority: String(payload.priority || 'high')
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'flashbites-orders',
+          sound: 'default',
+          defaultSound: true,
+          visibility: 'PUBLIC',
+          notificationPriority: 'PRIORITY_HIGH'
+        }
+      },
+      apns: {
+        headers: {
+          'apns-priority': '10'
+        },
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+            contentAvailable: true
+          }
+        }
+      }
+    };
+
+    await admin.messaging().send(message);
+    console.log(`✅ FCM push sent for user ${userId}`);
+  } catch (error) {
+    const code = error?.code || '';
+    if (
+      code.includes('registration-token-not-registered') ||
+      code.includes('invalid-argument') ||
+      code.includes('invalid-registration-token')
+    ) {
+      await User.findByIdAndUpdate(userId, { $set: { fcmToken: null } });
+      console.log(`Removed invalid FCM token for user ${userId}`);
+      return;
+    }
+
+    console.error(`Error sending FCM push to user ${userId}:`, error.message || error);
+  }
+};
+
 // Combined: Create notification + send push
 const notifyUser = async (userId, notificationData) => {
   try {
     // Save to database
     const notification = await createNotification(userId, notificationData);
 
-    // Send push notification
-    await sendPushNotification(userId, notificationData);
+    // Send both web-push and FCM/APNS notifications.
+    await Promise.allSettled([
+      sendPushNotification(userId, notificationData),
+      sendFcmNotification(userId, notificationData)
+    ]);
 
     return notification;
   } catch (error) {

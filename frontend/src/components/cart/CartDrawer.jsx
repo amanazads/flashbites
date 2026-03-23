@@ -18,18 +18,11 @@ const CartDrawer = () => {
   const { cartOpen } = useSelector((state) => state.ui);
   const { items, restaurant } = useSelector((state) => state.cart);
   const { isAuthenticated } = useSelector((state) => state.auth);
-  const safeItems = isAuthenticated ? items : [];
 
-  const subtotal = calculateCartTotal(safeItems);
+  const subtotal = calculateCartTotal(items);
   const deliveryFee = restaurant?.deliveryFee || 0;
   const tax = subtotal * 0.05;
   const total = subtotal + deliveryFee + tax;
-
-  useEffect(() => {
-    if (!isAuthenticated && items.length > 0) {
-      dispatch(clearCart());
-    }
-  }, [isAuthenticated, items.length, dispatch]);
 
   useEffect(() => {
     dispatch(closeCart());
@@ -99,7 +92,7 @@ const CartDrawer = () => {
           className="flex-1 min-h-0 overflow-y-auto p-4 max-[388px]:p-3 pb-[calc(8px+env(safe-area-inset-bottom,0px))]"
           style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
         >
-          {safeItems.length === 0 ? (
+          {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-16">
               <div
                 className="w-20 h-20 rounded-full mb-5 flex items-center justify-center"
@@ -136,7 +129,7 @@ const CartDrawer = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {safeItems.map((item) => (
+              {items.map((item) => (
                 <div
                   key={item._id}
                   className="flex gap-3 p-3 max-[388px]:p-2.5 rounded-2xl hover:bg-gray-50/80 transition-colors"
@@ -220,7 +213,7 @@ const CartDrawer = () => {
         </div>
 
         {/* Footer */}
-        {safeItems.length > 0 && (
+        {items.length > 0 && (
           <div
             className="border-t p-4 max-[388px]:p-3 space-y-3 bg-white"
             style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid #F0F2F5' }}

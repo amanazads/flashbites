@@ -44,6 +44,12 @@ export const searchRestaurants = async (searchTerm) => {
   return response.data;
 };
 
+// Search restaurants and menu items together
+export const searchRestaurantsAndItems = async (params = {}) => {
+  const response = await axios.get('/restaurants/search', { params });
+  return response.data;
+};
+
 // Get my restaurant (for restaurant owner)
 export const getMyRestaurant = async () => {
   const response = await axios.get('/restaurants/my-restaurant');
@@ -51,8 +57,8 @@ export const getMyRestaurant = async () => {
 };
 
 // Get restaurant menu items
-export const getRestaurantMenuItems = async (restaurantId) => {
-  const response = await axios.get(`/restaurants/${restaurantId}/menu`);
+export const getRestaurantMenuItems = async (restaurantId, params = {}) => {
+  const response = await axios.get(`/restaurants/${restaurantId}/menu`, { params });
   return response.data;
 };
 

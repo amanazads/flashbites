@@ -1,146 +1,84 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import SEO from '../components/common/SEO';
+import { getPublicCoupons } from '../api/couponApi';
 import {
   ArrowLeftIcon,
   ClipboardDocumentIcon,
   CheckIcon,
   TagIcon,
-  ShoppingBagIcon,
-  TruckIcon,
   StarIcon,
   GiftIcon,
-  ClockIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline';
 
 const BRAND = '#E23744';
 
-/* ── Static coupons list ── */
-const COUPONS = [
-  {
-    id: 1,
-    code: 'WELCOME50',
-    title: '50% Off – First 3 Orders',
-    description: 'Get 50% off on your first 3 orders. Maximum discount ₹100 per order.',
-    discount: '50% OFF',
-    minOrder: 0,
-    maxDiscount: 100,
-    type: 'percent',
-    tag: 'NEW USER',
-    tagColor: '#1BA672',
-    tagBg: '#ECFDF5',
-    icon: GiftIcon,
-    iconColor: '#1BA672',
-    iconBg: '#ECFDF5',
-    validTill: 'No expiry',
-    gradient: 'linear-gradient(135deg, #1BA672 0%, #059669 100%)',
-  },
-  {
-    id: 2,
-    code: 'FREEDEL',
-    title: 'Free Delivery – Any Order',
-    description: 'Zero delivery charges on your order. No location restriction.',
-    discount: 'FREE DELIVERY',
-    minOrder: 0,
-    maxDiscount: 80,
-    type: 'delivery',
-    tag: 'POPULAR',
-    tagColor: '#3B82F6',
-    tagBg: '#EFF6FF',
-    icon: TruckIcon,
-    iconColor: '#3B82F6',
-    iconBg: '#EFF6FF',
-    validTill: 'No expiry',
-    gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
-  },
-  {
-    id: 3,
-    code: 'FLASH30',
-    title: '₹30 Off on Orders ₹299+',
-    description: 'Flat ₹30 discount when you order above ₹299. Valid for all users.',
-    discount: '₹30 OFF',
-    minOrder: 299,
-    maxDiscount: 30,
-    type: 'flat',
-    tag: 'ALL USERS',
-    tagColor: BRAND,
-    tagBg: '#FEF2F3',
+const getCouponMeta = (coupon) => {
+  if (coupon.discountType === 'percentage') {
+    return {
+      discountLabel: `${coupon.discountValue}% OFF`,
+      title: `${coupon.discountValue}% Off`,
+      tag: 'PERCENT DEAL',
+      icon: SparklesIcon,
+      iconColor: '#8B5CF6',
+      gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+    };
+  }
+
+  return {
+    discountLabel: `\u20b9${coupon.discountValue} OFF`,
+    title: `\u20b9${coupon.discountValue} Off`,
+    tag: 'FLAT DEAL',
     icon: TagIcon,
     iconColor: BRAND,
-    iconBg: '#FEF2F3',
-    validTill: 'No expiry',
     gradient: `linear-gradient(135deg, ${BRAND} 0%, #C92535 100%)`,
-  },
-  {
-    id: 4,
-    code: 'WEEKENDTREAT',
-    title: '20% Off – Weekends Only',
-    description: 'Enjoy 20% off every Saturday & Sunday. Max discount ₹80.',
-    discount: '20% OFF',
-    minOrder: 249,
-    maxDiscount: 80,
-    type: 'percent',
-    tag: 'WEEKEND',
-    tagColor: '#8B5CF6',
-    tagBg: '#F5F3FF',
-    icon: SparklesIcon,
-    iconColor: '#8B5CF6',
-    iconBg: '#F5F3FF',
-    validTill: 'Every weekend',
-    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
-  },
-  {
-    id: 5,
-    code: 'LUNCHTIME',
-    title: '15% Off – Lunch Hours',
-    description: '15% off on all orders placed between 12 PM – 3 PM. Max discount ₹60.',
-    discount: '15% OFF',
-    minOrder: 0,
-    maxDiscount: 60,
-    type: 'percent',
-    tag: '12–3 PM',
-    tagColor: '#F59E0B',
-    tagBg: '#FFFBEB',
-    icon: ClockIcon,
-    iconColor: '#F59E0B',
-    iconBg: '#FFFBEB',
-    validTill: 'Daily 12 PM – 3 PM',
-    gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-  },
-  {
-    id: 6,
-    code: 'BIGBITE',
-    title: '₹50 Off on Orders ₹499+',
-    description: 'Flat ₹50 off when you order ₹499 or above. Stack up your cart!',
-    discount: '₹50 OFF',
-    minOrder: 499,
-    maxDiscount: 50,
-    type: 'flat',
-    tag: 'BIG ORDER',
-    tagColor: '#0EA5E9',
-    tagBg: '#F0F9FF',
-    icon: ShoppingBagIcon,
-    iconColor: '#0EA5E9',
-    iconBg: '#F0F9FF',
-    validTill: 'No expiry',
-    gradient: 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)',
-  },
-];
+  };
+};
 
-/* ── Coupon Card ── */
+const formatValidTill = (validTill) => {
+  if (!validTill) return 'Limited time';
+  const date = new Date(validTill);
+  if (Number.isNaN(date.getTime())) return 'Limited time';
+  return `Valid till ${date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+};
+
+const mapCouponForCard = (coupon) => {
+  const meta = getCouponMeta(coupon);
+  const minOrder = Number(coupon.minOrderValue || 0);
+  const minOrderText = minOrder > 0 ? ` on orders above \u20b9${minOrder}` : '';
+  const maxDiscountText = coupon.maxDiscount ? ` Max discount \u20b9${coupon.maxDiscount}.` : '';
+
+  return {
+    _id: coupon._id,
+    code: coupon.code,
+    title: `${meta.title}${minOrderText}`,
+    description: `${coupon.description || 'Apply this coupon at checkout.'}${maxDiscountText}`.trim(),
+    discount: meta.discountLabel,
+    minOrder,
+    validTill: formatValidTill(coupon.validTill),
+    tag: meta.tag,
+    icon: meta.icon,
+    iconColor: meta.iconColor,
+    gradient: meta.gradient,
+  };
+};
+
 const CouponCard = ({ coupon }) => {
-  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = (e) => {
+  const handleCopy = async (e) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(coupon.code);
-    setCopied(true);
-    toast.success(`Copied! Use ${coupon.code} at checkout`);
-    setTimeout(() => setCopied(false), 2500);
+    try {
+      await navigator.clipboard.writeText(coupon.code);
+      setCopied(true);
+      toast.success(`Copied! Use ${coupon.code} at checkout`);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      toast.error('Unable to copy coupon code');
+    }
   };
 
   return (
@@ -148,7 +86,6 @@ const CouponCard = ({ coupon }) => {
       className="bg-white rounded-2xl overflow-hidden"
       style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
     >
-      {/* Top strip */}
       <div
         className="px-4 py-3 flex items-center justify-between"
         style={{ background: coupon.gradient }}
@@ -172,26 +109,23 @@ const CouponCard = ({ coupon }) => {
         </p>
       </div>
 
-      {/* Dashed divider with circles */}
       <div className="relative flex items-center">
         <div className="absolute -left-3 w-6 h-6 rounded-full bg-gray-50" style={{ boxShadow: 'inset -2px 0 0 #E5E7EB' }} />
         <div className="flex-1 border-t border-dashed border-gray-200 mx-3" />
         <div className="absolute -right-3 w-6 h-6 rounded-full bg-gray-50" style={{ boxShadow: 'inset 2px 0 0 #E5E7EB' }} />
       </div>
 
-      {/* Bottom details */}
       <div className="px-4 pb-4 pt-3">
         <p className="text-[13px] text-gray-500 mb-3 leading-relaxed">{coupon.description}</p>
 
         <div className="flex items-center gap-2 text-[12px] text-gray-400 mb-3">
           <span className="font-medium">Min order:</span>
-          <span className="font-semibold text-gray-600">₹{coupon.minOrder}</span>
+          <span className="font-semibold text-gray-600">\u20b9{coupon.minOrder}</span>
           <span className="w-1 h-1 rounded-full bg-gray-300" />
-          <span className="font-medium">Valid:</span>
+          <span className="font-medium">Validity:</span>
           <span className="font-semibold text-gray-600">{coupon.validTill}</span>
         </div>
 
-        {/* Code + Copy button */}
         <div className="flex items-center gap-3">
           <div
             className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl"
@@ -226,21 +160,50 @@ const CouponCard = ({ coupon }) => {
   );
 };
 
-/* ── Main Page ── */
 const PromosPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useSelector((s) => s.auth);
+  const [coupons, setCoupons] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCoupons = async () => {
+      setLoading(true);
+      try {
+        const response = await getPublicCoupons();
+        const rawCoupons = response?.data?.coupons || response?.coupons || [];
+        if (cancelled) return;
+        setCoupons(rawCoupons.map(mapCouponForCard));
+      } catch {
+        if (!cancelled) {
+          setCoupons([]);
+          toast.error('Failed to load latest coupons');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadCoupons();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const activeCount = useMemo(() => coupons.length, [coupons]);
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
       <SEO
         title="Offers & Coupons – FlashBites"
-        description="Exclusive coupons and discount offers on FlashBites. Save on every order with our latest promo codes."
+        description="Exclusive coupons and discount offers on FlashBites. Save on every order with active promo codes from admin and restaurants."
         url="/promos"
       />
 
       <div className="max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto min-h-screen">
-        {/* ── Header ── */}
         <div
           className="sticky top-0 z-20 px-4 pt-5 pb-4 bg-white"
           style={{ borderBottom: '1px solid #F0F2F5', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}
@@ -256,7 +219,7 @@ const PromosPage = () => {
               <h1 className="text-[20px] font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>
                 Offers &amp; Coupons
               </h1>
-              <p className="text-[12px] text-gray-400">{COUPONS.length} active offers</p>
+              <p className="text-[12px] text-gray-400">{loading ? 'Loading offers...' : `${activeCount} active offers`}</p>
             </div>
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center"
@@ -267,13 +230,11 @@ const PromosPage = () => {
           </div>
         </div>
 
-        {/* ── Hero banner ── */}
         <div className="px-4 pt-4">
           <div
             className="rounded-2xl p-5 text-white mb-4 relative overflow-hidden"
             style={{ background: 'linear-gradient(135deg, #1C1C1C 0%, #3D1A1A 100%)' }}
           >
-            {/* bg circle */}
             <div
               className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-20"
               style={{ background: BRAND, transform: 'translate(40%, -40%)' }}
@@ -282,11 +243,10 @@ const PromosPage = () => {
             <p className="text-white text-[22px] font-black leading-tight mb-1" style={{ letterSpacing: '-0.02em' }}>
               Save More,<br />Order More
             </p>
-            <p className="text-white/50 text-[13px]">Copy any coupon code below and apply at checkout</p>
+            <p className="text-white/50 text-[13px]">Only verified active coupons are shown here</p>
           </div>
         </div>
 
-        {/* ── Coupon list ── */}
         <div className="px-4 pb-28 space-y-3">
           {!isAuthenticated && (
             <div
@@ -313,14 +273,25 @@ const PromosPage = () => {
             </div>
           )}
 
-          {COUPONS.map((coupon) => (
-            <CouponCard key={coupon.id} coupon={coupon} />
+          {loading && (
+            <div className="bg-white rounded-2xl p-5 text-sm text-gray-500" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
+              Loading coupons...
+            </div>
+          )}
+
+          {!loading && coupons.length === 0 && (
+            <div className="bg-white rounded-2xl p-5 text-sm text-gray-500" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
+              No active coupons are available right now.
+            </div>
+          )}
+
+          {!loading && coupons.map((coupon) => (
+            <CouponCard key={coupon._id} coupon={coupon} />
           ))}
 
-          {/* Footer note */}
           <div className="pt-2 pb-4 text-center">
             <p className="text-[12px] text-gray-400">
-              Offers are subject to availability and may change without notice.
+              Offers are managed by admin and may change without notice.
             </p>
             <p className="text-[12px] text-gray-400 mt-0.5">
               Need help?{' '}

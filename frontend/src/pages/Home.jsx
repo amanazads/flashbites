@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchRestaurants } from '../redux/slices/restaurantSlice';
 import { getAddresses } from '../api/userApi';
 import { getPlatformSettings } from '../api/settingsApi';
+import { getRestaurantMenuItems, searchRestaurantsAndItems } from '../api/restaurantApi';
 import RestaurantCard from '../components/restaurant/RestaurantCard';
 import { Loader } from '../components/common/Loader';
 import { calculateDistance } from '../utils/helpers';
@@ -25,16 +26,28 @@ const LOCATION_BANNER_DISMISSED_KEY = 'fb_location_banner_dismissed';
 const LOCATION_PERMISSION_STATE_KEY = 'fb_location_permission_state';
 const SELECTED_ADDRESS_KEY = 'fb_selected_address';
 
-/* ───── Category definitions with SVG icon paths ───── */
+/* ───── Category definitions with real food photos ───── */
 const CATEGORIES = [
   { id: 'Pizza', label: 'Pizza', image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=120&q=80' },
   { id: 'Burger', label: 'Burgers', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=120&q=80' },
-  { id: 'Indian', label: 'Thali', image: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=120&q=80' },
-  { id: 'Chinese', label: 'Noodles', image: 'https://images.unsplash.com/photo-1526318896980-cf78c088247c?w=120&q=80' },
-  { id: 'Fast Food', label: 'Fries', image: 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=120&q=80' },
+  { id: 'Paneer', label: 'Paneer', image: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=120&q=80' },
+  { id: 'Cake', label: 'Cake', image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=120&q=80' },
+  { id: 'Biryani', label: 'Biryani', image: 'https://images.unsplash.com/photo-1563379091339-03246963d29d?w=120&q=80' },
+  { id: 'Veg Meal', label: 'Veg Meal', image: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=120&q=80' },
+  { id: 'North Indian', label: 'North Indian', image: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=120&q=80' },
+  { id: 'Noodles', label: 'Noodles', image: 'https://images.unsplash.com/photo-1526318896980-cf78c088247c?w=120&q=80' },
+  { id: 'Sandwich', label: 'Sandwich', image: 'https://images.unsplash.com/photo-1553909489-cd47e0ef937f?w=120&q=80' },
+  { id: 'Dosa', label: 'Dosa', image: 'https://images.unsplash.com/photo-1630383249896-424e482df921?w=120&q=80' },
+  { id: 'Italian', label: 'Italian', image: 'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=120&q=80' },
+  { id: 'Momos', label: 'Momos', image: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=120&q=80' },
+  { id: 'Rice', label: 'Rice', image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=120&q=80' },
+  { id: 'Chaap', label: 'Chaap', image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=120&q=80' },
+  { id: 'Fries', label: 'Fries', image: 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=120&q=80' },
+  { id: 'Shakes', label: 'Shakes', image: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=120&q=80' },
+  { id: 'Coffee', label: 'Coffee', image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=120&q=80' },
   { id: 'Desserts', label: 'Desserts', image: 'https://images.unsplash.com/photo-1505253216365-1dce1a8f94a5?w=120&q=80' },
-  { id: 'Coffee', label: 'Drinks', image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=120&q=80' },
-  { id: 'Salads', label: 'Salads', image: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=120&q=80' },
+  { id: 'Beverages', label: 'Drinks', image: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=120&q=80' },
+  { id: 'Starters', label: 'Starters', image: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=120&q=80' },
 ];
 
 /* ───── Promo banners (Figma-matched) ───── */
@@ -108,6 +121,27 @@ const geocodeAddress = async (query) => {
   }
 };
 
+const reverseGeocode = async (latitude, longitude) => {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}&format=json&zoom=14&addressdetails=1`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'FlashBites/1.0 (info.flashbites@gmail.com)',
+        'Accept-Language': 'en',
+      },
+    });
+    const data = await res.json();
+    const address = data?.address || {};
+    const city = address.city || address.town || address.village || address.suburb || address.county || '';
+    return {
+      label: city || data?.display_name?.split(',')?.[0] || 'Current Location',
+      city: city || data?.display_name?.split(',')?.[0] || 'Current Location',
+    };
+  } catch {
+    return null;
+  }
+};
+
 const Home = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -120,10 +154,14 @@ const Home = () => {
   const [showAddressPicker, setShowAddressPicker] = useState(false);
   const [manualInput, setManualInput] = useState('');
   const [geocoding, setGeocoding] = useState(false);
-  const [gpsLoading] = useState(false);
-  const [gpsDenied] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsDenied, setGpsDenied] = useState(false);
   const [showGpsBanner] = useState(false);
   const pickerRef = useRef(null);
+  const promoRowRef = useRef(null);
+  const promoAutoTimerRef = useRef(null);
+  const promoResetTimerRef = useRef(null);
+  const promoIndexRef = useRef(0);
 
   /* ── Filtered restaurants ── */
   const [noServiceArea, setNoServiceArea] = useState(false);
@@ -133,6 +171,12 @@ const Home = () => {
   /* ── Category + search ── */
   const [activeCat, setActiveCat] = useState('all');
   const [searchQ, setSearchQ] = useState('');
+  const [searchSuggestions, setSearchSuggestions] = useState({ restaurants: [], items: [] });
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [categoryMatchesByRestaurant, setCategoryMatchesByRestaurant] = useState({});
+  const [categoryFilterLoading, setCategoryFilterLoading] = useState(false);
+  const searchRef = useRef(null);
 
   // Wake up the backend, then fetch restaurants
   // On mobile (Capacitor) wait for health ping before fetching to avoid cold-start race
@@ -208,10 +252,104 @@ const Home = () => {
       if (pickerRef.current && !pickerRef.current.contains(e.target)) {
         setShowAddressPicker(false);
       }
+
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowSuggestions(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  useEffect(() => {
+    const query = searchQ.trim();
+
+    if (query.length < 2) {
+      setSearchSuggestions({ restaurants: [], items: [] });
+      setSuggestionsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setSuggestionsLoading(true);
+      try {
+        const response = await searchRestaurantsAndItems({ q: query, limit: 6 });
+        const payload = response?.data || {};
+        if (cancelled) return;
+
+        let restaurantsFromSearch = payload?.restaurants || [];
+        let itemsFromSearch = payload?.items || [];
+
+        // Fallback: if backend search is unavailable/empty, derive suggestions locally.
+        if (restaurantsFromSearch.length === 0 && itemsFromSearch.length === 0) {
+          const queryLc = query.toLowerCase();
+          const localRestaurantMatches = (restaurants || []).filter((r) => {
+            const name = String(r?.name || '').toLowerCase();
+            const cuisines = Array.isArray(r?.cuisines) ? r.cuisines.join(' ').toLowerCase() : '';
+            return name.includes(queryLc) || cuisines.includes(queryLc);
+          });
+
+          const candidateRestaurants = (restaurants || []).filter((r) => r?._id).slice(0, 24);
+          const menuSearchResults = await Promise.all(
+            candidateRestaurants.map(async (restaurant) => {
+              try {
+                const menuResp = await getRestaurantMenuItems(restaurant._id, { search: query, limit: 20 });
+                const menuItems = menuResp?.data?.items || [];
+                return { restaurant, menuItems };
+              } catch {
+                return { restaurant, menuItems: [] };
+              }
+            })
+          );
+
+          const localItems = [];
+          const localRestaurantMap = new Map(localRestaurantMatches.map((r) => [String(r._id), r]));
+
+          menuSearchResults.forEach(({ restaurant, menuItems }) => {
+            if (menuItems.length > 0) {
+              localRestaurantMap.set(String(restaurant._id), restaurant);
+              menuItems.forEach((item) => {
+                localItems.push({
+                  ...item,
+                  restaurantId: restaurant._id,
+                  restaurantName: restaurant.name,
+                });
+              });
+            }
+          });
+
+          restaurantsFromSearch = Array.from(localRestaurantMap.values()).slice(0, 8);
+          itemsFromSearch = localItems.slice(0, 10);
+        }
+
+        if (cancelled) return;
+
+        setSearchSuggestions({
+          restaurants: restaurantsFromSearch,
+          items: itemsFromSearch
+        });
+      } catch {
+        if (!cancelled) {
+          const queryLc = query.toLowerCase();
+          const fallbackRestaurants = (restaurants || []).filter((r) => {
+            const name = String(r?.name || '').toLowerCase();
+            const cuisines = Array.isArray(r?.cuisines) ? r.cuisines.join(' ').toLowerCase() : '';
+            return name.includes(queryLc) || cuisines.includes(queryLc);
+          }).slice(0, 8);
+
+          setSearchSuggestions({ restaurants: fallbackRestaurants, items: [] });
+        }
+      } finally {
+        if (!cancelled) setSuggestionsLoading(false);
+      }
+    }, 280);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchQ, restaurants]);
 
   // Live location disabled: no GPS prompt or auto-fill.
 
@@ -291,6 +429,49 @@ const Home = () => {
     if (!geo) toast(`Showing restaurants near "${input}"`, { icon: '📍' });
   };
 
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Location is not supported on this device');
+      return;
+    }
+
+    setGpsLoading(true);
+    setGpsDenied(false);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const latitude = Number(position.coords.latitude);
+        const longitude = Number(position.coords.longitude);
+        const place = await reverseGeocode(latitude, longitude);
+
+        setSelectedAddress({
+          label: place?.label || 'Current Location',
+          city: place?.city || 'Current Location',
+          latitude,
+          longitude,
+        });
+        setShowAddressPicker(false);
+        setGpsLoading(false);
+        toast.success('Using current location');
+      },
+      (error) => {
+        setGpsLoading(false);
+        if (error?.code === 1) {
+          setGpsDenied(true);
+          localStorage.setItem(LOCATION_PERMISSION_STATE_KEY, 'denied');
+          toast.error('Location permission denied. You can still type a city manually.');
+          return;
+        }
+        toast.error('Unable to fetch current location');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 30000,
+      }
+    );
+  };
+
   const clearAddress = () => {
     setSelectedAddress(null);
     setNoServiceArea(false);
@@ -299,12 +480,148 @@ const Home = () => {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (searchQ.trim()) navigate(`/restaurants?search=${encodeURIComponent(searchQ.trim())}`);
+    if (searchQ.trim()) {
+      setShowSuggestions(false);
+      navigate(`/restaurants?search=${encodeURIComponent(searchQ.trim())}`);
+    }
   };
 
   const baseList = restaurants;
-  const allFiltered = activeCat === 'all' ? baseList : baseList.filter((r) => r.cuisines?.some((c) => c.toLowerCase() === activeCat.toLowerCase()));
+  const allFiltered = activeCat === 'all'
+    ? baseList
+    : baseList.filter((r) => Array.isArray(categoryMatchesByRestaurant[r._id]) && categoryMatchesByRestaurant[r._id].length > 0);
   const promosToShow = promoBanners.length > 0 ? promoBanners : PROMOS;
+  const promoLoopItems = promosToShow.length > 1 ? [...promosToShow, promosToShow[0]] : promosToShow;
+
+  useEffect(() => {
+    if (activeCat === 'all') {
+      setCategoryMatchesByRestaurant({});
+      setCategoryFilterLoading(false);
+      return;
+    }
+
+    if (!Array.isArray(restaurants) || restaurants.length === 0) {
+      setCategoryMatchesByRestaurant({});
+      setCategoryFilterLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchCategoryMatches = async () => {
+      setCategoryFilterLoading(true);
+
+      const availableRestaurants = restaurants
+        .filter((r) => r && r._id);
+
+      try {
+        const responses = await Promise.all(
+          availableRestaurants.map(async (restaurant) => {
+            try {
+              const data = await getRestaurantMenuItems(restaurant._id, { category: activeCat, limit: 50 });
+              const items = data?.data?.items || [];
+              return [restaurant._id, items];
+            } catch {
+              return [restaurant._id, []];
+            }
+          })
+        );
+
+        if (cancelled) return;
+
+        const next = responses.reduce((acc, [restaurantId, items]) => {
+          acc[restaurantId] = items;
+          return acc;
+        }, {});
+
+        setCategoryMatchesByRestaurant(next);
+      } finally {
+        if (!cancelled) {
+          setCategoryFilterLoading(false);
+        }
+      }
+    };
+
+    fetchCategoryMatches();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCat, restaurants]);
+
+  useEffect(() => {
+    const row = promoRowRef.current;
+    if (!row || promosToShow.length < 2) return;
+
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+
+    const getCards = () => row.querySelectorAll('.promo-banner');
+
+    const scrollToCard = (index, behavior = 'smooth') => {
+      const cards = getCards();
+      if (!cards[index]) return;
+      // Scroll only the promo row; avoid page-level auto scroll/jumps.
+      row.scrollTo({
+        left: cards[index].offsetLeft,
+        behavior,
+      });
+    };
+
+    const tick = () => {
+      const cards = getCards();
+      const realCount = promosToShow.length;
+      if (cards.length < 2 || realCount < 2) return;
+
+      const nextIndex = promoIndexRef.current + 1;
+      scrollToCard(nextIndex, 'smooth');
+
+      if (nextIndex === realCount) {
+        if (promoResetTimerRef.current) clearTimeout(promoResetTimerRef.current);
+        promoResetTimerRef.current = setTimeout(() => {
+          promoIndexRef.current = 0;
+          scrollToCard(0, 'auto');
+        }, 420);
+      } else {
+        promoIndexRef.current = nextIndex;
+      }
+    };
+
+    const start = () => {
+      if (promoAutoTimerRef.current) clearInterval(promoAutoTimerRef.current);
+      promoAutoTimerRef.current = setInterval(tick, 3200);
+    };
+
+    const stop = () => {
+      if (promoAutoTimerRef.current) {
+        clearInterval(promoAutoTimerRef.current);
+        promoAutoTimerRef.current = null;
+      }
+    };
+
+    const handleTouchStart = () => stop();
+    const handleTouchEnd = () => start();
+
+    row.addEventListener('touchstart', handleTouchStart, { passive: true });
+    row.addEventListener('touchend', handleTouchEnd, { passive: true });
+    row.addEventListener('mouseenter', stop);
+    row.addEventListener('mouseleave', start);
+
+    start();
+
+    return () => {
+      stop();
+      if (promoResetTimerRef.current) {
+        clearTimeout(promoResetTimerRef.current);
+        promoResetTimerRef.current = null;
+      }
+      promoIndexRef.current = 0;
+      row.removeEventListener('touchstart', handleTouchStart);
+      row.removeEventListener('touchend', handleTouchEnd);
+      row.removeEventListener('mouseenter', stop);
+      row.removeEventListener('mouseleave', start);
+    };
+  }, [promosToShow.length]);
 
   return (
     <div className="page-wrapper flex justify-center lg:pt-10 max-[388px]:pt-4">
@@ -397,6 +714,28 @@ const Home = () => {
                 </div>
               </form>
 
+              {/* Use current location */}
+              <button
+                onClick={handleUseCurrentLocation}
+                disabled={gpsLoading}
+                className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-100 disabled:opacity-60"
+              >
+                <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  {gpsLoading ? (
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke={BRAND} strokeWidth="4" />
+                      <path className="opacity-75" fill={BRAND} d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                  ) : (
+                    <MapPinIcon className="w-5 h-5" style={{ color: BRAND }} />
+                  )}
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-[14px] font-semibold text-gray-800">Use current location</p>
+                  <p className="text-[12px] text-gray-400">Detect automatically via GPS</p>
+                </div>
+              </button>
+
               {/* Browse all option */}
               <button
                 onClick={() => { clearAddress(); setShowAddressPicker(false); }}
@@ -480,33 +819,10 @@ const Home = () => {
       </div>
 
       {/* ══════════════════════════════════
-          LOCATION SELECTION NOTICE
-      ══════════════════════════════════ */}
-      {!selectedAddress && (
-        <div className="container-px pb-2">
-          <div
-            className="flex items-center gap-3 px-4 py-3 rounded-2xl"
-            style={{ background: '#F5F7FA' }}
-          >
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: '#FEF2F3' }}
-            >
-              <MapPinIcon className="w-5 h-5" style={{ color: BRAND }} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-bold text-gray-800">Choose delivery location</p>
-              <p className="text-[11px] text-gray-500">We show restaurants within 20km of your selected address.</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════
           SEARCH BAR
       ══════════════════════════════════ */}
       <div className="container-px pb-5 lg:hidden max-[388px]:pb-3">
-        <form onSubmit={handleSearch}>
+        <form onSubmit={handleSearch} ref={searchRef} className="relative">
           <div className="search-bar">
             <img
               src={SEARCH_IMAGE}
@@ -517,7 +833,11 @@ const Home = () => {
             <input
               type="text"
               value={searchQ}
-              onChange={(e) => setSearchQ(e.target.value)}
+              onFocus={() => setShowSuggestions(searchQ.trim().length >= 2)}
+              onChange={(e) => {
+                setSearchQ(e.target.value);
+                setShowSuggestions(e.target.value.trim().length >= 2);
+              }}
               placeholder="Search for restaurants, dishes..."
             />
             {searchQ && (
@@ -530,15 +850,67 @@ const Home = () => {
               </button>
             )}
           </div>
+
+          {showSuggestions && (
+            <div
+              className="absolute left-0 right-0 mt-2 bg-white rounded-2xl overflow-hidden z-50"
+              style={{ boxShadow: '0 12px 36px rgba(0,0,0,0.12)' }}
+            >
+              {suggestionsLoading ? (
+                <div className="px-4 py-3 text-[13px] text-gray-500">Searching...</div>
+              ) : (
+                <>
+                  {searchSuggestions.restaurants.length === 0 && searchSuggestions.items.length === 0 ? (
+                    <div className="px-4 py-3 text-[13px] text-gray-500">No related restaurants or items found</div>
+                  ) : (
+                    <>
+                      {searchSuggestions.restaurants.slice(0, 4).map((restaurant) => (
+                        <button
+                          key={`rest-${restaurant._id}`}
+                          type="button"
+                          onMouseDown={() => {
+                            setShowSuggestions(false);
+                            navigate(`/restaurant/${restaurant._id}`);
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100"
+                        >
+                          <p className="text-[13px] font-semibold text-gray-900">{restaurant.name}</p>
+                          <p className="text-[11px] text-gray-500">
+                            {Array.isArray(restaurant.cuisines) ? restaurant.cuisines.slice(0, 2).join(', ') : 'Restaurant'}
+                          </p>
+                        </button>
+                      ))}
+
+                      {searchSuggestions.items.slice(0, 6).map((item) => (
+                        <button
+                          key={`item-${item._id}`}
+                          type="button"
+                          onMouseDown={() => {
+                            setShowSuggestions(false);
+                            setSearchQ(item.name);
+                            navigate(`/restaurants?search=${encodeURIComponent(item.name)}`);
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100"
+                        >
+                          <p className="text-[13px] font-semibold text-gray-900">{item.name}</p>
+                          <p className="text-[11px] text-gray-500">in {item.restaurantName || 'Restaurant'}</p>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </form>
       </div>
 
       {/* Promo banners — Figma style */}
       <div className="mb-6 container-px">
-        <div className="snap-scroll-row">
-          {promosToShow.map((p, index) => (
+        <div className="snap-scroll-row" ref={promoRowRef}>
+          {promoLoopItems.map((p, index) => (
             <Link
-              key={p.id || p.tag || index}
+              key={`${p.id || p.tag || 'promo'}-${index}`}
               to="/restaurants"
               className="promo-banner snap-start flex-shrink-0 touch-feedback relative"
               style={{
@@ -672,14 +1044,18 @@ const Home = () => {
           </Link>
         </div>
 
-        {loading ? (
+        {(loading || (activeCat !== 'all' && categoryFilterLoading)) ? (
           <div className="flex flex-col items-center justify-center py-16 gap-4">
             <svg className="animate-spin w-10 h-10" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke={BRAND} strokeWidth="4" />
               <path className="opacity-75" fill={BRAND} d="M4 12a8 8 0 018-8v8z" />
             </svg>
-            <p className="text-[14px] font-semibold text-gray-500">Loading restaurants…</p>
-            <p className="text-[12px] text-gray-400">This may take a moment on first load</p>
+            <p className="text-[14px] font-semibold text-gray-500">
+              {activeCat === 'all' ? 'Loading restaurants…' : `Finding ${activeCat} items across restaurants…`}
+            </p>
+            <p className="text-[12px] text-gray-400">
+              {activeCat === 'all' ? 'This may take a moment on first load' : 'Checking menu items in available restaurants'}
+            </p>
           </div>
         ) : restaurantError ? (
           /* ── Error / Retry state ── */
@@ -708,7 +1084,12 @@ const Home = () => {
         ) : allFiltered.length ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 xs:gap-4 sm:gap-5 lg:gap-6">
             {allFiltered.slice(0, 12).map((r) => (
-              <RestaurantCard key={r._id} restaurant={r} />
+              <RestaurantCard
+                key={r._id}
+                restaurant={r}
+                selectedCategory={activeCat === 'all' ? null : activeCat}
+                matchedItems={categoryMatchesByRestaurant[r._id] || []}
+              />
             ))}
           </div>
         ) : noServiceArea ? (

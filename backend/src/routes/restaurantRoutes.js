@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   createRestaurant,
   getAllRestaurants,
+  searchRestaurantsAndItems,
   getRestaurantById,
   getMyRestaurant,
   updateRestaurant,
@@ -28,6 +29,7 @@ router.route('/')
 
 // Get my restaurant (must be before /:id to avoid conflicts)
 router.get('/my-restaurant', protect, restrictTo('restaurant_owner'), getMyRestaurant);
+router.get('/search', searchRestaurantsAndItems);
 
 router.get('/:id', getRestaurantById);
 

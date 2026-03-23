@@ -199,7 +199,7 @@ input, textarea, select {
 
   /* Content padding to not hide behind fixed navbars (mobile) */
   .content-mobile-safe {
-    padding-top: calc(72px + env(safe-area-inset-top));
+    padding-top: calc(96px + env(safe-area-inset-top));
     padding-bottom: calc(96px + env(safe-area-inset-bottom));
   }
   @media (min-width: 1024px) {

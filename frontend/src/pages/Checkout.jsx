@@ -32,14 +32,9 @@ const Checkout = () => {
   const [platformSettings, setPlatformSettings] = useState(null);
 
   useEffect(() => {
-    if (items.length === 0) {
-      navigate('/restaurants');
-      return;
-    }
-
     fetchAddresses();
     fetchPlatformSettings();
-  }, [items, navigate]);
+  }, []);
 
   const fetchAddresses = async () => {
     try {
@@ -163,6 +158,11 @@ const Checkout = () => {
   };
 
   const handlePlaceOrder = async () => {
+    if (items.length === 0) {
+      toast.error('Your cart is empty');
+      return;
+    }
+
     if (!selectedAddress) {
       toast.error('Please select a delivery address');
       return;
@@ -224,6 +224,25 @@ const Checkout = () => {
       setLoading(false);
     }
   };
+
+  if (items.length === 0) {
+    return (
+      <div className="min-h-screen w-full overflow-x-hidden" style={{ background: 'var(--bg-app)' }}>
+        <div className="max-w-4xl w-full mx-auto container-px pt-6 pb-20 text-center">
+          <div className="bg-white rounded-2xl shadow-soft p-8">
+            <h1 className="text-2xl font-bold text-gray-900">Your cart is empty</h1>
+            <p className="text-sm text-gray-500 mt-2">Add items to your cart to continue checkout.</p>
+            <button
+              onClick={() => navigate('/restaurants')}
+              className="mt-6 btn-primary px-6 py-3 text-sm font-semibold rounded-xl"
+            >
+              Browse Restaurants
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden" style={{ background: 'var(--bg-app)' }}>
@@ -511,7 +530,7 @@ const Checkout = () => {
 
               <button
                 onClick={handlePlaceOrder}
-                disabled={loading || !selectedAddress}
+                disabled={loading || !selectedAddress || items.length === 0}
                 className="w-full btn-primary py-3.5 max-[320px]:py-3 text-[15px] max-[320px]:text-[14px] font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Placing Order...' : 'Place Order'}

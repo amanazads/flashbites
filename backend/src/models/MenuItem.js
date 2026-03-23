@@ -1,5 +1,34 @@
 const mongoose = require('mongoose');
 
+const ALLOWED_MENU_CATEGORIES = [
+  'Starters',
+  'Main Course',
+  'Desserts',
+  'Beverages',
+  'Breads',
+  'Rice',
+  'Snacks',
+  'Fast Food',
+  'Pizza',
+  'Burger',
+  'South Indian',
+  'North Indian',
+  'Chinese',
+  'Paneer',
+  'Cake',
+  'Biryani',
+  'Veg Meal',
+  'Noodles',
+  'Sandwich',
+  'Dosa',
+  'Italian',
+  'Momos',
+  'Chaap',
+  'Fries',
+  'Shakes',
+  'Coffee'
+];
+
 const menuItemSchema = new mongoose.Schema({
   restaurantId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -29,8 +58,20 @@ const menuItemSchema = new mongoose.Schema({
   },
   category: {
     type: String,
+    required: false,
+    enum: ALLOWED_MENU_CATEGORIES
+  },
+  categories: {
+    type: [String],
     required: true,
-    enum: ['Starters', 'Main Course', 'Desserts', 'Beverages', 'Breads', 'Rice', 'Snacks', 'Fast Food', 'Pizza', 'Burger', 'South Indian', 'North Indian', 'Chinese']
+    default: [],
+    validate: {
+      validator: function(v) {
+        return Array.isArray(v) && v.length > 0;
+      },
+      message: 'At least one category is required'
+    },
+    enum: ALLOWED_MENU_CATEGORIES
   },
   variants: [{
     name: {
@@ -69,5 +110,18 @@ const menuItemSchema = new mongoose.Schema({
 
 menuItemSchema.index({ restaurantId: 1, isAvailable: 1 });
 menuItemSchema.index({ category: 1 });
+menuItemSchema.index({ categories: 1 });
+
+menuItemSchema.pre('validate', function(next) {
+  if ((!this.categories || this.categories.length === 0) && this.category) {
+    this.categories = [this.category];
+  }
+
+  if ((!this.category || this.category.trim() === '') && Array.isArray(this.categories) && this.categories.length > 0) {
+    this.category = this.categories[0];
+  }
+
+  next();
+});
 
 module.exports = mongoose.model('MenuItem', menuItemSchema);

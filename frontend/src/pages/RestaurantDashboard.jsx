@@ -33,6 +33,35 @@ import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
 import socketService from '../services/socketService';
 import { playNotificationSound } from '../utils/notificationSound';
 
+const MENU_CATEGORY_OPTIONS = [
+  'Starters',
+  'Main Course',
+  'Desserts',
+  'Beverages',
+  'Breads',
+  'Rice',
+  'Snacks',
+  'Fast Food',
+  'Pizza',
+  'Burger',
+  'South Indian',
+  'North Indian',
+  'Chinese',
+  'Paneer',
+  'Cake',
+  'Biryani',
+  'Veg Meal',
+  'Noodles',
+  'Sandwich',
+  'Dosa',
+  'Italian',
+  'Momos',
+  'Chaap',
+  'Fries',
+  'Shakes',
+  'Coffee'
+];
+
 const RestaurantDashboard = () => {
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
@@ -84,6 +113,7 @@ const RestaurantDashboard = () => {
     description: '',
     price: '',
     category: '',
+    categories: [],
     isVeg: true,
     isAvailable: true,
     variants: [],
@@ -233,8 +263,8 @@ const RestaurantDashboard = () => {
       toast.error('Please enter a valid price');
       return;
     }
-    if (!menuItemData.category) {
-      toast.error('Please select a category');
+    if (!menuItemData.categories || menuItemData.categories.length === 0) {
+      toast.error('Please select at least one category');
       return;
     }
     
@@ -245,7 +275,8 @@ const RestaurantDashboard = () => {
       formData.append('name', menuItemData.name.trim());
       formData.append('description', menuItemData.description.trim());
       formData.append('price', menuItemData.price);
-      formData.append('category', menuItemData.category);
+      formData.append('categories', JSON.stringify(menuItemData.categories));
+      formData.append('category', menuItemData.categories[0]);
     formData.append('isVeg', menuItemData.isVeg);
     formData.append('isAvailable', Boolean(menuItemData.isAvailable));
     if (menuItemData.variants) {
@@ -280,6 +311,7 @@ const RestaurantDashboard = () => {
         description: '',
         price: '',
         category: '',
+        categories: [],
         isVeg: true,
         isAvailable: true,
         variants: [],
@@ -409,7 +441,8 @@ const RestaurantDashboard = () => {
       name: item.name,
       description: item.description,
       price: item.price,
-      category: item.category,
+      category: item.category || item.categories?.[0] || '',
+      categories: Array.isArray(item.categories) && item.categories.length > 0 ? item.categories : (item.category ? [item.category] : []),
       isVeg: item.isVeg,
       isAvailable: item.isAvailable,
       variants: item.variants ? item.variants.map(v => ({ ...v })) : [],
@@ -729,6 +762,7 @@ const RestaurantDashboard = () => {
                           description: '',
                           price: '',
                           category: '',
+                          categories: [],
                           isVeg: true,
                           isAvailable: true,
                           variants: [],
@@ -832,7 +866,7 @@ const RestaurantDashboard = () => {
                                 ₹{item.price} <span className="text-xs text-gray-500 font-normal">{item.variants && item.variants.length > 0 ? "onwards" : ""}</span>
                               </span>
                               <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
-                                {item.category}
+                                {Array.isArray(item.categories) && item.categories.length > 0 ? item.categories.join(', ') : item.category}
                               </span>
                             </div>
                             
@@ -1592,34 +1626,34 @@ const RestaurantDashboard = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Category *
+                      Categories *
                     </label>
-                    <select
-                      required
-                      value={menuItemData.category}
-                      onChange={(e) =>
-                        setMenuItemData({
-                          ...menuItemData,
-                          category: e.target.value,
-                        })
-                      }
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    >
-                      <option value="">Select category</option>
-                      <option value="Starters">Starters</option>
-                      <option value="Main Course">Main Course</option>
-                      <option value="Desserts">Desserts</option>
-                      <option value="Beverages">Beverages</option>
-                      <option value="Breads">Breads</option>
-                      <option value="Rice">Rice</option>
-                      <option value="Snacks">Snacks</option>
-                      <option value="Fast Food">Fast Food</option>
-                      <option value="Pizza">Pizza</option>
-                      <option value="Burger">Burger</option>
-                      <option value="South Indian">South Indian</option>
-                      <option value="North Indian">North Indian</option>
-                      <option value="Chinese">Chinese</option>
-                    </select>
+                    <div className="max-h-44 overflow-y-auto border rounded-lg p-3 grid grid-cols-2 gap-2">
+                      {MENU_CATEGORY_OPTIONS.map((category) => {
+                        const checked = menuItemData.categories?.includes(category);
+                        return (
+                          <label key={category} className="inline-flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                const nextCategories = e.target.checked
+                                  ? [...(menuItemData.categories || []), category]
+                                  : (menuItemData.categories || []).filter((c) => c !== category);
+
+                                setMenuItemData({
+                                  ...menuItemData,
+                                  categories: nextCategories,
+                                  category: nextCategories[0] || '',
+                                });
+                              }}
+                            />
+                            <span>{category}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Select one or more categories for this item.</p>
                   </div>
                 </div>
 

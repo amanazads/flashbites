@@ -38,7 +38,34 @@ import axios from '../api/axios';
 import socketService from '../services/socketService';
 import RestaurantLocationModal from '../components/admin/RestaurantLocationModal';
 
-const MENU_CATEGORIES = ['Starters', 'Main Course', 'Desserts', 'Beverages', 'Breads', 'Rice', 'Snacks', 'Fast Food', 'Pizza', 'Burger', 'South Indian', 'North Indian', 'Chinese'];
+const MENU_CATEGORIES = [
+  'Starters',
+  'Main Course',
+  'Desserts',
+  'Beverages',
+  'Breads',
+  'Rice',
+  'Snacks',
+  'Fast Food',
+  'Pizza',
+  'Burger',
+  'South Indian',
+  'North Indian',
+  'Chinese',
+  'Paneer',
+  'Cake',
+  'Biryani',
+  'Veg Meal',
+  'Noodles',
+  'Sandwich',
+  'Dosa',
+  'Italian',
+  'Momos',
+  'Chaap',
+  'Fries',
+  'Shakes',
+  'Coffee'
+];
 const ROLE_OPTIONS = [
   { value: 'user', label: 'User' },
   { value: 'restaurant_owner', label: 'Restaurant Owner' },

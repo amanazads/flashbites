@@ -79,6 +79,12 @@ const Navbar = () => {
     dispatch(closeCart());
   }, [location.pathname, dispatch]);
 
+  useEffect(() => {
+    // Ensure transient top search UI never leaks across pages.
+    setShowMobileSearch(false);
+    setMobileSearch('');
+  }, [location.pathname]);
+
   /* ─ Nav tab definitions ─ */
   let tabs = [];
   if (user?.role === 'restaurant_owner') {
@@ -114,20 +120,16 @@ const Navbar = () => {
       <div
         className="mobile-top-nav lg:hidden fixed top-0 left-0 right-0 z-[1200] bg-white"
         style={{ 
-          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+          paddingTop: 'max(env(safe-area-inset-top), 10px)',
           paddingLeft: 'env(safe-area-inset-left)',
           paddingRight: 'env(safe-area-inset-right)',
+          boxShadow: '0 1px 0 rgba(0,0,0,0.05)',
         }}
       >
         <div
-          className="bg-white"
-          style={{
-            height: 'max(18px, calc(env(safe-area-inset-top) + 10px))',
-            borderBottom: '2px solid #F0F2F5'
-          }}
-        />
-        <div className="px-3 sm:px-4 flex items-center justify-between gap-2"
-          style={{ minHeight: '56px', paddingTop: '4px' }}>
+          className="mx-2 sm:mx-3 px-3 sm:px-4 flex items-center justify-between gap-2 bg-white rounded-2xl"
+          style={{ minHeight: '64px', boxShadow: '0 4px 14px rgba(0,0,0,0.12)' }}
+        >
 
           {/* Back button — visible on non-home pages, also supports swipe-right */}
           {location.pathname !== '/' && (
@@ -202,7 +204,7 @@ const Navbar = () => {
 
         {/* Expandable search bar */}
         {showMobileSearch && shouldShowSearch && (
-          <div className="px-4 pb-3 animate-slide-down">
+          <div className="mx-2 sm:mx-3 mt-2 px-4 pb-3 bg-white rounded-2xl border border-black/20 animate-slide-down" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
             <form onSubmit={handleMobileSearch} className="search-bar">
               <MagnifyingGlassIcon className="h-4 w-4 flex-shrink-0 text-gray-400" />
               <input

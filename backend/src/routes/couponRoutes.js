@@ -5,6 +5,7 @@ const { protect } = require('../middleware/auth');
 const { restrictTo } = require('../middleware/roleAuth');
 
 // Public routes
+router.get('/public', couponController.getPublicCoupons);
 router.post('/validate', protect, couponController.validateCoupon);
 router.get('/available', protect, couponController.getAvailableCoupons);
 
