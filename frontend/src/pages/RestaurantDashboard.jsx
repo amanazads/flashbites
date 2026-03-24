@@ -282,7 +282,7 @@ const RestaurantDashboard = () => {
         && isValidRestaurantCoordPair(Number(locationPayload.coordinates[1]), Number(locationPayload.coordinates[0]));
 
       if (!hasValidCoords) {
-        const geocodeQuery = [
+        const geocodeQueries = [
           restaurantData.address.street,
           restaurantData.address.city,
           restaurantData.address.state,
@@ -290,19 +290,38 @@ const RestaurantDashboard = () => {
           'India'
         ].filter(Boolean).join(', ');
 
-        try {
-          const geocodeRes = await geocodeAddressText(geocodeQuery);
-          const location = geocodeRes?.data?.location || geocodeRes?.location || null;
-          const lat = Number(location?.lat);
-          const lng = Number(location?.lng);
-          if (isValidRestaurantCoordPair(lat, lng)) {
-            locationPayload = {
-              type: 'Point',
-              coordinates: [lng, lat]
-            };
+        const queryVariants = [
+          geocodeQueries,
+          restaurantLocationSearch,
+          [
+            restaurantData.name,
+            restaurantData.address.city,
+            restaurantData.address.state,
+            'India'
+          ].filter(Boolean).join(', '),
+          [
+            restaurantData.address.city,
+            restaurantData.address.state,
+            'India'
+          ].filter(Boolean).join(', ')
+        ].map((item) => String(item || '').trim()).filter((item, index, arr) => item.length > 2 && arr.indexOf(item) === index);
+
+        for (const query of queryVariants) {
+          try {
+            const geocodeRes = await geocodeAddressText(query);
+            const location = geocodeRes?.data?.location || geocodeRes?.location || null;
+            const lat = Number(location?.lat ?? geocodeRes?.data?.lat ?? geocodeRes?.lat);
+            const lng = Number(location?.lng ?? geocodeRes?.data?.lng ?? geocodeRes?.lng);
+            if (isValidRestaurantCoordPair(lat, lng)) {
+              locationPayload = {
+                type: 'Point',
+                coordinates: [lng, lat]
+              };
+              break;
+            }
+          } catch {
+            // Try next query variant.
           }
-        } catch {
-          // Backend will do final geocoding fallback.
         }
       }
 

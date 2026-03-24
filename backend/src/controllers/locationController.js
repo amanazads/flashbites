@@ -26,12 +26,18 @@ exports.geocode = async (req, res) => {
     if (!result) {
       return successResponse(res, 200, 'Address could not be resolved', {
         location: null,
+        lat: null,
+        lng: null,
+        formattedAddress: null,
         resolved: false
       });
     }
 
     return successResponse(res, 200, 'Address geocoded successfully', {
       location: result,
+      lat: result.lat,
+      lng: result.lng,
+      formattedAddress: result.fullAddress,
       resolved: true
     });
   } catch (error) {
