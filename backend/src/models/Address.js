@@ -12,20 +12,16 @@ const addressSchema = new mongoose.Schema({
     default: 'home'
   },
   street: {
-    type: String,
-    required: true
+    type: String
   },
   city: {
-    type: String,
-    required: true
+    type: String
   },
   state: {
-    type: String,
-    required: true
+    type: String
   },
   zipCode: {
-    type: String,
-    required: true
+    type: String
   },
   fullAddress: {
     type: String,

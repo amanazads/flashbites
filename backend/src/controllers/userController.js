@@ -2,9 +2,7 @@ const User = require('../models/User');
 const Address = require('../models/Address');
 const AccountDeletionRequest = require('../models/AccountDeletionRequest');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
-const axios = require('axios');
-
-const INDIA_PIN_REGEX = /^[1-9][0-9]{5}$/;
+const { geocodeAddress, buildFullAddress } = require('../services/locationService');
 
 const normalizeText = (value = '') => String(value).trim();
 
@@ -19,50 +17,6 @@ const normalizeCoordinates = (coordinates) => {
 
   return [lng, lat];
 };
-
-const geocodeAddress = async ({ street, landmark, city, state, zipCode, fullAddress }) => {
-  const queries = [
-    fullAddress,
-    [street, landmark, city, state, zipCode, 'India'].filter(Boolean).join(', '),
-    [street, city, state, zipCode, 'India'].filter(Boolean).join(', '),
-    [city, state, zipCode, 'India'].filter(Boolean).join(', '),
-    [city, state, 'India'].filter(Boolean).join(', ')
-  ].filter(Boolean);
-
-  for (const query of queries) {
-    try {
-      const response = await axios.get('https://nominatim.openstreetmap.org/search', {
-        timeout: 7000,
-        headers: {
-          'User-Agent': 'FlashBites/1.0 (support@flashbites.in)'
-        },
-        params: {
-          q: query,
-          format: 'json',
-          limit: 1,
-          countrycodes: 'in'
-        }
-      });
-
-      const first = response?.data?.[0];
-      if (first && first.lat && first.lon) {
-        const lat = Number(first.lat);
-        const lng = Number(first.lon);
-        if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          return [lng, lat];
-        }
-      }
-    } catch {
-      // Try the next query variant.
-    }
-  }
-
-  return null;
-};
-
-const buildFullAddress = ({ street, landmark, city, state, zipCode }) => (
-  [street, landmark, city, state, zipCode].filter(Boolean).join(', ')
-);
 
 const resolveCoordinatesFromInput = (input = {}, fallback = {}) => {
   let coordinates = normalizeCoordinates(input.coordinates ?? fallback.coordinates);
@@ -85,25 +39,18 @@ const validateAndBuildAddressPayload = async (input, fallback = {}) => {
   const state = normalizeText(input.state ?? fallback.state);
   const landmark = normalizeText(input.landmark ?? fallback.landmark);
 
-  if (!street || !zipCode || !city || !state) {
-    return { error: 'Street, city, state and PIN code are required' };
-  }
+  const fullAddress = normalizeText(input.fullAddress ?? fallback.fullAddress)
+    || buildFullAddress({ street, landmark, city, state, zipCode });
 
-  if (!INDIA_PIN_REGEX.test(zipCode)) {
-    return { error: 'Please enter a valid 6-digit PIN code' };
+  if (!fullAddress && !street && !city) {
+    return { error: 'Please provide a delivery address' };
   }
-
-  const fullAddress = normalizeText(input.fullAddress ?? fallback.fullAddress) || buildFullAddress({
-    street,
-    landmark,
-    city,
-    state,
-    zipCode
-  });
 
   let coordinates = resolveCoordinatesFromInput(input, fallback);
   if (!coordinates) {
-    coordinates = await geocodeAddress({ street, landmark, city, state, zipCode, fullAddress });
+    const query = fullAddress || [street, landmark, city, state, zipCode].filter(Boolean).join(', ');
+    const geocoded = await geocodeAddress(query);
+    coordinates = geocoded?.coordinates || null;
   }
 
   coordinates = normalizeCoordinates(coordinates);
@@ -118,7 +65,7 @@ const validateAndBuildAddressPayload = async (input, fallback = {}) => {
       city,
       state,
       zipCode,
-      fullAddress,
+      fullAddress: fullAddress || buildFullAddress({ street, landmark, city, state, zipCode }),
       landmark,
       coordinates,
       lng: coordinates[0],

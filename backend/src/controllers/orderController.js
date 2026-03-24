@@ -400,14 +400,14 @@ exports.createOrder = async (req, res) => {
     const maxDistanceKm = Number(restaurant.deliveryRadiusKm || process.env.MAX_DELIVERY_DISTANCE_KM || 20);
 
     if (process.env.NODE_ENV !== 'production') {
-      console.log('User Address:', {
+      console.log('User:', {
         addressId: selectedAddressDoc?._id || null,
         fullAddress: selectedAddressDoc?.fullAddress || deliveryAddress?.fullAddress || null,
         lat: addrLat,
         lng: addrLng,
         zipCode: selectedAddressDoc?.zipCode || deliveryAddress?.zipCode || null
       });
-      console.log('Restaurant Location:', {
+      console.log('Restaurant:', {
         restaurantId,
         name: restaurant.name,
         lat: restLat,

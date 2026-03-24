@@ -392,20 +392,47 @@ const Home = () => {
 
   /* ── Select a saved address ── */
   const handleSelectSavedAddress = async (addr) => {
-    setGeocoding(true);
     setShowAddressPicker(false);
-    // Try full address first, then just city
-    let geo = await geocodeAddress(`${addr.street}, ${addr.city}, ${addr.state}`);
-    if (!geo) geo = await geocodeAddress(addr.city);
-    setGeocoding(false);
+
+    const addrLng = Number(addr?.lng ?? addr?.coordinates?.[0]);
+    const addrLat = Number(addr?.lat ?? addr?.coordinates?.[1]);
+    const hasStoredCoords = Number.isFinite(addrLat) && Number.isFinite(addrLng) && (addrLat !== 0 || addrLng !== 0);
+
+    let geo = null;
+    if (!hasStoredCoords) {
+      setGeocoding(true);
+      // Fallback only when legacy address has no saved coordinates.
+      geo = await geocodeAddress(addr.fullAddress || `${addr.street || ''}, ${addr.city || ''}, ${addr.state || ''}`);
+      if (!geo && addr.city) geo = await geocodeAddress(addr.city);
+      setGeocoding(false);
+    }
+
     const cityLabel = addr.city;
     const typeLabel = addr.type === 'home' ? 'Home' : addr.type === 'work' ? 'Work' : 'Other';
+
+    if (hasStoredCoords) {
+      setSelectedAddress({
+        id: addr._id,
+        label: `${typeLabel} – ${cityLabel || addr.fullAddress || 'Saved Address'}`,
+        city: cityLabel || '',
+        latitude: addrLat,
+        longitude: addrLng,
+      });
+      return;
+    }
+
     if (geo) {
-      setSelectedAddress({ label: `${typeLabel} – ${cityLabel}`, city: cityLabel, latitude: geo.latitude, longitude: geo.longitude });
+      setSelectedAddress({
+        id: addr._id,
+        label: `${typeLabel} – ${cityLabel || geo.displayName || 'Saved Address'}`,
+        city: cityLabel || geo.displayName || '',
+        latitude: geo.latitude,
+        longitude: geo.longitude
+      });
     } else {
       // No geocode — use cluster fallback with zeroed coords (city match will still work)
-      setSelectedAddress({ label: `${typeLabel} – ${cityLabel}`, city: cityLabel, latitude: 0, longitude: 0 });
-      toast(`Showing restaurants near ${cityLabel}`, { icon: '📍' });
+      setSelectedAddress({ id: addr._id, label: `${typeLabel} – ${cityLabel}`, city: cityLabel, latitude: 0, longitude: 0 });
+      toast(`Showing restaurants near ${cityLabel || 'your selected area'}`, { icon: '📍' });
     }
   };
 

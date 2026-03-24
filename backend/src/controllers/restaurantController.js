@@ -188,6 +188,8 @@ exports.getAllRestaurants = async (req, res) => {
       search,
       lat,
       lng,
+      addressLat,
+      addressLng,
       radius = 20000,
       minRating,
       sortBy = '-rating',
@@ -229,9 +231,9 @@ exports.getAllRestaurants = async (req, res) => {
     let restaurants;
 
     // Geospatial search
-    if (lat && lng) {
-      const latNum = Number(lat);
-      const lngNum = Number(lng);
+    if (lat || lng || addressLat || addressLng) {
+      const latNum = Number(lat ?? addressLat);
+      const lngNum = Number(lng ?? addressLng);
       const maxDistance = parseInt(radius, 10);
 
       if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
@@ -262,23 +264,32 @@ exports.getAllRestaurants = async (req, res) => {
       let candidates = [];
 
       try {
-        candidates = await Restaurant.find({
-          ...geoQuery,
-          location: {
-            $near: {
-              $geometry: {
+        candidates = await Restaurant.aggregate([
+          {
+            $geoNear: {
+              near: {
                 type: 'Point',
                 coordinates: [lngNum, latNum]
               },
-              $maxDistance: maxDistance
+              distanceField: 'distanceMeters',
+              maxDistance,
+              spherical: true,
+              query: geoQuery
             }
+          },
+          {
+            $project: {
+              documents: 0,
+              bankDetails: 0,
+              __v: 0
+            }
+          },
+          {
+            $limit: 500
           }
-        })
-          .select(projection)
-          .limit(200)
-          .lean();
+        ]);
       } catch (error) {
-        // Fallback when geo index has bad data; filter in memory.
+        // Fallback when aggregation/geoNear fails; filter in memory.
         candidates = await Restaurant.find(geoQuery)
           .select(projection)
           .limit(1000)
