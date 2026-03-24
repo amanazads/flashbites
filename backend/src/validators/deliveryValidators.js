@@ -22,4 +22,5 @@ exports.updateLocationValidator = [
 exports.historyQueryValidator = [
   query('page').optional({ values: 'falsy' }).isInt({ min: 1, max: 100000 }).withMessage('page must be a positive integer'),
   query('limit').optional({ values: 'falsy' }).isInt({ min: 1, max: 100 }).withMessage('limit must be between 1 and 100'),
+  query('timeframe').optional({ values: 'falsy' }).isIn(['day', 'week', 'month', 'all']).withMessage('timeframe must be one of day, week, month, all'),
 ];

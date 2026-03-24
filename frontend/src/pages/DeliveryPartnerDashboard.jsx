@@ -6,6 +6,7 @@ import {
   getAssignedOrders,
   acceptOrder,
   markAsDelivered,
+  getOrderHistory,
   getDeliveryStats,
   getDutyStatus,
   updateDutyStatus
@@ -21,6 +22,14 @@ const DeliveryPartnerDashboard = () => {
   const [activeTab, setActiveTab] = useState('available');
   const [availableOrders, setAvailableOrders] = useState([]);
   const [assignedOrders, setAssignedOrders] = useState([]);
+  const [historyOrders, setHistoryOrders] = useState([]);
+  const [historySummary, setHistorySummary] = useState({
+    totalDeliveries: 0,
+    totalEarnings: 0,
+    avgEarningPerOrder: 0
+  });
+  const [historyTimeframe, setHistoryTimeframe] = useState('day');
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [stats, setStats] = useState({});
   const [isOnDuty, setIsOnDuty] = useState(false);
   const [dutyStatusUpdatedAt, setDutyStatusUpdatedAt] = useState(null);
@@ -168,10 +177,39 @@ const DeliveryPartnerDashboard = () => {
     }
   };
 
+  const fetchOrderHistory = async (timeframe = historyTimeframe) => {
+    setHistoryLoading(true);
+    try {
+      const response = await getOrderHistory({ timeframe, page: 1, limit: 100 });
+      setHistoryOrders(response?.data?.orders || []);
+      setHistorySummary(response?.data?.summary || {
+        totalDeliveries: 0,
+        totalEarnings: 0,
+        avgEarningPerOrder: 0
+      });
+    } catch (error) {
+      toast.error('Failed to load order history');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'history' && user?.role === 'delivery_partner') {
+      fetchOrderHistory(historyTimeframe);
+    }
+  }, [activeTab, historyTimeframe, user]);
+
   const getEtaLabel = (order) => {
     if (!order?.estimatedDelivery) return null;
     const mins = Math.max(0, Math.round((new Date(order.estimatedDelivery).getTime() - Date.now()) / 60000));
     return `${mins} min`;
+  };
+
+  const getOrderEarning = (order) => {
+    const earning = Number(order?.deliveryPartnerEarning);
+    if (Number.isFinite(earning) && earning > 0) return earning;
+    return Number(order?.deliveryFee) || 0;
   };
 
   const buildGoogleMapsLink = (coords) => {
@@ -484,6 +522,16 @@ const DeliveryPartnerDashboard = () => {
             >
               My Orders ({assignedOrders.length})
             </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`flex-1 py-4 px-6 font-semibold transition ${
+                activeTab === 'history'
+                  ? 'text-primary-600 border-b-2 border-primary-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Order History
+            </button>
           </div>
         </div>
 
@@ -502,7 +550,7 @@ const DeliveryPartnerDashboard = () => {
               <p className="text-sm text-gray-500 mt-2">Check back soon for new delivery opportunities!</p>
             </div>
           )
-        ) : (
+        ) : activeTab === 'assigned' ? (
           assignedOrders.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {assignedOrders.map((order) => (
@@ -516,6 +564,87 @@ const DeliveryPartnerDashboard = () => {
               <p className="text-sm text-gray-500 mt-2">Accept orders from the Available Orders tab to start delivering!</p>
             </div>
           )
+        ) : (
+          <div className="space-y-5">
+            <div className="bg-white rounded-lg shadow p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex flex-wrap gap-2">
+                  {['day', 'week', 'month', 'all'].map((period) => (
+                    <button
+                      key={period}
+                      onClick={() => setHistoryTimeframe(period)}
+                      className={`px-3 py-2 rounded-lg text-sm font-semibold ${
+                        historyTimeframe === period
+                          ? 'bg-primary-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {period === 'all' ? 'All Time' : period.charAt(0).toUpperCase() + period.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => fetchOrderHistory(historyTimeframe)}
+                  className="px-3 py-2 rounded-lg text-sm font-semibold bg-primary-500 text-white hover:bg-primary-600"
+                >
+                  Refresh History
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white rounded-lg shadow p-4">
+                <p className="text-sm text-gray-600">Delivered Orders</p>
+                <p className="text-2xl font-bold text-gray-900">{historySummary.totalDeliveries || 0}</p>
+              </div>
+              <div className="bg-white rounded-lg shadow p-4">
+                <p className="text-sm text-gray-600">Total Earnings</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(historySummary.totalEarnings || 0)}</p>
+              </div>
+              <div className="bg-white rounded-lg shadow p-4">
+                <p className="text-sm text-gray-600">Avg Earning / Order</p>
+                <p className="text-2xl font-bold text-primary-600">{formatCurrency(historySummary.avgEarningPerOrder || 0)}</p>
+              </div>
+            </div>
+
+            {historyLoading ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">Loading history...</div>
+            ) : historyOrders.length === 0 ? (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <p className="text-5xl mb-3">🗂️</p>
+                <p className="text-lg text-gray-600">No delivered orders found for this period.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {historyOrders.map((order) => (
+                  <div key={order._id} className="bg-white rounded-lg shadow p-4">
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-2">
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">Order #{order._id.slice(-8).toUpperCase()}</p>
+                        <p className="text-xs text-gray-500">Delivered: {order.deliveredAt ? new Date(order.deliveredAt).toLocaleString() : '-'}</p>
+                        <p className="text-sm text-gray-700 mt-1">Customer: {order.userId?.name || 'N/A'} ({order.userId?.phone || 'N/A'})</p>
+                        <p className="text-sm text-gray-700">Restaurant: {order.restaurantId?.name || 'N/A'}</p>
+                        <p className="text-xs text-gray-500 mt-1 break-words">
+                          To: {order.addressId
+                            ? `${order.addressId.street}, ${order.addressId.city}, ${order.addressId.state} - ${order.addressId.zipCode}`
+                            : `${order.deliveryAddress?.street || ''}, ${order.deliveryAddress?.city || ''}, ${order.deliveryAddress?.state || ''} - ${order.deliveryAddress?.zipCode || ''}`}
+                        </p>
+                      </div>
+                      <div className="text-left md:text-right">
+                        <p className="text-sm text-gray-500">Order Total</p>
+                        <p className="text-lg font-bold text-gray-900">{formatCurrency(order.total || 0)}</p>
+                        <p className="text-sm text-gray-500 mt-1">Your Earning</p>
+                        <p className="text-lg font-bold text-green-600">{formatCurrency(getOrderEarning(order))}</p>
+                        {order.deliveryPartnerPayoutSnapshot?.bonusApplied && (
+                          <p className="text-xs font-semibold text-amber-700 mt-1">Bonus Applied</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

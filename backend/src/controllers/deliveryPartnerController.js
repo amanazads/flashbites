@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const User = require('../models/User');
+const PlatformSettings = require('../models/PlatformSettings');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { 
   notifyUserDeliveryAssigned,
@@ -13,6 +14,72 @@ const {
   notifyRestaurantNewOrder: socketNotifyRestaurant,
   emitOrderLocationUpdate
 } = require('../services/socketService');
+
+const DEFAULT_PAYOUT_CONFIG = {
+  perOrder: 40,
+  bonusThreshold: 13,
+  bonusAmount: 850
+};
+
+const normalizePayoutConfig = (config = {}) => {
+  const perOrder = Number(config.perOrder);
+  const bonusThreshold = Number(config.bonusThreshold);
+  const bonusAmount = Number(config.bonusAmount);
+
+  return {
+    perOrder: Number.isFinite(perOrder) && perOrder >= 0 ? perOrder : DEFAULT_PAYOUT_CONFIG.perOrder,
+    bonusThreshold: Number.isFinite(bonusThreshold) && bonusThreshold > 0 ? bonusThreshold : DEFAULT_PAYOUT_CONFIG.bonusThreshold,
+    bonusAmount: Number.isFinite(bonusAmount) && bonusAmount >= 0 ? bonusAmount : DEFAULT_PAYOUT_CONFIG.bonusAmount
+  };
+};
+
+const getEffectivePayoutConfig = async (partnerUserId) => {
+  const [settings, partner] = await Promise.all([
+    PlatformSettings.findOne().select('deliveryPartnerPayout').lean(),
+    User.findById(partnerUserId).select('deliveryPayoutOverride').lean()
+  ]);
+
+  const globalConfig = normalizePayoutConfig(settings?.deliveryPartnerPayout || DEFAULT_PAYOUT_CONFIG);
+  const override = partner?.deliveryPayoutOverride;
+
+  if (override?.isActive) {
+    return {
+      ...normalizePayoutConfig(override),
+      source: 'partner_override'
+    };
+  }
+
+  return {
+    ...globalConfig,
+    source: 'global'
+  };
+};
+
+const getHistoryRangeStart = (timeframe) => {
+  const now = new Date();
+
+  if (timeframe === 'day') {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
+
+  if (timeframe === 'week') {
+    const start = new Date(now);
+    start.setDate(now.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
+
+  if (timeframe === 'month') {
+    const start = new Date(now);
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
+
+  return null;
+};
 
 // @desc    Get all available orders for delivery partners
 // @route   GET /api/delivery/orders/available
@@ -221,10 +288,26 @@ exports.markAsDelivered = async (req, res) => {
       return errorResponse(res, 400, 'Order is not out for delivery');
     }
 
+    const payoutConfig = await getEffectivePayoutConfig(req.user._id);
+    const completedBeforeCount = await Order.countDocuments({
+      deliveryPartnerId: req.user._id,
+      status: 'delivered'
+    });
+    const completedCountAfterThisOrder = completedBeforeCount + 1;
+    const bonusApplied = completedCountAfterThisOrder % payoutConfig.bonusThreshold === 0;
+    const partnerEarning = payoutConfig.perOrder + (bonusApplied ? payoutConfig.bonusAmount : 0);
+
     // Mark as delivered
     order.status = 'delivered';
     order.deliveredAt = new Date();
     order.paymentStatus = 'completed';
+    order.deliveryPartnerEarning = partnerEarning;
+    order.deliveryPartnerPayoutSnapshot = {
+      perOrder: payoutConfig.perOrder,
+      bonusThreshold: payoutConfig.bonusThreshold,
+      bonusAmount: payoutConfig.bonusAmount,
+      bonusApplied
+    };
     await order.save();
 
     const updatedOrder = await Order.findById(orderId)
@@ -270,7 +353,15 @@ exports.markAsDelivered = async (req, res) => {
       console.error('Delivery completion notification error:', notifyError);
     }
 
-    return successResponse(res, 200, 'Order marked as delivered successfully', { order: updatedOrder });
+    return successResponse(res, 200, 'Order marked as delivered successfully', {
+      order: updatedOrder,
+      payout: {
+        earning: partnerEarning,
+        bonusApplied,
+        config: payoutConfig,
+        completedDeliveries: completedCountAfterThisOrder
+      }
+    });
   } catch (error) {
     console.error('Mark as delivered error:', error);
     return errorResponse(res, 500, 'Failed to mark order as delivered');
@@ -282,29 +373,76 @@ exports.markAsDelivered = async (req, res) => {
 // @access  Private (Delivery Partner)
 exports.getOrderHistory = async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, timeframe = 'all' } = req.query;
+    const normalizedTimeframe = ['day', 'week', 'month', 'all'].includes(String(timeframe))
+      ? String(timeframe)
+      : 'all';
+    const pageNumber = Number(page) || 1;
+    const limitNumber = Number(limit) || 20;
 
-    const orders = await Order.find({
+    const query = {
       deliveryPartnerId: req.user._id,
       status: 'delivered'
-    })
+    };
+
+    const startDate = getHistoryRangeStart(normalizedTimeframe);
+    if (startDate) {
+      query.deliveredAt = { $gte: startDate };
+    }
+
+    const orders = await Order.find(query)
       .populate('userId', 'name phone')
       .populate('restaurantId', 'name address')
       .populate('addressId')
       .sort({ deliveredAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .limit(limitNumber)
+      .skip((pageNumber - 1) * limitNumber);
 
-    const count = await Order.countDocuments({
-      deliveryPartnerId: req.user._id,
-      status: 'delivered'
-    });
+    const count = await Order.countDocuments(query);
+
+    const earningsSummary = await Order.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: null,
+          totalEarnings: {
+            $sum: {
+              $cond: [
+                { $gt: ['$deliveryPartnerEarning', 0] },
+                '$deliveryPartnerEarning',
+                '$deliveryFee'
+              ]
+            }
+          },
+          totalDeliveries: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const groupedByDate = orders.reduce((acc, order) => {
+      const dateKey = order.deliveredAt
+        ? new Date(order.deliveredAt).toISOString().slice(0, 10)
+        : new Date(order.createdAt).toISOString().slice(0, 10);
+      if (!acc[dateKey]) acc[dateKey] = [];
+      acc[dateKey].push(order);
+      return acc;
+    }, {});
+
+    const totalEarnings = earningsSummary[0]?.totalEarnings || 0;
+    const totalDeliveries = earningsSummary[0]?.totalDeliveries || 0;
 
     return successResponse(res, 200, 'Order history fetched successfully', {
       orders,
-      totalPages: Math.ceil(count / limit),
-      currentPage: page,
-      totalOrders: count
+      groupedByDate,
+      timeframe: normalizedTimeframe,
+      totalPages: Math.ceil(count / limitNumber),
+      currentPage: pageNumber,
+      totalOrders: count,
+      summary: {
+        totalDeliveries,
+        totalEarnings,
+        avgEarningPerOrder: totalDeliveries > 0 ? totalEarnings / totalDeliveries : 0
+      }
     });
   } catch (error) {
     console.error('Get order history error:', error);
@@ -333,7 +471,20 @@ exports.getStats = async (req, res) => {
       }),
       Order.aggregate([
         { $match: { deliveryPartnerId: req.user._id, status: 'delivered' } },
-        { $group: { _id: null, total: { $sum: '$deliveryFee' } } }
+        {
+          $group: {
+            _id: null,
+            total: {
+              $sum: {
+                $cond: [
+                  { $gt: ['$deliveryPartnerEarning', 0] },
+                  '$deliveryPartnerEarning',
+                  '$deliveryFee'
+                ]
+              }
+            }
+          }
+        }
       ])
     ]);
 

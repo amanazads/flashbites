@@ -116,6 +116,27 @@ const userSchema = new mongoose.Schema({
   lastLocationUpdate: {
     type: Date,
     default: null
+  },
+  deliveryPayoutOverride: {
+    isActive: {
+      type: Boolean,
+      default: false
+    },
+    perOrder: {
+      type: Number,
+      min: 0,
+      default: 0
+    },
+    bonusThreshold: {
+      type: Number,
+      min: 1,
+      default: 13
+    },
+    bonusAmount: {
+      type: Number,
+      min: 0,
+      default: 0
+    }
   }
 }, { 
   timestamps: true 

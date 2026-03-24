@@ -20,8 +20,8 @@ export const markAsDelivered = async (orderId, otp) => {
   return response.data;
 };
 
-export const getOrderHistory = async (page = 1) => {
-  const response = await axios.get(`/delivery/orders/history?page=${page}`);
+export const getOrderHistory = async (params = {}) => {
+  const response = await axios.get('/delivery/orders/history', { params });
   return response.data;
 };
 

@@ -20,6 +20,18 @@ const TRACKING_CACHE_TTL_MS = 15000;
 const makeCacheKey = (scope, payload = {}) => `${ADMIN_CACHE_PREFIX}${scope}:${JSON.stringify(payload)}`;
 const invalidateAdminCache = () => cacheDelByPrefix(ADMIN_CACHE_PREFIX);
 
+const normalizeDeliveryPartnerPayout = (payload = {}) => {
+  const perOrder = Number(payload.perOrder);
+  const bonusThreshold = Number(payload.bonusThreshold);
+  const bonusAmount = Number(payload.bonusAmount);
+
+  return {
+    perOrder: Number.isFinite(perOrder) && perOrder >= 0 ? perOrder : 40,
+    bonusThreshold: Number.isFinite(bonusThreshold) && bonusThreshold > 0 ? bonusThreshold : 13,
+    bonusAmount: Number.isFinite(bonusAmount) && bonusAmount >= 0 ? bonusAmount : 850
+  };
+};
+
 const normalizeSettingsPayload = (payload = {}) => {
   const platformFee = Number(payload.platformFee);
   const taxRate = Number(payload.taxRate);
@@ -49,11 +61,16 @@ const normalizeSettingsPayload = (payload = {}) => {
         .filter((banner) => banner.bold || banner.sub || banner.img)
     : null;
 
+  const deliveryPartnerPayout = payload.deliveryPartnerPayout
+    ? normalizeDeliveryPartnerPayout(payload.deliveryPartnerPayout)
+    : null;
+
   return {
     platformFee: Number.isFinite(platformFee) ? platformFee : undefined,
     taxRate: Number.isFinite(taxRate) ? taxRate : undefined,
     deliveryChargeRules: deliveryChargeRules && deliveryChargeRules.length > 0 ? deliveryChargeRules : undefined,
-    promoBanners: promoBanners ? promoBanners : undefined
+    promoBanners: promoBanners ? promoBanners : undefined,
+    deliveryPartnerPayout: deliveryPartnerPayout || undefined
   };
 };
 
@@ -266,6 +283,192 @@ exports.getDeliveryPartnerDutyBoard = async (req, res) => {
     });
   } catch (error) {
     return errorResponse(res, 500, 'Failed to fetch delivery partner duty board', error.message);
+  }
+};
+
+// @desc    Get delivery partner earnings control data
+// @route   GET /api/admin/delivery-partners/earnings-control
+// @access  Private (Admin)
+exports.getDeliveryPartnerEarningsControl = async (req, res) => {
+  try {
+    let settings = await PlatformSettings.findOne().select('deliveryPartnerPayout').lean();
+    if (!settings) {
+      settings = await PlatformSettings.create({});
+      settings = settings.toObject();
+    }
+
+    const globalConfig = normalizeDeliveryPartnerPayout(settings.deliveryPartnerPayout || {});
+
+    const partners = await User.find({ role: 'delivery_partner' })
+      .select('name phone email isActive isOnDuty deliveryPayoutOverride createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const partnerIds = partners.map((partner) => partner._id);
+    const deliveryStats = partnerIds.length
+      ? await Order.aggregate([
+          {
+            $match: {
+              deliveryPartnerId: { $in: partnerIds },
+              status: 'delivered'
+            }
+          },
+          {
+            $group: {
+              _id: '$deliveryPartnerId',
+              totalDeliveries: { $sum: 1 },
+              totalEarnings: {
+                $sum: {
+                  $cond: [
+                    { $gt: ['$deliveryPartnerEarning', 0] },
+                    '$deliveryPartnerEarning',
+                    '$deliveryFee'
+                  ]
+                }
+              }
+            }
+          }
+        ])
+      : [];
+
+    const statsMap = new Map(deliveryStats.map((item) => [String(item._id), item]));
+
+    const partnerControls = partners.map((partner) => {
+      const override = partner.deliveryPayoutOverride || {};
+      const hasOverride = Boolean(override.isActive);
+      const effectiveConfig = hasOverride
+        ? normalizeDeliveryPartnerPayout(override)
+        : globalConfig;
+      const stats = statsMap.get(String(partner._id));
+
+      return {
+        _id: partner._id,
+        name: partner.name,
+        phone: partner.phone,
+        email: partner.email,
+        isActive: partner.isActive,
+        isOnDuty: Boolean(partner.isOnDuty),
+        overrideConfig: hasOverride ? normalizeDeliveryPartnerPayout(override) : null,
+        effectiveConfig,
+        hasOverride,
+        stats: {
+          totalDeliveries: stats?.totalDeliveries || 0,
+          totalEarnings: stats?.totalEarnings || 0
+        }
+      };
+    });
+
+    return successResponse(res, 200, 'Delivery partner earnings control loaded', {
+      globalConfig,
+      partners: partnerControls
+    });
+  } catch (error) {
+    return errorResponse(res, 500, 'Failed to load delivery partner earnings control', error.message);
+  }
+};
+
+// @desc    Update global delivery partner earnings config
+// @route   PUT /api/admin/delivery-partners/earnings-control/global
+// @access  Private (Admin)
+exports.updateGlobalDeliveryPartnerEarningsConfig = async (req, res) => {
+  try {
+    const globalConfig = normalizeDeliveryPartnerPayout(req.body || {});
+
+    const settings = await PlatformSettings.findOneAndUpdate(
+      {},
+      { $set: { deliveryPartnerPayout: globalConfig } },
+      { new: true, upsert: true, runValidators: true }
+    ).lean();
+
+    invalidateAdminCache();
+    return successResponse(res, 200, 'Global delivery earnings config updated', {
+      globalConfig: settings.deliveryPartnerPayout
+    });
+  } catch (error) {
+    return errorResponse(res, 500, 'Failed to update global delivery earnings config', error.message);
+  }
+};
+
+// @desc    Update delivery partner-specific earnings config
+// @route   PUT /api/admin/delivery-partners/:id/earnings-control
+// @access  Private (Admin)
+exports.updateDeliveryPartnerEarningsConfig = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const resetToGlobal = Boolean(req.body?.resetToGlobal);
+
+    const partner = await User.findOne({ _id: id, role: 'delivery_partner' }).select('_id');
+    if (!partner) {
+      return errorResponse(res, 404, 'Delivery partner not found');
+    }
+
+    if (resetToGlobal) {
+      await User.updateOne(
+        { _id: id },
+        {
+          $set: {
+            deliveryPayoutOverride: {
+              isActive: false,
+              perOrder: 0,
+              bonusThreshold: 13,
+              bonusAmount: 0
+            }
+          }
+        }
+      );
+
+      invalidateAdminCache();
+      return successResponse(res, 200, 'Partner earnings reset to global settings');
+    }
+
+    const overrideConfig = normalizeDeliveryPartnerPayout(req.body || {});
+
+    await User.updateOne(
+      { _id: id },
+      {
+        $set: {
+          deliveryPayoutOverride: {
+            isActive: true,
+            ...overrideConfig
+          }
+        }
+      }
+    );
+
+    invalidateAdminCache();
+    return successResponse(res, 200, 'Partner earnings config updated', {
+      overrideConfig
+    });
+  } catch (error) {
+    return errorResponse(res, 500, 'Failed to update partner earnings config', error.message);
+  }
+};
+
+// @desc    Reset all partner-specific earnings configs
+// @route   PUT /api/admin/delivery-partners/earnings-control/reset-all
+// @access  Private (Admin)
+exports.resetAllDeliveryPartnerEarningsOverrides = async (req, res) => {
+  try {
+    const result = await User.updateMany(
+      { role: 'delivery_partner', 'deliveryPayoutOverride.isActive': true },
+      {
+        $set: {
+          deliveryPayoutOverride: {
+            isActive: false,
+            perOrder: 0,
+            bonusThreshold: 13,
+            bonusAmount: 0
+          }
+        }
+      }
+    );
+
+    invalidateAdminCache();
+    return successResponse(res, 200, 'All partner earning overrides reset to global', {
+      updatedCount: result.modifiedCount || 0
+    });
+  } catch (error) {
+    return errorResponse(res, 500, 'Failed to reset partner earning overrides', error.message);
   }
 };
 

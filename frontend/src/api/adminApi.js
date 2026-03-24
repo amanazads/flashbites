@@ -12,6 +12,22 @@ export const getDeliveryPartnerDutyBoard = () => {
   return axios.get('/admin/delivery-partners/duty-board');
 };
 
+export const getDeliveryPartnerEarningsControl = () => {
+  return axios.get('/admin/delivery-partners/earnings-control');
+};
+
+export const updateGlobalDeliveryPartnerEarningsConfig = (payload) => {
+  return axios.put('/admin/delivery-partners/earnings-control/global', payload);
+};
+
+export const updateDeliveryPartnerEarningsConfig = (partnerId, payload) => {
+  return axios.put(`/admin/delivery-partners/${partnerId}/earnings-control`, payload);
+};
+
+export const resetAllDeliveryPartnerEarningsOverrides = () => {
+  return axios.put('/admin/delivery-partners/earnings-control/reset-all');
+};
+
 export const getAllOrders = (params) => {
   return axios.get('/admin/orders', { params });
 };

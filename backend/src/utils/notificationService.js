@@ -1,4 +1,5 @@
 const webpush = require('web-push');
+const axios = require('axios');
 const Notification = require('../models/Notification');
 const PushSubscription = require('../models/PushSubscription');
 const User = require('../models/User');
@@ -6,7 +7,108 @@ const { admin } = require('../config/firebaseAdmin');
 const { cacheGet, cacheSet } = require('./memoryCache');
 
 const WEB_PUSH_ENABLED = Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+const SMS_ENABLED = Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER);
 const NOTIFICATION_DEDUPE_TTL_MS = 15000;
+
+const normalizePhoneNumber = (rawPhone) => {
+  if (!rawPhone) return null;
+  const raw = String(rawPhone).trim();
+  if (!raw) return null;
+
+  if (raw.startsWith('+') && raw.length >= 8) {
+    return raw;
+  }
+
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.length === 10) return `+91${digits}`;
+  if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`;
+  return null;
+};
+
+const sendSms = async (phone, body) => {
+  try {
+    if (!SMS_ENABLED) return false;
+
+    const to = normalizePhoneNumber(phone);
+    if (!to || !body) return false;
+
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`;
+    const payload = new URLSearchParams({
+      To: to,
+      From: process.env.TWILIO_PHONE_NUMBER,
+      Body: String(body).slice(0, 1550)
+    });
+
+    await axios.post(url, payload, {
+      auth: {
+        username: process.env.TWILIO_ACCOUNT_SID,
+        password: process.env.TWILIO_AUTH_TOKEN
+      },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      timeout: 10000
+    });
+
+    return true;
+  } catch (error) {
+    console.error('SMS send failed:', error.response?.data?.message || error.message);
+    return false;
+  }
+};
+
+const notifyPhonesViaSms = async (phones = [], message = '') => {
+  const uniquePhones = [...new Set((phones || []).map((phone) => normalizePhoneNumber(phone)).filter(Boolean))];
+  if (!uniquePhones.length || !message) return;
+
+  await Promise.allSettled(uniquePhones.map((phone) => sendSms(phone, message)));
+};
+
+const sendOrderStatusSms = async (order, status, orderRef) => {
+  if (!SMS_ENABLED || !order) return;
+
+  const userPhone = order.userId?.phone;
+  const restaurantPhone = order.restaurantId?.phone;
+  const ownerId = order.restaurantId?.ownerId?._id || order.restaurantId?.ownerId || null;
+
+  let ownerPhone = order.restaurantId?.ownerId?.phone || null;
+  if (!ownerPhone && ownerId) {
+    const owner = await User.findById(ownerId).select('phone').lean();
+    ownerPhone = owner?.phone || null;
+  }
+
+  const admins = await User.find({ role: 'admin', isActive: true }).select('phone').lean();
+  const adminPhones = admins.map((admin) => admin.phone).filter(Boolean);
+
+  const userMessages = {
+    placed: `FlashBites: Your order #${orderRef} has been placed successfully.`,
+    confirmed: `FlashBites: Your order #${orderRef} has been confirmed by ${order.restaurantId?.name || 'restaurant'}.`,
+    delivered: `FlashBites: Your order #${orderRef} has been delivered successfully. Thank you!`,
+    cancelled: `FlashBites: Your order #${orderRef} has been cancelled. Reason: ${order.cancellationReason || 'Not specified'}.`
+  };
+
+  const restaurantMessages = {
+    cancelled: `FlashBites: Order #${orderRef} has been cancelled. Customer: ${order.userId?.name || 'N/A'}, Amount: Rs ${order.total || 0}.`
+  };
+
+  const adminMessages = {
+    cancelled: `FlashBites Admin Alert: Order #${orderRef} cancelled. Restaurant: ${order.restaurantId?.name || 'N/A'}, Customer: ${order.userId?.name || 'N/A'}.`
+  };
+
+  if (status === 'placed' || status === 'confirmed' || status === 'delivered') {
+    await notifyPhonesViaSms([userPhone], userMessages[status]);
+    return;
+  }
+
+  if (status === 'cancelled') {
+    await Promise.allSettled([
+      notifyPhonesViaSms([userPhone], userMessages.cancelled),
+      notifyPhonesViaSms([restaurantPhone, ownerPhone], restaurantMessages.cancelled),
+      notifyPhonesViaSms(adminPhones, adminMessages.cancelled)
+    ]);
+  }
+};
 
 // Configure web-push with VAPID keys
 if (WEB_PUSH_ENABLED) {
@@ -288,6 +390,8 @@ const notifyOrderStatus = async (order, status) => {
       await notifyUser(order.userId._id || order.userId, notificationData);
     }
 
+    await sendOrderStatusSms(order, status, orderRef);
+
     // Notify restaurant owner if new order
     if (status === 'confirmed' && order.restaurantId?.ownerId) {
       console.log('✓ [notifyOrderStatus] Notifying restaurant owner');
@@ -368,6 +472,8 @@ const notifyUserOrderPlaced = async (order) => {
         total: order.total
       }
     });
+
+    await sendOrderStatusSms(order, 'placed', orderRef);
   } catch (error) {
     console.error('Error notifying user order placed:', error);
   }

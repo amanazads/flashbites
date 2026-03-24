@@ -57,6 +57,28 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  deliveryPartnerEarning: {
+    type: Number,
+    default: 0
+  },
+  deliveryPartnerPayoutSnapshot: {
+    perOrder: {
+      type: Number,
+      default: 0
+    },
+    bonusThreshold: {
+      type: Number,
+      default: 13
+    },
+    bonusAmount: {
+      type: Number,
+      default: 0
+    },
+    bonusApplied: {
+      type: Boolean,
+      default: false
+    }
+  },
   platformFee: {
     type: Number,
     default: 0

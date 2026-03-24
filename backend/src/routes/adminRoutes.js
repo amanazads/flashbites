@@ -7,6 +7,10 @@ const {
   getDashboardStats,
   getAllUsers,
   getDeliveryPartnerDutyBoard,
+  getDeliveryPartnerEarningsControl,
+  updateGlobalDeliveryPartnerEarningsConfig,
+  updateDeliveryPartnerEarningsConfig,
+  resetAllDeliveryPartnerEarningsOverrides,
   getAllOrders,
   approveRestaurant,
   blockUser,
@@ -31,6 +35,10 @@ router.get('/dashboard', getDashboardStats);
 router.get('/analytics', getComprehensiveAnalytics);
 router.get('/users', getAllUsers);
 router.get('/delivery-partners/duty-board', getDeliveryPartnerDutyBoard);
+router.get('/delivery-partners/earnings-control', getDeliveryPartnerEarningsControl);
+router.put('/delivery-partners/earnings-control/global', updateGlobalDeliveryPartnerEarningsConfig);
+router.put('/delivery-partners/earnings-control/reset-all', resetAllDeliveryPartnerEarningsOverrides);
+router.put('/delivery-partners/:id/earnings-control', updateDeliveryPartnerEarningsConfig);
 router.get('/delivery-tracking', getDeliveryTrackingDashboard);
 router.get('/orders', getAllOrders);
 router.get('/restaurants', getAllRestaurants);

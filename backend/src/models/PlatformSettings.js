@@ -23,6 +23,15 @@ const promoBannerSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const deliveryPartnerPayoutSchema = new mongoose.Schema(
+  {
+    perOrder: { type: Number, default: 40, min: 0 },
+    bonusThreshold: { type: Number, default: 13, min: 1 },
+    bonusAmount: { type: Number, default: 850, min: 0 }
+  },
+  { _id: false }
+);
+
 const platformSettingsSchema = new mongoose.Schema(
   {
     platformFee: { type: Number, default: 25, min: 0 },
@@ -38,6 +47,14 @@ const platformSettingsSchema = new mongoose.Schema(
     promoBanners: {
       type: [promoBannerSchema],
       default: []
+    },
+    deliveryPartnerPayout: {
+      type: deliveryPartnerPayoutSchema,
+      default: {
+        perOrder: 40,
+        bonusThreshold: 13,
+        bonusAmount: 850
+      }
     }
   },
   { timestamps: true }

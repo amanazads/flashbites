@@ -24,6 +24,10 @@ import {
   reviewAccountDeletionRequest,
   getDeliveryPartnerDutyBoard,
   getDeliveryTrackingDashboard,
+  getDeliveryPartnerEarningsControl,
+  updateGlobalDeliveryPartnerEarningsConfig,
+  updateDeliveryPartnerEarningsConfig,
+  resetAllDeliveryPartnerEarningsOverrides,
   updateUserRole,
   getPlatformSettings,
   updatePlatformSettings,
@@ -108,6 +112,14 @@ const AdminPanel = () => {
     activelyDeliveringCount: 0
   });
   const [menuItems, setMenuItems] = useState([]);
+  const [deliveryEarningsGlobal, setDeliveryEarningsGlobal] = useState({
+    perOrder: 40,
+    bonusThreshold: 13,
+    bonusAmount: 850
+  });
+  const [deliveryEarningsPartners, setDeliveryEarningsPartners] = useState([]);
+  const [deliveryEarningsSaving, setDeliveryEarningsSaving] = useState(false);
+  const [partnerEarningDrafts, setPartnerEarningDrafts] = useState({});
   const [selectedRestaurantId, setSelectedRestaurantId] = useState('');
   const [menuLoading, setMenuLoading] = useState(false);
   const [deletionRequests, setDeletionRequests] = useState([]);
@@ -291,6 +303,32 @@ const AdminPanel = () => {
         });
       } catch (err) {
         console.log('Delivery tracking endpoint not available yet');
+      }
+
+      // Fetch delivery earnings controls
+      try {
+        const earningsRes = await getDeliveryPartnerEarningsControl();
+        const payload = earningsRes?.data?.data || {};
+        const globalConfig = payload.globalConfig || {
+          perOrder: 40,
+          bonusThreshold: 13,
+          bonusAmount: 850
+        };
+        const partnerControls = payload.partners || [];
+        setDeliveryEarningsGlobal(globalConfig);
+        setDeliveryEarningsPartners(partnerControls);
+
+        const drafts = partnerControls.reduce((acc, partner) => {
+          acc[partner._id] = {
+            perOrder: partner.effectiveConfig?.perOrder ?? globalConfig.perOrder,
+            bonusThreshold: partner.effectiveConfig?.bonusThreshold ?? globalConfig.bonusThreshold,
+            bonusAmount: partner.effectiveConfig?.bonusAmount ?? globalConfig.bonusAmount
+          };
+          return acc;
+        }, {});
+        setPartnerEarningDrafts(drafts);
+      } catch (err) {
+        console.log('Delivery earnings endpoint not available yet');
       }
 
       // Fetch account deletion requests
@@ -741,6 +779,78 @@ const AdminPanel = () => {
     }
   };
 
+  const handleSaveGlobalDeliveryEarnings = async () => {
+    try {
+      setDeliveryEarningsSaving(true);
+      await updateGlobalDeliveryPartnerEarningsConfig({
+        perOrder: Number(deliveryEarningsGlobal.perOrder),
+        bonusThreshold: Number(deliveryEarningsGlobal.bonusThreshold),
+        bonusAmount: Number(deliveryEarningsGlobal.bonusAmount)
+      });
+      toast.success('Global delivery earnings updated');
+      fetchData();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update global earnings');
+    } finally {
+      setDeliveryEarningsSaving(false);
+    }
+  };
+
+  const handleSavePartnerDeliveryEarnings = async (partnerId) => {
+    try {
+      setDeliveryEarningsSaving(true);
+      const draft = partnerEarningDrafts[partnerId];
+      await updateDeliveryPartnerEarningsConfig(partnerId, {
+        perOrder: Number(draft?.perOrder),
+        bonusThreshold: Number(draft?.bonusThreshold),
+        bonusAmount: Number(draft?.bonusAmount)
+      });
+      toast.success('Partner payout override saved');
+      fetchData();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update partner payout');
+    } finally {
+      setDeliveryEarningsSaving(false);
+    }
+  };
+
+  const handleResetPartnerToGlobal = async (partnerId) => {
+    try {
+      setDeliveryEarningsSaving(true);
+      await updateDeliveryPartnerEarningsConfig(partnerId, { resetToGlobal: true });
+      toast.success('Partner payout reset to global');
+      fetchData();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to reset partner payout');
+    } finally {
+      setDeliveryEarningsSaving(false);
+    }
+  };
+
+  const handleResetAllPartnerOverrides = async () => {
+    const result = await Swal.fire({
+      title: 'Reset all partner overrides?',
+      text: 'All delivery partners will use global payout settings.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      confirmButtonText: 'Reset All'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      setDeliveryEarningsSaving(true);
+      await resetAllDeliveryPartnerEarningsOverrides();
+      toast.success('All partner overrides reset');
+      fetchData();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to reset all overrides');
+    } finally {
+      setDeliveryEarningsSaving(false);
+    }
+  };
+
   const handleToggleUserBlock = async (userId, isActive) => {
     try {
       await blockUser(userId, !isActive);
@@ -1118,6 +1228,16 @@ const AdminPanel = () => {
                 }`}
               >
                 Partners ({partners.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('earnings')}
+                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
+                  activeTab === 'earnings'
+                    ? 'border-b-2 border-primary-500 text-primary-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Earnings Control
               </button>
               <button
                 onClick={() => {
@@ -1883,6 +2003,143 @@ const AdminPanel = () => {
                   )}
                 </div>
 
+                <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+                    <h3 className="text-base font-bold text-gray-900">Delivery Earnings Controls</h3>
+                    <button
+                      onClick={handleResetAllPartnerOverrides}
+                      disabled={deliveryEarningsSaving}
+                      className="px-3 py-2 rounded-lg text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-60"
+                    >
+                      Reset All Partner Overrides
+                    </button>
+                  </div>
+
+                  <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 mb-4">
+                    <p className="text-sm font-semibold text-gray-800 mb-3">Global Payout Configuration</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Per Order (INR)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={deliveryEarningsGlobal.perOrder}
+                          onChange={(e) => setDeliveryEarningsGlobal((prev) => ({ ...prev, perOrder: e.target.value }))}
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Bonus Threshold (orders)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={deliveryEarningsGlobal.bonusThreshold}
+                          onChange={(e) => setDeliveryEarningsGlobal((prev) => ({ ...prev, bonusThreshold: e.target.value }))}
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Bonus Amount (INR)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={deliveryEarningsGlobal.bonusAmount}
+                          onChange={(e) => setDeliveryEarningsGlobal((prev) => ({ ...prev, bonusAmount: e.target.value }))}
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        onClick={handleSaveGlobalDeliveryEarnings}
+                        disabled={deliveryEarningsSaving}
+                        className="px-4 py-2 rounded-lg text-sm font-semibold bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-60"
+                      >
+                        {deliveryEarningsSaving ? 'Saving...' : 'Save Global Config'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {deliveryEarningsPartners.length === 0 ? (
+                      <p className="text-sm text-gray-500">No delivery partners available for earnings controls.</p>
+                    ) : (
+                      deliveryEarningsPartners.map((partner) => {
+                        const draft = partnerEarningDrafts[partner._id] || {
+                          perOrder: deliveryEarningsGlobal.perOrder,
+                          bonusThreshold: deliveryEarningsGlobal.bonusThreshold,
+                          bonusAmount: deliveryEarningsGlobal.bonusAmount
+                        };
+
+                        return (
+                          <div key={partner._id} className="rounded-lg border border-gray-100 p-3">
+                            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-3">
+                              <div>
+                                <p className="text-sm font-bold text-gray-900">{partner.name}</p>
+                                <p className="text-xs text-gray-500">{partner.phone || 'No phone'} • Delivered: {partner.stats?.totalDeliveries || 0} • Earnings: {formatCurrency(partner.stats?.totalEarnings || 0)}</p>
+                              </div>
+                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${partner.hasOverride ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'}`}>
+                                {partner.hasOverride ? 'Using Override' : 'Using Global'}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <input
+                                type="number"
+                                min="0"
+                                value={draft.perOrder}
+                                onChange={(e) => setPartnerEarningDrafts((prev) => ({
+                                  ...prev,
+                                  [partner._id]: { ...prev[partner._id], perOrder: e.target.value }
+                                }))}
+                                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                                placeholder="Per order"
+                              />
+                              <input
+                                type="number"
+                                min="1"
+                                value={draft.bonusThreshold}
+                                onChange={(e) => setPartnerEarningDrafts((prev) => ({
+                                  ...prev,
+                                  [partner._id]: { ...prev[partner._id], bonusThreshold: e.target.value }
+                                }))}
+                                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                                placeholder="Bonus threshold"
+                              />
+                              <input
+                                type="number"
+                                min="0"
+                                value={draft.bonusAmount}
+                                onChange={(e) => setPartnerEarningDrafts((prev) => ({
+                                  ...prev,
+                                  [partner._id]: { ...prev[partner._id], bonusAmount: e.target.value }
+                                }))}
+                                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                                placeholder="Bonus amount"
+                              />
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2 justify-end">
+                              <button
+                                onClick={() => handleResetPartnerToGlobal(partner._id)}
+                                disabled={deliveryEarningsSaving}
+                                className="px-3 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-60"
+                              >
+                                Reset to Global
+                              </button>
+                              <button
+                                onClick={() => handleSavePartnerDeliveryEarnings(partner._id)}
+                                disabled={deliveryEarningsSaving}
+                                className="px-3 py-2 rounded-lg text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-60"
+                              >
+                                Save Override
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
                 {partners.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     No partner applications yet
@@ -2062,6 +2319,148 @@ const AdminPanel = () => {
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeTab === 'earnings' && (
+              <div>
+                <h2 className="text-xl font-bold mb-4">Delivery Partner Earnings Control</h2>
+                <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+                    <h3 className="text-base font-bold text-gray-900">Delivery Earnings Controls</h3>
+                    <button
+                      onClick={handleResetAllPartnerOverrides}
+                      disabled={deliveryEarningsSaving}
+                      className="px-3 py-2 rounded-lg text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-60"
+                    >
+                      Reset All Partner Overrides
+                    </button>
+                  </div>
+
+                  <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 mb-4">
+                    <p className="text-sm font-semibold text-gray-800 mb-3">Global Payout Configuration</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Per Order (INR)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={deliveryEarningsGlobal.perOrder}
+                          onChange={(e) => setDeliveryEarningsGlobal((prev) => ({ ...prev, perOrder: e.target.value }))}
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Bonus Threshold (orders)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={deliveryEarningsGlobal.bonusThreshold}
+                          onChange={(e) => setDeliveryEarningsGlobal((prev) => ({ ...prev, bonusThreshold: e.target.value }))}
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Bonus Amount (INR)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={deliveryEarningsGlobal.bonusAmount}
+                          onChange={(e) => setDeliveryEarningsGlobal((prev) => ({ ...prev, bonusAmount: e.target.value }))}
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        onClick={handleSaveGlobalDeliveryEarnings}
+                        disabled={deliveryEarningsSaving}
+                        className="px-4 py-2 rounded-lg text-sm font-semibold bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-60"
+                      >
+                        {deliveryEarningsSaving ? 'Saving...' : 'Save Global Config'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {deliveryEarningsPartners.length === 0 ? (
+                      <p className="text-sm text-gray-500">No delivery partners available for earnings controls.</p>
+                    ) : (
+                      deliveryEarningsPartners.map((partner) => {
+                        const draft = partnerEarningDrafts[partner._id] || {
+                          perOrder: deliveryEarningsGlobal.perOrder,
+                          bonusThreshold: deliveryEarningsGlobal.bonusThreshold,
+                          bonusAmount: deliveryEarningsGlobal.bonusAmount
+                        };
+
+                        return (
+                          <div key={partner._id} className="rounded-lg border border-gray-100 p-3">
+                            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-3">
+                              <div>
+                                <p className="text-sm font-bold text-gray-900">{partner.name}</p>
+                                <p className="text-xs text-gray-500">{partner.phone || 'No phone'} • Delivered: {partner.stats?.totalDeliveries || 0} • Earnings: {formatCurrency(partner.stats?.totalEarnings || 0)}</p>
+                              </div>
+                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${partner.hasOverride ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700'}`}>
+                                {partner.hasOverride ? 'Using Override' : 'Using Global'}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <input
+                                type="number"
+                                min="0"
+                                value={draft.perOrder}
+                                onChange={(e) => setPartnerEarningDrafts((prev) => ({
+                                  ...prev,
+                                  [partner._id]: { ...prev[partner._id], perOrder: e.target.value }
+                                }))}
+                                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                                placeholder="Per order"
+                              />
+                              <input
+                                type="number"
+                                min="1"
+                                value={draft.bonusThreshold}
+                                onChange={(e) => setPartnerEarningDrafts((prev) => ({
+                                  ...prev,
+                                  [partner._id]: { ...prev[partner._id], bonusThreshold: e.target.value }
+                                }))}
+                                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                                placeholder="Bonus threshold"
+                              />
+                              <input
+                                type="number"
+                                min="0"
+                                value={draft.bonusAmount}
+                                onChange={(e) => setPartnerEarningDrafts((prev) => ({
+                                  ...prev,
+                                  [partner._id]: { ...prev[partner._id], bonusAmount: e.target.value }
+                                }))}
+                                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                                placeholder="Bonus amount"
+                              />
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2 justify-end">
+                              <button
+                                onClick={() => handleResetPartnerToGlobal(partner._id)}
+                                disabled={deliveryEarningsSaving}
+                                className="px-3 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-60"
+                              >
+                                Reset to Global
+                              </button>
+                              <button
+                                onClick={() => handleSavePartnerDeliveryEarnings(partner._id)}
+                                disabled={deliveryEarningsSaving}
+                                className="px-3 py-2 rounded-lg text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-60"
+                              >
+                                Save Override
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
