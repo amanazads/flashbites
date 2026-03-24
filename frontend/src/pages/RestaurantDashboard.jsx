@@ -97,10 +97,7 @@ const RestaurantDashboard = () => {
       state: '',
       zipCode: '',
     },
-    location: {
-      type: 'Point',
-      coordinates: [0, 0],
-    },
+    location: null,
     timing: {
       open: '09:00',
       close: '22:00',
@@ -140,14 +137,19 @@ const RestaurantDashboard = () => {
     try {
       setLoading(true);
       const response = await getMyRestaurant();
-      
-      if (response.data.restaurant) {
-        setRestaurant(response.data.restaurant);
-        await fetchMenuItems(response.data.restaurant._id);
-        
+
+      const myRestaurant = response?.data?.restaurant || null;
+
+      if (myRestaurant) {
+        setRestaurant(myRestaurant);
+        await fetchMenuItems(myRestaurant._id);
+
         // Join restaurant room for real-time notifications
-        socketService.joinRestaurant(response.data.restaurant._id);
-        console.log('🏪 Joined restaurant room:', response.data.restaurant._id);
+        socketService.joinRestaurant(myRestaurant._id);
+        console.log('🏪 Joined restaurant room:', myRestaurant._id);
+      } else {
+        setRestaurant(null);
+        setShowRestaurantForm(true);
       }
     } catch (error) {
       if (error.response?.status === 404) {
@@ -223,6 +225,43 @@ const RestaurantDashboard = () => {
     }
 
     try {
+      let locationPayload = restaurantData.location;
+
+      const hasValidCoords = Array.isArray(locationPayload?.coordinates)
+        && locationPayload.coordinates.length >= 2
+        && Number.isFinite(Number(locationPayload.coordinates[0]))
+        && Number.isFinite(Number(locationPayload.coordinates[1]))
+        && !(Math.abs(Number(locationPayload.coordinates[0])) < 0.0001 && Math.abs(Number(locationPayload.coordinates[1])) < 0.0001);
+
+      if (!hasValidCoords) {
+        const geocodeQuery = [
+          restaurantData.address.street,
+          restaurantData.address.city,
+          restaurantData.address.state,
+          restaurantData.address.zipCode,
+          'India'
+        ].filter(Boolean).join(', ');
+
+        try {
+          const geocodeRes = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=in&limit=1&q=${encodeURIComponent(geocodeQuery)}`,
+            { headers: { Accept: 'application/json' } }
+          );
+          const geocodeData = await geocodeRes.json();
+          const first = Array.isArray(geocodeData) ? geocodeData[0] : null;
+          const lat = Number(first?.lat);
+          const lng = Number(first?.lon);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            locationPayload = {
+              type: 'Point',
+              coordinates: [lng, lat]
+            };
+          }
+        } catch {
+          // Backend will do final geocoding fallback.
+        }
+      }
+
       const formData = new FormData();
       
       // Append all restaurant data
@@ -232,7 +271,9 @@ const RestaurantDashboard = () => {
       formData.append('description', restaurantData.description);
       formData.append('cuisines', JSON.stringify(restaurantData.cuisines));
       formData.append('address', JSON.stringify(restaurantData.address));
-      formData.append('location', JSON.stringify(restaurantData.location));
+      if (locationPayload) {
+        formData.append('location', JSON.stringify(locationPayload));
+      }
       formData.append('timing', JSON.stringify(restaurantData.timing));
       formData.append('deliveryTime', restaurantData.deliveryTime);
       
@@ -484,6 +525,38 @@ const RestaurantDashboard = () => {
       setMenuImageFile(file);
       setMenuImagePreview(URL.createObjectURL(file));
     }
+  };
+
+  const handleUseRestaurantCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Location is not supported on this device');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = Number(position.coords.latitude);
+        const lng = Number(position.coords.longitude);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          toast.error('Could not fetch valid coordinates. Please try again.');
+          return;
+        }
+
+        setRestaurantData((prev) => ({
+          ...prev,
+          location: {
+            type: 'Point',
+            coordinates: [lng, lat]
+          }
+        }));
+        toast.success('Restaurant location captured');
+      },
+      () => {
+        toast.error('Unable to capture location. Please allow location permission and retry.');
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
   };
 
   // Show loading while checking authentication
@@ -1436,6 +1509,26 @@ const RestaurantDashboard = () => {
                       className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
+                </div>
+
+                <div className="rounded-lg border border-gray-200 p-3 bg-gray-50">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <p className="text-xs text-gray-600">
+                      Set exact location for accurate delivery radius and customer discovery.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleUseRestaurantCurrentLocation}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-md bg-primary-100 text-primary-700 hover:bg-primary-200"
+                    >
+                      Use Current Location
+                    </button>
+                  </div>
+                  {Array.isArray(restaurantData.location?.coordinates) && restaurantData.location.coordinates.length >= 2 && (
+                    <p className="mt-2 text-xs text-green-700">
+                      Coordinates set: {Number(restaurantData.location.coordinates[1]).toFixed(6)}, {Number(restaurantData.location.coordinates[0]).toFixed(6)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

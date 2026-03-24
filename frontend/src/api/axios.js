@@ -189,9 +189,10 @@ instance.interceptors.response.use(
     const isExpectedCouponFailure = (status === 404 || status === 400) && url.includes('/coupons/validate');
     const isExpectedNotificationAuthFailure = (status === 401 || status === 403) && url.includes('/notifications');
     const isExpectedAccountDeletionNotReady = status === 404 && url.includes('/users/account-deletion-requests');
+    const isExpectedRestaurantSetupNotReady = status === 404 && url.includes('/restaurants/my-restaurant');
 
     // Log the full error for debugging
-    if (!isExpectedAuthCheckFailure && !isExpectedCouponFailure && !isExpectedNotificationAuthFailure && !isExpectedAccountDeletionNotReady) {
+    if (!isExpectedAuthCheckFailure && !isExpectedCouponFailure && !isExpectedNotificationAuthFailure && !isExpectedAccountDeletionNotReady && !isExpectedRestaurantSetupNotReady) {
       console.error('API Error:', {
         url: error.config?.url,
         method: error.config?.method,

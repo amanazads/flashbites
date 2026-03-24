@@ -15,6 +15,7 @@ const normalizeCoordPair = (first, second) => {
   const lat = Number(second);
   if (!isFiniteNumber(lat) || !isFiniteNumber(lng)) return null;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  if (Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001) return null;
   return [lng, lat];
 };
 
@@ -45,31 +46,41 @@ const resolveLocationFromBody = (payload = {}) => {
 };
 
 const geocodeRestaurantAddress = async ({ name, address = {} }) => {
-  const parts = [address.street, address.city, address.state, address.zipCode, name, 'India']
-    .filter(Boolean);
+  const queries = [
+    [address.street, address.city, address.state, address.zipCode, name, 'India'].filter(Boolean).join(', '),
+    [address.street, address.city, address.state, 'India'].filter(Boolean).join(', '),
+    [address.city, address.state, address.zipCode, 'India'].filter(Boolean).join(', '),
+    [address.city, address.state, 'India'].filter(Boolean).join(', '),
+    [name, address.city, address.state, 'India'].filter(Boolean).join(', ')
+  ].filter(Boolean);
 
-  if (parts.length < 2 && !address.city && !name) return null;
+  if (queries.length === 0) return null;
 
-  try {
-    const response = await axios.get('https://nominatim.openstreetmap.org/search', {
-      timeout: 8000,
-      headers: {
-        'User-Agent': 'FlashBites/1.0 (support@flashbites.in)'
-      },
-      params: {
-        q: parts.length ? parts.join(', ') : (address.city ? `${address.city}, India` : `${name}, India`),
-        format: 'json',
-        limit: 1
-      }
-    });
+  for (const query of queries) {
+    try {
+      const response = await axios.get('https://nominatim.openstreetmap.org/search', {
+        timeout: 8000,
+        headers: {
+          'User-Agent': 'FlashBites/1.0 (support@flashbites.in)'
+        },
+        params: {
+          q: query,
+          format: 'json',
+          limit: 1,
+          countrycodes: 'in'
+        }
+      });
 
-    const first = response?.data?.[0];
-    if (!first?.lat || !first?.lon) return null;
-    const normalized = normalizeCoordPair(first.lon, first.lat);
-    return normalized ? { type: 'Point', coordinates: normalized } : null;
-  } catch {
-    return null;
+      const first = response?.data?.[0];
+      if (!first?.lat || !first?.lon) continue;
+      const normalized = normalizeCoordPair(first.lon, first.lat);
+      if (normalized) return { type: 'Point', coordinates: normalized };
+    } catch {
+      // try next query
+    }
   }
+
+  return null;
 };
 
 // @desc    Create restaurant
@@ -95,6 +106,15 @@ exports.createRestaurant = async (req, res) => {
     }
 
     if (!resolvedLocation) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('Restaurant location resolve failed', {
+          name,
+          address,
+          rawLocation: location,
+          bodyLat: req.body.lat,
+          bodyLng: req.body.lng
+        });
+      }
       return errorResponse(res, 400, 'Restaurant location is required. Please provide a valid address or coordinates.');
     }
 
@@ -472,7 +492,10 @@ exports.getMyRestaurant = async (req, res) => {
     const restaurant = await Restaurant.findOne({ ownerId: req.user._id }).lean();
     
     if (!restaurant) {
-      return errorResponse(res, 404, 'No restaurant found for this owner');
+      return successResponse(res, 200, 'No restaurant found for this owner', {
+        restaurant: null,
+        needsSetup: true
+      });
     }
 
     successResponse(res, 200, 'Restaurant retrieved successfully', { restaurant });
