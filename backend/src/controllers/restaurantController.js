@@ -8,6 +8,9 @@ const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/imageUplo
 const { geocodeAddress } = require('../services/locationService');
 
 const debugAddressFlow = process.env.DEBUG_ADDRESS_FLOW === 'true';
+const GEO_FALLBACK_LOG_INTERVAL_MS = 5 * 60 * 1000;
+const GEO_PRIMARY_SUCCESS_SAMPLE_RATE = 0.01;
+let lastNearbyGeoFallbackLogAt = 0;
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -91,6 +94,50 @@ const parseDeliveryZonePayload = (value) => {
   }
 
   return normalizeDeliveryZone(raw);
+};
+
+const logNearbyGeoFallback = ({ lat, lng, maxDistance, limit, error }) => {
+  if (process.env.NODE_ENV !== 'production') return;
+
+  const now = Date.now();
+  if (now - lastNearbyGeoFallbackLogAt < GEO_FALLBACK_LOG_INTERVAL_MS) {
+    return;
+  }
+
+  lastNearbyGeoFallbackLogAt = now;
+
+  const payload = {
+    event: 'restaurants_nearby_geo_fallback',
+    ts: new Date(now).toISOString(),
+    lat: Number.isFinite(lat) ? Number(lat.toFixed(3)) : null,
+    lng: Number.isFinite(lng) ? Number(lng.toFixed(3)) : null,
+    maxDistance,
+    limit,
+    errorName: error?.name || 'UnknownError',
+    errorCode: error?.code || null,
+    errorMessage: error?.message || 'unknown'
+  };
+
+  console.warn(JSON.stringify(payload));
+};
+
+const logNearbyGeoPrimarySuccess = ({ lat, lng, maxDistance, limit, candidateCount }) => {
+  if (process.env.NODE_ENV !== 'production') return;
+  if (Math.random() >= GEO_PRIMARY_SUCCESS_SAMPLE_RATE) return;
+
+  const now = Date.now();
+  const payload = {
+    event: 'restaurants_nearby_geo_primary_ok',
+    ts: new Date(now).toISOString(),
+    sampleRate: GEO_PRIMARY_SUCCESS_SAMPLE_RATE,
+    lat: Number.isFinite(lat) ? Number(lat.toFixed(3)) : null,
+    lng: Number.isFinite(lng) ? Number(lng.toFixed(3)) : null,
+    maxDistance,
+    limit,
+    candidateCount: Number.isFinite(candidateCount) ? candidateCount : 0
+  };
+
+  console.info(JSON.stringify(payload));
 };
 
 // @desc    Create restaurant
@@ -404,8 +451,24 @@ exports.getNearbyRestaurants = async (req, res) => {
           $limit: Math.min(safeLimit * 5, 500)
         }
       ]);
+
+      logNearbyGeoPrimarySuccess({
+        lat,
+        lng,
+        maxDistance,
+        limit: safeLimit,
+        candidateCount: candidates.length
+      });
     } catch (geoError) {
       // Fallback for environments where geo indexes are stale or temporarily unavailable.
+      logNearbyGeoFallback({
+        lat,
+        lng,
+        maxDistance,
+        limit: safeLimit,
+        error: geoError
+      });
+
       const fallbackRestaurants = await Restaurant.find({
         isActive: true,
         isApproved: true,
