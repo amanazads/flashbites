@@ -527,6 +527,7 @@ input, textarea, select {
   text-align: center;
   position: relative;
   overflow: hidden;
+  isolation: isolate;
 }
 .app-download-section::before {
   content: '';
@@ -535,6 +536,8 @@ input, textarea, select {
   width: 240px; height: 240px;
   background: rgba(226,55,68,0.15);
   border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
 }
 .app-download-section::after {
   content: '';
@@ -543,6 +546,15 @@ input, textarea, select {
   width: 180px; height: 180px;
   background: rgba(255,255,255,0.04);
   border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.app-download-section > * {
+  position: relative;
+  z-index: 1;
+  filter: none;
+  backdrop-filter: none;
 }
 
 /* ─────────────────────────────────────────

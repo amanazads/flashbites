@@ -33,6 +33,8 @@ const normalizeDeliveryPartnerPayout = (payload = {}) => {
 };
 
 const normalizeSettingsPayload = (payload = {}) => {
+  const commissionPercent = Number(payload.commissionPercent);
+  const deliveryFee = Number(payload.deliveryFee);
   const platformFee = Number(payload.platformFee);
   const taxRate = Number(payload.taxRate);
   const restaurantPayoutRate = Number(payload.restaurantPayoutRate);
@@ -67,6 +69,12 @@ const normalizeSettingsPayload = (payload = {}) => {
     : null;
 
   return {
+    commissionPercent: Number.isFinite(commissionPercent)
+      ? Math.min(90, Math.max(0, commissionPercent))
+      : undefined,
+    deliveryFee: Number.isFinite(deliveryFee)
+      ? Math.max(0, deliveryFee)
+      : undefined,
     platformFee: Number.isFinite(platformFee) ? platformFee : undefined,
     taxRate: Number.isFinite(taxRate) ? taxRate : undefined,
     restaurantPayoutRate: Number.isFinite(restaurantPayoutRate)
@@ -324,16 +332,22 @@ exports.getDeliveryPartnerEarningsControl = async (req, res) => {
               totalEarnings: {
                 $sum: {
                   $cond: [
-                    { $gt: ['$deliveryPartnerEarning', 0] },
-                    '$deliveryPartnerEarning',
+                    { $gt: ['$deliveryEarning', 0] },
+                    '$deliveryEarning',
                     {
-                      $add: [
-                        { $ifNull: ['$deliveryPartnerPayoutSnapshot.perOrder', 0] },
+                      $cond: [
+                        { $gt: ['$deliveryPartnerEarning', 0] },
+                        '$deliveryPartnerEarning',
                         {
-                          $cond: [
-                            { $eq: ['$deliveryPartnerPayoutSnapshot.bonusApplied', true] },
-                            { $ifNull: ['$deliveryPartnerPayoutSnapshot.bonusAmount', 0] },
-                            0
+                          $add: [
+                            { $ifNull: ['$deliveryPartnerPayoutSnapshot.perOrder', 0] },
+                            {
+                              $cond: [
+                                { $eq: ['$deliveryPartnerPayoutSnapshot.bonusApplied', true] },
+                                { $ifNull: ['$deliveryPartnerPayoutSnapshot.bonusAmount', 0] },
+                                0
+                              ]
+                            }
                           ]
                         }
                       ]
@@ -882,6 +896,45 @@ exports.getComprehensiveAnalytics = async (req, res) => {
           },
           totalRevenue: {
             $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, '$total', 0] }
+          },
+          totalPlatformProfit: {
+            $sum: {
+              $cond: [
+                { $eq: ['$status', 'delivered'] },
+                { $ifNull: ['$platformProfit', 0] },
+                0
+              ]
+            }
+          },
+          totalRestaurantEarnings: {
+            $sum: {
+              $cond: [
+                { $eq: ['$status', 'delivered'] },
+                { $ifNull: ['$restaurantEarning', 0] },
+                0
+              ]
+            }
+          },
+          totalDeliveryEarnings: {
+            $sum: {
+              $cond: [
+                { $eq: ['$status', 'delivered'] },
+                {
+                  $cond: [
+                    { $gt: ['$deliveryEarning', 0] },
+                    '$deliveryEarning',
+                    {
+                      $cond: [
+                        { $gt: ['$deliveryPartnerEarning', 0] },
+                        '$deliveryPartnerEarning',
+                        0
+                      ]
+                    }
+                  ]
+                },
+                0
+              ]
+            }
           }
         }
       }
@@ -990,7 +1043,10 @@ exports.getComprehensiveAnalytics = async (req, res) => {
       totalOrders: 0,
       deliveredOrders: 0,
       cancelledOrders: 0,
-      totalRevenue: 0
+      totalRevenue: 0,
+      totalPlatformProfit: 0,
+      totalRestaurantEarnings: 0,
+      totalDeliveryEarnings: 0
     };
 
     const etaStats = await Order.aggregate([
@@ -1054,6 +1110,9 @@ exports.getComprehensiveAnalytics = async (req, res) => {
         deliveredOrders: stats.deliveredOrders,
         cancelledOrders: stats.cancelledOrders,
         totalRevenue: stats.totalRevenue,
+        totalPlatformProfit: stats.totalPlatformProfit,
+        totalRestaurantEarnings: stats.totalRestaurantEarnings,
+        totalDeliveryEarnings: stats.totalDeliveryEarnings,
         avgOrderValue: stats.deliveredOrders > 0 ? stats.totalRevenue / stats.deliveredOrders : 0
       },
       restaurantStatus,

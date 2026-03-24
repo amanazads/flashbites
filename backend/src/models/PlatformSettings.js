@@ -34,9 +34,11 @@ const deliveryPartnerPayoutSchema = new mongoose.Schema(
 
 const platformSettingsSchema = new mongoose.Schema(
   {
+    commissionPercent: { type: Number, default: 25, min: 0, max: 90 },
+    deliveryFee: { type: Number, default: 40, min: 0 },
     platformFee: { type: Number, default: 25, min: 0 },
     taxRate: { type: Number, default: 0.05, min: 0, max: 1 },
-    restaurantPayoutRate: { type: Number, default: 0.6, min: 0, max: 1 },
+    restaurantPayoutRate: { type: Number, default: 0.75, min: 0, max: 1 },
     deliveryChargeRules: {
       type: [deliveryChargeRuleSchema],
       default: [

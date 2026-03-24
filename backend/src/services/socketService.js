@@ -250,6 +250,24 @@ const emitOrderStatusUpdate = (orderId, status, order = null) => {
   emitToOrderRooms(orderId, 'statusUpdate', status);
 };
 
+const emitOrderFinancialUpdate = (order) => {
+  if (!io || !order) return;
+
+  const payload = {
+    orderId: order._id,
+    restaurantId: order.restaurantId?._id || order.restaurantId,
+    deliveryPartnerId: order.deliveryPartnerId?._id || order.deliveryPartnerId || null,
+    restaurantEarning: Number(order.restaurantEarning || 0),
+    deliveryEarning: Number(order.deliveryEarning || order.deliveryPartnerEarning || 0),
+    platformProfit: Number(order.platformProfit || order.adminEarning || 0),
+    totalAmount: Number(order.totalAmount || order.total || 0),
+    status: order.status,
+    timestamp: new Date().toISOString()
+  };
+
+  io.emit('orderUpdate', payload);
+};
+
 const getIO = () => io;
 
 // Get online statistics
@@ -323,6 +341,7 @@ module.exports = {
   notifyDeliveryUpdate,
   emitOrderLocationUpdate,
   emitOrderStatusUpdate,
+  emitOrderFinancialUpdate,
   notifyDeliveryPartnersNewOrder,
   notifyDeliveryPartner,
   notifyDeliveryPartnerOrderAssigned,

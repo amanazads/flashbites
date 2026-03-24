@@ -8,7 +8,7 @@ const PlatformSettings = require('../src/models/PlatformSettings');
 
 const roundToTwo = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
-const normalizeRate = (rawRate, fallback = 0.6) => {
+const normalizeRate = (rawRate, fallback = 0.75) => {
   const rate = Number(rawRate);
   if (!Number.isFinite(rate)) return fallback;
   if (rate < 0) return 0;
@@ -46,7 +46,7 @@ const run = async () => {
     Restaurant.find().select('_id payoutRateOverride').lean()
   ]);
 
-  const globalRestaurantRate = normalizeRate(settings?.restaurantPayoutRate, 0.6);
+  const globalRestaurantRate = normalizeRate(settings?.restaurantPayoutRate, 0.75);
   const globalPartnerPayout = {
     perOrder: Number(settings?.deliveryPartnerPayout?.perOrder) || 40,
     bonusThreshold: Number(settings?.deliveryPartnerPayout?.bonusThreshold) || 13,
@@ -94,11 +94,14 @@ const run = async () => {
     const update = {
       restaurantPayoutRateSnapshot: restaurantRate,
       restaurantEarning,
-      adminEarning
+      adminEarning,
+      platformProfit: adminEarning,
+      totalAmount: roundToTwo(order.total || 0)
     };
 
     if (partnerEarning > 0) {
       update.deliveryPartnerEarning = partnerEarning;
+      update.deliveryEarning = partnerEarning;
     }
 
     if (hasDeliveryPartner && !hasSnapshotPayout) {
@@ -114,7 +117,10 @@ const run = async () => {
       roundToTwo(order.restaurantPayoutRateSnapshot) !== update.restaurantPayoutRateSnapshot
       || roundToTwo(order.restaurantEarning) !== update.restaurantEarning
       || roundToTwo(order.adminEarning) !== update.adminEarning
+      || roundToTwo(order.platformProfit) !== update.platformProfit
+      || roundToTwo(order.totalAmount) !== update.totalAmount
       || (partnerEarning > 0 && roundToTwo(order.deliveryPartnerEarning) !== update.deliveryPartnerEarning)
+      || (partnerEarning > 0 && roundToTwo(order.deliveryEarning) !== update.deliveryEarning)
       || (hasDeliveryPartner && !hasSnapshotPayout);
 
     if (shouldWrite) {

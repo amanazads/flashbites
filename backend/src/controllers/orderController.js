@@ -29,7 +29,8 @@ const {
   notifyDeliveryPartnersNewOrder,
   notifyDeliveryPartnerOrderAssigned,
   notifyDeliveryPartnerOrderCancelled: socketNotifyDeliveryPartnerCancelled,
-  emitOrderStatusUpdate
+  emitOrderStatusUpdate,
+  emitOrderFinancialUpdate
 } = require('../services/socketService');
 const { calculateDistance, calculateDeliveryCharge, DEFAULT_DELIVERY_CHARGES } = require('../utils/calculateDistance');
 const { assignDeliveryPartner } = require('../services/deliveryAssignmentService');
@@ -162,9 +163,39 @@ const getAddressCoordinates = (addressLike) => {
 
 const roundToTwo = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
+const normalizeCommissionPercent = (rawPercent) => {
+  const percent = Number(rawPercent);
+  if (!Number.isFinite(percent)) return 25;
+  if (percent < 0) return 0;
+  if (percent > 90) return 90;
+  return percent;
+};
+
+const calculateEarnings = (listedPrice, commissionPercent = 25) => {
+  const safeListed = Number(listedPrice);
+  if (!Number.isFinite(safeListed) || safeListed < 0) {
+    return {
+      restaurantEarning: 0,
+      sellingPrice: 0,
+      platformProfit: 0
+    };
+  }
+
+  const commissionFactor = normalizeCommissionPercent(commissionPercent) / 100;
+  const restaurantEarning = safeListed * (1 - commissionFactor);
+  const sellingPrice = safeListed * (1 + commissionFactor);
+  const platformProfit = sellingPrice - restaurantEarning;
+
+  return {
+    restaurantEarning: roundToTwo(restaurantEarning),
+    sellingPrice: roundToTwo(sellingPrice),
+    platformProfit: roundToTwo(platformProfit)
+  };
+};
+
 const normalizeRestaurantPayoutRate = (rawRate) => {
   const rate = Number(rawRate);
-  if (!Number.isFinite(rate)) return 0.6;
+  if (!Number.isFinite(rate)) return 0.75;
   if (rate < 0) return 0;
   if (rate > 1) return 1;
   return rate;
@@ -289,8 +320,25 @@ exports.createOrder = async (req, res) => {
       return errorResponse(res, 400, 'Restaurant is currently not accepting orders');
     }
 
+    let settings = await PlatformSettings.findOne().lean();
+    if (!settings) {
+      settings = {
+        commissionPercent: 25,
+        deliveryFee: 40,
+        platformFee: 25,
+        taxRate: 0.05,
+        restaurantPayoutRate: 0.75,
+        deliveryChargeRules: DEFAULT_DELIVERY_CHARGES,
+        deliveryPartnerPayout: { perOrder: 40, bonusThreshold: 13, bonusAmount: 850 }
+      };
+    }
+
+    const commissionPercent = normalizeCommissionPercent(settings.commissionPercent);
+
     // Validate and calculate order totals
     let subtotal = 0;
+    let totalRestaurantEarning = 0;
+    let totalPlatformProfit = 0;
     const orderItems = [];
 
     const menuItemIds = items.map((item) => item.menuItemId);
@@ -332,14 +380,19 @@ exports.createOrder = async (req, res) => {
         }
       }
 
-      const itemTotal = itemPrice * quantity;
+      const listedPrice = Number(itemPrice);
+      const { restaurantEarning, sellingPrice, platformProfit } = calculateEarnings(listedPrice, commissionPercent);
+      const itemTotal = sellingPrice * quantity;
       subtotal += itemTotal;
+      totalRestaurantEarning += restaurantEarning * quantity;
+      totalPlatformProfit += platformProfit * quantity;
 
       orderItems.push({
         menuItemId: menuItem._id,
         name: itemName,
         quantity,
-        price: itemPrice,
+        price: sellingPrice,
+        listedPrice,
         image: menuItem.image
       });
     }
@@ -516,26 +569,28 @@ exports.createOrder = async (req, res) => {
       }
     }
 
-    let settings = await PlatformSettings.findOne().lean();
-    if (!settings) {
-      settings = {
-        platformFee: 25,
-        taxRate: 0.05,
-        restaurantPayoutRate: 0.6,
-        deliveryChargeRules: DEFAULT_DELIVERY_CHARGES
-      };
+    const configuredDeliveryFee = Number(settings.deliveryFee);
+    if (Number.isFinite(configuredDeliveryFee) && configuredDeliveryFee >= 0) {
+      deliveryFee = configuredDeliveryFee;
+    } else {
+      deliveryFee = calculateDeliveryCharge(distance, settings.deliveryChargeRules);
     }
 
-    deliveryFee = calculateDeliveryCharge(distance, settings.deliveryChargeRules);
     const platformFee = Number(settings.platformFee || 0);
     const taxRate = Number(settings.taxRate || 0);
-    const restaurantPayoutRate = normalizeRestaurantPayoutRate(
-      restaurant.payoutRateOverride ?? settings.restaurantPayoutRate
-    );
+    const restaurantPayoutRate = roundToTwo((100 - commissionPercent) / 100);
+    const initialDeliveryEarning = Number(settings?.deliveryPartnerPayout?.perOrder);
+    const deliveryEarning = Number.isFinite(initialDeliveryEarning) && initialDeliveryEarning >= 0
+      ? initialDeliveryEarning
+      : deliveryFee;
     const taxBase = subtotal - discount;
     const tax = taxBase > 0 ? taxBase * taxRate : 0;
 
     const total = subtotal + deliveryFee + platformFee + tax - discount;
+    const restaurantEarning = roundToTwo(totalRestaurantEarning);
+    const platformProfit = roundToTwo(totalPlatformProfit - discount);
+    const totalAmount = roundToTwo(total);
+    const adminEarning = roundToTwo(totalAmount - restaurantEarning - deliveryEarning);
 
     const prepTimeMinutes = Number(restaurant.prepTimeMinutes || 20);
     const etaMinutes = calculateEtaMinutes({
@@ -576,8 +631,13 @@ exports.createOrder = async (req, res) => {
       tax,
       discount,
       restaurantPayoutRateSnapshot: restaurantPayoutRate,
+      restaurantEarning,
+      platformProfit,
+      adminEarning,
+      deliveryEarning,
+      totalAmount,
       couponCode,
-      total,
+      total: totalAmount,
       paymentMethod: paymentMethod || 'cod',
       deliveryInstructions,
       estimatedDelivery,
@@ -629,6 +689,7 @@ exports.createOrder = async (req, res) => {
     try {
       // Socket notification to restaurant
       socketNotifyRestaurant(restaurantId, populatedOrder);
+      emitOrderFinancialUpdate(populatedOrder);
       
       // Socket notification to all admins
       notifyAdminNewOrder(populatedOrder);
@@ -858,7 +919,10 @@ exports.updateOrderStatus = async (req, res) => {
       order.restaurantEarning = restaurantEarning;
 
       const partnerEarning = Number(order.deliveryPartnerEarning || 0);
+      order.deliveryEarning = Number.isFinite(partnerEarning) ? partnerEarning : 0;
       order.adminEarning = roundToTwo((Number(order.total) || 0) - restaurantEarning - (Number.isFinite(partnerEarning) ? partnerEarning : 0));
+      order.platformProfit = order.adminEarning;
+      order.totalAmount = Number(order.total || 0);
 
       if (restaurant && existingRestaurantEarning <= 0) {
         restaurant.totalEarnings = Number(restaurant.totalEarnings || 0) + restaurantEarning;
@@ -906,6 +970,7 @@ exports.updateOrderStatus = async (req, res) => {
         // Use populatedOrder for both notifications
         await notifyOrderStatus(populatedOrder, statusMap[status]);
         console.log('✓ [updateOrderStatus] Email notification sent');
+        emitOrderFinancialUpdate(populatedOrder);
         
         // Send real-time notification to user with sound
         if (populatedOrder.userId) {

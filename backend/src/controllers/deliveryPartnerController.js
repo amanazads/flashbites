@@ -14,7 +14,8 @@ const {
   notifyDeliveryPartner,
   notifyUserOrderUpdate,
   notifyRestaurantNewOrder: socketNotifyRestaurant,
-  emitOrderLocationUpdate
+  emitOrderLocationUpdate,
+  emitOrderFinancialUpdate
 } = require('../services/socketService');
 
 const DEFAULT_PAYOUT_CONFIG = {
@@ -39,7 +40,7 @@ const roundToTwo = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
 const normalizeRestaurantPayoutRate = (rawRate) => {
   const rate = Number(rawRate);
-  if (!Number.isFinite(rate)) return 0.6;
+  if (!Number.isFinite(rate)) return 0.75;
   if (rate < 0) return 0;
   if (rate > 1) return 1;
   return rate;
@@ -335,9 +336,12 @@ exports.markAsDelivered = async (req, res) => {
     order.deliveredAt = new Date();
     order.paymentStatus = 'completed';
     order.deliveryPartnerEarning = partnerEarning;
+    order.deliveryEarning = partnerEarning;
     order.restaurantPayoutRateSnapshot = settlementRate;
     order.restaurantEarning = restaurantEarning;
     order.adminEarning = adminEarning;
+    order.platformProfit = adminEarning;
+    order.totalAmount = Number(order.total || 0);
     order.deliveryPartnerPayoutSnapshot = {
       perOrder: payoutConfig.perOrder,
       bonusThreshold: payoutConfig.bonusThreshold,
@@ -362,6 +366,7 @@ exports.markAsDelivered = async (req, res) => {
         status: 'delivered',
         order: updatedOrder
       });
+      emitOrderFinancialUpdate(updatedOrder);
 
       // Notify customer delivery completion.
       await notifyOrderStatus(updatedOrder, 'delivered');
@@ -455,16 +460,22 @@ exports.getOrderHistory = async (req, res) => {
           totalEarnings: {
             $sum: {
               $cond: [
-                { $gt: ['$deliveryPartnerEarning', 0] },
-                '$deliveryPartnerEarning',
+                { $gt: ['$deliveryEarning', 0] },
+                '$deliveryEarning',
                 {
-                  $add: [
-                    { $ifNull: ['$deliveryPartnerPayoutSnapshot.perOrder', 0] },
+                  $cond: [
+                    { $gt: ['$deliveryPartnerEarning', 0] },
+                    '$deliveryPartnerEarning',
                     {
-                      $cond: [
-                        { $eq: ['$deliveryPartnerPayoutSnapshot.bonusApplied', true] },
-                        { $ifNull: ['$deliveryPartnerPayoutSnapshot.bonusAmount', 0] },
-                        0
+                      $add: [
+                        { $ifNull: ['$deliveryPartnerPayoutSnapshot.perOrder', 0] },
+                        {
+                          $cond: [
+                            { $eq: ['$deliveryPartnerPayoutSnapshot.bonusApplied', true] },
+                            { $ifNull: ['$deliveryPartnerPayoutSnapshot.bonusAmount', 0] },
+                            0
+                          ]
+                        }
                       ]
                     }
                   ]
@@ -535,16 +546,22 @@ exports.getStats = async (req, res) => {
             total: {
               $sum: {
                 $cond: [
-                  { $gt: ['$deliveryPartnerEarning', 0] },
-                  '$deliveryPartnerEarning',
+                  { $gt: ['$deliveryEarning', 0] },
+                  '$deliveryEarning',
                   {
-                    $add: [
-                      { $ifNull: ['$deliveryPartnerPayoutSnapshot.perOrder', 0] },
+                    $cond: [
+                      { $gt: ['$deliveryPartnerEarning', 0] },
+                      '$deliveryPartnerEarning',
                       {
-                        $cond: [
-                          { $eq: ['$deliveryPartnerPayoutSnapshot.bonusApplied', true] },
-                          { $ifNull: ['$deliveryPartnerPayoutSnapshot.bonusAmount', 0] },
-                          0
+                        $add: [
+                          { $ifNull: ['$deliveryPartnerPayoutSnapshot.perOrder', 0] },
+                          {
+                            $cond: [
+                              { $eq: ['$deliveryPartnerPayoutSnapshot.bonusApplied', true] },
+                              { $ifNull: ['$deliveryPartnerPayoutSnapshot.bonusAmount', 0] },
+                              0
+                            ]
+                          }
                         ]
                       }
                     ]

@@ -47,6 +47,10 @@ const orderSchema = new mongoose.Schema({
       type: Number,
       required: true
     },
+    listedPrice: {
+      type: Number,
+      default: null
+    },
     image: String
   }],
   subtotal: {
@@ -61,11 +65,19 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  deliveryEarning: {
+    type: Number,
+    default: 0
+  },
   restaurantPayoutRateSnapshot: {
     type: Number,
-    default: 0.6
+    default: 0.75
   },
   restaurantEarning: {
+    type: Number,
+    default: 0
+  },
+  platformProfit: {
     type: Number,
     default: 0
   },
@@ -107,6 +119,10 @@ const orderSchema = new mongoose.Schema({
   total: {
     type: Number,
     required: true
+  },
+  totalAmount: {
+    type: Number,
+    default: 0
   },
   paymentMethod: {
     type: String,

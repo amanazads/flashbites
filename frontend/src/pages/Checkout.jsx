@@ -146,6 +146,14 @@ const Checkout = () => {
     return tier ? tier.charge : 0;
   };
 
+  const normalizeCommissionPercent = (rawPercent) => {
+    const percent = Number(rawPercent);
+    if (!Number.isFinite(percent)) return 25;
+    if (percent < 0) return 0;
+    if (percent > 90) return 90;
+    return percent;
+  };
+
   // Calculate distance when address or restaurant changes
   useEffect(() => {
     if (selectedAddress && restaurant?.location?.coordinates) {
@@ -159,13 +167,23 @@ const Checkout = () => {
     }
   }, [selectedAddress, restaurant, addresses]);
 
-  const subtotal = calculateCartTotal(items);
+  const listedSubtotal = calculateCartTotal(items);
+  const commissionPercent = normalizeCommissionPercent(platformSettings?.commissionPercent);
+  const subtotal = items.reduce((sum, item) => {
+    const listedPrice = Number(item.price) || 0;
+    const quantity = Number(item.quantity) || 0;
+    const sellingPrice = listedPrice * (1 + commissionPercent / 100);
+    return sum + (sellingPrice * quantity);
+  }, 0);
   const discount = appliedCoupon?.discount || 0;
   const platformFee = Number(platformSettings?.platformFee || 25);
   const taxRate = Number(platformSettings?.taxRate || 0.05);
-  const deliveryFee = deliveryDistance > 0
-    ? calculateDeliveryFee(deliveryDistance, platformSettings?.deliveryChargeRules)
-    : 0;
+  const configuredDeliveryFee = Number(platformSettings?.deliveryFee);
+  const deliveryFee = Number.isFinite(configuredDeliveryFee) && configuredDeliveryFee >= 0
+    ? configuredDeliveryFee
+    : (deliveryDistance > 0
+        ? calculateDeliveryFee(deliveryDistance, platformSettings?.deliveryChargeRules)
+        : 0);
   const tax = Math.max(subtotal - discount, 0) * taxRate;
   const total = subtotal + deliveryFee + platformFee + tax - discount;
 
@@ -562,16 +580,22 @@ const Checkout = () => {
                 {items.map((item) => (
                   <div key={item._id} className="flex justify-between gap-3 text-sm min-w-0 max-[320px]:text-xs">
                     <span className="text-gray-700 min-w-0 truncate">{item.name} <span className="text-gray-400">x{item.quantity}</span></span>
-                    <span className="font-medium shrink-0">{formatCurrency((Number(item.price) || 0) * (item.quantity || 1))}</span>
+                    <span className="font-medium shrink-0">{formatCurrency(((Number(item.price) || 0) * (1 + commissionPercent / 100)) * (item.quantity || 1))}</span>
                   </div>
                 ))}
               </div>
 
               <div className="rounded-xl p-3 max-[320px]:p-2.5 space-y-2 text-sm max-[320px]:text-xs mb-4 max-[320px]:mb-3" style={{ background: 'var(--bg-input)' }}>
                 <div className="flex justify-between text-gray-500">
-                  <span>Subtotal</span>
+                  <span>Subtotal (with commission)</span>
                   <span className="font-medium text-gray-700">{formatCurrency(subtotal)}</span>
                 </div>
+                {Math.abs(subtotal - listedSubtotal) > 0.001 && (
+                  <div className="flex justify-between text-gray-400">
+                    <span>Listed item total</span>
+                    <span className="font-medium">{formatCurrency(listedSubtotal)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-gray-500">
                   <span>Delivery Fee</span>
                   <span className="font-medium text-gray-700">{formatCurrency(deliveryFee)}</span>

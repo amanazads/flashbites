@@ -244,11 +244,21 @@ const RestaurantDashboard = () => {
       }
     };
 
+    const handleOrderFinancialUpdate = (payload) => {
+      const eventRestaurantId = payload?.restaurantId?._id || payload?.restaurantId;
+      if (!eventRestaurantId || String(eventRestaurantId) !== String(restaurant._id)) return;
+
+      fetchOrders();
+      fetchAnalytics(analyticsPeriod);
+    };
+
     socketService.onNewOrder(handleNewOrder);
+    socketService.on('orderUpdate', handleOrderFinancialUpdate);
 
     // Cleanup
     return () => {
       socketService.off('new-order');
+      socketService.off('orderUpdate');
     };
   }, [restaurant, activeTab, autoRefreshOrders, analyticsPeriod]);
 

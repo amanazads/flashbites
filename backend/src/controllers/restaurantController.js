@@ -828,7 +828,7 @@ exports.getRestaurantDashboard = async (req, res) => {
                         0
                       ]
                     },
-                    { $ifNull: ['$restaurantPayoutRateSnapshot', 0.6] }
+                    { $ifNull: ['$restaurantPayoutRateSnapshot', 0.75] }
                   ]
                 }
               ]
@@ -907,7 +907,7 @@ exports.getRestaurantAnalytics = async (req, res) => {
                             0
                           ]
                         },
-                        { $ifNull: ['$restaurantPayoutRateSnapshot', 0.6] }
+                        { $ifNull: ['$restaurantPayoutRateSnapshot', 0.75] }
                       ]
                     }
                   ]
@@ -956,7 +956,7 @@ exports.getRestaurantAnalytics = async (req, res) => {
                         0
                       ]
                     },
-                    { $ifNull: ['$restaurantPayoutRateSnapshot', 0.6] }
+                    { $ifNull: ['$restaurantPayoutRateSnapshot', 0.75] }
                   ]
                 }
               ]
@@ -981,7 +981,7 @@ exports.getRestaurantAnalytics = async (req, res) => {
                         0
                       ]
                     },
-                    { $ifNull: ['$restaurantPayoutRateSnapshot', 0.6] }
+                    { $ifNull: ['$restaurantPayoutRateSnapshot', 0.75] }
                   ]
                 }
               ]
@@ -1023,7 +1023,7 @@ exports.getRestaurantAnalytics = async (req, res) => {
                         0
                       ]
                     },
-                    { $ifNull: ['$restaurantPayoutRateSnapshot', 0.6] }
+                    { $ifNull: ['$restaurantPayoutRateSnapshot', 0.75] }
                   ]
                 }
               ]

@@ -130,9 +130,11 @@ const AdminPanel = () => {
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
   const [platformSettings, setPlatformSettings] = useState(null);
   const [settingsForm, setSettingsForm] = useState({
+    commissionPercent: 25,
+    deliveryFee: 40,
     platformFee: 25,
     taxRate: 5,
-    restaurantPayoutRate: 60,
+    restaurantPayoutRate: 75,
     deliveryChargeRules: [
       { minDistance: 0, maxDistance: 5, charge: 0 },
       { minDistance: 5, maxDistance: 15, charge: 25 },
@@ -192,10 +194,18 @@ const AdminPanel = () => {
       }
     };
 
+    const handleOrderFinancialUpdate = () => {
+      if (['overview', 'earnings', 'analytics', 'orders'].includes(activeTab)) {
+        fetchData();
+      }
+    };
+
     socketService.onNewOrder(handleNewOrder);
+    socketService.on('orderUpdate', handleOrderFinancialUpdate);
 
     return () => {
       socketService.off('new-order');
+      socketService.off('orderUpdate');
     };
   }, [user, activeTab, autoRefreshEnabled]);
 
@@ -371,9 +381,11 @@ const AdminPanel = () => {
       if (settings) {
         setPlatformSettings(settings);
         setSettingsForm({
+          commissionPercent: settings.commissionPercent ?? 25,
+          deliveryFee: settings.deliveryFee ?? 40,
           platformFee: settings.platformFee ?? 25,
           taxRate: (settings.taxRate ?? 0.05) * 100,
-          restaurantPayoutRate: (settings.restaurantPayoutRate ?? 0.6) * 100,
+          restaurantPayoutRate: (settings.restaurantPayoutRate ?? 0.75) * 100,
           deliveryChargeRules: settings.deliveryChargeRules || [
             { minDistance: 0, maxDistance: 5, charge: 0 },
             { minDistance: 5, maxDistance: 15, charge: 25 },
@@ -637,6 +649,8 @@ const AdminPanel = () => {
     try {
       setSettingsSaving(true);
       const payload = {
+        commissionPercent: Number(settingsForm.commissionPercent),
+        deliveryFee: Number(settingsForm.deliveryFee),
         platformFee: Number(settingsForm.platformFee),
         taxRate: Number(settingsForm.taxRate) / 100,
         restaurantPayoutRate: Number(settingsForm.restaurantPayoutRate) / 100,
@@ -1362,6 +1376,29 @@ const AdminPanel = () => {
                 <h2 className="text-xl font-bold mb-4">Fees & Charges</h2>
                 <div className="bg-gray-50 rounded-lg p-4 sm:p-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Commission Percent (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="90"
+                        step="0.1"
+                        value={settingsForm.commissionPercent}
+                        onChange={(e) => handleSettingsChange('commissionPercent', e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Default Delivery Fee (INR)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={settingsForm.deliveryFee}
+                        onChange={(e) => handleSettingsChange('deliveryFee', e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                      />
+                    </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Platform Fee (INR)</label>
                       <input
@@ -2759,6 +2796,27 @@ const AdminPanel = () => {
                             <p className="text-xs text-primary-600 mt-1">Active fleet</p>
                           </div>
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-5">
+                        <p className="text-sm text-emerald-800">Platform Profit</p>
+                        <p className="text-2xl font-bold text-emerald-900 mt-1">
+                          {formatCurrency(analytics.overview.totalPlatformProfit || 0)}
+                        </p>
+                      </div>
+                      <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-5">
+                        <p className="text-sm text-amber-800">Restaurant Earnings</p>
+                        <p className="text-2xl font-bold text-amber-900 mt-1">
+                          {formatCurrency(analytics.overview.totalRestaurantEarnings || 0)}
+                        </p>
+                      </div>
+                      <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg p-5">
+                        <p className="text-sm text-indigo-800">Delivery Earnings</p>
+                        <p className="text-2xl font-bold text-indigo-900 mt-1">
+                          {formatCurrency(analytics.overview.totalDeliveryEarnings || 0)}
+                        </p>
                       </div>
                     </div>
 

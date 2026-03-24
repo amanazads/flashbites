@@ -85,16 +85,28 @@ const DeliveryPartnerDashboard = () => {
       }
     };
 
+    const handleOrderFinancialUpdate = (payload) => {
+      const partnerId = payload?.deliveryPartnerId?._id || payload?.deliveryPartnerId;
+      if (!partnerId || String(partnerId) !== String(user?._id)) return;
+
+      fetchData();
+      if (activeTab === 'history') {
+        fetchOrderHistory(historyTimeframe);
+      }
+    };
+
     socketService.on('new-order-available', handleNewOrder);
     socketService.on('order-assigned', handleOrderAssigned);
     socketService.on('order-cancelled', handleOrderCancelled);
     socketService.on('order-status-updated', handleOrderStatusUpdated);
+    socketService.on('orderUpdate', handleOrderFinancialUpdate);
 
     return () => {
       socketService.off('new-order-available');
       socketService.off('order-assigned');
       socketService.off('order-cancelled');
       socketService.off('order-status-updated');
+      socketService.off('orderUpdate');
     };
   }, [user, autoRefreshEnabled, activeTab, historyTimeframe]);
 
