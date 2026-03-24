@@ -16,6 +16,7 @@ const {
   blockUser,
   updateUserRole,
   getAllRestaurants,
+  updateRestaurantPayoutRate,
   saveRestaurantDeliveryZone,
   createCoupon,
   getAllCoupons,
@@ -43,6 +44,7 @@ router.get('/delivery-tracking', getDeliveryTrackingDashboard);
 router.get('/orders', getAllOrders);
 router.get('/restaurants', getAllRestaurants);
 router.patch('/restaurants/:id/approve', approveRestaurant);
+router.patch('/restaurants/:id/payout-rate', updateRestaurantPayoutRate);
 router.put('/restaurants/:id/delivery-zone', saveRestaurantDeliveryZone);
 router.patch('/users/:id/block', blockUser);
 router.patch('/users/:id/role', updateUserRole);

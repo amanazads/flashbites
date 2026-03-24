@@ -136,6 +136,12 @@ const restaurantSchema = new mongoose.Schema({
     ifscCode: String,
     accountHolderName: String,
     bankName: String
+  },
+  payoutRateOverride: {
+    type: Number,
+    min: 0,
+    max: 1,
+    default: null
   }
 }, { 
   timestamps: true 

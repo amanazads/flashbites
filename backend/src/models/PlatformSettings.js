@@ -36,6 +36,7 @@ const platformSettingsSchema = new mongoose.Schema(
   {
     platformFee: { type: Number, default: 25, min: 0 },
     taxRate: { type: Number, default: 0.05, min: 0, max: 1 },
+    restaurantPayoutRate: { type: Number, default: 0.6, min: 0, max: 1 },
     deliveryChargeRules: {
       type: [deliveryChargeRuleSchema],
       default: [

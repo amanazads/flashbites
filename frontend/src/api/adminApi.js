@@ -48,6 +48,10 @@ export const approveRestaurant = (id, isApproved) => {
   return axios.patch(`/admin/restaurants/${id}/approve`, { isApproved });
 };
 
+export const updateRestaurantPayoutRate = (id, payload) => {
+  return axios.patch(`/admin/restaurants/${id}/payout-rate`, payload);
+};
+
 export const blockUser = (id, isActive) => {
   return axios.patch(`/admin/users/${id}/block`, { isActive });
 };

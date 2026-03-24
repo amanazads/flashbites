@@ -35,6 +35,7 @@ const normalizeDeliveryPartnerPayout = (payload = {}) => {
 const normalizeSettingsPayload = (payload = {}) => {
   const platformFee = Number(payload.platformFee);
   const taxRate = Number(payload.taxRate);
+  const restaurantPayoutRate = Number(payload.restaurantPayoutRate);
 
   const deliveryChargeRules = Array.isArray(payload.deliveryChargeRules)
     ? payload.deliveryChargeRules
@@ -68,6 +69,9 @@ const normalizeSettingsPayload = (payload = {}) => {
   return {
     platformFee: Number.isFinite(platformFee) ? platformFee : undefined,
     taxRate: Number.isFinite(taxRate) ? taxRate : undefined,
+    restaurantPayoutRate: Number.isFinite(restaurantPayoutRate)
+      ? Math.min(1, Math.max(0, restaurantPayoutRate))
+      : undefined,
     deliveryChargeRules: deliveryChargeRules && deliveryChargeRules.length > 0 ? deliveryChargeRules : undefined,
     promoBanners: promoBanners ? promoBanners : undefined,
     deliveryPartnerPayout: deliveryPartnerPayout || undefined
@@ -322,7 +326,18 @@ exports.getDeliveryPartnerEarningsControl = async (req, res) => {
                   $cond: [
                     { $gt: ['$deliveryPartnerEarning', 0] },
                     '$deliveryPartnerEarning',
-                    '$deliveryFee'
+                    {
+                      $add: [
+                        { $ifNull: ['$deliveryPartnerPayoutSnapshot.perOrder', 0] },
+                        {
+                          $cond: [
+                            { $eq: ['$deliveryPartnerPayoutSnapshot.bonusApplied', true] },
+                            { $ifNull: ['$deliveryPartnerPayoutSnapshot.bonusAmount', 0] },
+                            0
+                          ]
+                        }
+                      ]
+                    }
                   ]
                 }
               }
@@ -1208,6 +1223,52 @@ exports.saveRestaurantDeliveryZone = async (req, res) => {
     return successResponse(res, 200, 'Delivery zone saved successfully', { restaurant });
   } catch (error) {
     return errorResponse(res, 500, 'Failed to save delivery zone', error.message);
+  }
+};
+
+// @desc    Update restaurant payout rate override
+// @route   PATCH /api/admin/restaurants/:id/payout-rate
+// @access  Private (Admin)
+exports.updateRestaurantPayoutRate = async (req, res) => {
+  try {
+    const { payoutRateOverride, resetToGlobal } = req.body || {};
+
+    const shouldReset = Boolean(resetToGlobal)
+      || payoutRateOverride === null
+      || payoutRateOverride === '';
+
+    let nextOverride = null;
+    if (!shouldReset) {
+      const parsedRate = Number(payoutRateOverride);
+      if (!Number.isFinite(parsedRate)) {
+        return errorResponse(res, 400, 'payoutRateOverride must be a valid number between 0 and 1');
+      }
+      nextOverride = Math.min(1, Math.max(0, parsedRate));
+    }
+
+    const restaurant = await Restaurant.findByIdAndUpdate(
+      req.params.id,
+      { $set: { payoutRateOverride: nextOverride } },
+      { new: true, runValidators: true }
+    )
+      .select('name payoutRateOverride')
+      .lean();
+
+    if (!restaurant) {
+      return errorResponse(res, 404, 'Restaurant not found');
+    }
+
+    invalidateAdminCache();
+    return successResponse(
+      res,
+      200,
+      shouldReset ? 'Restaurant payout reset to global' : 'Restaurant payout override updated',
+      {
+        restaurant
+      }
+    );
+  } catch (error) {
+    return errorResponse(res, 500, 'Failed to update restaurant payout rate', error.message);
   }
 };
 

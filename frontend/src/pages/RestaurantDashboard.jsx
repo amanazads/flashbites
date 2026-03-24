@@ -224,10 +224,23 @@ const RestaurantDashboard = () => {
     // Listen for new orders (Data Refresh Only)
     const handleNewOrder = (data) => {
       console.log('🔄 Dashboard: Auto-refreshing data on order event:', data.type);
+
+      const latestStatus = data?.order?.status || data?.status;
+      const isDeliveredEvent = data?.type === 'ORDER_DELIVERED' || latestStatus === 'delivered';
+
+      if (isDeliveredEvent) {
+        fetchOrders();
+        fetchAnalytics(analyticsPeriod);
+        return;
+      }
       
       // Refresh orders list silently, global useNotifications handles UI
       if (autoRefreshOrders && activeTab === 'orders') {
         fetchOrders();
+      }
+
+      if (autoRefreshOrders && activeTab === 'analytics') {
+        fetchAnalytics(analyticsPeriod);
       }
     };
 
@@ -237,7 +250,7 @@ const RestaurantDashboard = () => {
     return () => {
       socketService.off('new-order');
     };
-  }, [restaurant, activeTab, autoRefreshOrders]);
+  }, [restaurant, activeTab, autoRefreshOrders, analyticsPeriod]);
 
   // Auto-refresh orders when enabled
   useEffect(() => {
@@ -583,6 +596,11 @@ const RestaurantDashboard = () => {
           prevOrders.map((order) => (order._id === updatedOrder._id ? updatedOrder : order))
         );
       }
+
+      if (newStatus === 'delivered') {
+        fetchAnalytics(analyticsPeriod);
+      }
+
       toast.success('Order status updated');
     } catch (error) {
       // Rollback optimistic update on failure.

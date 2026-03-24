@@ -74,16 +74,29 @@ const DeliveryPartnerDashboard = () => {
       if (autoRefreshEnabled) fetchData(); // Refresh orders
     };
 
+    // Keep earnings and stats in sync immediately when a delivery status changes.
+    const handleOrderStatusUpdated = (payload) => {
+      const status = payload?.data?.status || payload?.status;
+      if (status !== 'delivered') return;
+
+      fetchData();
+      if (activeTab === 'history') {
+        fetchOrderHistory(historyTimeframe);
+      }
+    };
+
     socketService.on('new-order-available', handleNewOrder);
     socketService.on('order-assigned', handleOrderAssigned);
     socketService.on('order-cancelled', handleOrderCancelled);
+    socketService.on('order-status-updated', handleOrderStatusUpdated);
 
     return () => {
       socketService.off('new-order-available');
       socketService.off('order-assigned');
       socketService.off('order-cancelled');
+      socketService.off('order-status-updated');
     };
-  }, [user, autoRefreshEnabled]);
+  }, [user, autoRefreshEnabled, activeTab, historyTimeframe]);
 
   useEffect(() => {
     if (!autoRefreshEnabled || !user || user.role !== 'delivery_partner') return;
@@ -170,6 +183,9 @@ const DeliveryPartnerDashboard = () => {
       await markAsDelivered(orderId);
       toast.success('Order marked as delivered!');
       fetchData();
+      if (activeTab === 'history') {
+        fetchOrderHistory(historyTimeframe);
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to mark as delivered');
     } finally {
@@ -209,7 +225,12 @@ const DeliveryPartnerDashboard = () => {
   const getOrderEarning = (order) => {
     const earning = Number(order?.deliveryPartnerEarning);
     if (Number.isFinite(earning) && earning > 0) return earning;
-    return Number(order?.deliveryFee) || 0;
+    const snapshotPerOrder = Number(order?.deliveryPartnerPayoutSnapshot?.perOrder);
+    const snapshotBonus = Number(order?.deliveryPartnerPayoutSnapshot?.bonusAmount);
+    const bonusApplied = Boolean(order?.deliveryPartnerPayoutSnapshot?.bonusApplied);
+    const fallback = (Number.isFinite(snapshotPerOrder) ? snapshotPerOrder : 0)
+      + (bonusApplied && Number.isFinite(snapshotBonus) ? snapshotBonus : 0);
+    return fallback > 0 ? fallback : 0;
   };
 
   const buildGoogleMapsLink = (coords) => {
@@ -284,8 +305,8 @@ const DeliveryPartnerDashboard = () => {
           <p className="text-lg font-bold text-gray-900">{formatCurrency(order.total)}</p>
         </div>
         <div>
-          <p className="text-sm text-gray-600">Delivery Fee</p>
-          <p className="text-lg font-bold text-green-600">{formatCurrency(order.deliveryFee)}</p>
+          <p className="text-sm text-gray-600">Customer Delivery Fee</p>
+          <p className="text-lg font-bold text-gray-900">{formatCurrency(order.deliveryFee)}</p>
         </div>
         <div>
           <p className="text-sm text-gray-600">Payment</p>

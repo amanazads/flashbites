@@ -28,6 +28,7 @@ import {
   updateGlobalDeliveryPartnerEarningsConfig,
   updateDeliveryPartnerEarningsConfig,
   resetAllDeliveryPartnerEarningsOverrides,
+  updateRestaurantPayoutRate,
   updateUserRole,
   getPlatformSettings,
   updatePlatformSettings,
@@ -131,6 +132,7 @@ const AdminPanel = () => {
   const [settingsForm, setSettingsForm] = useState({
     platformFee: 25,
     taxRate: 5,
+    restaurantPayoutRate: 60,
     deliveryChargeRules: [
       { minDistance: 0, maxDistance: 5, charge: 0 },
       { minDistance: 5, maxDistance: 15, charge: 25 },
@@ -138,6 +140,8 @@ const AdminPanel = () => {
     ],
     promoBanners: []
   });
+  const [restaurantPayoutDrafts, setRestaurantPayoutDrafts] = useState({});
+  const [restaurantPayoutSavingId, setRestaurantPayoutSavingId] = useState(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [coupons, setCoupons] = useState([]);
   const [couponsLoading, setCouponsLoading] = useState(false);
@@ -225,7 +229,7 @@ const AdminPanel = () => {
   }, [activeTab, selectedRestaurantId]);
 
   useEffect(() => {
-    if (activeTab === 'fees' || activeTab === 'content') {
+    if (activeTab === 'fees' || activeTab === 'content' || activeTab === 'earnings') {
       fetchPlatformSettings();
     }
   }, [activeTab]);
@@ -246,6 +250,19 @@ const AdminPanel = () => {
         const restaurantsList = restaurantsRes.data?.data?.restaurants || restaurantsRes.data?.restaurants || [];
         console.log('Admin restaurants loaded:', restaurantsList.length);
         setRestaurants(restaurantsList);
+        setRestaurantPayoutDrafts((prev) => {
+          const next = {};
+          restaurantsList.forEach((restaurant) => {
+            const existing = prev[restaurant._id];
+            if (existing !== undefined) {
+              next[restaurant._id] = existing;
+              return;
+            }
+            const override = Number(restaurant.payoutRateOverride);
+            next[restaurant._id] = Number.isFinite(override) ? String(override * 100) : '';
+          });
+          return next;
+        });
       } catch (err) {
         console.error('Failed to load restaurants:', err);
         toast.error('Failed to load restaurants');
@@ -356,6 +373,7 @@ const AdminPanel = () => {
         setSettingsForm({
           platformFee: settings.platformFee ?? 25,
           taxRate: (settings.taxRate ?? 0.05) * 100,
+          restaurantPayoutRate: (settings.restaurantPayoutRate ?? 0.6) * 100,
           deliveryChargeRules: settings.deliveryChargeRules || [
             { minDistance: 0, maxDistance: 5, charge: 0 },
             { minDistance: 5, maxDistance: 15, charge: 25 },
@@ -621,6 +639,7 @@ const AdminPanel = () => {
       const payload = {
         platformFee: Number(settingsForm.platformFee),
         taxRate: Number(settingsForm.taxRate) / 100,
+        restaurantPayoutRate: Number(settingsForm.restaurantPayoutRate) / 100,
         deliveryChargeRules: settingsForm.deliveryChargeRules.map((rule) => ({
           minDistance: Number(rule.minDistance),
           maxDistance: Number(rule.maxDistance),
@@ -848,6 +867,54 @@ const AdminPanel = () => {
       toast.error(error?.response?.data?.message || 'Failed to reset all overrides');
     } finally {
       setDeliveryEarningsSaving(false);
+    }
+  };
+
+  const handleSaveRestaurantPayoutRate = async (restaurantId) => {
+    try {
+      setRestaurantPayoutSavingId(restaurantId);
+      const draftPercent = restaurantPayoutDrafts[restaurantId];
+      const hasExplicitValue = draftPercent !== undefined && String(draftPercent).trim() !== '';
+
+      if (!hasExplicitValue) {
+        await updateRestaurantPayoutRate(restaurantId, { resetToGlobal: true });
+      } else {
+        const percentage = Number(draftPercent);
+        if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
+          toast.error('Payout rate must be between 0 and 100%');
+          return;
+        }
+
+        await updateRestaurantPayoutRate(restaurantId, {
+          payoutRateOverride: percentage / 100
+        });
+      }
+
+      toast.success('Restaurant payout rate updated');
+      fetchData();
+      fetchPlatformSettings();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update restaurant payout rate');
+    } finally {
+      setRestaurantPayoutSavingId(null);
+    }
+  };
+
+  const handleResetRestaurantPayoutRate = async (restaurantId) => {
+    try {
+      setRestaurantPayoutSavingId(restaurantId);
+      await updateRestaurantPayoutRate(restaurantId, { resetToGlobal: true });
+      setRestaurantPayoutDrafts((prev) => ({
+        ...prev,
+        [restaurantId]: ''
+      }));
+      toast.success('Restaurant payout reset to global');
+      fetchData();
+      fetchPlatformSettings();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to reset restaurant payout rate');
+    } finally {
+      setRestaurantPayoutSavingId(null);
     }
   };
 
@@ -1294,7 +1361,7 @@ const AdminPanel = () => {
               <div>
                 <h2 className="text-xl font-bold mb-4">Fees & Charges</h2>
                 <div className="bg-gray-50 rounded-lg p-4 sm:p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Platform Fee (INR)</label>
                       <input
@@ -1315,6 +1382,19 @@ const AdminPanel = () => {
                         onChange={(e) => handleSettingsChange('taxRate', e.target.value)}
                         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Restaurant Payout Rate (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={settingsForm.restaurantPayoutRate}
+                        onChange={(e) => handleSettingsChange('restaurantPayoutRate', e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">Used when a restaurant has no custom override.</p>
                     </div>
                   </div>
 
@@ -2324,7 +2404,71 @@ const AdminPanel = () => {
 
             {activeTab === 'earnings' && (
               <div>
-                <h2 className="text-xl font-bold mb-4">Delivery Partner Earnings Control</h2>
+                <h2 className="text-xl font-bold mb-4">Payout & Earnings Control</h2>
+                <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4">
+                  <div className="flex flex-col gap-1 mb-4">
+                    <h3 className="text-base font-bold text-gray-900">Restaurant Payout Controls</h3>
+                    <p className="text-xs text-gray-500">
+                      Global default: {Number(settingsForm.restaurantPayoutRate || 0).toFixed(1)}%. Keep override empty to use global.
+                    </p>
+                  </div>
+
+                  {restaurants.length === 0 ? (
+                    <p className="text-sm text-gray-500">No restaurants available.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {restaurants.map((restaurant) => {
+                        const draftPercent = restaurantPayoutDrafts[restaurant._id] ?? '';
+                        const effectiveOverride = Number(restaurant.payoutRateOverride);
+                        const hasOverride = Number.isFinite(effectiveOverride);
+
+                        return (
+                          <div key={restaurant._id} className="rounded-lg border border-gray-100 p-3">
+                            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                              <div>
+                                <p className="text-sm font-bold text-gray-900">{restaurant.name}</p>
+                                <p className="text-xs text-gray-500">
+                                  {hasOverride
+                                    ? `Override: ${(effectiveOverride * 100).toFixed(2)}%`
+                                    : `Using global: ${Number(settingsForm.restaurantPayoutRate || 0).toFixed(1)}%`}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.1"
+                                  value={draftPercent}
+                                  onChange={(e) => setRestaurantPayoutDrafts((prev) => ({
+                                    ...prev,
+                                    [restaurant._id]: e.target.value
+                                  }))}
+                                  className="w-36 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                                  placeholder="Override %"
+                                />
+                                <button
+                                  onClick={() => handleSaveRestaurantPayoutRate(restaurant._id)}
+                                  disabled={restaurantPayoutSavingId === restaurant._id}
+                                  className="px-3 py-2 rounded-lg text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-60"
+                                >
+                                  {restaurantPayoutSavingId === restaurant._id ? 'Saving...' : 'Save'}
+                                </button>
+                                <button
+                                  onClick={() => handleResetRestaurantPayoutRate(restaurant._id)}
+                                  disabled={restaurantPayoutSavingId === restaurant._id}
+                                  className="px-3 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-60"
+                                >
+                                  Reset
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
                 <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
                     <h3 className="text-base font-bold text-gray-900">Delivery Earnings Controls</h3>

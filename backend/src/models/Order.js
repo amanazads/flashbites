@@ -61,6 +61,18 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  restaurantPayoutRateSnapshot: {
+    type: Number,
+    default: 0.6
+  },
+  restaurantEarning: {
+    type: Number,
+    default: 0
+  },
+  adminEarning: {
+    type: Number,
+    default: 0
+  },
   deliveryPartnerPayoutSnapshot: {
     perOrder: {
       type: Number,

@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const User = require('../models/User');
+const Restaurant = require('../models/Restaurant');
 const PlatformSettings = require('../models/PlatformSettings');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { 
@@ -10,6 +11,7 @@ const {
 } = require('../utils/notificationService');
 const {
   notifyDeliveryPartnerOrderAssigned,
+  notifyDeliveryPartner,
   notifyUserOrderUpdate,
   notifyRestaurantNewOrder: socketNotifyRestaurant,
   emitOrderLocationUpdate
@@ -31,6 +33,23 @@ const normalizePayoutConfig = (config = {}) => {
     bonusThreshold: Number.isFinite(bonusThreshold) && bonusThreshold > 0 ? bonusThreshold : DEFAULT_PAYOUT_CONFIG.bonusThreshold,
     bonusAmount: Number.isFinite(bonusAmount) && bonusAmount >= 0 ? bonusAmount : DEFAULT_PAYOUT_CONFIG.bonusAmount
   };
+};
+
+const roundToTwo = (value) => Math.round((Number(value) || 0) * 100) / 100;
+
+const normalizeRestaurantPayoutRate = (rawRate) => {
+  const rate = Number(rawRate);
+  if (!Number.isFinite(rate)) return 0.6;
+  if (rate < 0) return 0;
+  if (rate > 1) return 1;
+  return rate;
+};
+
+const getRestaurantSettlementEarning = (orderLike, payoutRate) => {
+  const subtotal = Number(orderLike?.subtotal || 0);
+  const discount = Number(orderLike?.discount || 0);
+  const baseAmount = Math.max(subtotal - discount, 0);
+  return roundToTwo(baseAmount * normalizeRestaurantPayoutRate(payoutRate));
 };
 
 const getEffectivePayoutConfig = async (partnerUserId) => {
@@ -297,11 +316,28 @@ exports.markAsDelivered = async (req, res) => {
     const bonusApplied = completedCountAfterThisOrder % payoutConfig.bonusThreshold === 0;
     const partnerEarning = payoutConfig.perOrder + (bonusApplied ? payoutConfig.bonusAmount : 0);
 
+    const [settings, restaurant] = await Promise.all([
+      PlatformSettings.findOne().select('restaurantPayoutRate').lean(),
+      Restaurant.findById(order.restaurantId).select('totalEarnings')
+    ]);
+
+    const existingRestaurantEarning = Number(order.restaurantEarning || 0);
+    const settlementRate = normalizeRestaurantPayoutRate(
+      order.restaurantPayoutRateSnapshot ?? settings?.restaurantPayoutRate
+    );
+    const restaurantEarning = existingRestaurantEarning > 0
+      ? roundToTwo(existingRestaurantEarning)
+      : getRestaurantSettlementEarning(order, settlementRate);
+    const adminEarning = roundToTwo((Number(order.total) || 0) - restaurantEarning - partnerEarning);
+
     // Mark as delivered
     order.status = 'delivered';
     order.deliveredAt = new Date();
     order.paymentStatus = 'completed';
     order.deliveryPartnerEarning = partnerEarning;
+    order.restaurantPayoutRateSnapshot = settlementRate;
+    order.restaurantEarning = restaurantEarning;
+    order.adminEarning = adminEarning;
     order.deliveryPartnerPayoutSnapshot = {
       perOrder: payoutConfig.perOrder,
       bonusThreshold: payoutConfig.bonusThreshold,
@@ -310,12 +346,23 @@ exports.markAsDelivered = async (req, res) => {
     };
     await order.save();
 
+    if (restaurant && existingRestaurantEarning <= 0) {
+      restaurant.totalEarnings = Number(restaurant.totalEarnings || 0) + restaurantEarning;
+      await restaurant.save();
+    }
+
     const updatedOrder = await Order.findById(orderId)
       .populate('userId', 'name phone')
       .populate('restaurantId', 'name address phone location ownerId')
       .populate('addressId');
 
     try {
+      notifyDeliveryPartner(req.user._id.toString(), 'order-status-updated', {
+        orderId: updatedOrder._id,
+        status: 'delivered',
+        order: updatedOrder
+      });
+
       // Notify customer delivery completion.
       await notifyOrderStatus(updatedOrder, 'delivered');
 
@@ -410,7 +457,18 @@ exports.getOrderHistory = async (req, res) => {
               $cond: [
                 { $gt: ['$deliveryPartnerEarning', 0] },
                 '$deliveryPartnerEarning',
-                '$deliveryFee'
+                {
+                  $add: [
+                    { $ifNull: ['$deliveryPartnerPayoutSnapshot.perOrder', 0] },
+                    {
+                      $cond: [
+                        { $eq: ['$deliveryPartnerPayoutSnapshot.bonusApplied', true] },
+                        { $ifNull: ['$deliveryPartnerPayoutSnapshot.bonusAmount', 0] },
+                        0
+                      ]
+                    }
+                  ]
+                }
               ]
             }
           },
@@ -479,7 +537,18 @@ exports.getStats = async (req, res) => {
                 $cond: [
                   { $gt: ['$deliveryPartnerEarning', 0] },
                   '$deliveryPartnerEarning',
-                  '$deliveryFee'
+                  {
+                    $add: [
+                      { $ifNull: ['$deliveryPartnerPayoutSnapshot.perOrder', 0] },
+                      {
+                        $cond: [
+                          { $eq: ['$deliveryPartnerPayoutSnapshot.bonusApplied', true] },
+                          { $ifNull: ['$deliveryPartnerPayoutSnapshot.bonusAmount', 0] },
+                          0
+                        ]
+                      }
+                    ]
+                  }
                 ]
               }
             }

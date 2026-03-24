@@ -698,7 +698,30 @@ exports.getRestaurantDashboard = async (req, res) => {
       {
         $group: {
           _id: null,
-          totalEarnings: { $sum: '$total' },
+          totalEarnings: {
+            $sum: {
+              $cond: [
+                { $gt: ['$restaurantEarning', 0] },
+                '$restaurantEarning',
+                {
+                  $multiply: [
+                    {
+                      $max: [
+                        {
+                          $subtract: [
+                            { $ifNull: ['$subtotal', 0] },
+                            { $ifNull: ['$discount', 0] }
+                          ]
+                        },
+                        0
+                      ]
+                    },
+                    { $ifNull: ['$restaurantPayoutRateSnapshot', 0.6] }
+                  ]
+                }
+              ]
+            }
+          },
           totalOrders: { $sum: 1 }
         }
       }
@@ -752,7 +775,34 @@ exports.getRestaurantAnalytics = async (req, res) => {
             $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] }
           },
           totalRevenue: {
-            $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, '$total', 0] }
+            $sum: {
+              $cond: [
+                { $eq: ['$status', 'delivered'] },
+                {
+                  $cond: [
+                    { $gt: ['$restaurantEarning', 0] },
+                    '$restaurantEarning',
+                    {
+                      $multiply: [
+                        {
+                          $max: [
+                            {
+                              $subtract: [
+                                { $ifNull: ['$subtotal', 0] },
+                                { $ifNull: ['$discount', 0] }
+                              ]
+                            },
+                            0
+                          ]
+                        },
+                        { $ifNull: ['$restaurantPayoutRateSnapshot', 0.6] }
+                      ]
+                    }
+                  ]
+                },
+                0
+              ]
+            }
           },
           totalOrderValue: { $sum: '$total' }
         }
@@ -776,9 +826,55 @@ exports.getRestaurantAnalytics = async (req, res) => {
             day: { $dayOfMonth: '$createdAt' }
           },
           date: { $first: '$createdAt' },
-          revenue: { $sum: '$total' },
+          revenue: {
+            $sum: {
+              $cond: [
+                { $gt: ['$restaurantEarning', 0] },
+                '$restaurantEarning',
+                {
+                  $multiply: [
+                    {
+                      $max: [
+                        {
+                          $subtract: [
+                            { $ifNull: ['$subtotal', 0] },
+                            { $ifNull: ['$discount', 0] }
+                          ]
+                        },
+                        0
+                      ]
+                    },
+                    { $ifNull: ['$restaurantPayoutRateSnapshot', 0.6] }
+                  ]
+                }
+              ]
+            }
+          },
           orderCount: { $sum: 1 },
-          avgOrderValue: { $avg: '$total' }
+          avgOrderValue: {
+            $avg: {
+              $cond: [
+                { $gt: ['$restaurantEarning', 0] },
+                '$restaurantEarning',
+                {
+                  $multiply: [
+                    {
+                      $max: [
+                        {
+                          $subtract: [
+                            { $ifNull: ['$subtotal', 0] },
+                            { $ifNull: ['$discount', 0] }
+                          ]
+                        },
+                        0
+                      ]
+                    },
+                    { $ifNull: ['$restaurantPayoutRateSnapshot', 0.6] }
+                  ]
+                }
+              ]
+            }
+          }
         }
       },
       { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
@@ -797,7 +893,30 @@ exports.getRestaurantAnalytics = async (req, res) => {
         $group: {
           _id: '$paymentMethod',
           count: { $sum: 1 },
-          revenue: { $sum: '$total' }
+          revenue: {
+            $sum: {
+              $cond: [
+                { $gt: ['$restaurantEarning', 0] },
+                '$restaurantEarning',
+                {
+                  $multiply: [
+                    {
+                      $max: [
+                        {
+                          $subtract: [
+                            { $ifNull: ['$subtotal', 0] },
+                            { $ifNull: ['$discount', 0] }
+                          ]
+                        },
+                        0
+                      ]
+                    },
+                    { $ifNull: ['$restaurantPayoutRateSnapshot', 0.6] }
+                  ]
+                }
+              ]
+            }
+          }
         }
       }
     ]);

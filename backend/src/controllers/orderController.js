@@ -25,6 +25,7 @@ const {
   notifyRestaurantNewOrder: socketNotifyRestaurant, 
   notifyAdminNewOrder, 
   notifyUserOrderUpdate,
+  notifyDeliveryPartner,
   notifyDeliveryPartnersNewOrder,
   notifyDeliveryPartnerOrderAssigned,
   notifyDeliveryPartnerOrderCancelled: socketNotifyDeliveryPartnerCancelled,
@@ -159,6 +160,27 @@ const getAddressCoordinates = (addressLike) => {
   return null;
 };
 
+const roundToTwo = (value) => Math.round((Number(value) || 0) * 100) / 100;
+
+const normalizeRestaurantPayoutRate = (rawRate) => {
+  const rate = Number(rawRate);
+  if (!Number.isFinite(rate)) return 0.6;
+  if (rate < 0) return 0;
+  if (rate > 1) return 1;
+  return rate;
+};
+
+const getRestaurantSettlementBase = (orderLike) => {
+  const subtotal = Number(orderLike?.subtotal || 0);
+  const discount = Number(orderLike?.discount || 0);
+  return Math.max(subtotal - discount, 0);
+};
+
+const getRestaurantSettlementEarning = (orderLike, payoutRate) => {
+  const baseAmount = getRestaurantSettlementBase(orderLike);
+  return roundToTwo(baseAmount * normalizeRestaurantPayoutRate(payoutRate));
+};
+
 // Cancellation policy rules
 const CANCELLATION_RULES = {
   pending: { allowed: true, fee: 0, message: 'Free cancellation' },
@@ -252,7 +274,7 @@ exports.createOrder = async (req, res) => {
 
     // Verify restaurant exists and is active
     const restaurant = await Restaurant.findById(restaurantId)
-      .select('name ownerId isActive isApproved acceptingOrders location deliveryTime deliveryRadiusKm address')
+      .select('name ownerId isActive isApproved acceptingOrders location deliveryTime deliveryRadiusKm address payoutRateOverride')
       .lean();
     
     if (!restaurant) {
@@ -496,12 +518,20 @@ exports.createOrder = async (req, res) => {
 
     let settings = await PlatformSettings.findOne().lean();
     if (!settings) {
-      settings = { platformFee: 25, taxRate: 0.05, deliveryChargeRules: DEFAULT_DELIVERY_CHARGES };
+      settings = {
+        platformFee: 25,
+        taxRate: 0.05,
+        restaurantPayoutRate: 0.6,
+        deliveryChargeRules: DEFAULT_DELIVERY_CHARGES
+      };
     }
 
     deliveryFee = calculateDeliveryCharge(distance, settings.deliveryChargeRules);
     const platformFee = Number(settings.platformFee || 0);
     const taxRate = Number(settings.taxRate || 0);
+    const restaurantPayoutRate = normalizeRestaurantPayoutRate(
+      restaurant.payoutRateOverride ?? settings.restaurantPayoutRate
+    );
     const taxBase = subtotal - discount;
     const tax = taxBase > 0 ? taxBase * taxRate : 0;
 
@@ -545,6 +575,7 @@ exports.createOrder = async (req, res) => {
       platformFee,
       tax,
       discount,
+      restaurantPayoutRateSnapshot: restaurantPayoutRate,
       couponCode,
       total,
       paymentMethod: paymentMethod || 'cod',
@@ -807,14 +838,32 @@ exports.updateOrderStatus = async (req, res) => {
     if (status === 'delivered') {
       console.log('✓ [updateOrderStatus] Marking as delivered...');
       order.deliveredAt = new Date();
+      order.paymentStatus = 'completed';
       
       // Update restaurant earnings
-      const restaurant = await Restaurant.findById(order.restaurantId);
-      const commission = (order.total * restaurant.commissionRate) / 100;
-      const restaurantEarning = order.total - commission;
-      
-      restaurant.totalEarnings += restaurantEarning;
-      await restaurant.save();
+      const [restaurant, settings] = await Promise.all([
+        Restaurant.findById(order.restaurantId),
+        PlatformSettings.findOne().select('restaurantPayoutRate').lean()
+      ]);
+
+      const existingRestaurantEarning = Number(order.restaurantEarning || 0);
+      const settlementRate = normalizeRestaurantPayoutRate(
+        order.restaurantPayoutRateSnapshot ?? settings?.restaurantPayoutRate
+      );
+      const restaurantEarning = existingRestaurantEarning > 0
+        ? roundToTwo(existingRestaurantEarning)
+        : getRestaurantSettlementEarning(order, settlementRate);
+
+      order.restaurantPayoutRateSnapshot = settlementRate;
+      order.restaurantEarning = restaurantEarning;
+
+      const partnerEarning = Number(order.deliveryPartnerEarning || 0);
+      order.adminEarning = roundToTwo((Number(order.total) || 0) - restaurantEarning - (Number.isFinite(partnerEarning) ? partnerEarning : 0));
+
+      if (restaurant && existingRestaurantEarning <= 0) {
+        restaurant.totalEarnings = Number(restaurant.totalEarnings || 0) + restaurantEarning;
+        await restaurant.save();
+      }
       console.log('✓ [updateOrderStatus] Restaurant earnings updated');
     }
 
@@ -887,6 +936,18 @@ exports.updateOrderStatus = async (req, res) => {
           if (populatedOrder.deliveryPartnerId) {
             await notifyDeliveryPartnerOrderReady(populatedOrder, populatedOrder.deliveryPartnerId);
           }
+        }
+
+        if (populatedOrder.deliveryPartnerId) {
+          const deliveryPartnerId = populatedOrder.deliveryPartnerId._id
+            ? populatedOrder.deliveryPartnerId._id.toString()
+            : populatedOrder.deliveryPartnerId.toString();
+
+          notifyDeliveryPartner(deliveryPartnerId, 'order-status-updated', {
+            orderId: populatedOrder._id,
+            status,
+            order: populatedOrder
+          });
         }
         
         if (status === 'out_for_delivery' && populatedOrder.paymentMethod === 'cod') {
