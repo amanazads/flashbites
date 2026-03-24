@@ -27,7 +27,7 @@ import {
   toggleMenuItemAvailability,
   getRestaurantAnalytics 
 } from '../api/restaurantApi';
-import { geocodeAddressText } from '../api/locationApi';
+import { geocodeAddressText, autocompleteAddress } from '../api/locationApi';
 import { getRestaurantOrders, updateOrderStatus } from '../api/orderApi';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
@@ -85,6 +85,9 @@ const RestaurantDashboard = () => {
   const [menuImageFile, setMenuImageFile] = useState(null);
   const [menuImagePreview, setMenuImagePreview] = useState(null);
   const [locationDraft, setLocationDraft] = useState({ lat: '', lng: '' });
+  const [restaurantLocationSearch, setRestaurantLocationSearch] = useState('');
+  const [restaurantLocationSuggestions, setRestaurantLocationSuggestions] = useState([]);
+  const [searchingRestaurantLocation, setSearchingRestaurantLocation] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
 
   const [restaurantData, setRestaurantData] = useState({
@@ -199,6 +202,41 @@ const RestaurantDashboard = () => {
     return () => clearInterval(intervalId);
   }, [autoRefreshOrders, activeTab, restaurant]);
 
+  useEffect(() => {
+    if (!showRestaurantForm) return;
+    const query = restaurantLocationSearch.trim();
+
+    if (query.length < 3) {
+      setRestaurantLocationSuggestions([]);
+      setSearchingRestaurantLocation(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setSearchingRestaurantLocation(true);
+      try {
+        const response = await autocompleteAddress(query);
+        if (cancelled) return;
+        const list = response?.data?.suggestions || [];
+        setRestaurantLocationSuggestions(Array.isArray(list) ? list : []);
+      } catch {
+        if (!cancelled) {
+          setRestaurantLocationSuggestions([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setSearchingRestaurantLocation(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [restaurantLocationSearch, showRestaurantForm]);
+
   const fetchMenuItems = async (restaurantId) => {
     try {
       console.log('Fetching menu items for restaurant:', restaurantId);
@@ -269,6 +307,11 @@ const RestaurantDashboard = () => {
             coordinates: [draftLng, draftLat]
           };
         }
+      }
+
+      if (!locationPayload) {
+        toast.error('Please set restaurant coordinates using location search, current location, or manual lat/lng.');
+        return;
       }
 
       const formData = new FormData();
@@ -639,6 +682,31 @@ const RestaurantDashboard = () => {
     );
   };
 
+  const handleRestaurantLocationSuggestionSelect = (suggestion) => {
+    const lat = Number(suggestion?.lat);
+    const lng = Number(suggestion?.lng);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      toast.error('This suggestion does not contain valid coordinates. Please try another result.');
+      return;
+    }
+
+    applyLocationCoordinates(lat, lng);
+    setRestaurantLocationSearch(suggestion?.fullAddress || suggestion?.label || '');
+    setRestaurantLocationSuggestions([]);
+
+    setRestaurantData((prev) => ({
+      ...prev,
+      address: {
+        ...prev.address,
+        street: suggestion?.street || prev.address.street,
+        city: suggestion?.city || prev.address.city,
+        state: suggestion?.state || prev.address.state,
+        zipCode: suggestion?.zipCode || prev.address.zipCode,
+      }
+    }));
+  };
+
   // Show loading while checking authentication
   if (!authChecked || loading) {
     return (
@@ -725,6 +793,8 @@ const RestaurantDashboard = () => {
                       lat: Number.isFinite(existingLat) ? String(existingLat) : '',
                       lng: Number.isFinite(existingLng) ? String(existingLng) : ''
                     });
+                    setRestaurantLocationSearch(restaurant?.address?.street || '');
+                    setRestaurantLocationSuggestions([]);
                     setRestaurantImagePreview(restaurant.image);
                     setRestaurantImageFile(null);
                     setShowRestaurantForm(true);
@@ -1444,6 +1514,11 @@ const RestaurantDashboard = () => {
               <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
                 {restaurant ? 'Edit Restaurant' : 'Register Restaurant'}
               </h2>
+              <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Step 1</p>
+                <h3 className="text-lg font-bold text-gray-900">Restaurant Information</h3>
+                <p className="text-sm text-gray-600">Add restaurant identity, location and contact details.</p>
+              </div>
               <form onSubmit={handleRestaurantSubmit} className="space-y-3 sm:space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">
@@ -1601,6 +1676,36 @@ const RestaurantDashboard = () => {
                   </div>
                 </div>
 
+                <div className="rounded-xl border border-gray-200 bg-white p-4">
+                  <p className="text-sm font-semibold text-gray-900 mb-2">Pick Restaurant Location</p>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={restaurantLocationSearch}
+                      onChange={(e) => setRestaurantLocationSearch(e.target.value)}
+                      placeholder="Search area, street, landmark"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                    {searchingRestaurantLocation && (
+                      <p className="mt-1 text-xs text-gray-500">Searching location...</p>
+                    )}
+                    {restaurantLocationSuggestions.length > 0 && (
+                      <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white">
+                        {restaurantLocationSuggestions.map((suggestion, index) => (
+                          <button
+                            key={suggestion.placeId || suggestion.place_id || `${suggestion.label}-${index}`}
+                            type="button"
+                            onClick={() => handleRestaurantLocationSuggestionSelect(suggestion)}
+                            className="w-full border-b border-gray-100 px-3 py-2 text-left text-xs text-gray-700 hover:bg-gray-50"
+                          >
+                            {suggestion.fullAddress || suggestion.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="rounded-lg border border-gray-200 p-3 bg-gray-50">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <p className="text-xs text-gray-600">
@@ -1613,6 +1718,14 @@ const RestaurantDashboard = () => {
                     >
                       Use Current Location
                     </button>
+                  </div>
+                  <div className="mt-3 rounded-lg border border-dashed border-gray-300 bg-white p-3">
+                    <p className="text-xs font-medium text-gray-700">Current selected pickup point</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {Array.isArray(restaurantData.location?.coordinates) && restaurantData.location.coordinates.length >= 2
+                        ? `${Number(restaurantData.location.coordinates[1]).toFixed(6)}, ${Number(restaurantData.location.coordinates[0]).toFixed(6)}`
+                        : 'No coordinates selected yet'}
+                    </p>
                   </div>
                   <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input
