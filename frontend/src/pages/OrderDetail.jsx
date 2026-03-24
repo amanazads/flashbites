@@ -37,8 +37,12 @@ const OrderDetail = () => {
 
   // Initialize socket connection
   useEffect(() => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const newSocket = io(API_URL, {
+    const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const socketUrl = import.meta.env.DEV
+      ? 'http://localhost:8080'
+      : rawApiUrl.replace(/\/api\/?$/, '') || window.location.origin;
+
+    const newSocket = io(socketUrl, {
       auth: {
         token: localStorage.getItem('token')
       }
@@ -48,19 +52,52 @@ const OrderDetail = () => {
       console.log('Socket connected for order tracking');
       // Join order room for real-time updates
       newSocket.emit('join_order_room', id);
+      newSocket.emit('joinOrderRoom', id);
     });
 
     newSocket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
     });
 
+    const refreshOrder = () => {
+      fetchOrderDetails();
+    };
+
+    const handleLiveStatus = (payload) => {
+      const nextStatus = typeof payload === 'string' ? payload : payload?.status;
+      if (!nextStatus) return;
+
+      setOrder((prev) => {
+        if (!prev) return prev;
+        return { ...prev, status: nextStatus };
+      });
+
+      refreshOrder();
+    };
+
+    const handleLiveLocation = () => {
+      if (showTracking) {
+        refreshOrder();
+      }
+    };
+
+    newSocket.on('status_update', handleLiveStatus);
+    newSocket.on('statusUpdate', handleLiveStatus);
+    newSocket.on('delivery_location_update', handleLiveLocation);
+    newSocket.on('locationUpdate', handleLiveLocation);
+
     setSocket(newSocket);
 
     return () => {
       newSocket.emit('leave_order_room', id);
+      newSocket.emit('leaveOrderRoom', id);
+      newSocket.off('status_update', handleLiveStatus);
+      newSocket.off('statusUpdate', handleLiveStatus);
+      newSocket.off('delivery_location_update', handleLiveLocation);
+      newSocket.off('locationUpdate', handleLiveLocation);
       newSocket.close();
     };
-  }, [id]);
+  }, [id, showTracking]);
 
   useEffect(() => {
     fetchOrderDetails();

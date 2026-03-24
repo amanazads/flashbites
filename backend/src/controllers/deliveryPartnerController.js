@@ -10,7 +10,8 @@ const {
 const {
   notifyDeliveryPartnerOrderAssigned,
   notifyUserOrderUpdate,
-  notifyRestaurantNewOrder: socketNotifyRestaurant
+  notifyRestaurantNewOrder: socketNotifyRestaurant,
+  emitOrderLocationUpdate
 } = require('../services/socketService');
 
 // @desc    Get all available orders for delivery partners
@@ -383,21 +384,7 @@ exports.updateLocation = async (req, res) => {
         await order.save();
 
         // Emit real-time update via socket
-        const io = req.app.get('io');
-        if (io) {
-          // Notify user tracking this order
-          io.to(`order_${orderId}`).emit('delivery_location_update', {
-            orderId,
-            location: { latitude: lat, longitude: lng },
-            timestamp: new Date()
-          });
-
-          io.to(`order-${orderId}`).emit('delivery_location_update', {
-            orderId,
-            location: { latitude: lat, longitude: lng },
-            timestamp: new Date()
-          });
-        }
+        emitOrderLocationUpdate(orderId, lat, lng, new Date());
       }
     }
 

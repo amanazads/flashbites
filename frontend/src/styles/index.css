@@ -443,6 +443,10 @@ input, textarea, select {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.6; transform: scale(0.85); }
 }
+@keyframes bikePulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 8px 20px rgba(34,197,94,0.35); }
+  50% { transform: scale(1.08); box-shadow: 0 12px 28px rgba(34,197,94,0.45); }
+}
 
 .animate-fade-in   { animation: fadeIn   0.25s ease-out; }
 .animate-slide-up  { animation: slideUp  0.3s cubic-bezier(0.16,1,0.3,1); }

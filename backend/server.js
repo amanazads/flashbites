@@ -229,7 +229,8 @@ app.use(errorHandler);
   ║   Time: ${new Date().toLocaleString()}   ║
   ╚═══════════════════════════════════════════╝
   `);
-    initializeSocket(server);
+    const io = initializeSocket(server);
+    app.set('io', io);
     keepAlive();
   });
 

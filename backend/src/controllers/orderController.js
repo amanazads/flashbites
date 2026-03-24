@@ -26,7 +26,8 @@ const {
   notifyUserOrderUpdate,
   notifyDeliveryPartnersNewOrder,
   notifyDeliveryPartnerOrderAssigned,
-  notifyDeliveryPartnerOrderCancelled: socketNotifyDeliveryPartnerCancelled
+  notifyDeliveryPartnerOrderCancelled: socketNotifyDeliveryPartnerCancelled,
+  emitOrderStatusUpdate
 } = require('../services/socketService');
 const { calculateDistance, calculateDeliveryCharge, DEFAULT_DELIVERY_CHARGES } = require('../utils/calculateDistance');
 const { assignDeliveryPartner } = require('../services/deliveryAssignmentService');
@@ -799,7 +800,7 @@ exports.updateOrderStatus = async (req, res) => {
       confirmed: 'confirmed',
       preparing: 'preparing',
       ready: 'ready',
-      out_for_delivery: 'picked_up',
+      out_for_delivery: 'out_for_delivery',
       delivered: 'delivered',
       cancelled: 'cancelled'
     };
@@ -817,6 +818,9 @@ exports.updateOrderStatus = async (req, res) => {
           notifyUserOrderUpdate(userIdStr, populatedOrder);
           console.log('✓ [updateOrderStatus] Socket notification sent to user:', userIdStr);
         }
+
+        // Broadcast status into order tracking rooms for live tracking UI.
+        emitOrderStatusUpdate(populatedOrder._id.toString(), status, populatedOrder);
         
         // Additional specific notifications
         if (status === 'confirmed' || status === 'ready') {

@@ -290,19 +290,27 @@ export const useNotifications = () => {
     const statusMessages = {
       confirmed:        { msg: 'Order confirmed! 🎉',              emoji: '✅' },
       preparing:        { msg: 'Restaurant is preparing your order 👨‍🍳', emoji: '🍳' },
-      ready:            { msg: 'Your food is ready! 🎊',           emoji: '✨' },
-      out_for_delivery: { msg: 'Out for delivery! 🚀',             emoji: '🚚' },
-      delivered:        { msg: 'Order delivered! Enjoy 😋',        emoji: '✅' },
+      ready:            { msg: 'Your food is ready! 🎊',           emoji: '✨', priority: 'high' },
+      out_for_delivery: { msg: 'Out for delivery! Live tracking started 🚚', emoji: '🚚', priority: 'high' },
+      delivered:        { msg: 'Order delivered! Enjoy 😋',        emoji: '✅', priority: 'high' },
       cancelled:        { msg: 'Order cancelled ❌',                emoji: '❌' },
     };
 
     const s = statusMessages[data.order?.status] || { msg: 'Order updated', emoji: '⚡' };
 
     showToast(s.emoji, s.msg, `Order #${data.order?._id?.slice(-6)}`, '#3b82f6');
+    const orderId = data.order?._id;
+    const status = data.order?.status;
+    const isKeyTransition = ['ready', 'out_for_delivery', 'delivered'].includes(status);
+
     sendSystemNotification(
       `FlashBites – ${s.msg}`,
-      `Order #${data.order?._id?.slice(-6)}`,
-      { tag: 'order-update', url: '/orders' }
+      `Order #${orderId?.slice(-6) || ''}`,
+      {
+        tag: isKeyTransition ? `order-transition-${status}` : 'order-update',
+        url: orderId ? `/orders/${orderId}` : '/orders',
+        priority: s.priority || 'medium'
+      }
     );
   }, [soundEnabled, showToast, shouldNotifyForKey]);
 

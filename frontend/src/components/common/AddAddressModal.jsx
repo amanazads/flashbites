@@ -172,7 +172,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.street || !formData.city || !formData.state || !formData.zipCode) {
+    if (!formData.street || !formData.city || !formData.state) {
       if (!formData.fullAddress?.trim()) {
         toast.error('Please fill address details or use current location');
         return;
@@ -395,7 +395,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
           {/* Zip Code */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              PIN Code *
+              PIN Code (Optional)
             </label>
             <input
               type="text"

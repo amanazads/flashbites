@@ -206,6 +206,11 @@ const notifyOrderStatus = async (order, status) => {
         message: `Your order #${orderRef} is ready for pickup`,
         type: 'order_ready'
       },
+      out_for_delivery: {
+        title: '🚴 Out for Delivery',
+        message: `Your order #${orderRef} is on the way`,
+        type: 'order_out_for_delivery'
+      },
       picked_up: {
         title: '🚴 On the Way',
         message: `Your order #${orderRef} has been picked up and is on the way`,
@@ -233,7 +238,8 @@ const notifyOrderStatus = async (order, status) => {
     notificationData.data = {
       orderId: order._id,
       orderNumber: orderRef,
-      restaurantId: order.restaurantId?._id
+      restaurantId: order.restaurantId?._id,
+      status
     };
 
     // Notify customer (use userId instead of user)

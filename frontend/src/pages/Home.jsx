@@ -2,12 +2,14 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchRestaurants } from '../redux/slices/restaurantSlice';
+import { openCart } from '../redux/slices/uiSlice';
 import { getAddresses } from '../api/userApi';
 import { getPlatformSettings } from '../api/settingsApi';
 import { getRestaurantMenuItems, searchRestaurantsAndItems } from '../api/restaurantApi';
 import RestaurantCard from '../components/restaurant/RestaurantCard';
 import { Loader } from '../components/common/Loader';
-import { calculateDistance } from '../utils/helpers';
+import { calculateCartTotal, calculateDistance } from '../utils/helpers';
+import { formatCurrency } from '../utils/formatters';
 import SEO from '../components/common/SEO';
 import toast from 'react-hot-toast';
 import {
@@ -147,6 +149,7 @@ const Home = () => {
   const dispatch = useDispatch();
   const { restaurants, loading, error: restaurantError } = useSelector((s) => s.restaurant);
   const { isAuthenticated } = useSelector((s) => s.auth);
+  const { items: cartItems } = useSelector((s) => s.cart);
 
   /* ── Delivery address state ── */
   const [savedAddresses, setSavedAddresses] = useState([]);
@@ -519,6 +522,8 @@ const Home = () => {
     : baseList.filter((r) => Array.isArray(categoryMatchesByRestaurant[r._id]) && categoryMatchesByRestaurant[r._id].length > 0);
   const promosToShow = promoBanners.length > 0 ? promoBanners : PROMOS;
   const promoLoopItems = promosToShow.length > 1 ? [...promosToShow, promosToShow[0]] : promosToShow;
+  const cartItemCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const cartTotal = calculateCartTotal(cartItems);
 
   useEffect(() => {
     if (activeCat === 'all') {
@@ -659,6 +664,8 @@ const Home = () => {
         keywords="food delivery, order food online, restaurant near me, online food order India, FlashBites, fast delivery food, food app India"
       />
       <div className="max-w-7xl mx-auto w-full max-[388px]:px-3">
+
+        <div className="sticky top-[calc(var(--nav-height-mob)+env(safe-area-inset-top,0px))] z-40 bg-[var(--bg-app)]/95 backdrop-blur-sm pb-2">
 
       {/* ══════════════════════════════════
           DELIVERY ADDRESS SELECTOR
@@ -1011,6 +1018,8 @@ const Home = () => {
         </div>
       </div>
 
+      </div>
+
       {/* Featured section */}
       {!loading && restaurants.length > 0 && (
         <div className="mb-6 container-px">
@@ -1253,6 +1262,22 @@ const Home = () => {
           ))}
         </div>
       </div>
+
+      {cartItemCount > 0 && (
+        <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-4 right-4 z-50 lg:hidden">
+          <button
+            type="button"
+            onClick={() => dispatch(openCart())}
+            className="w-full rounded-2xl px-4 py-3.5 text-white shadow-xl transition-transform active:scale-[0.98]"
+            style={{ background: 'linear-gradient(135deg, #FF523B 0%, #E23744 100%)' }}
+          >
+            <div className="flex items-center justify-between text-sm font-semibold">
+              <span>{cartItemCount} item{cartItemCount > 1 ? 's' : ''}</span>
+              <span>View Cart • {formatCurrency(cartTotal)}</span>
+            </div>
+          </button>
+        </div>
+      )}
       </div>
     </div>
   );

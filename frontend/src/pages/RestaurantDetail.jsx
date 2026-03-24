@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchRestaurantById } from '../redux/slices/restaurantSlice';
 import { getRestaurantMenuItems } from '../api/restaurantApi';
+import { openCart } from '../redux/slices/uiSlice';
 import { StarIcon, ClockIcon, MapPinIcon } from '@heroicons/react/24/solid';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import MenuCard from '../components/restaurant/MenuCard';
@@ -25,6 +26,7 @@ const RestaurantDetail = () => {
   const [dietFilter, setDietFilter] = useState('all');
   const [menuItems, setMenuItems] = useState([]);
   const [loadingMenu, setLoadingMenu] = useState(true);
+  const { items: cartItems, restaurant: cartRestaurant } = useSelector((state) => state.cart);
 
   useEffect(() => {
     dispatch(fetchRestaurantById(id));
@@ -94,6 +96,10 @@ const RestaurantDetail = () => {
       || (dietFilter === 'nonveg' && isNonVeg);
     return categoryMatch && searchMatch && dietMatch;
   });
+
+  const isCurrentRestaurantCart = cartRestaurant?._id === restaurant?._id;
+  const cartItemCount = isCurrentRestaurantCart ? cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0) : 0;
+  const cartTotal = isCurrentRestaurantCart ? cartItems.reduce((sum, item) => sum + ((Number(item.price) || 0) * (item.quantity || 0)), 0) : 0;
 
   return (
     <div style={{ background: '#F8F6F5' }}>
@@ -420,6 +426,22 @@ const RestaurantDetail = () => {
           </div>
         </div>
       </div>
+
+      {cartItemCount > 0 && (
+        <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-4 right-4 z-50 lg:hidden">
+          <button
+            type="button"
+            onClick={() => dispatch(openCart())}
+            className="w-full rounded-2xl text-white px-4 py-3.5 shadow-xl transition-transform active:scale-[0.98]"
+            style={{ background: 'linear-gradient(135deg, #FF523B 0%, #E23744 100%)' }}
+          >
+            <div className="flex items-center justify-between text-sm font-semibold">
+              <span>{cartItemCount} item{cartItemCount > 1 ? 's' : ''}</span>
+              <span>View Cart • {formatCurrency(cartTotal)}</span>
+            </div>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

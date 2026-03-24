@@ -7,6 +7,18 @@ const restaurantSockets = new Map(); // Map restaurantId to socket IDs
 const adminSockets = new Set(); // Set of admin socket IDs
 const deliveryPartnerSockets = new Map(); // Map deliveryPartnerId to socket IDs
 
+const getOrderRooms = (orderId) => {
+  if (!orderId) return [];
+  return [`order_${orderId}`, `order-${orderId}`, String(orderId)];
+};
+
+const emitToOrderRooms = (orderId, eventName, payload) => {
+  if (!io || !orderId) return;
+  getOrderRooms(orderId).forEach((room) => {
+    io.to(room).emit(eventName, payload);
+  });
+};
+
 const initializeSocket = (server) => {
   io = new Server(server, {
     cors: {
@@ -102,16 +114,50 @@ const initializeSocket = (server) => {
     // Order tracking rooms for live location updates.
     socket.on('join_order_room', (orderId) => {
       if (!orderId) return;
-      socket.join(`order_${orderId}`);
-      socket.join(`order-${orderId}`);
+      getOrderRooms(orderId).forEach((room) => socket.join(room));
       console.log(`📍 Joined order tracking rooms: ${orderId}`);
+    });
+
+    // Alias to support clients using camelCase naming.
+    socket.on('joinOrderRoom', (orderId) => {
+      if (!orderId) return;
+      getOrderRooms(orderId).forEach((room) => socket.join(room));
+      console.log(`📍 Joined order tracking rooms (alias): ${orderId}`);
     });
 
     socket.on('leave_order_room', (orderId) => {
       if (!orderId) return;
-      socket.leave(`order_${orderId}`);
-      socket.leave(`order-${orderId}`);
+      getOrderRooms(orderId).forEach((room) => socket.leave(room));
       console.log(`📍 Left order tracking rooms: ${orderId}`);
+    });
+
+    socket.on('leaveOrderRoom', (orderId) => {
+      if (!orderId) return;
+      getOrderRooms(orderId).forEach((room) => socket.leave(room));
+      console.log(`📍 Left order tracking rooms (alias): ${orderId}`);
+    });
+
+    socket.on('updateLocation', ({ orderId, lat, lng }) => {
+      const latNum = Number(lat);
+      const lngNum = Number(lng);
+      if (!orderId || !Number.isFinite(latNum) || !Number.isFinite(lngNum)) return;
+
+      const payload = {
+        orderId,
+        location: { latitude: latNum, longitude: lngNum },
+        lat: latNum,
+        lng: lngNum,
+        timestamp: new Date().toISOString()
+      };
+
+      emitToOrderRooms(orderId, 'delivery_location_update', payload);
+      emitToOrderRooms(orderId, 'locationUpdate', { lat: latNum, lng: lngNum, orderId, timestamp: payload.timestamp });
+    });
+
+    socket.on('updateStatus', ({ orderId, status }) => {
+      if (!orderId || !status) return;
+      emitToOrderRooms(orderId, 'status_update', { orderId, status, timestamp: new Date().toISOString() });
+      emitToOrderRooms(orderId, 'statusUpdate', status);
     });
   });
 
@@ -171,6 +217,40 @@ const notifyDeliveryUpdate = (orderId, deliveryData) => {
     });
   }
 };
+
+const emitOrderLocationUpdate = (orderId, lat, lng, timestamp = new Date()) => {
+  const latNum = Number(lat);
+  const lngNum = Number(lng);
+  if (!Number.isFinite(latNum) || !Number.isFinite(lngNum) || !orderId) return;
+
+  const isoTs = timestamp instanceof Date ? timestamp.toISOString() : String(timestamp);
+  const payload = {
+    orderId,
+    location: { latitude: latNum, longitude: lngNum },
+    lat: latNum,
+    lng: lngNum,
+    timestamp: isoTs
+  };
+
+  emitToOrderRooms(orderId, 'delivery_location_update', payload);
+  emitToOrderRooms(orderId, 'locationUpdate', { lat: latNum, lng: lngNum, orderId, timestamp: isoTs });
+};
+
+const emitOrderStatusUpdate = (orderId, status, order = null) => {
+  if (!orderId || !status) return;
+
+  const payload = {
+    orderId,
+    status,
+    order,
+    timestamp: new Date().toISOString()
+  };
+
+  emitToOrderRooms(orderId, 'status_update', payload);
+  emitToOrderRooms(orderId, 'statusUpdate', status);
+};
+
+const getIO = () => io;
 
 // Get online statistics
 const getOnlineStats = () => {
@@ -241,9 +321,12 @@ module.exports = {
   notifyUserOrderUpdate,
   notifyAdminNewOrder,
   notifyDeliveryUpdate,
+  emitOrderLocationUpdate,
+  emitOrderStatusUpdate,
   notifyDeliveryPartnersNewOrder,
   notifyDeliveryPartner,
   notifyDeliveryPartnerOrderAssigned,
   notifyDeliveryPartnerOrderCancelled,
-  getOnlineStats
+  getOnlineStats,
+  getIO
 };

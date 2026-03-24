@@ -547,12 +547,28 @@ const Checkout = () => {
               <button
                 onClick={handlePlaceOrder}
                 disabled={loading || !selectedAddress || items.length === 0}
-                className="w-full btn-primary py-3.5 max-[320px]:py-3 text-[15px] max-[320px]:text-[14px] font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                className="hidden md:block w-full btn-primary py-3.5 max-[320px]:py-3 text-[15px] max-[320px]:text-[14px] font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Placing Order...' : 'Place Order'}
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 z-40" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
+        <div className="max-w-4xl mx-auto flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] text-gray-500 font-medium uppercase tracking-wide">Total Payable</p>
+            <p className="text-base font-bold text-gray-900">{formatCurrency(total)}</p>
+          </div>
+          <button
+            onClick={handlePlaceOrder}
+            disabled={loading || !selectedAddress || items.length === 0}
+            className="btn-primary px-5 py-3 text-sm font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Placing...' : 'Place Order'}
+          </button>
         </div>
       </div>
 
