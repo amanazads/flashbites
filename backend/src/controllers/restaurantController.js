@@ -348,51 +348,100 @@ exports.getNearbyRestaurants = async (req, res) => {
   try {
     const lat = Number(req.query.lat);
     const lng = Number(req.query.lng);
-    const maxDistance = Math.max(Number(req.query.maxDistance || 10000), 1000);
+    const maxDistanceRaw = Number(req.query.maxDistance || 10000);
+    const maxDistance = Number.isFinite(maxDistanceRaw)
+      ? Math.min(Math.max(maxDistanceRaw, 1000), 100000)
+      : 10000;
+    const safeLimit = Math.min(Math.max(Number(req.query.limit || 50), 1), 100);
 
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       return errorResponse(res, 400, 'Valid latitude and longitude are required');
     }
 
-    const candidates = await Restaurant.aggregate([
-      {
-        $geoNear: {
-          near: {
-            type: 'Point',
-            coordinates: [lng, lat]
-          },
-          distanceField: 'distanceMeters',
-          maxDistance,
-          spherical: true,
-          query: {
-            isActive: true,
-            isApproved: true,
-            'location.type': 'Point',
-            'location.coordinates.0': { $type: 'number' },
-            'location.coordinates.1': { $type: 'number' }
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return errorResponse(res, 400, 'Latitude/longitude out of valid range');
+    }
+
+    let candidates = [];
+
+    try {
+      candidates = await Restaurant.aggregate([
+        {
+          $geoNear: {
+            near: {
+              type: 'Point',
+              coordinates: [lng, lat]
+            },
+            distanceField: 'distanceMeters',
+            maxDistance,
+            spherical: true,
+            query: {
+              isActive: true,
+              isApproved: true,
+              'location.type': 'Point',
+              'location.coordinates.0': { $type: 'number' },
+              'location.coordinates.1': { $type: 'number' }
+            }
           }
+        },
+        {
+          $addFields: {
+            distanceKm: { $divide: ['$distanceMeters', 1000] }
+          }
+        },
+        {
+          $project: {
+            documents: 0,
+            bankDetails: 0,
+            __v: 0,
+            distanceMeters: 0
+          }
+        },
+        {
+          $sort: { distanceKm: 1, rating: -1 }
+        },
+        {
+          $limit: Math.min(safeLimit * 5, 500)
         }
-      },
-      {
-        $addFields: {
-          distanceKm: { $divide: ['$distanceMeters', 1000] }
-        }
-      },
-      {
-        $project: {
-          documents: 0,
-          bankDetails: 0,
-          __v: 0,
-          distanceMeters: 0
-        }
-      },
-      {
-        $sort: { distanceKm: 1, rating: -1 }
-      },
-      {
-        $limit: Math.min(Math.max(Number(req.query.limit || 50), 1), 100)
+      ]);
+    } catch (geoError) {
+      // Fallback for environments where geo indexes are stale or temporarily unavailable.
+      const fallbackRestaurants = await Restaurant.find({
+        isActive: true,
+        isApproved: true,
+        'location.type': 'Point',
+        'location.coordinates.0': { $type: 'number' },
+        'location.coordinates.1': { $type: 'number' }
+      })
+        .select('-documents -bankDetails -__v')
+        .limit(1000)
+        .lean();
+
+      candidates = fallbackRestaurants
+        .map((restaurant) => {
+          const coords = restaurant.location?.coordinates || [];
+          if (coords.length !== 2) return null;
+
+          const distanceKm = calculateDistance(lat, lng, Number(coords[1]), Number(coords[0]));
+          if (!Number.isFinite(distanceKm)) return null;
+          if (distanceKm * 1000 > maxDistance) return null;
+
+          return {
+            ...restaurant,
+            distanceKm: Number(distanceKm.toFixed(2))
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => {
+          if (a.distanceKm !== b.distanceKm) return a.distanceKm - b.distanceKm;
+          return Number(b.rating || 0) - Number(a.rating || 0);
+        })
+        .slice(0, Math.min(safeLimit * 5, 500));
+
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('getNearbyRestaurants fallback activated:', geoError.message);
       }
-    ]);
+    }
 
     const restaurants = candidates.filter((restaurant) => {
       const hasZone = Boolean(restaurant.deliveryZone?.coordinates?.[0]?.length);
@@ -404,7 +453,7 @@ exports.getNearbyRestaurants = async (req, res) => {
       const distanceKm = Number(restaurant.distanceKm);
       const allowedKm = Number(restaurant.deliveryRadiusKm || 20);
       return Number.isFinite(distanceKm) && distanceKm <= allowedKm;
-    });
+    }).slice(0, safeLimit);
 
     return successResponse(res, 200, 'Nearby restaurants retrieved successfully', {
       count: restaurants.length,
