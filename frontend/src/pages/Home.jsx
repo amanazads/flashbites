@@ -569,7 +569,7 @@ const Home = () => {
       />
       <div className="max-w-7xl mx-auto w-full max-[388px]:px-3">
 
-        <div className="sticky top-[calc(var(--nav-height-mob)+env(safe-area-inset-top,0px))] z-40 bg-[var(--bg-app)]/95 backdrop-blur-sm pb-2">
+        <div className="sticky top-[calc(var(--nav-height-mob)+env(safe-area-inset-top,0px))] z-40 bg-[var(--bg-app)] pb-2">
 
       {/* ══════════════════════════════════
           DELIVERY ADDRESS SELECTOR
@@ -779,6 +779,8 @@ const Home = () => {
         </form>
       </div>
 
+      </div>
+
       {/* Promo banners — Figma style */}
       <div className="mb-6 container-px">
         <div className="snap-scroll-row" ref={promoRowRef}>
@@ -856,8 +858,6 @@ const Home = () => {
             </button>
           ))}
         </div>
-      </div>
-
       </div>
 
       {/* Featured section */}
