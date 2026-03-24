@@ -22,7 +22,14 @@ export const fetchRestaurants = createAsyncThunk(
   'restaurant/fetchRestaurants',
   async (filters, { rejectWithValue }) => {
     try {
-      const response = await withRetry(() => restaurantApi.getRestaurants(filters), 3, 4000);
+      const hasCoords = Number.isFinite(Number(filters?.lat)) && Number.isFinite(Number(filters?.lng));
+      const response = hasCoords
+        ? await withRetry(
+            () => restaurantApi.getNearbyRestaurants(Number(filters.lat), Number(filters.lng), Number(filters.radius || 10000), Number(filters.limit || 50)),
+            3,
+            4000
+          )
+        : await withRetry(() => restaurantApi.getRestaurants(filters), 3, 4000);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to load restaurants');

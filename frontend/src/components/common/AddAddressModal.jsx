@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { addAddress } from '../../api/userApi';
-import { autocompleteAddress, reverseGeocodeCoordinates } from '../../api/locationApi';
+import { autocompleteAddress, geocodeAddressText, reverseGeocodeCoordinates } from '../../api/locationApi';
 import toast from 'react-hot-toast';
+import AddressInput from '../location/AddressInput';
+import MapPicker from '../location/MapPicker';
 
 const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
   const [formData, setFormData] = useState({
@@ -127,6 +129,46 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
     );
   };
 
+  const handleGoogleAddressSelect = (selection) => {
+    const lat = Number(selection?.lat);
+    const lng = Number(selection?.lng);
+
+    setFormData((prev) => ({
+      ...prev,
+      street: selection?.street || selection?.address || prev.street,
+      city: selection?.city || prev.city,
+      state: selection?.state || prev.state,
+      zipCode: selection?.zipCode || prev.zipCode,
+      fullAddress: selection?.fullAddress || selection?.address || prev.fullAddress,
+      coordinates: Number.isFinite(lat) && Number.isFinite(lng) ? [lng, lat] : prev.coordinates
+    }));
+    setAddressSuggestions([]);
+  };
+
+  const handleMapSelect = async ({ lat, lng }) => {
+    const latNum = Number(lat);
+    const lngNum = Number(lng);
+    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return;
+
+    setFormData((prev) => ({ ...prev, coordinates: [lngNum, latNum] }));
+
+    try {
+      const response = await reverseGeocodeCoordinates(latNum, lngNum);
+      const location = response?.data?.location || {};
+      setFormData((prev) => ({
+        ...prev,
+        street: location.street || prev.street,
+        city: location.city || prev.city,
+        state: location.state || prev.state,
+        zipCode: location.zipCode || prev.zipCode,
+        fullAddress: location.fullAddress || prev.fullAddress,
+        coordinates: [lngNum, latNum]
+      }));
+    } catch {
+      // Keep selected coordinates even if reverse geocode fails.
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -137,7 +179,25 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
       }
     }
 
-    if (!formData.coordinates || formData.coordinates.length < 2) {
+    let coordinates = formData.coordinates;
+    if (!coordinates || coordinates.length < 2) {
+      const geocodeQuery = formData.fullAddress || getQueryText();
+      if (geocodeQuery.trim().length > 2) {
+        try {
+          const geoRes = await geocodeAddressText(geocodeQuery);
+          const location = geoRes?.data?.location || geoRes?.location || null;
+          const lat = Number(location?.lat ?? geoRes?.data?.lat ?? geoRes?.lat);
+          const lng = Number(location?.lng ?? geoRes?.data?.lng ?? geoRes?.lng);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            coordinates = [lng, lat];
+          }
+        } catch {
+          // Final guard below will show a user-friendly message.
+        }
+      }
+    }
+
+    if (!coordinates || coordinates.length < 2) {
       toast.error('Please pick a suggestion or use current location to capture exact coordinates');
       return;
     }
@@ -147,9 +207,9 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
       const payload = {
         ...formData,
         fullAddress: formData.fullAddress || getQueryText(),
-        coordinates: formData.coordinates || undefined,
-        lat: formData.coordinates?.[1],
-        lng: formData.coordinates?.[0]
+        coordinates,
+        lat: coordinates?.[1],
+        lng: coordinates?.[0]
       };
 
       const response = await addAddress(payload);
@@ -227,6 +287,13 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Street Address *
             </label>
+            <AddressInput
+              value={formData.fullAddress || formData.street}
+              onChange={(value) => setFormData({ ...formData, street: value, fullAddress: value, coordinates: null })}
+              onSelect={handleGoogleAddressSelect}
+              placeholder="Enter delivery address"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
             <input
               type="text"
               value={formData.street}
@@ -260,6 +327,25 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
             >
               {usingCurrentLocation ? 'Detecting current location...' : 'Use Current Location'}
             </button>
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Pinpoint On Map
+            </label>
+            <MapPicker
+              initialPosition={{
+                lat: Number(formData.coordinates?.[1]) || 31.53,
+                lng: Number(formData.coordinates?.[0]) || 75.91
+              }}
+              onSelect={handleMapSelect}
+              mapHeight={220}
+            />
+            {Array.isArray(formData.coordinates) && formData.coordinates.length >= 2 && (
+              <p className="mt-2 text-xs text-green-700">
+                Coordinates: {Number(formData.coordinates[1]).toFixed(6)}, {Number(formData.coordinates[0]).toFixed(6)}
+              </p>
+            )}
           </div>
 
           {/* Landmark */}

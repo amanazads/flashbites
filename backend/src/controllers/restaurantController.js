@@ -291,6 +291,75 @@ exports.getAllRestaurants = async (req, res) => {
   }
 };
 
+// @desc    Get nearby restaurants by coordinates
+// @route   GET /api/restaurants/nearby
+// @access  Public
+exports.getNearbyRestaurants = async (req, res) => {
+  try {
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    const maxDistance = Math.max(Number(req.query.maxDistance || 10000), 1000);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return errorResponse(res, 400, 'Valid latitude and longitude are required');
+    }
+
+    const restaurants = await Restaurant.aggregate([
+      {
+        $geoNear: {
+          near: {
+            type: 'Point',
+            coordinates: [lng, lat]
+          },
+          distanceField: 'distanceMeters',
+          maxDistance,
+          spherical: true,
+          query: {
+            isActive: true,
+            isApproved: true,
+            'location.type': 'Point',
+            'location.coordinates.0': { $type: 'number' },
+            'location.coordinates.1': { $type: 'number' }
+          }
+        }
+      },
+      {
+        $addFields: {
+          distanceKm: { $divide: ['$distanceMeters', 1000] },
+          effectiveDeliveryRadiusKm: { $ifNull: ['$deliveryRadiusKm', 20] }
+        }
+      },
+      {
+        $match: {
+          $expr: { $lte: ['$distanceKm', '$effectiveDeliveryRadiusKm'] }
+        }
+      },
+      {
+        $project: {
+          documents: 0,
+          bankDetails: 0,
+          __v: 0,
+          distanceMeters: 0,
+          effectiveDeliveryRadiusKm: 0
+        }
+      },
+      {
+        $sort: { distanceKm: 1, rating: -1 }
+      },
+      {
+        $limit: Math.min(Math.max(Number(req.query.limit || 50), 1), 100)
+      }
+    ]);
+
+    return successResponse(res, 200, 'Nearby restaurants retrieved successfully', {
+      count: restaurants.length,
+      restaurants
+    });
+  } catch (error) {
+    return errorResponse(res, 500, 'Failed to get nearby restaurants', error.message);
+  }
+};
+
 // @desc    Search restaurants and menu items
 // @route   GET /api/restaurants/search
 // @access  Public

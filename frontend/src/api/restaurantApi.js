@@ -6,6 +6,13 @@ export const getRestaurants = async (params = {}) => {
   return response.data;
 };
 
+export const getNearbyRestaurants = async (lat, lng, maxDistance = 10000, limit = 50) => {
+  const response = await axios.get('/restaurants/nearby', {
+    params: { lat, lng, maxDistance, limit }
+  });
+  return response.data;
+};
+
 // Get restaurant by ID
 export const getRestaurantById = async (id) => {
   const response = await axios.get(`/restaurants/${id}`);

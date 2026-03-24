@@ -29,6 +29,7 @@ const {
   notifyDeliveryPartnerOrderCancelled: socketNotifyDeliveryPartnerCancelled
 } = require('../services/socketService');
 const { calculateDistance, calculateDeliveryCharge, DEFAULT_DELIVERY_CHARGES } = require('../utils/calculateDistance');
+const { assignDeliveryPartner } = require('../services/deliveryAssignmentService');
 
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const razorpay = process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET
@@ -542,6 +543,15 @@ exports.createOrder = async (req, res) => {
 
     const order = await Order.create(orderDoc);
 
+    let assignedPartner = null;
+    try {
+      assignedPartner = await assignDeliveryPartner(order);
+    } catch (assignmentError) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('Auto assignment failed:', assignmentError.message);
+      }
+    }
+
     if (paymentMethod === 'card' || paymentMethod === 'upi') {
       // NOTE: Restaurant should NOT process order until payment is confirmed
       if (process.env.NODE_ENV !== 'production') {
@@ -554,6 +564,7 @@ exports.createOrder = async (req, res) => {
     const populatedOrder = await Order.findById(order._id)
       .populate('userId', 'name email phone')
       .populate('restaurantId', 'name phone address')
+      .populate('deliveryPartnerId', 'name phone')
       .populate('items.menuItemId', 'name price');
 
     // Send real-time notifications with sound
@@ -569,6 +580,12 @@ exports.createOrder = async (req, res) => {
       
       // Database + Push notification to user
       await notifyUserOrderPlaced(populatedOrder);
+
+      if (assignedPartner && populatedOrder.deliveryPartnerId) {
+        await notifyUserDeliveryAssigned(populatedOrder, populatedOrder.deliveryPartnerId);
+        await notifyDeliveryPartnerAssignment(populatedOrder, populatedOrder.deliveryPartnerId);
+        notifyDeliveryPartnerOrderAssigned(populatedOrder.deliveryPartnerId._id.toString(), populatedOrder);
+      }
 
       if (paymentMethod !== 'cod' && process.env.NODE_ENV !== 'production') {
         console.log(`⚠️ WARNING: Online payment not confirmed yet!`);

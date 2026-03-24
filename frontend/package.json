@@ -23,6 +23,7 @@
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.1.1",
     "@ionic/react": "^8.8.1",
+    "@react-google-maps/api": "^2.20.8",
     "@reduxjs/toolkit": "^2.0.1",
     "@stripe/react-stripe-js": "^2.4.0",
     "@stripe/stripe-js": "^2.4.0",

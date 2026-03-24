@@ -33,6 +33,8 @@ import { formatCurrency, formatDateTime } from '../utils/formatters';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
 import socketService from '../services/socketService';
 import { playNotificationSound } from '../utils/notificationSound';
+import AddressInput from '../components/location/AddressInput';
+import MapPicker from '../components/location/MapPicker';
 
 const MENU_CATEGORY_OPTIONS = [
   'Starters',
@@ -732,6 +734,36 @@ const RestaurantDashboard = () => {
         zipCode: suggestion?.zipCode || prev.address.zipCode,
       }
     }));
+  };
+
+  const handleRestaurantGoogleAddressSelect = (selection) => {
+    const lat = Number(selection?.lat);
+    const lng = Number(selection?.lng);
+
+    if (isValidRestaurantCoordPair(lat, lng)) {
+      applyLocationCoordinates(lat, lng);
+    }
+
+    setRestaurantLocationSearch(selection?.fullAddress || selection?.address || '');
+    setRestaurantLocationSuggestions([]);
+
+    setRestaurantData((prev) => ({
+      ...prev,
+      address: {
+        ...prev.address,
+        street: selection?.street || selection?.address || prev.address.street,
+        city: selection?.city || prev.address.city,
+        state: selection?.state || prev.address.state,
+        zipCode: selection?.zipCode || prev.address.zipCode
+      }
+    }));
+  };
+
+  const handleRestaurantMapSelect = ({ lat, lng }) => {
+    const latNum = Number(lat);
+    const lngNum = Number(lng);
+    if (!isValidRestaurantCoordPair(latNum, lngNum)) return;
+    applyLocationCoordinates(latNum, lngNum);
   };
 
   // Show loading while checking authentication
@@ -1705,6 +1737,13 @@ const RestaurantDashboard = () => {
 
                 <div className="rounded-xl border border-gray-200 bg-white p-4">
                   <p className="text-sm font-semibold text-gray-900 mb-2">Pick Restaurant Location</p>
+                  <AddressInput
+                    value={restaurantLocationSearch}
+                    onChange={setRestaurantLocationSearch}
+                    onSelect={handleRestaurantGoogleAddressSelect}
+                    placeholder="Search area, street, landmark"
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
                   <div className="relative">
                     <input
                       type="text"
@@ -1730,6 +1769,16 @@ const RestaurantDashboard = () => {
                         ))}
                       </div>
                     )}
+                  </div>
+                  <div className="mt-3">
+                    <MapPicker
+                      initialPosition={{
+                        lat: Number(restaurantData.location?.coordinates?.[1]) || 31.53,
+                        lng: Number(restaurantData.location?.coordinates?.[0]) || 75.91
+                      }}
+                      onSelect={handleRestaurantMapSelect}
+                      mapHeight={220}
+                    />
                   </div>
                 </div>
 
