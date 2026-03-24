@@ -189,7 +189,21 @@ exports.getAllRestaurants = async (req, res) => {
       const maxDistance = parseInt(radius, 10);
 
       if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
-        return errorResponse(res, 400, 'Invalid latitude/longitude');
+        // Fallback gracefully when client sends stale/invalid coords.
+        restaurants = await Restaurant.find(query)
+          .sort(effectiveSort)
+          .skip(skip)
+          .limit(safeLimit)
+          .select(projection)
+          .lean();
+
+        res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
+        return successResponse(res, 200, 'Restaurants retrieved successfully', {
+          page: safePage,
+          limit: safeLimit,
+          count: restaurants.length,
+          restaurants
+        });
       }
 
       const geoQuery = {

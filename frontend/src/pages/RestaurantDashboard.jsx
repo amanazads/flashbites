@@ -211,6 +211,17 @@ const RestaurantDashboard = () => {
 
   const handleRestaurantSubmit = async (e) => {
     e.preventDefault();
+
+    if (!restaurantData.name?.trim() || !restaurantData.email?.trim() || !restaurantData.phone?.trim()) {
+      toast.error('Please fill restaurant name, email, and phone');
+      return;
+    }
+
+    if (!restaurantData.address?.street?.trim() || !restaurantData.address?.city?.trim() || !restaurantData.address?.state?.trim()) {
+      toast.error('Please fill restaurant street, city, and state so we can detect location');
+      return;
+    }
+
     try {
       const formData = new FormData();
       
