@@ -83,6 +83,7 @@ const RestaurantDashboard = () => {
   const [restaurantImagePreview, setRestaurantImagePreview] = useState(null);
   const [menuImageFile, setMenuImageFile] = useState(null);
   const [menuImagePreview, setMenuImagePreview] = useState(null);
+  const [locationDraft, setLocationDraft] = useState({ lat: '', lng: '' });
   const [authChecked, setAuthChecked] = useState(false);
 
   const [restaurantData, setRestaurantData] = useState({
@@ -527,9 +528,66 @@ const RestaurantDashboard = () => {
     }
   };
 
+  const applyLocationCoordinates = (lat, lng) => {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return false;
+    }
+    setRestaurantData((prev) => ({
+      ...prev,
+      location: {
+        type: 'Point',
+        coordinates: [lng, lat]
+      }
+    }));
+    setLocationDraft({ lat: String(lat), lng: String(lng) });
+    return true;
+  };
+
+  const getGeoFailureMessage = (error) => {
+    if (!window.isSecureContext) {
+      return 'Location capture needs HTTPS (or localhost). Enter latitude/longitude manually below.';
+    }
+
+    if (error?.code === 1) {
+      return 'Location permission is blocked. Please allow location for browser/app and try again.';
+    }
+    if (error?.code === 2) {
+      return 'Location signal is unavailable right now. Move to open sky and retry, or enter latitude/longitude manually.';
+    }
+    if (error?.code === 3) {
+      return 'Location request timed out. Retry once, or enter latitude/longitude manually.';
+    }
+    return 'Unable to capture location automatically. Enter latitude/longitude manually below.';
+  };
+
+  const handleManualLocationChange = (field, value) => {
+    setLocationDraft((prev) => {
+      const next = { ...prev, [field]: value };
+      const lat = Number(next.lat);
+      const lng = Number(next.lng);
+
+      if (next.lat.trim() === '' || next.lng.trim() === '') {
+        setRestaurantData((current) => ({ ...current, location: null }));
+        return next;
+      }
+
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        setRestaurantData((current) => ({
+          ...current,
+          location: {
+            type: 'Point',
+            coordinates: [lng, lat]
+          }
+        }));
+      }
+
+      return next;
+    });
+  };
+
   const handleUseRestaurantCurrentLocation = () => {
     if (!navigator.geolocation) {
-      toast.error('Location is not supported on this device');
+      toast.error('Location is not supported on this device. Enter latitude/longitude manually.');
       return;
     }
 
@@ -538,22 +596,34 @@ const RestaurantDashboard = () => {
         const lat = Number(position.coords.latitude);
         const lng = Number(position.coords.longitude);
 
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        if (!applyLocationCoordinates(lat, lng)) {
           toast.error('Could not fetch valid coordinates. Please try again.');
           return;
         }
-
-        setRestaurantData((prev) => ({
-          ...prev,
-          location: {
-            type: 'Point',
-            coordinates: [lng, lat]
-          }
-        }));
         toast.success('Restaurant location captured');
       },
-      () => {
-        toast.error('Unable to capture location. Please allow location permission and retry.');
+      (error) => {
+        // Retry once with lower accuracy because some devices fail high-accuracy requests.
+        if (error?.code === 2 || error?.code === 3) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const lat = Number(position.coords.latitude);
+              const lng = Number(position.coords.longitude);
+              if (applyLocationCoordinates(lat, lng)) {
+                toast.success('Restaurant location captured');
+                return;
+              }
+              toast.error('Could not fetch valid coordinates. Enter latitude/longitude manually.');
+            },
+            (fallbackError) => {
+              toast.error(getGeoFailureMessage(fallbackError));
+            },
+            { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
+          );
+          return;
+        }
+
+        toast.error(getGeoFailureMessage(error));
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
@@ -624,6 +694,12 @@ const RestaurantDashboard = () => {
               <div className="flex gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
                 <button
                   onClick={() => {
+                    const coords = Array.isArray(restaurant.location?.coordinates)
+                      ? restaurant.location.coordinates
+                      : [];
+                    const existingLng = Number(coords[0]);
+                    const existingLat = Number(coords[1]);
+
                     setRestaurantData({
                       name: restaurant.name,
                       email: restaurant.email,
@@ -634,6 +710,10 @@ const RestaurantDashboard = () => {
                       location: restaurant.location,
                       timing: restaurant.timing,
                       deliveryTime: restaurant.deliveryTime,
+                    });
+                    setLocationDraft({
+                      lat: Number.isFinite(existingLat) ? String(existingLat) : '',
+                      lng: Number.isFinite(existingLng) ? String(existingLng) : ''
                     });
                     setRestaurantImagePreview(restaurant.image);
                     setRestaurantImageFile(null);
@@ -1523,6 +1603,24 @@ const RestaurantDashboard = () => {
                     >
                       Use Current Location
                     </button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      step="any"
+                      value={locationDraft.lat}
+                      onChange={(e) => handleManualLocationChange('lat', e.target.value)}
+                      placeholder="Latitude (e.g. 19.0760)"
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                    />
+                    <input
+                      type="number"
+                      step="any"
+                      value={locationDraft.lng}
+                      onChange={(e) => handleManualLocationChange('lng', e.target.value)}
+                      placeholder="Longitude (e.g. 72.8777)"
+                      className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                    />
                   </div>
                   {Array.isArray(restaurantData.location?.coordinates) && restaurantData.location.coordinates.length >= 2 && (
                     <p className="mt-2 text-xs text-green-700">

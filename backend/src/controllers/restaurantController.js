@@ -45,6 +45,28 @@ const resolveLocationFromBody = (payload = {}) => {
   return null;
 };
 
+const geocodeWithOpenMeteo = async (query) => {
+  try {
+    const response = await axios.get('https://geocoding-api.open-meteo.com/v1/search', {
+      timeout: 7000,
+      params: {
+        name: query,
+        count: 1,
+        language: 'en',
+        format: 'json',
+        countryCode: 'IN'
+      }
+    });
+
+    const first = response?.data?.results?.[0];
+    if (!first) return null;
+    const normalized = normalizeCoordPair(first.longitude, first.latitude);
+    return normalized ? { type: 'Point', coordinates: normalized } : null;
+  } catch {
+    return null;
+  }
+};
+
 const geocodeRestaurantAddress = async ({ name, address = {} }) => {
   const queries = [
     [address.street, address.city, address.state, address.zipCode, name, 'India'].filter(Boolean).join(', '),
@@ -78,6 +100,9 @@ const geocodeRestaurantAddress = async ({ name, address = {} }) => {
     } catch {
       // try next query
     }
+
+    const openMeteoLocation = await geocodeWithOpenMeteo(query);
+    if (openMeteoLocation) return openMeteoLocation;
   }
 
   return null;
