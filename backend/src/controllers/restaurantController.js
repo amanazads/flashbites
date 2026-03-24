@@ -100,7 +100,8 @@ exports.createRestaurant = async (req, res) => {
       deliveryRadiusKm = deliveryRadius;
     }
 
-    let resolvedLocation = resolveLocationFromBody({ location, ...req.body });
+    // Keep parsed location object authoritative over raw multipart string values.
+    let resolvedLocation = resolveLocationFromBody({ ...req.body, location });
     if (!resolvedLocation) {
       resolvedLocation = await geocodeRestaurantAddress({ name, address });
     }
