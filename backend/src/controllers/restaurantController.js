@@ -1,10 +1,10 @@
 const Restaurant = require('../models/Restaurant');
 const MenuItem = require('../models/MenuItem');
 const mongoose = require('mongoose');
-const axios = require('axios');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { calculateDistance } = require('../utils/calculateDistance');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/imageUpload');
+const { geocodeAddress } = require('../services/locationService');
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -45,28 +45,6 @@ const resolveLocationFromBody = (payload = {}) => {
   return null;
 };
 
-const geocodeWithOpenMeteo = async (query) => {
-  try {
-    const response = await axios.get('https://geocoding-api.open-meteo.com/v1/search', {
-      timeout: 7000,
-      params: {
-        name: query,
-        count: 1,
-        language: 'en',
-        format: 'json',
-        countryCode: 'IN'
-      }
-    });
-
-    const first = response?.data?.results?.[0];
-    if (!first) return null;
-    const normalized = normalizeCoordPair(first.longitude, first.latitude);
-    return normalized ? { type: 'Point', coordinates: normalized } : null;
-  } catch {
-    return null;
-  }
-};
-
 const geocodeRestaurantAddress = async ({ name, address = {} }) => {
   const queries = [
     [address.street, address.city, address.state, address.zipCode, name, 'India'].filter(Boolean).join(', '),
@@ -80,29 +58,14 @@ const geocodeRestaurantAddress = async ({ name, address = {} }) => {
 
   for (const query of queries) {
     try {
-      const response = await axios.get('https://nominatim.openstreetmap.org/search', {
-        timeout: 8000,
-        headers: {
-          'User-Agent': 'FlashBites/1.0 (support@flashbites.in)'
-        },
-        params: {
-          q: query,
-          format: 'json',
-          limit: 1,
-          countrycodes: 'in'
-        }
-      });
-
-      const first = response?.data?.[0];
-      if (!first?.lat || !first?.lon) continue;
-      const normalized = normalizeCoordPair(first.lon, first.lat);
-      if (normalized) return { type: 'Point', coordinates: normalized };
+      const geocoded = await geocodeAddress(query);
+      const normalized = normalizeCoordPair(geocoded?.lng, geocoded?.lat);
+      if (normalized) {
+        return { type: 'Point', coordinates: normalized };
+      }
     } catch {
       // try next query
     }
-
-    const openMeteoLocation = await geocodeWithOpenMeteo(query);
-    if (openMeteoLocation) return openMeteoLocation;
   }
 
   return null;
@@ -132,15 +95,13 @@ exports.createRestaurant = async (req, res) => {
     }
 
     if (!resolvedLocation) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn('Restaurant location resolve failed', {
-          name,
-          address,
-          rawLocation: location,
-          bodyLat: req.body.lat,
-          bodyLng: req.body.lng
-        });
-      }
+      console.warn('Restaurant location resolve failed', {
+        name,
+        address,
+        rawLocation: location,
+        bodyLat: req.body.lat,
+        bodyLng: req.body.lng
+      });
       return errorResponse(res, 400, 'Restaurant location is required. Please provide a valid address or coordinates.');
     }
 

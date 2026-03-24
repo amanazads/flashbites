@@ -27,6 +27,7 @@ import {
   toggleMenuItemAvailability,
   getRestaurantAnalytics 
 } from '../api/restaurantApi';
+import { geocodeAddressText } from '../api/locationApi';
 import { getRestaurantOrders, updateOrderStatus } from '../api/orderApi';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
@@ -244,14 +245,10 @@ const RestaurantDashboard = () => {
         ].filter(Boolean).join(', ');
 
         try {
-          const geocodeRes = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=in&limit=1&q=${encodeURIComponent(geocodeQuery)}`,
-            { headers: { Accept: 'application/json' } }
-          );
-          const geocodeData = await geocodeRes.json();
-          const first = Array.isArray(geocodeData) ? geocodeData[0] : null;
-          const lat = Number(first?.lat);
-          const lng = Number(first?.lon);
+          const geocodeRes = await geocodeAddressText(geocodeQuery);
+          const location = geocodeRes?.data?.location || geocodeRes?.location || null;
+          const lat = Number(location?.lat);
+          const lng = Number(location?.lng);
           if (Number.isFinite(lat) && Number.isFinite(lng)) {
             locationPayload = {
               type: 'Point',
@@ -260,6 +257,17 @@ const RestaurantDashboard = () => {
           }
         } catch {
           // Backend will do final geocoding fallback.
+        }
+      }
+
+      if (!locationPayload) {
+        const draftLat = Number(locationDraft.lat);
+        const draftLng = Number(locationDraft.lng);
+        if (Number.isFinite(draftLat) && Number.isFinite(draftLng)) {
+          locationPayload = {
+            type: 'Point',
+            coordinates: [draftLng, draftLat]
+          };
         }
       }
 
@@ -274,6 +282,8 @@ const RestaurantDashboard = () => {
       formData.append('address', JSON.stringify(restaurantData.address));
       if (locationPayload) {
         formData.append('location', JSON.stringify(locationPayload));
+        formData.append('lat', String(locationPayload.coordinates[1]));
+        formData.append('lng', String(locationPayload.coordinates[0]));
       }
       formData.append('timing', JSON.stringify(restaurantData.timing));
       formData.append('deliveryTime', restaurantData.deliveryTime);
