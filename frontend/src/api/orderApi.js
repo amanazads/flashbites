@@ -25,8 +25,9 @@ export const getOrderTracking = async (id) => {
 };
 
 // Update order status
-export const updateOrderStatus = async (id, status) => {
-  const response = await axios.patch(`/orders/${id}/status`, { status });
+export const updateOrderStatus = async (id, status, reason) => {
+  const payload = reason ? { status, reason } : { status };
+  const response = await axios.patch(`/orders/${id}/status`, payload);
   return response.data;
 };
 

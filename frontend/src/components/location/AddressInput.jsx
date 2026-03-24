@@ -33,6 +33,18 @@ export default function AddressInput({ value = '', onChange, onSelect, placehold
     setInputValue(value || '');
   }, [value]);
 
+  useEffect(() => {
+    return () => {
+      if (typeof document === 'undefined') return;
+
+      document.querySelectorAll('.pac-container').forEach((node) => {
+        if (!node.children.length) {
+          node.remove();
+        }
+      });
+    };
+  }, []);
+
   const handleLocalChange = (nextValue) => {
     setInputValue(nextValue);
     if (typeof onChange === 'function') {

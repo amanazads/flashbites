@@ -3,6 +3,7 @@ const Payment = require('../models/Payment');
 const Restaurant = require('../models/Restaurant');
 const MenuItem = require('../models/MenuItem');
 const Address = require('../models/Address');
+const Partner = require('../models/Partner');
 const PlatformSettings = require('../models/PlatformSettings');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { sendOrderCancelledEmail } = require('../utils/emailService');
@@ -1094,12 +1095,35 @@ exports.getRestaurantOrders = async (req, res) => {
 
     const orders = await Order.find(query)
       .populate('userId', 'name phone')
+      .populate('deliveryPartnerId', 'name phone isOnDuty')
       .populate('addressId')
-      .sort('-createdAt');
+      .sort('-createdAt')
+      .lean();
+
+    const deliveryPartnerUserIds = orders
+      .map((order) => order.deliveryPartnerId?._id)
+      .filter(Boolean);
+
+    const partnerProfiles = deliveryPartnerUserIds.length
+      ? await Partner.find({ userId: { $in: deliveryPartnerUserIds } })
+          .select('userId fullName phone alternatePhone vehicleType vehicleNumber vehicleModel status isAvailable currentLocation stats')
+          .lean()
+      : [];
+
+    const profileMap = new Map(
+      partnerProfiles.map((profile) => [String(profile.userId), profile])
+    );
+
+    const enrichedOrders = orders.map((order) => ({
+      ...order,
+      deliveryPartnerDetails: order.deliveryPartnerId
+        ? profileMap.get(String(order.deliveryPartnerId._id)) || null
+        : null
+    }));
 
     successResponse(res, 200, 'Orders retrieved successfully', {
-      count: orders.length,
-      orders
+      count: enrichedOrders.length,
+      orders: enrichedOrders
     });
   } catch (error) {
     errorResponse(res, 500, 'Failed to get orders', error.message);

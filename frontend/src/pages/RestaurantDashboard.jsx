@@ -75,6 +75,42 @@ const isValidRestaurantCoordPair = (lat, lng) => (
   && !(Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001)
 );
 
+const getOrderDestination = (order) => {
+  const address = order?.addressId;
+  const deliveryAddress = order?.deliveryAddress;
+
+  const addressCoords = Array.isArray(address?.coordinates) && address.coordinates.length >= 2
+    ? { lat: Number(address.coordinates[1]), lng: Number(address.coordinates[0]) }
+    : null;
+
+  const deliveryCoords = Array.isArray(deliveryAddress?.coordinates) && deliveryAddress.coordinates.length >= 2
+    ? { lat: Number(deliveryAddress.coordinates[1]), lng: Number(deliveryAddress.coordinates[0]) }
+    : null;
+
+  const lat = Number(address?.lat ?? deliveryAddress?.lat ?? addressCoords?.lat ?? deliveryCoords?.lat);
+  const lng = Number(address?.lng ?? deliveryAddress?.lng ?? addressCoords?.lng ?? deliveryCoords?.lng);
+
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return {
+      query: `${lat},${lng}`,
+      hasCoordinates: true
+    };
+  }
+
+  const fallbackText = [
+    address?.fullAddress,
+    deliveryAddress?.fullAddress,
+    [address?.street || deliveryAddress?.street, address?.city || deliveryAddress?.city, address?.state || deliveryAddress?.state, address?.zipCode || deliveryAddress?.zipCode]
+      .filter(Boolean)
+      .join(', ')
+  ]
+    .find(Boolean);
+
+  return fallbackText
+    ? { query: fallbackText, hasCoordinates: false }
+    : null;
+};
+
 const RestaurantDashboard = () => {
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
@@ -83,6 +119,7 @@ const RestaurantDashboard = () => {
   const [restaurant, setRestaurant] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [updatingOrderIds, setUpdatingOrderIds] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsPeriod, setAnalyticsPeriod] = useState('30');
@@ -517,14 +554,44 @@ const RestaurantDashboard = () => {
     }
   };
 
-  const handleUpdateOrderStatus = async (orderId, newStatus) => {
+  const handleUpdateOrderStatus = async (orderId, newStatus, reason = '') => {
+    const previousOrder = orders.find((order) => order._id === orderId);
+    if (!previousOrder) return;
+
+    setUpdatingOrderIds((prev) => (prev.includes(orderId) ? prev : [...prev, orderId]));
+
+    // Optimistic update so action buttons/status change immediately.
+    setOrders((prevOrders) =>
+      prevOrders.map((order) =>
+        order._id === orderId
+          ? {
+              ...order,
+              status: newStatus,
+              confirmedAt: newStatus === 'confirmed' ? new Date().toISOString() : order.confirmedAt,
+              deliveredAt: newStatus === 'delivered' ? new Date().toISOString() : order.deliveredAt,
+              cancelledAt: newStatus === 'cancelled' ? new Date().toISOString() : order.cancelledAt
+            }
+          : order
+      )
+    );
+
     try {
-      await updateOrderStatus(orderId, newStatus);
+      const response = await updateOrderStatus(orderId, newStatus, reason);
+      const updatedOrder = response?.data?.order;
+      if (updatedOrder?._id) {
+        setOrders((prevOrders) =>
+          prevOrders.map((order) => (order._id === updatedOrder._id ? updatedOrder : order))
+        );
+      }
       toast.success('Order status updated');
-      // Refresh orders
-      await fetchOrders();
     } catch (error) {
+      // Rollback optimistic update on failure.
+      setOrders((prevOrders) =>
+        prevOrders.map((order) => (order._id === orderId ? previousOrder : order))
+      );
       toast.error(error.response?.data?.message || 'Failed to update order status');
+    } finally {
+      setUpdatingOrderIds((prev) => prev.filter((id) => id !== orderId));
     }
   };
 
@@ -1244,7 +1311,26 @@ const RestaurantDashboard = () => {
                         {/* Delivery Address */}
                         {(order.addressId || order.deliveryAddress) && (
                           <div className="bg-blue-50 rounded-lg p-4 mb-4">
-                            <h4 className="font-semibold mb-2 text-sm">Delivery Address:</h4>
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <h4 className="font-semibold text-sm">Delivery Address:</h4>
+                              {(() => {
+                                const destination = getOrderDestination(order);
+                                if (!destination) return null;
+
+                                const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination.query)}`;
+
+                                return (
+                                  <a
+                                    href={mapsUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs font-semibold text-blue-700 hover:text-blue-900"
+                                  >
+                                    Open in Maps
+                                  </a>
+                                );
+                              })()}
+                            </div>
                             {order.addressId ? (
                               <p className="text-sm text-gray-700">
                                 {order.addressId.street}, {order.addressId.city}, {order.addressId.state} - {order.addressId.zipCode}
@@ -1262,6 +1348,38 @@ const RestaurantDashboard = () => {
                           </div>
                         )}
 
+                        {/* Delivery Partner Details */}
+                        <div className="bg-emerald-50 rounded-lg p-4 mb-4">
+                          <h4 className="font-semibold mb-2 text-sm">Delivery Partner Details:</h4>
+                          {order.deliveryPartnerId ? (
+                            <div className="space-y-1 text-sm text-gray-700">
+                              <p><span className="font-semibold">Name:</span> {order.deliveryPartnerDetails?.fullName || order.deliveryPartnerId?.name || 'N/A'}</p>
+                              <p><span className="font-semibold">Phone:</span> {order.deliveryPartnerDetails?.phone || order.deliveryPartnerId?.phone || 'N/A'}</p>
+                              {order.deliveryPartnerDetails?.alternatePhone && (
+                                <p><span className="font-semibold">Alternate Phone:</span> {order.deliveryPartnerDetails.alternatePhone}</p>
+                              )}
+                              <p>
+                                <span className="font-semibold">Vehicle:</span>{' '}
+                                {order.deliveryPartnerDetails?.vehicleType ? `${order.deliveryPartnerDetails.vehicleType.toUpperCase()} - ` : ''}
+                                {order.deliveryPartnerDetails?.vehicleModel || 'N/A'}
+                                {order.deliveryPartnerDetails?.vehicleNumber ? ` (${order.deliveryPartnerDetails.vehicleNumber})` : ''}
+                              </p>
+                              <p>
+                                <span className="font-semibold">Partner Status:</span>{' '}
+                                {order.deliveryPartnerDetails?.status || (order.deliveryPartnerId?.isOnDuty ? 'on_duty' : 'off_duty')}
+                              </p>
+                              <p>
+                                <span className="font-semibold">Delivering To:</span>{' '}
+                                {order.addressId
+                                  ? `${order.addressId.street}, ${order.addressId.city}, ${order.addressId.state} - ${order.addressId.zipCode}`
+                                  : `${order.deliveryAddress?.street || ''}, ${order.deliveryAddress?.city || ''}, ${order.deliveryAddress?.state || ''} - ${order.deliveryAddress?.zipCode || ''}`}
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-600">No delivery partner assigned yet.</p>
+                          )}
+                        </div>
+
                         {/* Order Status Actions */}
                         {order.status !== 'delivered' && order.status !== 'cancelled' && (
                           <div className="flex gap-2 flex-wrap">
@@ -1269,55 +1387,61 @@ const RestaurantDashboard = () => {
                               <>
                                 <button
                                   onClick={() => handleUpdateOrderStatus(order._id, 'confirmed')}
+                                  disabled={updatingOrderIds.includes(order._id)}
                                   className="btn-primary text-sm px-4 py-2"
                                 >
                                   <CheckCircleIcon className="h-4 w-4 inline mr-1" />
-                                  Confirm Order
+                                  {updatingOrderIds.includes(order._id) ? 'Updating...' : 'Confirm Order'}
                                 </button>
                                 <button
                                   onClick={() => {
                                     const reason = window.prompt('Reason for cancellation:');
                                     if (reason) {
-                                      handleUpdateOrderStatus(order._id, 'cancelled');
+                                      handleUpdateOrderStatus(order._id, 'cancelled', reason);
                                     }
                                   }}
+                                  disabled={updatingOrderIds.includes(order._id)}
                                   className="btn-outline border-red-500 text-red-500 hover:bg-red-50 text-sm px-4 py-2"
                                 >
                                   <XCircleIcon className="h-4 w-4 inline mr-1" />
-                                  Reject
+                                  {updatingOrderIds.includes(order._id) ? 'Updating...' : 'Reject'}
                                 </button>
                               </>
                             )}
                             {order.status === 'confirmed' && (
                               <button
                                 onClick={() => handleUpdateOrderStatus(order._id, 'preparing')}
+                                disabled={updatingOrderIds.includes(order._id)}
                                 className="btn-primary text-sm px-4 py-2"
                               >
-                                Start Preparing
+                                {updatingOrderIds.includes(order._id) ? 'Updating...' : 'Start Preparing'}
                               </button>
                             )}
                             {order.status === 'preparing' && (
                               <button
                                 onClick={() => handleUpdateOrderStatus(order._id, 'ready')}
+                                disabled={updatingOrderIds.includes(order._id)}
                                 className="btn-primary text-sm px-4 py-2"
                               >
-                                Mark as Ready
+                                {updatingOrderIds.includes(order._id) ? 'Updating...' : 'Mark as Ready'}
                               </button>
                             )}
                             {order.status === 'ready' && (
                               <button
                                 onClick={() => handleUpdateOrderStatus(order._id, 'out_for_delivery')}
+                                disabled={updatingOrderIds.includes(order._id)}
                                 className="btn-primary text-sm px-4 py-2"
                               >
-                                Out for Delivery
+                                {updatingOrderIds.includes(order._id) ? 'Updating...' : 'Out for Delivery'}
                               </button>
                             )}
                             {order.status === 'out_for_delivery' && (
                               <button
                                 onClick={() => handleUpdateOrderStatus(order._id, 'delivered')}
+                                disabled={updatingOrderIds.includes(order._id)}
                                 className="btn-primary text-sm px-4 py-2"
                               >
-                                Mark as Delivered
+                                {updatingOrderIds.includes(order._id) ? 'Updating...' : 'Mark as Delivered'}
                               </button>
                             )}
                           </div>

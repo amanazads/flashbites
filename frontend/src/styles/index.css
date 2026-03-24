@@ -592,3 +592,18 @@ input, textarea, select {
   height: 1px;
   background: #E5E7EB;
 }
+
+/* Google Places Autocomplete dropdown */
+.pac-container {
+  z-index: 3000 !important;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+/* Prevent an empty injected container from appearing as a stray line */
+.pac-container:empty {
+  display: none !important;
+}
