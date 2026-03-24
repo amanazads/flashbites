@@ -2,10 +2,6 @@ const { getDistance } = require('./distance');
 
 // Calculate distance between two coordinates using Haversine formula
 const calculateDistance = (lat1, lon1, lat2, lon2) => getDistance(lat1, lon1, lat2, lon2);
-  const distance = R * c; // Distance in km
-  
-  return distance;
-};
 
 // Calculate delivery charge based on distance (platform-controlled)
 const DEFAULT_DELIVERY_CHARGES = [
