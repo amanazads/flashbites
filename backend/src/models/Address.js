@@ -27,7 +27,17 @@ const addressSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  fullAddress: {
+    type: String,
+    trim: true
+  },
   landmark: String,
+  lat: {
+    type: Number
+  },
+  lng: {
+    type: Number
+  },
   coordinates: {
     type: [Number], // [longitude, latitude]
     index: '2dsphere'

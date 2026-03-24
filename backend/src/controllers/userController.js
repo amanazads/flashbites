@@ -20,31 +20,14 @@ const normalizeCoordinates = (coordinates) => {
   return [lng, lat];
 };
 
-const validatePincode = async (zipCode) => {
-  try {
-    const response = await axios.get(`https://api.postalpincode.in/pincode/${zipCode}`, { timeout: 5000 });
-    const data = response?.data?.[0];
-
-    if (!data || data.Status !== 'Success' || !Array.isArray(data.PostOffice) || data.PostOffice.length === 0) {
-      return null;
-    }
-
-    const postOffice = data.PostOffice[0];
-    return {
-      district: normalizeText(postOffice.District),
-      state: normalizeText(postOffice.State)
-    };
-  } catch {
-    return { unavailable: true };
-  }
-};
-
-const geocodeAddress = async ({ zipCode, city, state }) => {
+const geocodeAddress = async ({ street, landmark, city, state, zipCode, fullAddress }) => {
   const queries = [
-    `${zipCode}, ${city}, ${state}, India`,
-    `${zipCode}, ${state}, India`,
-    `${zipCode}, India`
-  ];
+    fullAddress,
+    [street, landmark, city, state, zipCode, 'India'].filter(Boolean).join(', '),
+    [street, city, state, zipCode, 'India'].filter(Boolean).join(', '),
+    [city, state, zipCode, 'India'].filter(Boolean).join(', '),
+    [city, state, 'India'].filter(Boolean).join(', ')
+  ].filter(Boolean);
 
   for (const query of queries) {
     try {
@@ -56,7 +39,8 @@ const geocodeAddress = async ({ zipCode, city, state }) => {
         params: {
           q: query,
           format: 'json',
-          limit: 1
+          limit: 1,
+          countrycodes: 'in'
         }
       });
 
@@ -76,60 +60,69 @@ const geocodeAddress = async ({ zipCode, city, state }) => {
   return null;
 };
 
+const buildFullAddress = ({ street, landmark, city, state, zipCode }) => (
+  [street, landmark, city, state, zipCode].filter(Boolean).join(', ')
+);
+
+const resolveCoordinatesFromInput = (input = {}, fallback = {}) => {
+  let coordinates = normalizeCoordinates(input.coordinates ?? fallback.coordinates);
+  if (coordinates) return coordinates;
+
+  const lng = Number(input.lng ?? input.longitude ?? fallback.lng ?? fallback.longitude);
+  const lat = Number(input.lat ?? input.latitude ?? fallback.lat ?? fallback.latitude);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    coordinates = normalizeCoordinates([lng, lat]);
+    if (coordinates) return coordinates;
+  }
+
+  return null;
+};
+
 const validateAndBuildAddressPayload = async (input, fallback = {}) => {
+  const street = normalizeText(input.street ?? fallback.street);
   const zipCode = normalizeText(input.zipCode ?? fallback.zipCode);
   const city = normalizeText(input.city ?? fallback.city);
   const state = normalizeText(input.state ?? fallback.state);
+  const landmark = normalizeText(input.landmark ?? fallback.landmark);
 
-  if (!zipCode || !city || !state) {
-    return { error: 'City, state and PIN code are required' };
+  if (!street || !zipCode || !city || !state) {
+    return { error: 'Street, city, state and PIN code are required' };
   }
 
   if (!INDIA_PIN_REGEX.test(zipCode)) {
-    return { error: 'Please enter a valid 6-digit Indian PIN code' };
+    return { error: 'Please enter a valid 6-digit PIN code' };
   }
 
-  const pinMeta = await validatePincode(zipCode);
-  const strictPinCheck = process.env.NODE_ENV === 'production';
-  if (!pinMeta && strictPinCheck) {
-    return { error: 'Invalid PIN code. Please enter a valid serviceable location.' };
-  }
+  const fullAddress = normalizeText(input.fullAddress ?? fallback.fullAddress) || buildFullAddress({
+    street,
+    landmark,
+    city,
+    state,
+    zipCode
+  });
 
-  if (pinMeta && !pinMeta.unavailable) {
-    const cityLc = city.toLowerCase();
-    const districtLc = pinMeta.district.toLowerCase();
-    const stateLc = state.toLowerCase();
-    const validStateLc = pinMeta.state.toLowerCase();
-
-    const cityMatches = cityLc.includes(districtLc) || districtLc.includes(cityLc);
-    const stateMatches = stateLc === validStateLc;
-
-    if (!cityMatches || !stateMatches) {
-      return {
-        error: `PIN code ${zipCode} belongs to ${pinMeta.district}, ${pinMeta.state}. Please correct city/state.`
-      };
-    }
-  }
-
-  let coordinates = normalizeCoordinates(input.coordinates ?? fallback.coordinates);
+  let coordinates = resolveCoordinatesFromInput(input, fallback);
   if (!coordinates) {
-    coordinates = await geocodeAddress({ zipCode, city, state });
+    coordinates = await geocodeAddress({ street, landmark, city, state, zipCode, fullAddress });
   }
 
   coordinates = normalizeCoordinates(coordinates);
   if (!coordinates) {
-    return { error: 'Unable to verify address location. Please enter a valid address.' };
+    return { error: 'Unable to detect your location. Please select an address suggestion or use current location.' };
   }
 
   return {
     payload: {
       type: normalizeText(input.type ?? fallback.type ?? 'home'),
-      street: normalizeText(input.street ?? fallback.street),
+      street,
       city,
       state,
       zipCode,
-      landmark: normalizeText(input.landmark ?? fallback.landmark),
+      fullAddress,
+      landmark,
       coordinates,
+      lng: coordinates[0],
+      lat: coordinates[1],
       isDefault: Boolean(input.isDefault ?? fallback.isDefault)
     }
   };
@@ -183,6 +176,7 @@ exports.addAddress = async (req, res) => {
 
     successResponse(res, 201, 'Address added successfully', { address });
   } catch (error) {
+    console.error('Add address error:', error);
     errorResponse(res, 500, 'Failed to add address', error.message);
   }
 };
@@ -241,6 +235,7 @@ exports.updateAddress = async (req, res) => {
 
     successResponse(res, 200, 'Address updated successfully', { address: updatedAddress });
   } catch (error) {
+    console.error('Update address error:', error);
     errorResponse(res, 500, 'Failed to update address', error.message);
   }
 };

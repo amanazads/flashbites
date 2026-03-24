@@ -358,7 +358,20 @@ exports.createOrder = async (req, res) => {
         const geocoded = await geocodeAddressFromFields(selectedAddressDoc);
         if (geocoded) {
           deliveryCoords = geocoded;
-          await Address.findByIdAndUpdate(selectedAddressDoc._id, { $set: { coordinates: geocoded } });
+          await Address.findByIdAndUpdate(selectedAddressDoc._id, {
+            $set: {
+              coordinates: geocoded,
+              lng: geocoded[0],
+              lat: geocoded[1],
+              fullAddress: selectedAddressDoc.fullAddress || [
+                selectedAddressDoc.street,
+                selectedAddressDoc.landmark,
+                selectedAddressDoc.city,
+                selectedAddressDoc.state,
+                selectedAddressDoc.zipCode
+              ].filter(Boolean).join(', ')
+            }
+          });
         }
       }
     } else if (deliveryAddress) {
@@ -368,21 +381,44 @@ exports.createOrder = async (req, res) => {
         if (geocoded) deliveryCoords = geocoded;
       }
       if (!deliveryCoords) {
-        return errorResponse(res, 400, 'Delivery address location is required. Please use a verified address.');
+        return errorResponse(res, 400, 'Invalid address: location coordinates are missing. Please select an address suggestion or enable location.');
       }
     }
 
     if (!deliveryCoords) {
-      return errorResponse(res, 400, 'Unable to verify delivery address location. Please update your address.');
+      return errorResponse(res, 400, 'Invalid address: unable to verify delivery location. Please edit your address and try again.');
     }
 
     const [addrLng, addrLat] = deliveryCoords;
     const [restLng, restLat] = restaurantCoords;
+
+    if (!Number.isFinite(addrLat) || !Number.isFinite(addrLng)) {
+      return errorResponse(res, 400, 'Invalid address: latitude or longitude is missing. Please update your address.');
+    }
+
     const distance = calculateDistance(restLat, restLng, addrLat, addrLng);
     const maxDistanceKm = Number(restaurant.deliveryRadiusKm || process.env.MAX_DELIVERY_DISTANCE_KM || 20);
 
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('User Address:', {
+        addressId: selectedAddressDoc?._id || null,
+        fullAddress: selectedAddressDoc?.fullAddress || deliveryAddress?.fullAddress || null,
+        lat: addrLat,
+        lng: addrLng,
+        zipCode: selectedAddressDoc?.zipCode || deliveryAddress?.zipCode || null
+      });
+      console.log('Restaurant Location:', {
+        restaurantId,
+        name: restaurant.name,
+        lat: restLat,
+        lng: restLng,
+        deliveryRadiusKm: maxDistanceKm
+      });
+      console.log('Distance:', distance);
+    }
+
     if (!Number.isFinite(distance)) {
-      return errorResponse(res, 400, 'Unable to calculate delivery distance for the selected address');
+      return errorResponse(res, 400, 'Invalid address: could not calculate delivery distance. Please update your address location.');
     }
 
     if (distance > maxDistanceKm) {
@@ -403,7 +439,7 @@ exports.createOrder = async (req, res) => {
           debugData
         );
       }
-      return errorResponse(res, 400, 'Delivery is not available in your area. Maximum delivery distance is 20km.');
+      return errorResponse(res, 400, `Delivery is not available in your area. This restaurant delivers up to ${maxDistanceKm} km.`);
     }
 
     let discount = 0;
@@ -470,6 +506,9 @@ exports.createOrder = async (req, res) => {
             city: selectedAddressDoc.city,
             state: selectedAddressDoc.state,
             zipCode: selectedAddressDoc.zipCode,
+            fullAddress: selectedAddressDoc.fullAddress,
+            lat: addrLat,
+            lng: addrLng,
             coordinates: deliveryCoords
           }
         : null,

@@ -168,6 +168,22 @@ const Checkout = () => {
       return;
     }
 
+    const selectedAddressObj = addresses.find((addr) => addr._id === selectedAddress);
+    if (!selectedAddressObj) {
+      toast.error('Selected address is unavailable. Please select an address again.');
+      return;
+    }
+
+    const hasCoordinates = Array.isArray(selectedAddressObj.coordinates)
+      && selectedAddressObj.coordinates.length >= 2
+      && Number.isFinite(Number(selectedAddressObj.coordinates[0]))
+      && Number.isFinite(Number(selectedAddressObj.coordinates[1]));
+
+    if (!hasCoordinates) {
+      toast.error('Please edit this address and select a valid location before placing the order.');
+      return;
+    }
+
     if (loading) {
       return; // Prevent multiple submissions
     }
@@ -215,11 +231,11 @@ const Checkout = () => {
         }
       } else if (createOrder.rejected.match(result)) {
         console.error('Order rejected:', result.payload);
-        toast.error(result.payload || 'Failed to place order');
+        toast.error(result.payload || 'Unable to place your order right now. Please check your address and try again.');
       }
     } catch (error) {
       console.error('Order error:', error);
-      toast.error(error.message || 'Failed to place order');
+      toast.error(error.message || 'Unable to place your order right now. Please try again.');
     } finally {
       setLoading(false);
     }

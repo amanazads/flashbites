@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { addAddress } from '../../api/userApi';
 import toast from 'react-hot-toast';
+
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
 const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
   const [formData, setFormData] = useState({
@@ -10,45 +12,179 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
     city: '',
     state: '',
     zipCode: '',
-    landmark: ''
+    landmark: '',
+    fullAddress: '',
+    coordinates: null
   });
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [searchingAddress, setSearchingAddress] = useState(false);
+  const [usingCurrentLocation, setUsingCurrentLocation] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isPinVerified, setIsPinVerified] = useState(false);
-  const [pinLookupFailed, setPinLookupFailed] = useState(false);
 
-  if (!isOpen) return null;
+  const getQueryText = () => {
+    const query = [formData.street, formData.landmark, formData.city, formData.state, formData.zipCode, 'India']
+      .filter(Boolean)
+      .join(', ');
+    return query;
+  };
 
-  const handlePincodeChange = async (e) => {
-    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-    setFormData(prev => ({ ...prev, zipCode: value }));
-    setIsPinVerified(false);
-    setPinLookupFailed(false);
+  useEffect(() => {
+    let cancelled = false;
+    const query = getQueryText();
 
-    if (value.length === 6) {
-      try {
-        const response = await fetch(`https://api.postalpincode.in/pincode/${value}`);
-        const data = await response.json();
-        
-        if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
-          const postOffice = data[0].PostOffice[0];
-          setFormData(prev => ({
-            ...prev,
-            city: postOffice.District,
-            state: postOffice.State
-          }));
-          setIsPinVerified(true);
-          toast.success("City and State auto-detected");
-        } else {
-          setIsPinVerified(false);
-          setPinLookupFailed(true);
-          toast.error("PIN verification unavailable. Please enter city/state manually.");
-        }
-      } catch (error) {
-        setIsPinVerified(false);
-        setPinLookupFailed(true);
-        console.error("Failed to fetch pincode details", error);
+    const fetchSuggestions = async () => {
+      if (query.length < 8 || formData.street.trim().length < 3) {
+        setAddressSuggestions([]);
+        return;
       }
+
+      setSearchingAddress(true);
+      try {
+        let data = [];
+
+        if (MAPBOX_TOKEN) {
+          const mapboxResponse = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?autocomplete=true&country=in&limit=5&language=en&access_token=${MAPBOX_TOKEN}`
+          );
+          const mapboxData = await mapboxResponse.json();
+          data = (mapboxData?.features || []).map((feature) => {
+            const contexts = feature?.context || [];
+            return {
+              place_id: feature.id,
+              label: feature.place_name,
+              city: feature?.text || contexts.find((c) => c.id?.startsWith('place'))?.text || '',
+              state: contexts.find((c) => c.id?.startsWith('region'))?.text || '',
+              zipCode: contexts.find((c) => c.id?.startsWith('postcode'))?.text || '',
+              lng: feature.center?.[0],
+              lat: feature.center?.[1]
+            };
+          });
+        } else {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=in&addressdetails=1&limit=5&q=${encodeURIComponent(query)}`,
+            {
+              headers: {
+                Accept: 'application/json'
+              }
+            }
+          );
+          const osmData = await response.json();
+          data = (Array.isArray(osmData) ? osmData : []).map((item) => ({
+            place_id: item.place_id,
+            label: item.display_name,
+            city: item?.address?.city || item?.address?.town || item?.address?.village || item?.address?.county || '',
+            state: item?.address?.state || '',
+            zipCode: item?.address?.postcode || '',
+            lng: item.lon,
+            lat: item.lat
+          }));
+        }
+
+        if (!cancelled) {
+          setAddressSuggestions(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        if (!cancelled) {
+          setAddressSuggestions([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setSearchingAddress(false);
+        }
+      }
+    };
+
+    const timer = setTimeout(fetchSuggestions, 450);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [formData.street, formData.landmark, formData.city, formData.state, formData.zipCode]);
+
+  const applySuggestion = (suggestion) => {
+    const resolvedCity = suggestion?.city || formData.city;
+    const resolvedState = suggestion?.state || formData.state;
+    const resolvedZip = suggestion?.zipCode || formData.zipCode;
+    const lat = Number(suggestion?.lat);
+    const lng = Number(suggestion?.lng);
+
+    setFormData((prev) => ({
+      ...prev,
+      street: suggestion?.label || prev.street,
+      city: resolvedCity,
+      state: resolvedState,
+      zipCode: resolvedZip,
+      fullAddress: suggestion?.label || prev.fullAddress,
+      coordinates: Number.isFinite(lat) && Number.isFinite(lng) ? [lng, lat] : prev.coordinates
+    }));
+    setAddressSuggestions([]);
+  };
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Location is not supported on this device');
+      return;
     }
+
+    setUsingCurrentLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = Number(position.coords.latitude);
+        const lng = Number(position.coords.longitude);
+
+        try {
+          let reverseLabel = '';
+          let reverseCity = '';
+          let reverseState = '';
+          let reverseZip = '';
+
+          if (MAPBOX_TOKEN) {
+            const mapboxResponse = await fetch(
+              `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?limit=1&language=en&access_token=${MAPBOX_TOKEN}`
+            );
+            const mapboxData = await mapboxResponse.json();
+            const feature = mapboxData?.features?.[0];
+            const contexts = feature?.context || [];
+            reverseLabel = feature?.place_name || '';
+            reverseCity = feature?.text || contexts.find((c) => c.id?.startsWith('place'))?.text || '';
+            reverseState = contexts.find((c) => c.id?.startsWith('region'))?.text || '';
+            reverseZip = contexts.find((c) => c.id?.startsWith('postcode'))?.text || '';
+          } else {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${lat}&lon=${lng}`,
+              { headers: { Accept: 'application/json' } }
+            );
+            const data = await response.json();
+            const address = data?.address || {};
+            reverseLabel = data?.display_name || '';
+            reverseCity = address.city || address.town || address.village || address.county || '';
+            reverseState = address.state || '';
+            reverseZip = address.postcode || '';
+          }
+
+          setFormData((prev) => ({
+            ...prev,
+            street: reverseLabel || prev.street,
+            city: reverseCity || prev.city,
+            state: reverseState || prev.state,
+            zipCode: reverseZip || prev.zipCode,
+            fullAddress: reverseLabel || prev.fullAddress,
+            coordinates: [lng, lat]
+          }));
+          toast.success('Location captured successfully');
+        } catch {
+          setFormData((prev) => ({ ...prev, coordinates: [lng, lat] }));
+          toast.success('Location coordinates captured');
+        } finally {
+          setUsingCurrentLocation(false);
+        }
+      },
+      () => {
+        setUsingCurrentLocation(false);
+        toast.error('Unable to fetch current location. Please allow location permission.');
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
   };
 
   const handleSubmit = async (e) => {
@@ -66,10 +202,15 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
 
     setLoading(true);
     try {
-      const response = await addAddress(formData);
-      if (pinLookupFailed && !isPinVerified) {
-        toast('PIN verification skipped due to network issue. Address will be validated on save.', { icon: 'ℹ️' });
-      }
+      const payload = {
+        ...formData,
+        fullAddress: formData.fullAddress || getQueryText(),
+        coordinates: formData.coordinates || undefined,
+        lat: formData.coordinates?.[1],
+        lng: formData.coordinates?.[0]
+      };
+
+      const response = await addAddress(payload);
       toast.success('Address added successfully');
       onAddressAdded(response.data.address);
       onClose();
@@ -80,16 +221,19 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
         city: '',
         state: '',
         zipCode: '',
-        landmark: ''
+        landmark: '',
+        fullAddress: '',
+        coordinates: null
       });
-      setIsPinVerified(false);
-      setPinLookupFailed(false);
+      setAddressSuggestions([]);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to add address');
     } finally {
       setLoading(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
@@ -144,17 +288,36 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
             <input
               type="text"
               value={formData.street}
-              onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, street: e.target.value, fullAddress: '' })}
               placeholder="House/Flat No., Street name"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               required
             />
-            {formData.zipCode.length === 6 && !isPinVerified && !pinLookupFailed && (
-              <p className="mt-1 text-xs text-red-600">Please verify a valid PIN code.</p>
+            {searchingAddress && (
+              <p className="mt-1 text-xs text-gray-500">Searching address suggestions...</p>
             )}
-            {formData.zipCode.length === 6 && pinLookupFailed && (
-              <p className="mt-1 text-xs text-amber-600">PIN lookup unavailable. You can still save the address.</p>
+            {addressSuggestions.length > 0 && (
+              <div className="mt-2 max-h-44 overflow-auto rounded-lg border border-gray-200 bg-white">
+                {addressSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion.place_id}
+                    type="button"
+                    onClick={() => applySuggestion(suggestion)}
+                    className="block w-full border-b border-gray-100 px-3 py-2 text-left text-xs text-gray-700 hover:bg-gray-50"
+                  >
+                    {suggestion.label}
+                  </button>
+                ))}
+              </div>
             )}
+            <button
+              type="button"
+              onClick={handleUseCurrentLocation}
+              className="mt-2 text-xs font-semibold text-primary-600"
+              disabled={usingCurrentLocation}
+            >
+              {usingCurrentLocation ? 'Detecting current location...' : 'Use Current Location'}
+            </button>
           </div>
 
           {/* Landmark */}
@@ -165,7 +328,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
             <input
               type="text"
               value={formData.landmark}
-              onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, landmark: e.target.value, fullAddress: '', coordinates: null })}
               placeholder="Nearby landmark"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
@@ -180,7 +343,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
               <input
                 type="text"
                 value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value, fullAddress: '', coordinates: null })}
                 placeholder="City"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 required
@@ -193,7 +356,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
               <input
                 type="text"
                 value={formData.state}
-                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, state: e.target.value, fullAddress: '', coordinates: null })}
                 placeholder="State"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 required
@@ -209,13 +372,16 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
             <input
               type="text"
               value={formData.zipCode}
-              onChange={handlePincodeChange}
+                onChange={(e) => setFormData({ ...formData, zipCode: e.target.value.replace(/\D/g, '').slice(0, 6), fullAddress: '', coordinates: null })}
               placeholder="6-digit PIN code"
               maxLength={6}
               pattern="[0-9]{6}"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               required
             />
+              <p className="mt-1 text-xs text-gray-500">
+                Tip: pick a suggestion or use current location for best delivery accuracy.
+              </p>
           </div>
 
           {/* Buttons */}
