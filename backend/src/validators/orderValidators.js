@@ -32,10 +32,10 @@ exports.updateOrderStatusValidator = [
 	body('status')
 		.isIn(['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled'])
 		.withMessage('Invalid order status'),
-	body('reason').optional({ values: 'falsy' }).isString().isLength({ min: 3, max: 200 }).withMessage('Reason must be 3-200 characters'),
+	body('reason').optional({ values: 'falsy' }).isString().isLength({ min: 1, max: 200 }).withMessage('Reason must be 1-200 characters'),
 ];
 
 exports.cancelOrderValidator = [
 	param('id').isMongoId().withMessage('Valid order id is required'),
-	body('reason').optional({ values: 'falsy' }).isString().isLength({ min: 3, max: 200 }).withMessage('Reason must be 3-200 characters'),
+	body('reason').optional({ values: 'falsy' }).isString().isLength({ min: 1, max: 200 }).withMessage('Reason must be 1-200 characters'),
 ];
