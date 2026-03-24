@@ -24,10 +24,16 @@ exports.geocode = async (req, res) => {
 
     const result = await geocodeAddress(query);
     if (!result) {
-      return errorResponse(res, 404, 'Could not resolve coordinates for this address');
+      return successResponse(res, 200, 'Address could not be resolved', {
+        location: null,
+        resolved: false
+      });
     }
 
-    return successResponse(res, 200, 'Address geocoded successfully', { location: result });
+    return successResponse(res, 200, 'Address geocoded successfully', {
+      location: result,
+      resolved: true
+    });
   } catch (error) {
     return errorResponse(res, 500, 'Failed to geocode address', error.message);
   }

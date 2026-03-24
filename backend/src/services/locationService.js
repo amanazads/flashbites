@@ -40,6 +40,29 @@ const buildGoogleAutocompleteSuggestions = (predictions = []) => (
   }))
 );
 
+const uniqueNonEmpty = (values = []) => (
+  [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))]
+);
+
+const buildGeocodeQueries = (query) => {
+  const base = String(query || '').trim();
+  if (!base) return [];
+
+  const withoutNearPrefix = base.replace(/^near\s+/i, '').trim();
+  const parts = base.split(',').map((part) => part.trim()).filter(Boolean);
+
+  const variants = [
+    base,
+    withoutNearPrefix,
+    parts.slice(0, 5).join(', '),
+    parts.slice(0, 4).join(', '),
+    parts.slice(-4).join(', '),
+    parts.slice(-3).join(', ')
+  ];
+
+  return uniqueNonEmpty(variants).filter((item) => item.length >= 3);
+};
+
 const geocodeWithGoogle = async (query) => {
   if (!GOOGLE_API_KEY) return null;
 
@@ -225,20 +248,26 @@ const autocompleteWithNominatim = async (query) => {
 };
 
 const geocodeAddress = async (query) => {
-  if (!query || String(query).trim().length < 3) return null;
+  const queries = buildGeocodeQueries(query);
+  if (!queries.length) return null;
 
-  try {
-    const googleResult = await geocodeWithGoogle(query);
-    if (googleResult) return googleResult;
-  } catch {
-    // fallback to nominatim
+  for (const item of queries) {
+    try {
+      const googleResult = await geocodeWithGoogle(item);
+      if (googleResult) return googleResult;
+    } catch {
+      // fallback to nominatim
+    }
+
+    try {
+      const nominatimResult = await geocodeWithNominatim(item);
+      if (nominatimResult) return nominatimResult;
+    } catch {
+      // continue to next variant
+    }
   }
 
-  try {
-    return await geocodeWithNominatim(query);
-  } catch {
-    return null;
-  }
+  return null;
 };
 
 const reverseGeocode = async (lat, lng) => {

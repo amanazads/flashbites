@@ -63,6 +63,16 @@ const MENU_CATEGORY_OPTIONS = [
   'Coffee'
 ];
 
+const isValidRestaurantCoordPair = (lat, lng) => (
+  Number.isFinite(lat)
+  && Number.isFinite(lng)
+  && lat >= -90
+  && lat <= 90
+  && lng >= -180
+  && lng <= 180
+  && !(Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001)
+);
+
 const RestaurantDashboard = () => {
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
@@ -269,9 +279,7 @@ const RestaurantDashboard = () => {
 
       const hasValidCoords = Array.isArray(locationPayload?.coordinates)
         && locationPayload.coordinates.length >= 2
-        && Number.isFinite(Number(locationPayload.coordinates[0]))
-        && Number.isFinite(Number(locationPayload.coordinates[1]))
-        && !(Math.abs(Number(locationPayload.coordinates[0])) < 0.0001 && Math.abs(Number(locationPayload.coordinates[1])) < 0.0001);
+        && isValidRestaurantCoordPair(Number(locationPayload.coordinates[1]), Number(locationPayload.coordinates[0]));
 
       if (!hasValidCoords) {
         const geocodeQuery = [
@@ -287,7 +295,7 @@ const RestaurantDashboard = () => {
           const location = geocodeRes?.data?.location || geocodeRes?.location || null;
           const lat = Number(location?.lat);
           const lng = Number(location?.lng);
-          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          if (isValidRestaurantCoordPair(lat, lng)) {
             locationPayload = {
               type: 'Point',
               coordinates: [lng, lat]
@@ -301,7 +309,7 @@ const RestaurantDashboard = () => {
       if (!locationPayload) {
         const draftLat = Number(locationDraft.lat);
         const draftLng = Number(locationDraft.lng);
-        if (Number.isFinite(draftLat) && Number.isFinite(draftLng)) {
+        if (isValidRestaurantCoordPair(draftLat, draftLng)) {
           locationPayload = {
             type: 'Point',
             coordinates: [draftLng, draftLat]
@@ -582,7 +590,7 @@ const RestaurantDashboard = () => {
   };
 
   const applyLocationCoordinates = (lat, lng) => {
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    if (!isValidRestaurantCoordPair(lat, lng)) {
       return false;
     }
     setRestaurantData((prev) => ({
@@ -624,7 +632,7 @@ const RestaurantDashboard = () => {
         return next;
       }
 
-      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      if (isValidRestaurantCoordPair(lat, lng)) {
         setRestaurantData((current) => ({
           ...current,
           location: {
