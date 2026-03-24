@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { addAddress } from '../../api/userApi';
-import { autocompleteAddress, geocodeAddressText, reverseGeocodeCoordinates } from '../../api/locationApi';
 import toast from 'react-hot-toast';
+import AddressInput from '../location/AddressInput';
 import MapPicker from '../location/MapPicker';
 
 const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
@@ -16,9 +16,6 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
     fullAddress: '',
     coordinates: null
   });
-  const [addressSuggestions, setAddressSuggestions] = useState([]);
-  const [searchingAddress, setSearchingAddress] = useState(false);
-  const [usingCurrentLocation, setUsingCurrentLocation] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const getQueryText = () => {
@@ -29,103 +26,32 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
   };
 
   useEffect(() => {
-    let cancelled = false;
-    const query = getQueryText();
+    if (!isOpen) return;
+    setFormData({
+      type: 'home',
+      street: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      landmark: '',
+      fullAddress: '',
+      coordinates: null
+    });
+  }, [isOpen]);
 
-    const fetchSuggestions = async () => {
-      if (query.length < 8 || formData.street.trim().length < 3) {
-        setAddressSuggestions([]);
-        return;
-      }
-
-      setSearchingAddress(true);
-      try {
-        const response = await autocompleteAddress(query);
-        const data = response?.data?.suggestions || [];
-
-        if (!cancelled) {
-          setAddressSuggestions(Array.isArray(data) ? data : []);
-        }
-      } catch {
-        if (!cancelled) {
-          setAddressSuggestions([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setSearchingAddress(false);
-        }
-      }
-    };
-
-    const timer = setTimeout(fetchSuggestions, 450);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [formData.street, formData.landmark, formData.city, formData.state, formData.zipCode]);
-
-  const applySuggestion = (suggestion) => {
-    const resolvedCity = suggestion?.city || formData.city;
-    const resolvedState = suggestion?.state || formData.state;
-    const resolvedZip = suggestion?.zipCode || formData.zipCode;
-    const lat = Number(suggestion?.lat);
-    const lng = Number(suggestion?.lng);
+  const handleGoogleAddressSelect = (selection) => {
+    const lat = Number(selection?.lat);
+    const lng = Number(selection?.lng);
 
     setFormData((prev) => ({
       ...prev,
-      street: suggestion?.street || suggestion?.label || prev.street,
-      city: resolvedCity,
-      state: resolvedState,
-      zipCode: resolvedZip,
-      fullAddress: suggestion?.fullAddress || suggestion?.label || prev.fullAddress,
+      street: selection?.street || selection?.address || prev.street,
+      city: selection?.city || prev.city,
+      state: selection?.state || prev.state,
+      zipCode: selection?.zipCode || prev.zipCode,
+      fullAddress: selection?.fullAddress || selection?.address || prev.fullAddress,
       coordinates: Number.isFinite(lat) && Number.isFinite(lng) ? [lng, lat] : prev.coordinates
     }));
-    setAddressSuggestions([]);
-  };
-
-  const handleUseCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error('Location is not supported on this device');
-      return;
-    }
-
-    setUsingCurrentLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const lat = Number(position.coords.latitude);
-        const lng = Number(position.coords.longitude);
-
-        try {
-          const response = await reverseGeocodeCoordinates(lat, lng);
-          const location = response?.data?.location || {};
-          const reverseLabel = location.fullAddress || '';
-          const reverseCity = location.city || '';
-          const reverseState = location.state || '';
-          const reverseZip = location.zipCode || '';
-
-          setFormData((prev) => ({
-            ...prev,
-            street: reverseLabel || prev.street,
-            city: reverseCity || prev.city,
-            state: reverseState || prev.state,
-            zipCode: reverseZip || prev.zipCode,
-            fullAddress: reverseLabel || prev.fullAddress,
-            coordinates: [lng, lat]
-          }));
-          toast.success('Location captured successfully');
-        } catch {
-          setFormData((prev) => ({ ...prev, coordinates: [lng, lat] }));
-          toast.success('Location coordinates captured');
-        } finally {
-          setUsingCurrentLocation(false);
-        }
-      },
-      () => {
-        setUsingCurrentLocation(false);
-        toast.error('Unable to fetch current location. Please allow location permission.');
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-    );
   };
 
   const handleMapSelect = async ({ lat, lng }) => {
@@ -135,21 +61,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
 
     setFormData((prev) => ({ ...prev, coordinates: [lngNum, latNum] }));
 
-    try {
-      const response = await reverseGeocodeCoordinates(latNum, lngNum);
-      const location = response?.data?.location || {};
-      setFormData((prev) => ({
-        ...prev,
-        street: location.street || prev.street,
-        city: location.city || prev.city,
-        state: location.state || prev.state,
-        zipCode: location.zipCode || prev.zipCode,
-        fullAddress: location.fullAddress || prev.fullAddress,
-        coordinates: [lngNum, latNum]
-      }));
-    } catch {
-      // Keep selected coordinates even if reverse geocode fails.
-    }
+    // Keep selected coordinates from map click. User can refine text fields manually.
   };
 
   const handleSubmit = async (e) => {
@@ -157,31 +69,14 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
     
     if (!formData.street || !formData.city || !formData.state) {
       if (!formData.fullAddress?.trim()) {
-        toast.error('Please fill address details or use current location');
+        toast.error('Please fill address details and select from suggestions');
         return;
       }
     }
 
-    let coordinates = formData.coordinates;
+    const coordinates = formData.coordinates;
     if (!coordinates || coordinates.length < 2) {
-      const geocodeQuery = formData.fullAddress || getQueryText();
-      if (geocodeQuery.trim().length > 2) {
-        try {
-          const geoRes = await geocodeAddressText(geocodeQuery);
-          const location = geoRes?.data?.location || geoRes?.location || null;
-          const lat = Number(location?.lat ?? geoRes?.data?.lat ?? geoRes?.lat);
-          const lng = Number(location?.lng ?? geoRes?.data?.lng ?? geoRes?.lng);
-          if (Number.isFinite(lat) && Number.isFinite(lng)) {
-            coordinates = [lng, lat];
-          }
-        } catch {
-          // Final guard below will show a user-friendly message.
-        }
-      }
-    }
-
-    if (!coordinates || coordinates.length < 2) {
-      toast.error('Please pick a suggestion or use current location to capture exact coordinates');
+      toast.error('Please select a valid address from suggestions');
       return;
     }
 
@@ -210,7 +105,6 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
         fullAddress: '',
         coordinates: null
       });
-      setAddressSuggestions([]);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to add address');
     } finally {
@@ -270,6 +164,13 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Street Address *
             </label>
+            <AddressInput
+              value={formData.fullAddress || formData.street}
+              onChange={(value) => setFormData({ ...formData, street: value, fullAddress: value, coordinates: null })}
+              onSelect={handleGoogleAddressSelect}
+              placeholder="Search delivery address"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
             <input
               type="text"
               value={formData.street}
@@ -278,31 +179,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               required
             />
-            {searchingAddress && (
-              <p className="mt-1 text-xs text-gray-500">Searching address suggestions...</p>
-            )}
-            {addressSuggestions.length > 0 && (
-              <div className="mt-2 max-h-44 overflow-auto rounded-lg border border-gray-200 bg-white">
-                {addressSuggestions.map((suggestion) => (
-                  <button
-                    key={suggestion.place_id || suggestion.placeId || suggestion.label}
-                    type="button"
-                    onClick={() => applySuggestion(suggestion)}
-                    className="block w-full border-b border-gray-100 px-3 py-2 text-left text-xs text-gray-700 hover:bg-gray-50"
-                  >
-                    {suggestion.label}
-                  </button>
-                ))}
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={handleUseCurrentLocation}
-              className="mt-2 text-xs font-semibold text-primary-600"
-              disabled={usingCurrentLocation}
-            >
-              {usingCurrentLocation ? 'Detecting current location...' : 'Use Current Location'}
-            </button>
+            <p className="mt-1 text-xs text-gray-500">Select an address from suggestions to lock accurate coordinates.</p>
           </div>
 
           <div className="mb-4">
@@ -332,7 +209,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
             <input
               type="text"
               value={formData.landmark}
-                onChange={(e) => setFormData({ ...formData, landmark: e.target.value, fullAddress: '', coordinates: null })}
+                onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
               placeholder="Nearby landmark"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
@@ -347,7 +224,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
               <input
                 type="text"
                 value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value, fullAddress: '', coordinates: null })}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                 placeholder="City"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 required
@@ -360,7 +237,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
               <input
                 type="text"
                 value={formData.state}
-                onChange={(e) => setFormData({ ...formData, state: e.target.value, fullAddress: '', coordinates: null })}
+                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                 placeholder="State"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 required
@@ -376,7 +253,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
             <input
               type="text"
               value={formData.zipCode}
-                onChange={(e) => setFormData({ ...formData, zipCode: e.target.value.replace(/\D/g, '').slice(0, 6), fullAddress: '', coordinates: null })}
+                onChange={(e) => setFormData({ ...formData, zipCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
               placeholder="PIN code (optional)"
               maxLength={6}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"

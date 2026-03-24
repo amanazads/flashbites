@@ -24,8 +24,6 @@ import {
 const BRAND = '#E23744';
 const ALL_CATEGORY_IMAGE = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80';
 const SEARCH_IMAGE = 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=120&q=80';
-const LOCATION_BANNER_DISMISSED_KEY = 'fb_location_banner_dismissed';
-const LOCATION_PERMISSION_STATE_KEY = 'fb_location_permission_state';
 const SELECTED_ADDRESS_KEY = 'fb_selected_address';
 
 /* ───── Category definitions with real food photos ───── */
@@ -101,48 +99,7 @@ const hasRealCoords = (r) => {
   return Array.isArray(coords) && coords.length === 2 && (coords[0] !== 0 || coords[1] !== 0);
 };
 
-// Live location is intentionally disabled. Users select a delivery location manually.
-
-/* Geocode a typed address/city string */
-const geocodeAddress = async (query) => {
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', India')}&format=json&limit=1`;
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'FlashBites/1.0 (info.flashbites@gmail.com)',
-        'Accept-Language': 'en',
-      },
-    });
-    const data = await res.json();
-    if (data && data.length > 0) {
-      return { latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon), displayName: data[0].display_name.split(',')[0] };
-    }
-    return null;
-  } catch {
-    return null;
-  }
-};
-
-const reverseGeocode = async (latitude, longitude) => {
-  try {
-    const url = `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}&format=json&zoom=14&addressdetails=1`;
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'FlashBites/1.0 (info.flashbites@gmail.com)',
-        'Accept-Language': 'en',
-      },
-    });
-    const data = await res.json();
-    const address = data?.address || {};
-    const city = address.city || address.town || address.village || address.suburb || address.county || '';
-    return {
-      label: city || data?.display_name?.split(',')?.[0] || 'Current Location',
-      city: city || data?.display_name?.split(',')?.[0] || 'Current Location',
-    };
-  } catch {
-    return null;
-  }
-};
+// Live location is intentionally disabled. Users select a saved delivery location.
 
 const Home = () => {
   const navigate = useNavigate();
@@ -155,11 +112,6 @@ const Home = () => {
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
-  const [manualInput, setManualInput] = useState('');
-  const [geocoding, setGeocoding] = useState(false);
-  const [gpsLoading, setGpsLoading] = useState(false);
-  const [gpsDenied, setGpsDenied] = useState(false);
-  const [showGpsBanner] = useState(false);
   const pickerRef = useRef(null);
   const promoRowRef = useRef(null);
   const promoAutoTimerRef = useRef(null);
@@ -168,7 +120,6 @@ const Home = () => {
 
   /* ── Filtered restaurants ── */
   const [noServiceArea, setNoServiceArea] = useState(false);
-  const [usedCityFallback, setUsedCityFallback] = useState(false);
   const [promoBanners, setPromoBanners] = useState([]);
 
   /* ── Category + search ── */
@@ -193,7 +144,6 @@ const Home = () => {
       } catch (_) { /* backend might be sleeping, that's fine */ }
       // Give it a moment to fully wake if it was sleeping
       if (isCapacitor) await new Promise(r => setTimeout(r, 1500));
-      dispatch(fetchRestaurants({}));
     };
 
     boot();
@@ -359,7 +309,6 @@ const Home = () => {
   useEffect(() => {
     if (!selectedAddress) {
       setNoServiceArea(false);
-      setUsedCityFallback(false);
       return;
     }
 
@@ -367,12 +316,12 @@ const Home = () => {
     const lng = Number(selectedAddress.longitude || 0);
     const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
 
-    if (hasCoords) {
-      setUsedCityFallback(false);
-      dispatch(fetchRestaurants({ lat, lng, radius: 50000 }));
-    } else if (selectedAddress.city) {
-      dispatch(fetchRestaurants({ city: selectedAddress.city }));
+    if (!hasCoords) {
+      toast.error('Please select a valid address from suggestions');
+      return;
     }
+
+    dispatch(fetchRestaurants({ lat, lng, radius: 50000 }));
   }, [selectedAddress, dispatch]);
 
   useEffect(() => {
@@ -381,125 +330,29 @@ const Home = () => {
     }
   }, [selectedAddress, restaurants, loading]);
 
-  useEffect(() => {
-    if (!selectedAddress || loading || usedCityFallback) return;
-    const lat = Number(selectedAddress.latitude || 0);
-    const lng = Number(selectedAddress.longitude || 0);
-    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
-
-    if (hasCoords && selectedAddress.city && restaurants.length === 0) {
-      setUsedCityFallback(true);
-      dispatch(fetchRestaurants({ city: selectedAddress.city }));
-    }
-  }, [selectedAddress, restaurants, loading, usedCityFallback, dispatch]);
-
   /* ── Select a saved address ── */
-  const handleSelectSavedAddress = async (addr) => {
+  const handleSelectSavedAddress = (addr) => {
     setShowAddressPicker(false);
 
     const addrLng = Number(addr?.lng ?? addr?.coordinates?.[0]);
     const addrLat = Number(addr?.lat ?? addr?.coordinates?.[1]);
     const hasStoredCoords = Number.isFinite(addrLat) && Number.isFinite(addrLng) && (addrLat !== 0 || addrLng !== 0);
 
-    let geo = null;
     if (!hasStoredCoords) {
-      setGeocoding(true);
-      // Fallback only when legacy address has no saved coordinates.
-      geo = await geocodeAddress(addr.fullAddress || `${addr.street || ''}, ${addr.city || ''}, ${addr.state || ''}`);
-      if (!geo && addr.city) geo = await geocodeAddress(addr.city);
-      setGeocoding(false);
+      toast.error('This address is missing coordinates. Please re-add it from suggestions.');
+      return;
     }
 
     const cityLabel = addr.city;
     const typeLabel = addr.type === 'home' ? 'Home' : addr.type === 'work' ? 'Work' : 'Other';
 
-    if (hasStoredCoords) {
-      setSelectedAddress({
-        id: addr._id,
-        label: `${typeLabel} – ${cityLabel || addr.fullAddress || 'Saved Address'}`,
-        city: cityLabel || '',
-        latitude: addrLat,
-        longitude: addrLng,
-      });
-      return;
-    }
-
-    if (geo) {
-      setSelectedAddress({
-        id: addr._id,
-        label: `${typeLabel} – ${cityLabel || geo.displayName || 'Saved Address'}`,
-        city: cityLabel || geo.displayName || '',
-        latitude: geo.latitude,
-        longitude: geo.longitude
-      });
-    } else {
-      // No geocode — use cluster fallback with zeroed coords (city match will still work)
-      setSelectedAddress({ id: addr._id, label: `${typeLabel} – ${cityLabel}`, city: cityLabel, latitude: 0, longitude: 0 });
-      toast(`Showing restaurants near ${cityLabel || 'your selected area'}`, { icon: '📍' });
-    }
-  };
-
-  /* ── Manual city / area geocode ── */
-  const handleManualGeocode = async (e) => {
-    e.preventDefault();
-    if (!manualInput.trim()) return;
-    setGeocoding(true);
-    setShowAddressPicker(false);
-    const input = manualInput.trim();
-    const geo = await geocodeAddress(input);
-    setGeocoding(false);
-    const cityLabel = (geo?.displayName || input);
     setSelectedAddress({
-      label: cityLabel,
-      city: cityLabel,
-      latitude: geo?.latitude ?? 0,
-      longitude: geo?.longitude ?? 0,
+      id: addr._id,
+      label: `${typeLabel} – ${cityLabel || addr.fullAddress || 'Saved Address'}`,
+      city: cityLabel || '',
+      latitude: addrLat,
+      longitude: addrLng,
     });
-    setManualInput('');
-    if (!geo) toast(`Showing restaurants near "${input}"`, { icon: '📍' });
-  };
-
-  const handleUseCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error('Location is not supported on this device');
-      return;
-    }
-
-    setGpsLoading(true);
-    setGpsDenied(false);
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const latitude = Number(position.coords.latitude);
-        const longitude = Number(position.coords.longitude);
-        const place = await reverseGeocode(latitude, longitude);
-
-        setSelectedAddress({
-          label: place?.label || 'Current Location',
-          city: place?.city || 'Current Location',
-          latitude,
-          longitude,
-        });
-        setShowAddressPicker(false);
-        setGpsLoading(false);
-        toast.success('Using current location');
-      },
-      (error) => {
-        setGpsLoading(false);
-        if (error?.code === 1) {
-          setGpsDenied(true);
-          localStorage.setItem(LOCATION_PERMISSION_STATE_KEY, 'denied');
-          toast.error('Location permission denied. You can still type a city manually.');
-          return;
-        }
-        toast.error('Unable to fetch current location');
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 30000,
-      }
-    );
   };
 
   const clearAddress = () => {
@@ -681,19 +534,12 @@ const Home = () => {
               className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: selectedAddress ? '#FEF2F3' : '#F5F7FA' }}
             >
-              {geocoding ? (
-                <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke={BRAND} strokeWidth="4" />
-                  <path className="opacity-75" fill={BRAND} d="M4 12a8 8 0 018-8v8z" />
-                </svg>
-              ) : (
-                <MapPinIcon className="w-5 h-5" style={{ color: selectedAddress ? BRAND : '#9CA3AF' }} />
-              )}
+              <MapPinIcon className="w-5 h-5" style={{ color: selectedAddress ? BRAND : '#9CA3AF' }} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 max-[388px]:text-[9px]">Deliver to</p>
               <p className="text-[14.5px] font-bold text-gray-900 truncate mt-0.5 max-[388px]:text-[13px]">
-                {geocoding ? 'Finding location…' : selectedAddress ? selectedAddress.label : 'Select delivery location'}
+                {selectedAddress ? selectedAddress.label : 'Select delivery location'}
               </p>
             </div>
             {selectedAddress ? (
@@ -721,71 +567,9 @@ const Home = () => {
               className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl overflow-hidden z-50 animate-slide-down"
               style={{ boxShadow: '0 12px 40px rgba(0,0,0,0.14)' }}
             >
-              {/* Manual input */}
-              <form onSubmit={handleManualGeocode} className="p-4 border-b border-gray-100 max-[388px]:p-3">
-                <div
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl max-[388px]:px-2.5 max-[388px]:py-2"
-                  style={{ background: '#F5F7FA', border: '1.5px solid transparent' }}
-                >
-                  <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <input
-                    type="text"
-                    value={manualInput}
-                    onChange={(e) => setManualInput(e.target.value)}
-                    placeholder="Type city or area name…"
-                    className="flex-1 bg-transparent outline-none text-[14px] font-medium text-gray-800 placeholder-gray-400 max-[388px]:text-[13px]"
-                    autoFocus
-                  />
-                  {manualInput && (
-                    <button
-                      type="submit"
-                      className="text-[12px] font-bold px-3 py-1 rounded-lg text-white flex-shrink-0 max-[388px]:px-2.5"
-                      style={{ background: BRAND }}
-                    >
-                      Go
-                    </button>
-                  )}
-                </div>
-              </form>
-
-              {/* Use current location */}
-              <button
-                onClick={handleUseCurrentLocation}
-                disabled={gpsLoading}
-                className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-100 disabled:opacity-60"
-              >
-                <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  {gpsLoading ? (
-                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke={BRAND} strokeWidth="4" />
-                      <path className="opacity-75" fill={BRAND} d="M4 12a8 8 0 018-8v8z" />
-                    </svg>
-                  ) : (
-                    <MapPinIcon className="w-5 h-5" style={{ color: BRAND }} />
-                  )}
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="text-[14px] font-semibold text-gray-800">Use current location</p>
-                  <p className="text-[12px] text-gray-400">Detect automatically via GPS</p>
-                </div>
-              </button>
-
-              {/* Browse all option */}
-              <button
-                onClick={() => { clearAddress(); setShowAddressPicker(false); }}
-                className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-100"
-              >
-                <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.8" className="w-5 h-5">
-                    <path d="M3 6h18M3 12h18M3 18h18" strokeLinecap="round" />
-                  </svg>
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="text-[14px] font-semibold text-gray-800">All Areas</p>
-                  <p className="text-[12px] text-gray-400">Browse all restaurants</p>
-                </div>
-                {!selectedAddress && <CheckIcon className="w-4 h-4" style={{ color: BRAND }} />}
-              </button>
+              <div className="px-4 py-3 border-b border-gray-100">
+                <p className="text-[12px] text-gray-600">Restaurants are shown only for your selected delivery address coordinates.</p>
+              </div>
 
               {/* Saved addresses */}
               {savedAddresses.length > 0 && (
@@ -813,7 +597,7 @@ const Home = () => {
                       </div>
                       <CheckIcon
                         className="w-3.5 h-3.5 flex-shrink-0"
-                        style={{ color: BRAND, opacity: selectedAddress?.city === addr.city ? 1 : 0 }}
+                        style={{ color: BRAND, opacity: selectedAddress?.id === addr._id ? 1 : 0 }}
                       />
                     </button>
                   ))}
@@ -825,7 +609,7 @@ const Home = () => {
                 <div className="px-4 py-3 border-t border-gray-100">
                   <p className="text-[12px] text-gray-500 mb-2">No saved addresses yet.</p>
                   <Link
-                    to="/profile"
+                    to="/checkout"
                     onClick={() => setShowAddressPicker(false)}
                     className="flex items-center gap-2 text-[13px] font-bold px-3 py-2 rounded-xl"
                     style={{ background: '#FEF2F3', color: BRAND }}
@@ -834,7 +618,7 @@ const Home = () => {
                       <line x1="12" y1="5" x2="12" y2="19" strokeLinecap="round" />
                       <line x1="5" y1="12" x2="19" y2="12" strokeLinecap="round" />
                     </svg>
-                    Add Delivery Address
+                    Add Address In Checkout
                   </Link>
                 </div>
               )}
@@ -1110,7 +894,16 @@ const Home = () => {
             <h3 className="text-[17px] font-bold text-gray-900 mb-1">Couldn't load restaurants</h3>
             <p className="text-[13px] text-gray-400 mb-5">The server may be waking up. Please try again.</p>
             <button
-              onClick={() => dispatch(fetchRestaurants({}))}
+              onClick={() => {
+                const lat = Number(selectedAddress?.latitude || 0);
+                const lng = Number(selectedAddress?.longitude || 0);
+                const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
+                if (!hasCoords) {
+                  toast.error('Select a valid delivery address first');
+                  return;
+                }
+                dispatch(fetchRestaurants({ lat, lng, radius: 50000 }));
+              }}
               className="px-6 py-2.5 rounded-xl text-white font-semibold text-[14px]"
               style={{ background: BRAND }}
             >
@@ -1155,11 +948,14 @@ const Home = () => {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
-                onClick={clearAddress}
+                onClick={() => {
+                  clearAddress();
+                  setShowAddressPicker(true);
+                }}
                 className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-[14px] font-bold text-white"
                 style={{ background: `linear-gradient(135deg, ${BRAND}, #C92535)`, boxShadow: `0 4px 14px rgba(226,55,68,0.3)` }}
               >
-                Browse All Restaurants
+                Select Another Address
               </button>
               <a
                 href="mailto:info.flashbites@gmail.com"

@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { LoadScript, Autocomplete } from '@react-google-maps/api';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
 
-const libraries = ['places'];
+const PLACES_LIBRARIES = ['places'];
 
 const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.REACT_APP_GOOGLE_KEY;
 
@@ -22,6 +22,12 @@ const parseAddressComponents = (components = []) => {
 export default function AddressInput({ value = '', onChange, onSelect, placeholder = 'Enter delivery address', className = '' }) {
   const autocompleteRef = useRef(null);
   const [inputValue, setInputValue] = useState(value);
+  const libraries = useMemo(() => PLACES_LIBRARIES, []);
+  const { isLoaded } = useJsApiLoader({
+    id: 'flashbites-google-map-picker',
+    googleMapsApiKey: GOOGLE_KEY || '',
+    libraries
+  });
 
   useEffect(() => {
     setInputValue(value || '');
@@ -75,17 +81,27 @@ export default function AddressInput({ value = '', onChange, onSelect, placehold
     );
   }
 
+  if (!isLoaded) {
+    return (
+      <input
+        type="text"
+        value={inputValue}
+        onChange={(e) => handleLocalChange(e.target.value)}
+        placeholder="Loading address suggestions..."
+        className={className || 'w-full p-3 border rounded-lg'}
+      />
+    );
+  }
+
   return (
-    <LoadScript googleMapsApiKey={GOOGLE_KEY} libraries={libraries}>
-      <Autocomplete onLoad={onLoad} onPlaceChanged={onPlaceChanged}>
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => handleLocalChange(e.target.value)}
-          placeholder={placeholder}
-          className={className || 'w-full p-3 border rounded-lg'}
-        />
-      </Autocomplete>
-    </LoadScript>
+    <Autocomplete onLoad={onLoad} onPlaceChanged={onPlaceChanged}>
+      <input
+        type="text"
+        value={inputValue}
+        onChange={(e) => handleLocalChange(e.target.value)}
+        placeholder={placeholder}
+        className={className || 'w-full p-3 border rounded-lg'}
+      />
+    </Autocomplete>
   );
 }

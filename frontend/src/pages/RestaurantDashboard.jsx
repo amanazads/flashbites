@@ -27,7 +27,7 @@ import {
   toggleMenuItemAvailability,
   getRestaurantAnalytics 
 } from '../api/restaurantApi';
-import { geocodeAddressText, autocompleteAddress } from '../api/locationApi';
+import { autocompleteAddress } from '../api/locationApi';
 import { getRestaurantOrders, updateOrderStatus } from '../api/orderApi';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
@@ -283,49 +283,7 @@ const RestaurantDashboard = () => {
         && locationPayload.coordinates.length >= 2
         && isValidRestaurantCoordPair(Number(locationPayload.coordinates[1]), Number(locationPayload.coordinates[0]));
 
-      if (!hasValidCoords) {
-        const geocodeQueries = [
-          restaurantData.address.street,
-          restaurantData.address.city,
-          restaurantData.address.state,
-          restaurantData.address.zipCode,
-          'India'
-        ].filter(Boolean).join(', ');
-
-        const queryVariants = [
-          geocodeQueries,
-          restaurantLocationSearch,
-          [
-            restaurantData.name,
-            restaurantData.address.city,
-            restaurantData.address.state,
-            'India'
-          ].filter(Boolean).join(', '),
-          [
-            restaurantData.address.city,
-            restaurantData.address.state,
-            'India'
-          ].filter(Boolean).join(', ')
-        ].map((item) => String(item || '').trim()).filter((item, index, arr) => item.length > 2 && arr.indexOf(item) === index);
-
-        for (const query of queryVariants) {
-          try {
-            const geocodeRes = await geocodeAddressText(query);
-            const location = geocodeRes?.data?.location || geocodeRes?.location || null;
-            const lat = Number(location?.lat ?? geocodeRes?.data?.lat ?? geocodeRes?.lat);
-            const lng = Number(location?.lng ?? geocodeRes?.data?.lng ?? geocodeRes?.lng);
-            if (isValidRestaurantCoordPair(lat, lng)) {
-              locationPayload = {
-                type: 'Point',
-                coordinates: [lng, lat]
-              };
-              break;
-            }
-          } catch {
-            // Try next query variant.
-          }
-        }
-      }
+      // Geocoding fallback removed; rely on selected suggestion/map/manual coordinates only.
 
       if (!locationPayload) {
         const draftLat = Number(locationDraft.lat);
