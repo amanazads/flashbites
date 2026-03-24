@@ -61,7 +61,7 @@ const Checkout = () => {
   const fetchAddresses = async () => {
     try {
       const response = await getAddresses();
-      const fetchedAddresses = response.data.addresses || [];
+      const fetchedAddresses = response?.data?.addresses || response?.addresses || [];
       setAddresses(fetchedAddresses);
 
       const preselectedFromGlobal = selectedDeliveryAddress?.id
@@ -87,7 +87,7 @@ const Checkout = () => {
   };
 
   const handleAddressAdded = (newAddress) => {
-    setAddresses([...addresses, newAddress]);
+    setAddresses((prev) => [...prev, newAddress]);
     setSelectedAddress(newAddress._id);
     const mapped = mapSavedAddressToSelection(newAddress);
     if (mapped) {

@@ -6,6 +6,7 @@ import { clearSelectedDeliveryAddress, openCart, setSelectedDeliveryAddress } fr
 import { getAddresses } from '../api/userApi';
 import { getPlatformSettings } from '../api/settingsApi';
 import { getRestaurantMenuItems, searchRestaurantsAndItems } from '../api/restaurantApi';
+import AddAddressModal from '../components/common/AddAddressModal';
 import RestaurantCard from '../components/restaurant/RestaurantCard';
 import { Loader } from '../components/common/Loader';
 import { calculateCartTotal, calculateDistance } from '../utils/helpers';
@@ -130,6 +131,7 @@ const Home = () => {
   /* ── Delivery address state ── */
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
+  const [showAddAddressModal, setShowAddAddressModal] = useState(false);
   const pickerRef = useRef(null);
   const promoRowRef = useRef(null);
   const promoAutoTimerRef = useRef(null);
@@ -149,6 +151,29 @@ const Home = () => {
   const [categoryMatchesByRestaurant, setCategoryMatchesByRestaurant] = useState({});
   const [categoryFilterLoading, setCategoryFilterLoading] = useState(false);
   const searchRef = useRef(null);
+
+  const loadSavedAddresses = useCallback(async () => {
+    if (!isAuthenticated) {
+      setSavedAddresses([]);
+      return;
+    }
+
+    try {
+      const res = await getAddresses();
+      const addrs = res?.data?.addresses || [];
+      setSavedAddresses(addrs);
+
+      if (!selectedAddress && addrs.length > 0) {
+        const preferred = addrs.find((a) => a.isDefault) || addrs[0];
+        const mapped = mapSavedAddressToSelection(preferred);
+        if (mapped) {
+          dispatch(setSelectedDeliveryAddress(mapped));
+        }
+      }
+    } catch {
+      setSavedAddresses([]);
+    }
+  }, [isAuthenticated, selectedAddress, dispatch]);
 
   // Wake up the backend, then fetch restaurants
   // On mobile (Capacitor) wait for health ping before fetching to avoid cold-start race
@@ -187,22 +212,8 @@ const Home = () => {
 
   // Load saved addresses if authenticated
   useEffect(() => {
-    if (isAuthenticated) {
-      getAddresses().then((res) => {
-        const addrs = res?.data?.addresses || [];
-        setSavedAddresses(addrs);
-
-        // If no selected address is active, prefer default saved address with valid coordinates.
-        if (!selectedAddress && addrs.length > 0) {
-          const preferred = addrs.find((a) => a.isDefault) || addrs[0];
-          const mapped = mapSavedAddressToSelection(preferred);
-          if (mapped) {
-            dispatch(setSelectedDeliveryAddress(mapped));
-          }
-        }
-      }).catch(() => {});
-    }
-  }, [isAuthenticated, selectedAddress, dispatch]);
+    loadSavedAddresses();
+  }, [loadSavedAddresses]);
 
   // Restore selected address across page navigation
   useEffect(() => {
@@ -372,6 +383,29 @@ const Home = () => {
     dispatch(setSelectedDeliveryAddress(mapped));
   };
 
+  const handleAddressAdded = (newAddress) => {
+    if (!newAddress?._id) {
+      toast.error('Address saved but could not select it. Please pick it from list.');
+      loadSavedAddresses();
+      return;
+    }
+
+    setSavedAddresses((prev) => {
+      const filtered = prev.filter((addr) => addr._id !== newAddress._id);
+      return [newAddress, ...filtered];
+    });
+
+    const mapped = mapSavedAddressToSelection(newAddress);
+    if (mapped) {
+      dispatch(setSelectedDeliveryAddress(mapped));
+      setNoServiceArea(false);
+      setShowAddressPicker(false);
+      return;
+    }
+
+    toast.error('Address added without valid coordinates. Please re-add from map suggestions.');
+  };
+
   const clearAddress = () => {
     dispatch(clearSelectedDeliveryAddress());
     setNoServiceArea(false);
@@ -525,6 +559,7 @@ const Home = () => {
   }, [promosToShow.length]);
 
   return (
+    <>
     <div className="page-wrapper flex justify-center lg:pt-10 max-[388px]:pt-4">
       <SEO
         title="Order Food Online – Best Restaurants Near You"
@@ -621,12 +656,17 @@ const Home = () => {
               )}
 
               {/* Add Address CTA — shown when logged in but no saved addresses */}
-              {isAuthenticated && savedAddresses.length === 0 && (
+              {isAuthenticated && (
                 <div className="px-4 py-3 border-t border-gray-100">
-                  <p className="text-[12px] text-gray-500 mb-2">No saved addresses yet.</p>
-                  <Link
-                    to="/checkout"
-                    onClick={() => setShowAddressPicker(false)}
+                  {savedAddresses.length === 0 && (
+                    <p className="text-[12px] text-gray-500 mb-2">No saved addresses yet.</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddressPicker(false);
+                      setShowAddAddressModal(true);
+                    }}
                     className="flex items-center gap-2 text-[13px] font-bold px-3 py-2 rounded-xl"
                     style={{ background: '#FEF2F3', color: BRAND }}
                   >
@@ -634,8 +674,8 @@ const Home = () => {
                       <line x1="12" y1="5" x2="12" y2="19" strokeLinecap="round" />
                       <line x1="5" y1="12" x2="19" y2="12" strokeLinecap="round" />
                     </svg>
-                    Add Address In Checkout
-                  </Link>
+                    Add New Address
+                  </button>
                 </div>
               )}
 
@@ -1092,6 +1132,13 @@ const Home = () => {
       )}
       </div>
     </div>
+
+    <AddAddressModal
+      isOpen={showAddAddressModal}
+      onClose={() => setShowAddAddressModal(false)}
+      onAddressAdded={handleAddressAdded}
+    />
+    </>
   );
 };
 

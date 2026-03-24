@@ -91,8 +91,13 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
       };
 
       const response = await addAddress(payload);
+      const createdAddress = response?.data?.address || response?.address || null;
+      if (!createdAddress?._id) {
+        throw new Error('Address saved but response payload was invalid');
+      }
+
       toast.success('Address added successfully');
-      onAddressAdded(response.data.address);
+      onAddressAdded(createdAddress);
       onClose();
       // Reset form
       setFormData({
