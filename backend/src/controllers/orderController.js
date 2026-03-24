@@ -31,6 +31,9 @@ const {
 } = require('../services/socketService');
 const { calculateDistance, calculateDeliveryCharge, DEFAULT_DELIVERY_CHARGES } = require('../utils/calculateDistance');
 const { assignDeliveryPartner } = require('../services/deliveryAssignmentService');
+const { calculateEtaMinutes, isPointInDeliveryZone } = require('../utils/deliveryGeo');
+
+const debugAddressFlow = process.env.DEBUG_ADDRESS_FLOW === 'true';
 
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const razorpay = process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET
@@ -383,7 +386,7 @@ exports.createOrder = async (req, res) => {
         if (geocoded) deliveryCoords = geocoded;
       }
       if (!deliveryCoords) {
-        return errorResponse(res, 400, 'Invalid address: location coordinates are missing. Please select an address suggestion or enable location.');
+        return errorResponse(res, 400, 'Invalid address: location coordinates are missing. Please select an address suggestion or map point.');
       }
     }
 
@@ -399,32 +402,44 @@ exports.createOrder = async (req, res) => {
     }
 
     const distance = calculateDistance(restLat, restLng, addrLat, addrLng);
+    const hasDeliveryZone = Boolean(restaurant.deliveryZone?.coordinates?.[0]?.length);
+
+    if (hasDeliveryZone) {
+      const isDeliverableByZone = isPointInDeliveryZone(restaurant.deliveryZone, [addrLng, addrLat]);
+      if (!isDeliverableByZone) {
+        return errorResponse(res, 400, 'Restaurant does not deliver to this location');
+      }
+    }
+
     const maxDistanceKm = Number(restaurant.deliveryRadiusKm || process.env.MAX_DELIVERY_DISTANCE_KM || 20);
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('User:', {
+    if (debugAddressFlow) {
+      console.log('[address-flow][order] user address context', {
         addressId: selectedAddressDoc?._id || null,
         fullAddress: selectedAddressDoc?.fullAddress || deliveryAddress?.fullAddress || null,
         lat: addrLat,
         lng: addrLng,
         zipCode: selectedAddressDoc?.zipCode || deliveryAddress?.zipCode || null
       });
-      console.log('Restaurant:', {
+      console.log('[address-flow][order] restaurant context', {
         restaurantId,
         name: restaurant.name,
         lat: restLat,
         lng: restLng,
         deliveryRadiusKm: maxDistanceKm
       });
-      console.log('Distance:', distance);
+      console.log('[address-flow][order] distance check', {
+        distanceKm: Number(distance.toFixed(3)),
+        maxDistanceKm,
+      });
     }
 
     if (!Number.isFinite(distance)) {
       return errorResponse(res, 400, 'Invalid address: could not calculate delivery distance. Please update your address location.');
     }
 
-    if (distance > maxDistanceKm) {
-      if (process.env.NODE_ENV !== 'production') {
+    if (!hasDeliveryZone && distance > maxDistanceKm) {
+      if (debugAddressFlow) {
         const debugData = {
           distanceKm: Number(distance.toFixed(2)),
           maxDistanceKm,
@@ -433,7 +448,7 @@ exports.createOrder = async (req, res) => {
           restaurantId,
           addressId
         };
-        console.warn('Delivery distance check failed', debugData);
+        console.warn('[address-flow][order] delivery distance check failed', debugData);
         return errorResponse(
           res,
           400,
@@ -490,9 +505,18 @@ exports.createOrder = async (req, res) => {
     const tax = taxBase > 0 ? taxBase * taxRate : 0;
 
     const total = subtotal + deliveryFee + platformFee + tax - discount;
+
+    const prepTimeMinutes = Number(restaurant.prepTimeMinutes || 20);
+    const etaMinutes = calculateEtaMinutes({
+      distanceKm: distance,
+      prepTimeMinutes,
+      bufferMinutes: 5,
+      avgSpeedKmph: 25,
+    });
+
     // Calculate estimated delivery time
     const estimatedDelivery = new Date();
-    const deliveryMinutes = parseInt(restaurant.deliveryTime) || 30;
+    const deliveryMinutes = etaMinutes > 0 ? etaMinutes : (parseInt(restaurant.deliveryTime, 10) || 30);
     estimatedDelivery.setMinutes(estimatedDelivery.getMinutes() + deliveryMinutes);
 
     // Create order
@@ -524,7 +548,8 @@ exports.createOrder = async (req, res) => {
       total,
       paymentMethod: paymentMethod || 'cod',
       deliveryInstructions,
-      estimatedDelivery
+      estimatedDelivery,
+      etaMinutes: deliveryMinutes,
     };
     
     // Check if an identical order was just created (within last 5 seconds)

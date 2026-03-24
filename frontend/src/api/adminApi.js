@@ -20,6 +20,14 @@ export const getAllRestaurants = (params) => {
   return axios.get('/admin/restaurants', { params });
 };
 
+export const saveRestaurantDeliveryZone = (id, coordinates) => {
+  return axios.put(`/admin/restaurants/${id}/delivery-zone`, { coordinates });
+};
+
+export const getDeliveryTrackingDashboard = () => {
+  return axios.get('/admin/delivery-tracking');
+};
+
 export const approveRestaurant = (id, isApproved) => {
   return axios.patch(`/admin/restaurants/${id}/approve`, { isApproved });
 };

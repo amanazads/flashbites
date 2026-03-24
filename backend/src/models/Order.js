@@ -91,6 +91,10 @@ const orderSchema = new mongoose.Schema({
   },
   deliveryInstructions: String,
   estimatedDelivery: Date,
+  etaMinutes: {
+    type: Number,
+    default: 0
+  },
   confirmedAt: Date,
   deliveredAt: Date,
   cancelledAt: Date,

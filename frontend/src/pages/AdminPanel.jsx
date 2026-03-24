@@ -23,6 +23,7 @@ import {
   getAccountDeletionRequests,
   reviewAccountDeletionRequest,
   getDeliveryPartnerDutyBoard,
+  getDeliveryTrackingDashboard,
   updateUserRole,
   getPlatformSettings,
   updatePlatformSettings,
@@ -93,6 +94,13 @@ const AdminPanel = () => {
   const [orders, setOrders] = useState([]);
   const [partners, setPartners] = useState([]);
   const [dutyBoard, setDutyBoard] = useState([]);
+  const [trackingOrders, setTrackingOrders] = useState([]);
+  const [trackingSummary, setTrackingSummary] = useState({
+    totalActiveOrders: 0,
+    outForDeliveryCount: 0,
+    readyCount: 0,
+    assignedCount: 0,
+  });
   const [dutySummary, setDutySummary] = useState({
     totalPartners: 0,
     onDutyCount: 0,
@@ -269,6 +277,20 @@ const AdminPanel = () => {
         });
       } catch (err) {
         console.log('Duty board endpoint not available yet');
+      }
+
+      // Fetch delivery tracking dashboard
+      try {
+        const trackingRes = await getDeliveryTrackingDashboard();
+        setTrackingOrders(trackingRes?.data?.data?.orders || []);
+        setTrackingSummary({
+          totalActiveOrders: trackingRes?.data?.data?.totalActiveOrders || 0,
+          outForDeliveryCount: trackingRes?.data?.data?.outForDeliveryCount || 0,
+          readyCount: trackingRes?.data?.data?.readyCount || 0,
+          assignedCount: trackingRes?.data?.data?.assignedCount || 0,
+        });
+      } catch (err) {
+        console.log('Delivery tracking endpoint not available yet');
       }
 
       // Fetch account deletion requests
@@ -1076,6 +1098,16 @@ const AdminPanel = () => {
                 }`}
               >
                 Orders ({orders.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('tracking')}
+                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
+                  activeTab === 'tracking'
+                    ? 'border-b-2 border-primary-500 text-primary-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Delivery Tracking ({trackingSummary.totalActiveOrders || 0})
               </button>
               <button
                 onClick={() => setActiveTab('partners')}
@@ -1954,6 +1986,76 @@ const AdminPanel = () => {
                             <p className="text-xs text-gray-500 mt-2">
                               Applied: {formatDateTime(partner.createdAt)}
                             </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'tracking' && (
+              <div>
+                <h2 className="text-xl font-bold mb-4">Delivery Tracking Dashboard</h2>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <p className="text-xs text-gray-500">Active Orders</p>
+                    <p className="text-lg font-bold text-gray-900">{trackingSummary.totalActiveOrders}</p>
+                  </div>
+                  <div className="rounded-lg bg-blue-50 p-3">
+                    <p className="text-xs text-blue-700">Out for Delivery</p>
+                    <p className="text-lg font-bold text-blue-800">{trackingSummary.outForDeliveryCount}</p>
+                  </div>
+                  <div className="rounded-lg bg-amber-50 p-3">
+                    <p className="text-xs text-amber-700">Ready</p>
+                    <p className="text-lg font-bold text-amber-800">{trackingSummary.readyCount}</p>
+                  </div>
+                  <div className="rounded-lg bg-green-50 p-3">
+                    <p className="text-xs text-green-700">Assigned</p>
+                    <p className="text-lg font-bold text-green-800">{trackingSummary.assignedCount}</p>
+                  </div>
+                </div>
+
+                {trackingOrders.length === 0 ? (
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-500">
+                    No active delivery routes right now.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {trackingOrders.map((order) => (
+                      <div key={order._id} className="rounded-lg border border-gray-200 bg-white p-4">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-bold text-gray-900">Order #{order.orderNumber}</p>
+                            <p className="text-xs text-gray-500">Status: {String(order.status || '').replace(/_/g, ' ')}</p>
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            ETA: {order.etaMinutes > 0 ? `${order.etaMinutes} min` : 'N/A'}
+                          </div>
+                        </div>
+
+                        <div className="mt-3 grid md:grid-cols-3 gap-3 text-sm">
+                          <div>
+                            <p className="text-xs uppercase text-gray-400">Restaurant</p>
+                            <p className="font-medium text-gray-800">{order.restaurant?.name || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs uppercase text-gray-400">Customer</p>
+                            <p className="font-medium text-gray-800">{order.customer?.name || 'N/A'}</p>
+                            <p className="text-xs text-gray-500 break-words">{order.customer?.address || 'Address unavailable'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs uppercase text-gray-400">Delivery Partner</p>
+                            {order.deliveryPartner ? (
+                              <>
+                                <p className="font-medium text-gray-800">{order.deliveryPartner.name}</p>
+                                <p className="text-xs text-gray-500">{order.deliveryPartner.phone || 'No phone'}</p>
+                              </>
+                            ) : (
+                              <p className="text-xs text-amber-600">Not assigned yet</p>
+                            )}
                           </div>
                         </div>
                       </div>

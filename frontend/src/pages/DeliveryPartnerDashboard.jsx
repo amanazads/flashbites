@@ -168,6 +168,19 @@ const DeliveryPartnerDashboard = () => {
     }
   };
 
+  const getEtaLabel = (order) => {
+    if (!order?.estimatedDelivery) return null;
+    const mins = Math.max(0, Math.round((new Date(order.estimatedDelivery).getTime() - Date.now()) / 60000));
+    return `${mins} min`;
+  };
+
+  const buildGoogleMapsLink = (coords) => {
+    const lng = Number(coords?.[0]);
+    const lat = Number(coords?.[1]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return `https://www.google.com/maps?q=${lat},${lng}`;
+  };
+
   const OrderCard = ({ order, isAssigned }) => (
     <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
       {/* Order Header */}
@@ -240,6 +253,35 @@ const DeliveryPartnerDashboard = () => {
           <p className="text-sm text-gray-600">Payment</p>
           <p className="text-sm font-semibold text-gray-900">{order.paymentMethod.toUpperCase()}</p>
         </div>
+      </div>
+
+      {getEtaLabel(order) && (
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+          ETA Countdown: <span className="font-bold">{getEtaLabel(order)}</span>
+        </div>
+      )}
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {buildGoogleMapsLink(order.restaurantId?.location?.coordinates) && (
+          <a
+            href={buildGoogleMapsLink(order.restaurantId?.location?.coordinates)}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200"
+          >
+            Navigate to Restaurant
+          </a>
+        )}
+        {buildGoogleMapsLink(order.addressId?.coordinates) && (
+          <a
+            href={buildGoogleMapsLink(order.addressId?.coordinates)}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200"
+          >
+            Navigate to Customer
+          </a>
+        )}
       </div>
 
       {/* Action Buttons */}

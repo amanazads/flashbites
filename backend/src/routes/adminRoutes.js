@@ -12,6 +12,7 @@ const {
   blockUser,
   updateUserRole,
   getAllRestaurants,
+  saveRestaurantDeliveryZone,
   createCoupon,
   getAllCoupons,
   updateCoupon,
@@ -20,7 +21,8 @@ const {
   getAccountDeletionRequests,
   reviewAccountDeletionRequest,
   getPlatformSettings,
-  updatePlatformSettings
+  updatePlatformSettings,
+  getDeliveryTrackingDashboard
 } = require('../controllers/adminController');
 
 router.use(protect, restrictTo('admin')); // All admin routes
@@ -29,9 +31,11 @@ router.get('/dashboard', getDashboardStats);
 router.get('/analytics', getComprehensiveAnalytics);
 router.get('/users', getAllUsers);
 router.get('/delivery-partners/duty-board', getDeliveryPartnerDutyBoard);
+router.get('/delivery-tracking', getDeliveryTrackingDashboard);
 router.get('/orders', getAllOrders);
 router.get('/restaurants', getAllRestaurants);
 router.patch('/restaurants/:id/approve', approveRestaurant);
+router.put('/restaurants/:id/delivery-zone', saveRestaurantDeliveryZone);
 router.patch('/users/:id/block', blockUser);
 router.patch('/users/:id/role', updateUserRole);
 router.get('/account-deletion-requests', getAccountDeletionRequests);

@@ -259,7 +259,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
               <p className="mt-1 text-xs text-gray-500">
-                Tip: pick a suggestion or use current location for best delivery accuracy.
+                Tip: always pick an address suggestion or map point so delivery uses exact coordinates.
               </p>
           </div>
 

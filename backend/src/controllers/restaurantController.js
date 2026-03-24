@@ -3,8 +3,11 @@ const MenuItem = require('../models/MenuItem');
 const mongoose = require('mongoose');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { calculateDistance } = require('../utils/calculateDistance');
+const { isPointInDeliveryZone, normalizeDeliveryZone } = require('../utils/deliveryGeo');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/imageUpload');
 const { geocodeAddress } = require('../services/locationService');
+
+const debugAddressFlow = process.env.DEBUG_ADDRESS_FLOW === 'true';
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -71,22 +74,44 @@ const geocodeRestaurantAddress = async ({ name, address = {} }) => {
   return null;
 };
 
+const parseDeliveryZonePayload = (value) => {
+  if (!value) return null;
+
+  let raw = value;
+  if (typeof raw === 'string') {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  if (Array.isArray(raw)) {
+    return normalizeDeliveryZone({ type: 'Polygon', coordinates: [raw] });
+  }
+
+  return normalizeDeliveryZone(raw);
+};
+
 // @desc    Create restaurant
 // @route   POST /api/restaurants
 // @access  Private (Restaurant Owner)
 exports.createRestaurant = async (req, res) => {
   try {
-    let { name, email, phone, description, cuisines, address, location, timing, deliveryFee, deliveryTime, deliveryRadiusKm, deliveryRadius } = req.body;
+    let { name, email, phone, description, cuisines, address, location, timing, deliveryFee, deliveryTime, prepTimeMinutes, deliveryRadiusKm, deliveryRadius, deliveryZone } = req.body;
 
     // Parse JSON strings from FormData
     if (typeof cuisines === 'string') cuisines = JSON.parse(cuisines);
     if (typeof address === 'string') address = JSON.parse(address);
     if (typeof location === 'string') location = JSON.parse(location);
     if (typeof timing === 'string') timing = JSON.parse(timing);
+    if (typeof prepTimeMinutes === 'string') prepTimeMinutes = Number(prepTimeMinutes);
 
     if (deliveryRadiusKm == null && deliveryRadius != null) {
       deliveryRadiusKm = deliveryRadius;
     }
+
+    const normalizedDeliveryZone = parseDeliveryZonePayload(deliveryZone);
 
     // Keep parsed location object authoritative over raw multipart string values.
     let resolvedLocation = resolveLocationFromBody({ ...req.body, location });
@@ -129,7 +154,9 @@ exports.createRestaurant = async (req, res) => {
       timing,
       deliveryFee,
       deliveryTime,
+      prepTimeMinutes,
       deliveryRadiusKm,
+      deliveryZone: normalizedDeliveryZone || undefined,
       image: imageUrl
     });
 
@@ -197,6 +224,17 @@ exports.getAllRestaurants = async (req, res) => {
       const lngNum = Number(lng ?? addressLng);
       const maxDistance = parseInt(radius, 10);
 
+      if (debugAddressFlow) {
+        console.log('[address-flow][restaurants] incoming filters', {
+          lat: latNum,
+          lng: lngNum,
+          maxDistance,
+          city,
+          cuisine,
+          search,
+        });
+      }
+
       if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
         // Fallback gracefully when client sends stale/invalid coords.
         restaurants = await Restaurant.find(query)
@@ -261,14 +299,26 @@ exports.getAllRestaurants = async (req, res) => {
         .map((r) => {
           const coords = r.location?.coordinates || [];
           if (coords.length !== 2) return null;
+
+          const point = [lngNum, latNum];
+          const hasZone = Boolean(r.deliveryZone?.coordinates?.[0]?.length);
+          if (hasZone && !isPointInDeliveryZone(r.deliveryZone, point)) return null;
+
           const distanceKm = calculateDistance(latNum, lngNum, coords[1], coords[0]);
           const allowedKm = Number(r.deliveryRadiusKm || 20);
           if (!Number.isFinite(distanceKm)) return null;
-          if (distanceKm > allowedKm) return null;
+          if (!hasZone && distanceKm > allowedKm) return null;
           return { ...r, distanceKm: Number(distanceKm.toFixed(2)) };
         })
         .filter(Boolean)
         .slice(0, safeLimit);
+
+      if (debugAddressFlow) {
+        console.log('[address-flow][restaurants] filter result', {
+          candidateCount: candidates.length,
+          returnedCount: restaurants.length,
+        });
+      }
     } else {
       restaurants = await Restaurant.find(query)
         .sort(effectiveSort)
@@ -304,7 +354,7 @@ exports.getNearbyRestaurants = async (req, res) => {
       return errorResponse(res, 400, 'Valid latitude and longitude are required');
     }
 
-    const restaurants = await Restaurant.aggregate([
+    const candidates = await Restaurant.aggregate([
       {
         $geoNear: {
           near: {
@@ -325,13 +375,7 @@ exports.getNearbyRestaurants = async (req, res) => {
       },
       {
         $addFields: {
-          distanceKm: { $divide: ['$distanceMeters', 1000] },
-          effectiveDeliveryRadiusKm: { $ifNull: ['$deliveryRadiusKm', 20] }
-        }
-      },
-      {
-        $match: {
-          $expr: { $lte: ['$distanceKm', '$effectiveDeliveryRadiusKm'] }
+          distanceKm: { $divide: ['$distanceMeters', 1000] }
         }
       },
       {
@@ -339,8 +383,7 @@ exports.getNearbyRestaurants = async (req, res) => {
           documents: 0,
           bankDetails: 0,
           __v: 0,
-          distanceMeters: 0,
-          effectiveDeliveryRadiusKm: 0
+          distanceMeters: 0
         }
       },
       {
@@ -350,6 +393,18 @@ exports.getNearbyRestaurants = async (req, res) => {
         $limit: Math.min(Math.max(Number(req.query.limit || 50), 1), 100)
       }
     ]);
+
+    const restaurants = candidates.filter((restaurant) => {
+      const hasZone = Boolean(restaurant.deliveryZone?.coordinates?.[0]?.length);
+
+      if (hasZone) {
+        return isPointInDeliveryZone(restaurant.deliveryZone, [lng, lat]);
+      }
+
+      const distanceKm = Number(restaurant.distanceKm);
+      const allowedKm = Number(restaurant.deliveryRadiusKm || 20);
+      return Number.isFinite(distanceKm) && distanceKm <= allowedKm;
+    });
 
     return successResponse(res, 200, 'Nearby restaurants retrieved successfully', {
       count: restaurants.length,
@@ -495,6 +550,7 @@ exports.updateRestaurant = async (req, res) => {
     if (typeof req.body.address === 'string') req.body.address = JSON.parse(req.body.address);
     if (typeof req.body.location === 'string') req.body.location = JSON.parse(req.body.location);
     if (typeof req.body.timing === 'string') req.body.timing = JSON.parse(req.body.timing);
+    if (typeof req.body.prepTimeMinutes === 'string') req.body.prepTimeMinutes = Number(req.body.prepTimeMinutes);
 
     // Handle image upload if new file provided
     if (req.file) {
@@ -507,6 +563,15 @@ exports.updateRestaurant = async (req, res) => {
 
     if (req.body.deliveryRadiusKm == null && req.body.deliveryRadius != null) {
       req.body.deliveryRadiusKm = req.body.deliveryRadius;
+    }
+
+    if (req.body.deliveryZone !== undefined) {
+      const normalizedDeliveryZone = parseDeliveryZonePayload(req.body.deliveryZone);
+      if (normalizedDeliveryZone) {
+        req.body.deliveryZone = normalizedDeliveryZone;
+      } else if (req.body.deliveryZone === null || req.body.deliveryZone === '') {
+        req.body.deliveryZone = undefined;
+      }
     }
 
     const normalizedLocation = resolveLocationFromBody(req.body);

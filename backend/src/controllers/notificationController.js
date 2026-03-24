@@ -2,6 +2,16 @@ const Notification = require('../models/Notification');
 const PushSubscription = require('../models/PushSubscription');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 
+const normalizeEndpoint = (value) => (typeof value === 'string' ? value.trim() : '');
+
+const sanitizeKeys = (keys) => {
+  const p256dh = typeof keys?.p256dh === 'string' ? keys.p256dh.trim() : '';
+  const auth = typeof keys?.auth === 'string' ? keys.auth.trim() : '';
+  return { p256dh, auth };
+};
+
+const isValidEndpoint = (endpoint) => /^https:\/\//i.test(endpoint);
+
 // @desc    Get user notifications
 // @route   GET /api/notifications
 // @access  Private
@@ -102,33 +112,33 @@ exports.deleteNotification = async (req, res) => {
 // @access  Private
 exports.subscribeToPush = async (req, res) => {
   try {
-    const { endpoint, keys, deviceType, browser } = req.body;
+    const endpoint = normalizeEndpoint(req.body?.endpoint);
+    const keys = sanitizeKeys(req.body?.keys || {});
+    const deviceType = req.body?.deviceType;
+    const browser = typeof req.body?.browser === 'string' ? req.body.browser.trim() : undefined;
 
     if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
       return errorResponse(res, 400, 'Invalid subscription data');
     }
 
-    // Check if subscription already exists
-    let subscription = await PushSubscription.findOne({ endpoint });
-
-    if (subscription) {
-      // Update existing subscription
-      subscription.user = req.user._id;
-      subscription.keys = keys;
-      subscription.deviceType = deviceType;
-      subscription.browser = browser;
-      subscription.isActive = true;
-      await subscription.save();
-    } else {
-      // Create new subscription
-      subscription = await PushSubscription.create({
-        user: req.user._id,
-        endpoint,
-        keys,
-        deviceType,
-        browser
-      });
+    if (!isValidEndpoint(endpoint)) {
+      return errorResponse(res, 400, 'Invalid push endpoint');
     }
+
+    const update = {
+      user: req.user._id,
+      endpoint,
+      keys,
+      isActive: true,
+    };
+    if (deviceType) update.deviceType = deviceType;
+    if (browser) update.browser = browser;
+
+    const subscription = await PushSubscription.findOneAndUpdate(
+      { endpoint },
+      { $set: update },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
 
     successResponse(res, 201, 'Push subscription saved', { subscription });
   } catch (error) {
@@ -141,7 +151,10 @@ exports.subscribeToPush = async (req, res) => {
 // @access  Private
 exports.unsubscribeFromPush = async (req, res) => {
   try {
-    const { endpoint } = req.body;
+    const endpoint = normalizeEndpoint(req.body?.endpoint);
+    if (!endpoint) {
+      return errorResponse(res, 400, 'Endpoint is required');
+    }
 
     await PushSubscription.findOneAndUpdate(
       { endpoint, user: req.user._id },

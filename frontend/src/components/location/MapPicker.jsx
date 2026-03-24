@@ -76,7 +76,23 @@ export default function MapPicker({
         }
       }}
     >
-      <Marker position={position} />
+      <Marker
+        position={position}
+        draggable
+        onDragEnd={(e) => {
+          const lat = Number(e.latLng?.lat?.());
+          const lng = Number(e.latLng?.lng?.());
+
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+          const nextPosition = { lat, lng };
+          setPosition(nextPosition);
+
+          if (typeof onSelect === 'function') {
+            onSelect(nextPosition);
+          }
+        }}
+      />
     </GoogleMap>
   );
 }

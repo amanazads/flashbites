@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchRestaurants } from '../redux/slices/restaurantSlice';
-import { openCart } from '../redux/slices/uiSlice';
+import { clearSelectedDeliveryAddress, openCart, setSelectedDeliveryAddress } from '../redux/slices/uiSlice';
 import { getAddresses } from '../api/userApi';
 import { getPlatformSettings } from '../api/settingsApi';
 import { getRestaurantMenuItems, searchRestaurantsAndItems } from '../api/restaurantApi';
@@ -25,6 +25,24 @@ const BRAND = '#E23744';
 const ALL_CATEGORY_IMAGE = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80';
 const SEARCH_IMAGE = 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=120&q=80';
 const SELECTED_ADDRESS_KEY = 'fb_selected_address';
+
+const mapSavedAddressToSelection = (addr) => {
+  const addrLng = Number(addr?.lng ?? addr?.coordinates?.[0]);
+  const addrLat = Number(addr?.lat ?? addr?.coordinates?.[1]);
+  const hasStoredCoords = Number.isFinite(addrLat) && Number.isFinite(addrLng) && (addrLat !== 0 || addrLng !== 0);
+  if (!hasStoredCoords) return null;
+
+  const typeLabel = addr.type === 'home' ? 'Home' : addr.type === 'work' ? 'Work' : 'Other';
+  return {
+    id: addr._id,
+    type: addr.type || 'other',
+    typeLabel,
+    city: addr.city || '',
+    fullAddress: addr.fullAddress || [addr.street, addr.landmark, addr.city, addr.state, addr.zipCode].filter(Boolean).join(', '),
+    latitude: addrLat,
+    longitude: addrLng,
+  };
+};
 
 /* ───── Category definitions with real food photos ───── */
 const CATEGORIES = [
@@ -106,11 +124,11 @@ const Home = () => {
   const dispatch = useDispatch();
   const { restaurants, loading, error: restaurantError } = useSelector((s) => s.restaurant);
   const { isAuthenticated } = useSelector((s) => s.auth);
+  const selectedAddress = useSelector((s) => s.ui.selectedDeliveryAddress);
   const { items: cartItems } = useSelector((s) => s.cart);
 
   /* ── Delivery address state ── */
   const [savedAddresses, setSavedAddresses] = useState([]);
-  const [selectedAddress, setSelectedAddress] = useState(null);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
   const pickerRef = useRef(null);
   const promoRowRef = useRef(null);
@@ -173,29 +191,40 @@ const Home = () => {
       getAddresses().then((res) => {
         const addrs = res?.data?.addresses || [];
         setSavedAddresses(addrs);
+
+        // If no selected address is active, prefer default saved address with valid coordinates.
+        if (!selectedAddress && addrs.length > 0) {
+          const preferred = addrs.find((a) => a.isDefault) || addrs[0];
+          const mapped = mapSavedAddressToSelection(preferred);
+          if (mapped) {
+            dispatch(setSelectedDeliveryAddress(mapped));
+          }
+        }
       }).catch(() => {});
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, selectedAddress, dispatch]);
 
   // Restore selected address across page navigation
   useEffect(() => {
     try {
       const savedAddress = localStorage.getItem(SELECTED_ADDRESS_KEY);
-      if (savedAddress) {
+      if (!selectedAddress && savedAddress) {
         const parsed = JSON.parse(savedAddress);
         if (parsed && typeof parsed === 'object') {
-          setSelectedAddress(parsed);
+          dispatch(setSelectedDeliveryAddress(parsed));
         }
       }
     } catch {
       // ignore invalid persisted state
     }
-  }, []);
+  }, [selectedAddress, dispatch]);
 
   // Persist selected address so returning to Home doesn't ask location again
   useEffect(() => {
     if (selectedAddress) {
       localStorage.setItem(SELECTED_ADDRESS_KEY, JSON.stringify(selectedAddress));
+    } else {
+      localStorage.removeItem(SELECTED_ADDRESS_KEY);
     }
   }, [selectedAddress]);
 
@@ -334,31 +363,18 @@ const Home = () => {
   const handleSelectSavedAddress = (addr) => {
     setShowAddressPicker(false);
 
-    const addrLng = Number(addr?.lng ?? addr?.coordinates?.[0]);
-    const addrLat = Number(addr?.lat ?? addr?.coordinates?.[1]);
-    const hasStoredCoords = Number.isFinite(addrLat) && Number.isFinite(addrLng) && (addrLat !== 0 || addrLng !== 0);
-
-    if (!hasStoredCoords) {
+    const mapped = mapSavedAddressToSelection(addr);
+    if (!mapped) {
       toast.error('This address is missing coordinates. Please re-add it from suggestions.');
       return;
     }
 
-    const cityLabel = addr.city;
-    const typeLabel = addr.type === 'home' ? 'Home' : addr.type === 'work' ? 'Work' : 'Other';
-
-    setSelectedAddress({
-      id: addr._id,
-      label: `${typeLabel} – ${cityLabel || addr.fullAddress || 'Saved Address'}`,
-      city: cityLabel || '',
-      latitude: addrLat,
-      longitude: addrLng,
-    });
+    dispatch(setSelectedDeliveryAddress(mapped));
   };
 
   const clearAddress = () => {
-    setSelectedAddress(null);
+    dispatch(clearSelectedDeliveryAddress());
     setNoServiceArea(false);
-    localStorage.removeItem(SELECTED_ADDRESS_KEY);
   };
 
   const handleSearch = (e) => {
@@ -539,7 +555,7 @@ const Home = () => {
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 max-[388px]:text-[9px]">Deliver to</p>
               <p className="text-[14.5px] font-bold text-gray-900 truncate mt-0.5 max-[388px]:text-[13px]">
-                {selectedAddress ? selectedAddress.label : 'Select delivery location'}
+                {selectedAddress ? selectedAddress.fullAddress : 'Select delivery location'}
               </p>
             </div>
             {selectedAddress ? (
@@ -593,7 +609,7 @@ const Home = () => {
                         <p className="text-[13px] font-semibold text-gray-800">
                           <span className="capitalize">{addr.type}</span> – {addr.city}
                         </p>
-                        <p className="text-[11px] text-gray-400 truncate">{addr.street}</p>
+                        <p className="text-[11px] text-gray-400 truncate">{addr.fullAddress || addr.street}</p>
                       </div>
                       <CheckIcon
                         className="w-3.5 h-3.5 flex-shrink-0"
@@ -853,7 +869,7 @@ const Home = () => {
         <div className="section-header">
           <h2 className="section-title">
             {selectedAddress
-              ? `${restaurants.length > 0 ? restaurants.length + ' Restaurants near ' : 'Restaurants near '} ${selectedAddress.city}`
+              ? `${restaurants.length > 0 ? restaurants.length + ' Restaurants near ' : 'Restaurants near '} ${selectedAddress.city || 'selected address'}`
               : 'All Restaurants'}
           </h2>
           <Link to="/restaurants" className="section-link flex items-center gap-1">

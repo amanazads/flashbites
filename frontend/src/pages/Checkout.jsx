@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { createOrder } from '../redux/slices/orderSlice';
 import { clearCart, updateQuantity, removeFromCart } from '../redux/slices/cartSlice';
+import { setSelectedDeliveryAddress } from '../redux/slices/uiSlice';
 import { getAddresses } from '../api/userApi';
 import { formatCurrency } from '../utils/formatters';
 import { calculateCartTotal } from '../utils/helpers';
@@ -13,11 +14,32 @@ import AddAddressModal from '../components/common/AddAddressModal';
 import toast from 'react-hot-toast';
 import { MinusIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 
+const mapSavedAddressToSelection = (addr) => {
+  if (!addr) return null;
+
+  const lng = Number(addr?.lng ?? addr?.coordinates?.[0]);
+  const lat = Number(addr?.lat ?? addr?.coordinates?.[1]);
+  const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
+  if (!hasCoords) return null;
+
+  const typeLabel = addr.type === 'home' ? 'Home' : addr.type === 'work' ? 'Work' : 'Other';
+  return {
+    id: addr._id,
+    type: addr.type || 'other',
+    typeLabel,
+    city: addr.city || '',
+    fullAddress: addr.fullAddress || [addr.street, addr.landmark, addr.city, addr.state, addr.zipCode].filter(Boolean).join(', '),
+    latitude: lat,
+    longitude: lng,
+  };
+};
+
 const Checkout = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { items, restaurant } = useSelector((state) => state.cart);
   const { user } = useSelector((state) => state.auth);
+  const selectedDeliveryAddress = useSelector((state) => state.ui.selectedDeliveryAddress);
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('card');
@@ -39,11 +61,25 @@ const Checkout = () => {
   const fetchAddresses = async () => {
     try {
       const response = await getAddresses();
-      setAddresses(response.data.addresses);
-      
-      const defaultAddr = response.data.addresses.find(addr => addr.isDefault);
+      const fetchedAddresses = response.data.addresses || [];
+      setAddresses(fetchedAddresses);
+
+      const preselectedFromGlobal = selectedDeliveryAddress?.id
+        ? fetchedAddresses.find((addr) => addr._id === selectedDeliveryAddress.id)
+        : null;
+
+      if (preselectedFromGlobal) {
+        setSelectedAddress(preselectedFromGlobal._id);
+        return;
+      }
+
+      const defaultAddr = fetchedAddresses.find(addr => addr.isDefault);
       if (defaultAddr) {
         setSelectedAddress(defaultAddr._id);
+        const mapped = mapSavedAddressToSelection(defaultAddr);
+        if (mapped) {
+          dispatch(setSelectedDeliveryAddress(mapped));
+        }
       }
     } catch (error) {
       toast.error('Failed to load addresses');
@@ -53,9 +89,23 @@ const Checkout = () => {
   const handleAddressAdded = (newAddress) => {
     setAddresses([...addresses, newAddress]);
     setSelectedAddress(newAddress._id);
+    const mapped = mapSavedAddressToSelection(newAddress);
+    if (mapped) {
+      dispatch(setSelectedDeliveryAddress(mapped));
+    }
     setShowAddAddressModal(false);
     toast.success('Address added successfully!');
   };
+
+  useEffect(() => {
+    if (!selectedAddress) return;
+
+    const selectedAddressObj = addresses.find((addr) => addr._id === selectedAddress);
+    const mapped = mapSavedAddressToSelection(selectedAddressObj);
+    if (mapped) {
+      dispatch(setSelectedDeliveryAddress(mapped));
+    }
+  }, [selectedAddress, addresses, dispatch]);
 
   const fetchAvailableCoupons = async (orderValue, restaurantId) => {
     if (!orderValue || !restaurantId) {
@@ -371,7 +421,9 @@ const Checkout = () => {
                         name="address"
                         value={address._id}
                         checked={selectedAddress === address._id}
-                        onChange={() => setSelectedAddress(address._id)}
+                        onChange={() => {
+                          setSelectedAddress(address._id);
+                        }}
                         className="mt-1 flex-shrink-0"
                         style={{ accentColor: '#E23744' }}
                       />

@@ -3,9 +3,13 @@ const Notification = require('../models/Notification');
 const PushSubscription = require('../models/PushSubscription');
 const User = require('../models/User');
 const { admin } = require('../config/firebaseAdmin');
+const { cacheGet, cacheSet } = require('./memoryCache');
+
+const WEB_PUSH_ENABLED = Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+const NOTIFICATION_DEDUPE_TTL_MS = 15000;
 
 // Configure web-push with VAPID keys
-if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+if (WEB_PUSH_ENABLED) {
   webpush.setVapidDetails(
     `mailto:${process.env.EMAIL_USER || 'noreply@flashbites.com'}`,
     process.env.VAPID_PUBLIC_KEY,
@@ -18,6 +22,10 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 // Create notification in database
 const createNotification = async (recipientId, notificationData) => {
   try {
+    if (!recipientId || !notificationData?.title || !notificationData?.message) {
+      return null;
+    }
+
     const notification = await Notification.create({
       recipient: recipientId,
       ...notificationData
@@ -32,10 +40,14 @@ const createNotification = async (recipientId, notificationData) => {
 // Send push notification
 const sendPushNotification = async (userId, payload) => {
   try {
+    if (!WEB_PUSH_ENABLED || !userId) {
+      return;
+    }
+
     const subscriptions = await PushSubscription.find({
       user: userId,
       isActive: true
-    });
+    }).select('endpoint keys deviceType');
 
     if (subscriptions.length === 0) {
       console.log(`No active push subscriptions for user ${userId}`);
@@ -48,12 +60,17 @@ const sendPushNotification = async (userId, payload) => {
       icon: '/logo.png',
       badge: '/logo.png',
       data: payload.data || {},
-      tag: payload.type,
+      tag: payload.type || 'general_notification',
       requireInteraction: payload.priority === 'high'
     });
 
     const promises = subscriptions.map(async (subscription) => {
       try {
+        if (!subscription.endpoint || !subscription.keys?.p256dh || !subscription.keys?.auth) {
+          await PushSubscription.updateOne({ _id: subscription._id }, { $set: { isActive: false } });
+          return;
+        }
+
         await webpush.sendNotification(
           {
             endpoint: subscription.endpoint,
@@ -65,8 +82,7 @@ const sendPushNotification = async (userId, payload) => {
       } catch (error) {
         if (error.statusCode === 410 || error.statusCode === 404) {
           // Subscription expired or invalid
-          subscription.isActive = false;
-          await subscription.save();
+          await PushSubscription.updateOne({ _id: subscription._id }, { $set: { isActive: false } });
           console.log(`Deactivated expired subscription for user ${userId}`);
         } else {
           console.error(`Error sending push to user ${userId}:`, error.message);
@@ -83,8 +99,12 @@ const sendPushNotification = async (userId, payload) => {
 // Send FCM/APNS notification using saved token (for native lockscreen + tray delivery)
 const sendFcmNotification = async (userId, payload) => {
   try {
+    if (!userId || !admin?.apps?.length) {
+      return;
+    }
+
     const user = await User.findById(userId).select('fcmToken').lean();
-    const token = user?.fcmToken;
+    const token = typeof user?.fcmToken === 'string' ? user.fcmToken.trim() : '';
     if (!token) return;
 
     const rawData = payload?.data || {};
@@ -138,7 +158,9 @@ const sendFcmNotification = async (userId, payload) => {
     if (
       code.includes('registration-token-not-registered') ||
       code.includes('invalid-argument') ||
-      code.includes('invalid-registration-token')
+      code.includes('invalid-registration-token') ||
+      code.includes('messaging/invalid-registration-token') ||
+      code.includes('messaging/registration-token-not-registered')
     ) {
       await User.findByIdAndUpdate(userId, { $set: { fcmToken: null } });
       console.log(`Removed invalid FCM token for user ${userId}`);
@@ -152,6 +174,23 @@ const sendFcmNotification = async (userId, payload) => {
 // Combined: Create notification + send push
 const notifyUser = async (userId, notificationData) => {
   try {
+    if (!userId || !notificationData?.title || !notificationData?.message) {
+      return null;
+    }
+
+    const fingerprintSource = [
+      String(userId),
+      String(notificationData.type || 'general_notification'),
+      String(notificationData.data?.orderId || ''),
+      String(notificationData.data?.couponId || ''),
+      String(notificationData.message || ''),
+    ].join(':');
+    const dedupeKey = `notify:${fingerprintSource}`;
+    if (cacheGet(dedupeKey)) {
+      return null;
+    }
+    cacheSet(dedupeKey, true, NOTIFICATION_DEDUPE_TTL_MS);
+
     // Save to database
     const notification = await createNotification(userId, notificationData);
 
@@ -164,21 +203,22 @@ const notifyUser = async (userId, notificationData) => {
     return notification;
   } catch (error) {
     console.error('Error in notifyUser:', error);
-    throw error;
+    return null;
   }
 };
 
 // Notify multiple users
 const notifyMultipleUsers = async (userIds, notificationData) => {
   try {
-    const promises = userIds.map(userId => notifyUser(userId, notificationData));
+    const uniqueUserIds = [...new Set((userIds || []).map((id) => String(id)).filter(Boolean))];
+    const promises = uniqueUserIds.map((userId) => notifyUser(userId, notificationData));
     const results = await Promise.allSettled(promises);
     const successful = results.filter(r => r.status === 'fulfilled').length;
-    console.log(`✅ Notified ${successful}/${userIds.length} users`);
+    console.log(`✅ Notified ${successful}/${uniqueUserIds.length} users`);
     return results;
   } catch (error) {
     console.error('Error in notifyMultipleUsers:', error);
-    throw error;
+    return [];
   }
 };
 

@@ -48,6 +48,17 @@ const restaurantSchema = new mongoose.Schema({
       required: true
     }
   },
+  deliveryZone: {
+    type: {
+      type: String,
+      enum: ['Polygon'],
+      default: 'Polygon'
+    },
+    coordinates: {
+      type: [[[Number]]],
+      default: undefined
+    }
+  },
   image: {
     type: String,
     default: 'default-restaurant.png'
@@ -68,6 +79,12 @@ const restaurantSchema = new mongoose.Schema({
   deliveryTime: {
     type: String,
     default: '30-40 mins'
+  },
+  prepTimeMinutes: {
+    type: Number,
+    default: 20,
+    min: 5,
+    max: 120
   },
   deliveryRadiusKm: {
     type: Number,
@@ -126,6 +143,7 @@ const restaurantSchema = new mongoose.Schema({
 
 // Create geospatial index for location-based queries
 restaurantSchema.index({ location: '2dsphere' });
+restaurantSchema.index({ deliveryZone: '2dsphere' });
 restaurantSchema.index({ cuisines: 1 });
 restaurantSchema.index({ rating: -1 });
 restaurantSchema.index({ isActive: 1, isApproved: 1 });

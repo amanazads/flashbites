@@ -232,6 +232,11 @@ const OrderDetail = () => {
                     {formatDateTime(order.estimatedDelivery)}
                   </span>
                 </p>
+                {Number(order.etaMinutes) > 0 && (
+                  <p className="mt-1 text-sm max-[388px]:text-xs text-gray-500">
+                    Delivery in {order.etaMinutes} mins
+                  </p>
+                )}
               </div>
             )}
           </div>

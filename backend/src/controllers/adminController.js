@@ -10,6 +10,15 @@ const Notification = require('../models/Notification');
 const AccountDeletionRequest = require('../models/AccountDeletionRequest');
 const PlatformSettings = require('../models/PlatformSettings');
 const { notifyCouponAvailable, notifyUser } = require('../utils/notificationService');
+const { normalizeDeliveryZone } = require('../utils/deliveryGeo');
+const { cacheGet, cacheSet, cacheDelByPrefix } = require('../utils/memoryCache');
+
+const ADMIN_CACHE_PREFIX = 'admin:';
+const ANALYTICS_CACHE_TTL_MS = 30000;
+const TRACKING_CACHE_TTL_MS = 15000;
+
+const makeCacheKey = (scope, payload = {}) => `${ADMIN_CACHE_PREFIX}${scope}:${JSON.stringify(payload)}`;
+const invalidateAdminCache = () => cacheDelByPrefix(ADMIN_CACHE_PREFIX);
 
 const normalizeSettingsPayload = (payload = {}) => {
   const platformFee = Number(payload.platformFee);
@@ -53,6 +62,11 @@ const normalizeSettingsPayload = (payload = {}) => {
 // @access  Private (Admin)
 exports.getDashboardStats = async (req, res) => {
   try {
+    const cacheKey = makeCacheKey('dashboard');
+    const cached = cacheGet(cacheKey);
+    if (cached) {
+      return successResponse(res, 200, 'Dashboard stats retrieved', cached);
+    }
 
     // Get total counts
     const totalUsers = await User.countDocuments({ role: 'user' });
@@ -113,7 +127,7 @@ exports.getDashboardStats = async (req, res) => {
       { $sort: { '_id.year': 1, '_id.month': 1 } }
     ]);
 
-    successResponse(res, 200, 'Dashboard stats retrieved', {
+    const payload = {
       overview: {
         totalUsers,
         totalRestaurants,
@@ -125,7 +139,10 @@ exports.getDashboardStats = async (req, res) => {
       ordersByStatus,
       recentOrders,
       monthlyRevenue
-    });
+    };
+
+    cacheSet(cacheKey, payload, ANALYTICS_CACHE_TTL_MS);
+    successResponse(res, 200, 'Dashboard stats retrieved', payload);
   } catch (error) {
     errorResponse(res, 500, 'Failed to get dashboard stats', error.message);
   }
@@ -312,6 +329,7 @@ exports.updatePlatformSettings = async (req, res) => {
       { new: true, upsert: true, runValidators: true }
     ).lean();
 
+    invalidateAdminCache();
     successResponse(res, 200, 'Platform settings updated', { settings });
   } catch (error) {
     errorResponse(res, 500, 'Failed to update platform settings', error.message);
@@ -359,6 +377,7 @@ exports.approveRestaurant = async (req, res) => {
       return errorResponse(res, 404, 'Restaurant not found');
     }
 
+    invalidateAdminCache();
     successResponse(res, 200, `Restaurant ${isApproved ? 'approved' : 'rejected'}`, { restaurant });
   } catch (error) {
     errorResponse(res, 500, 'Failed to update restaurant status', error.message);
@@ -382,6 +401,7 @@ exports.blockUser = async (req, res) => {
       return errorResponse(res, 404, 'User not found');
     }
 
+    invalidateAdminCache();
     successResponse(res, 200, `User ${isActive ? 'unblocked' : 'blocked'}`, { user });
   } catch (error) {
     errorResponse(res, 500, 'Failed to update user status', error.message);
@@ -421,6 +441,7 @@ exports.updateUserRole = async (req, res) => {
     targetUser.role = role;
     await targetUser.save();
 
+    invalidateAdminCache();
     successResponse(res, 200, 'User role updated successfully', { user: targetUser });
   } catch (error) {
     errorResponse(res, 500, 'Failed to update user role', error.message);
@@ -475,6 +496,7 @@ exports.createCoupon = async (req, res) => {
       await notifyCouponAvailable(userIds, coupon);
     }
 
+    invalidateAdminCache();
     successResponse(res, 201, 'Coupon created successfully', { coupon });
   } catch (error) {
     errorResponse(res, 500, 'Failed to create coupon', error.message);
@@ -535,6 +557,7 @@ exports.updateCoupon = async (req, res) => {
       return errorResponse(res, 404, 'Coupon not found');
     }
 
+    invalidateAdminCache();
     successResponse(res, 200, 'Coupon updated successfully', { coupon });
   } catch (error) {
     errorResponse(res, 500, 'Failed to update coupon', error.message);
@@ -552,6 +575,7 @@ exports.deleteCoupon = async (req, res) => {
       return errorResponse(res, 404, 'Coupon not found');
     }
 
+    invalidateAdminCache();
     successResponse(res, 200, 'Coupon deleted successfully');
   } catch (error) {
     errorResponse(res, 500, 'Failed to delete coupon', error.message);
@@ -564,6 +588,11 @@ exports.deleteCoupon = async (req, res) => {
 exports.getComprehensiveAnalytics = async (req, res) => {
   try {
     const { startDate, endDate, period = '30' } = req.query;
+    const cacheKey = makeCacheKey('analytics', { startDate, endDate, period });
+    const cached = cacheGet(cacheKey);
+    if (cached) {
+      return successResponse(res, 200, 'Comprehensive analytics retrieved', cached);
+    }
 
     // Calculate date range
     const end = endDate ? new Date(endDate) : new Date();
@@ -746,11 +775,57 @@ exports.getComprehensiveAnalytics = async (req, res) => {
       totalRevenue: 0
     };
 
+    const etaStats = await Order.aggregate([
+      {
+        $match: {
+          status: 'delivered',
+          etaMinutes: { $gt: 0 },
+          createdAt: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $project: {
+          etaMinutes: 1,
+          isOnTime: {
+            $cond: [
+              {
+                $and: [
+                  { $ifNull: ['$deliveredAt', false] },
+                  { $ifNull: ['$estimatedDelivery', false] },
+                  { $lte: ['$deliveredAt', '$estimatedDelivery'] }
+                ]
+              },
+              1,
+              0
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          avgEtaMinutes: { $avg: '$etaMinutes' },
+          maxEtaMinutes: { $max: '$etaMinutes' },
+          minEtaMinutes: { $min: '$etaMinutes' },
+          onTimeDeliveries: { $sum: '$isOnTime' },
+          totalWithEta: { $sum: 1 }
+        }
+      }
+    ]);
+
     // Calculate cash vs online breakdown
     const cashPayment = paymentBreakdown.find(p => p._id === 'cod') || { count: 0, totalAmount: 0 };
     const onlinePayment = paymentBreakdown.find(p => p._id === 'online') || { count: 0, totalAmount: 0 };
 
-    successResponse(res, 200, 'Comprehensive analytics retrieved', {
+    const etaMetrics = etaStats[0] || {
+      avgEtaMinutes: 0,
+      maxEtaMinutes: 0,
+      minEtaMinutes: 0,
+      onTimeDeliveries: 0,
+      totalWithEta: 0,
+    };
+
+    const payload = {
       overview: {
         totalUsers,
         totalRestaurants,
@@ -788,12 +863,24 @@ exports.getComprehensiveAnalytics = async (req, res) => {
         customer: order.userId?.name || 'N/A'
       })),
       dailyRevenue,
+      etaMetrics: {
+        avgEtaMinutes: Number((etaMetrics.avgEtaMinutes || 0).toFixed(1)),
+        maxEtaMinutes: etaMetrics.maxEtaMinutes || 0,
+        minEtaMinutes: etaMetrics.minEtaMinutes || 0,
+        onTimeDeliveryRate: etaMetrics.totalWithEta > 0
+          ? Number(((etaMetrics.onTimeDeliveries / etaMetrics.totalWithEta) * 100).toFixed(2))
+          : 0,
+        totalWithEta: etaMetrics.totalWithEta || 0,
+      },
       period: {
         start,
         end,
         days: Math.ceil((end - start) / (24 * 60 * 60 * 1000))
       }
-    });
+    };
+
+    cacheSet(cacheKey, payload, ANALYTICS_CACHE_TTL_MS);
+    successResponse(res, 200, 'Comprehensive analytics retrieved', payload);
   } catch (error) {
     console.error('Admin analytics error:', error);
     errorResponse(res, 500, 'Failed to get analytics', error.message);
@@ -876,6 +963,8 @@ exports.reviewAccountDeletionRequest = async (req, res) => {
 
     await deletionRequest.save();
 
+    invalidateAdminCache();
+
     successResponse(
       res,
       200,
@@ -884,5 +973,107 @@ exports.reviewAccountDeletionRequest = async (req, res) => {
     );
   } catch (error) {
     errorResponse(res, 500, 'Failed to review deletion request', error.message);
+  }
+};
+
+// @desc    Save restaurant delivery zone polygon
+// @route   PUT /api/admin/restaurants/:id/delivery-zone
+// @access  Private (Admin)
+exports.saveRestaurantDeliveryZone = async (req, res) => {
+  try {
+    const rawCoordinates = req.body?.coordinates;
+    const normalizedZone = normalizeDeliveryZone({
+      type: 'Polygon',
+      coordinates: [rawCoordinates]
+    });
+
+    if (!normalizedZone) {
+      return errorResponse(res, 400, 'Valid polygon coordinates are required');
+    }
+
+    const restaurant = await Restaurant.findByIdAndUpdate(
+      req.params.id,
+      { $set: { deliveryZone: normalizedZone } },
+      { new: true, runValidators: true }
+    ).select('name deliveryZone');
+
+    if (!restaurant) {
+      return errorResponse(res, 404, 'Restaurant not found');
+    }
+
+    invalidateAdminCache();
+    return successResponse(res, 200, 'Delivery zone saved successfully', { restaurant });
+  } catch (error) {
+    return errorResponse(res, 500, 'Failed to save delivery zone', error.message);
+  }
+};
+
+// @desc    Get admin delivery tracking dashboard data
+// @route   GET /api/admin/delivery-tracking
+// @access  Private (Admin)
+exports.getDeliveryTrackingDashboard = async (req, res) => {
+  try {
+    const cacheKey = makeCacheKey('delivery-tracking');
+    const cached = cacheGet(cacheKey);
+    if (cached) {
+      return successResponse(res, 200, 'Delivery tracking dashboard fetched successfully', cached);
+    }
+
+    const activeStatuses = ['confirmed', 'ready', 'out_for_delivery'];
+
+    const activeOrders = await Order.find({ status: { $in: activeStatuses } })
+      .populate('restaurantId', 'name location address')
+      .populate('userId', 'name phone')
+      .populate('deliveryPartnerId', 'name phone location isOnDuty')
+      .populate('addressId', 'fullAddress street city state zipCode coordinates lat lng')
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    const orders = activeOrders.map((order) => ({
+      _id: order._id,
+      orderNumber: order.orderNumber || String(order._id).slice(-8),
+      status: order.status,
+      etaMinutes: Number(order.etaMinutes || 0),
+      estimatedDelivery: order.estimatedDelivery || null,
+      restaurant: {
+        name: order.restaurantId?.name || 'Restaurant',
+        location: order.restaurantId?.location?.coordinates || null,
+      },
+      customer: {
+        name: order.userId?.name || 'Customer',
+        phone: order.userId?.phone || '',
+        address: order.addressId?.fullAddress || [
+          order.addressId?.street,
+          order.addressId?.city,
+          order.addressId?.state,
+          order.addressId?.zipCode,
+        ].filter(Boolean).join(', '),
+        location: order.addressId?.coordinates || (Number.isFinite(order.addressId?.lng) && Number.isFinite(order.addressId?.lat)
+          ? [order.addressId.lng, order.addressId.lat]
+          : null),
+      },
+      deliveryPartner: order.deliveryPartnerId ? {
+        name: order.deliveryPartnerId.name,
+        phone: order.deliveryPartnerId.phone,
+        isOnDuty: Boolean(order.deliveryPartnerId.isOnDuty),
+        location: order.deliveryPartnerLocation?.coordinates || order.deliveryPartnerId.location?.coordinates || null,
+        locationLastUpdated: order.deliveryPartnerLocation?.lastUpdated || null,
+      } : null,
+      updatedAt: order.updatedAt,
+      createdAt: order.createdAt,
+    }));
+
+    const payload = {
+      totalActiveOrders: orders.length,
+      outForDeliveryCount: orders.filter((o) => o.status === 'out_for_delivery').length,
+      readyCount: orders.filter((o) => o.status === 'ready').length,
+      assignedCount: orders.filter((o) => Boolean(o.deliveryPartner)).length,
+      orders,
+    };
+
+    cacheSet(cacheKey, payload, TRACKING_CACHE_TTL_MS);
+    return successResponse(res, 200, 'Delivery tracking dashboard fetched successfully', payload);
+  } catch (error) {
+    return errorResponse(res, 500, 'Failed to fetch delivery tracking dashboard', error.message);
   }
 };

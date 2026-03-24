@@ -55,7 +55,7 @@ const validateAndBuildAddressPayload = async (input, fallback = {}) => {
 
   coordinates = normalizeCoordinates(coordinates);
   if (!coordinates) {
-    return { error: 'Unable to detect your location. Please select an address suggestion or use current location.' };
+    return { error: 'Unable to detect address coordinates. Please select an address suggestion or map point.' };
   }
 
   return {
