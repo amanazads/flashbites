@@ -19,13 +19,13 @@ export const verifyPayment = async (paymentData) => {
 };
 
 // Record payment failure
-export const recordPaymentFailure = async (paymentData) => {
-  const response = await axios.post('/payments/failure', paymentData);
+export const recordPaymentFailure = async (paymentId, error) => {
+  const response = await axios.post(`/payments/${paymentId}/fail`, { error });
   return response.data;
 };
 
 // Get payment by order ID
 export const getPaymentByOrderId = async (orderId) => {
-  const response = await axios.get(`/payments/${orderId}`);
+  const response = await axios.get(`/payments/order/${orderId}`);
   return response.data;
 };

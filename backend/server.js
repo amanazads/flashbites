@@ -14,6 +14,7 @@ const xss = require('xss-clean');
 const rateLimit = require('express-rate-limit');
 const session = require('express-session');
 const passport = require('./src/config/passport');
+const sanitizeInput = require('./src/middleware/sanitizeInput');
 
 // Import database connection
 const connectDB = require('./src/config/database');
@@ -154,6 +155,7 @@ app.use(cors(corsOptions));
 // Body parser middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(sanitizeInput);
 
 // Initialize Passport (JWT-only app; sessions are optional for OAuth flows)
 app.use(passport.initialize());

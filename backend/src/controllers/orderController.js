@@ -748,6 +748,26 @@ exports.updateOrderStatus = async (req, res) => {
       return errorResponse(res, 404, 'Order not found');
     }
 
+    if (req.user.role === 'restaurant_owner') {
+      const restaurant = await Restaurant.findById(order.restaurantId).select('ownerId');
+      if (!restaurant || String(restaurant.ownerId) !== String(req.user._id)) {
+        return errorResponse(res, 403, 'Not authorized to update this order');
+      }
+    }
+
+    if (order.status === status) {
+      const currentOrder = await Order.findById(order._id)
+        .populate('userId', 'name email phone')
+        .populate({
+          path: 'restaurantId',
+          select: 'name phone address ownerId',
+          populate: { path: 'ownerId', select: '_id name email' }
+        })
+        .populate('addressId')
+        .populate('items.menuItemId', 'name price');
+      return successResponse(res, 200, 'Order status already up to date', { order: currentOrder });
+    }
+
     console.log('✓ [updateOrderStatus] Order found, updating status to:', status);
     
     // Update status
@@ -892,6 +912,18 @@ exports.cancelOrder = async (req, res) => {
     if (!isAdmin && order.userId.toString() !== req.user._id.toString()) {
       console.log('❌ [cancelOrder] Unauthorized access attempt');
       return errorResponse(res, 403, 'Not authorized');
+    }
+
+    if (order.status === 'cancelled') {
+      const existingCancelled = await Order.findById(order._id)
+        .populate('userId', 'name email phone')
+        .populate({
+          path: 'restaurantId',
+          select: 'name phone address ownerId',
+          populate: { path: 'ownerId', select: '_id name email' }
+        })
+        .populate('items.menuItemId', 'name price');
+      return successResponse(res, 200, 'Order already cancelled', { order: existingCancelled });
     }
 
     // Check cancellation eligibility based on status and time

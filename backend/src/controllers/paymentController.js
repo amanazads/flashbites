@@ -19,15 +19,45 @@ const razorpay = process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET
     })
   : null;
 
+const approximatelyEqual = (a, b, tolerance = 0.5) => Math.abs(Number(a) - Number(b)) <= tolerance;
+
+const getAndAuthorizeOrder = async (orderId, userId) => {
+  const order = await Order.findById(orderId).select('userId total paymentStatus status');
+  if (!order) {
+    return { error: { code: 404, message: 'Order not found' } };
+  }
+
+  if (String(order.userId) !== String(userId)) {
+    return { error: { code: 403, message: 'Not authorized for this order' } };
+  }
+
+  return { order };
+};
+
 // @desc    Create Stripe payment intent
 // @route   POST /api/payments/stripe/create-intent
 // @access  Private
 exports.createStripePaymentIntent = async (req, res) => {
   try {
+    if (!stripe) {
+      return errorResponse(res, 503, 'Stripe payment gateway not configured');
+    }
+
     const { orderId, amount } = req.body;
 
+    const { order, error } = await getAndAuthorizeOrder(orderId, req.user._id);
+    if (error) {
+      return errorResponse(res, error.code, error.message);
+    }
+
+    if (amount !== undefined && !approximatelyEqual(order.total, amount)) {
+      return errorResponse(res, 400, 'Payment amount does not match order total');
+    }
+
+    const payableAmount = Number(order.total);
+
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
+      amount: Math.round(payableAmount * 100), // Convert to cents
       currency: 'usd',
       metadata: { orderId: orderId.toString(), userId: req.user._id.toString() }
     });
@@ -36,7 +66,7 @@ exports.createStripePaymentIntent = async (req, res) => {
     const payment = await Payment.create({
       orderId,
       userId: req.user._id,
-      amount,
+      amount: payableAmount,
       method: 'card',
       gateway: 'stripe',
       transactionId: paymentIntent.id,
@@ -69,17 +99,28 @@ exports.createRazorpayOrder = async (req, res) => {
     }
     
     const { orderId, amount } = req.body;
+
+    const { order, error } = await getAndAuthorizeOrder(orderId, req.user._id);
+    if (error) {
+      return errorResponse(res, error.code, error.message);
+    }
+
+    if (amount !== undefined && !approximatelyEqual(order.total, amount)) {
+      return errorResponse(res, 400, 'Payment amount does not match order total');
+    }
+
+    const payableAmount = Number(order.total);
     
     console.log('Order ID:', orderId);
-    console.log('Amount:', amount);
+    console.log('Amount:', payableAmount);
 
-    if (!orderId || !amount) {
+    if (!orderId || payableAmount <= 0) {
       console.error('❌ Missing required fields');
-      return errorResponse(res, 400, 'Order ID and amount are required');
+      return errorResponse(res, 400, 'Order ID is required and order total must be valid');
     }
 
     const razorpayOrder = await razorpay.orders.create({
-      amount: Math.round(amount * 100), // Convert to paise
+      amount: Math.round(payableAmount * 100), // Convert to paise
       currency: 'INR',
       receipt: orderId.toString(),
       notes: {
@@ -94,7 +135,7 @@ exports.createRazorpayOrder = async (req, res) => {
     const payment = await Payment.create({
       orderId,
       userId: req.user._id,
-      amount,
+      amount: payableAmount,
       method: 'upi',
       gateway: 'razorpay',
       transactionId: razorpayOrder.id,
@@ -136,6 +177,14 @@ exports.verifyPayment = async (req, res) => {
     if (!payment) {
       console.error(`❌ Payment not found for ID: ${paymentId}`);
       return errorResponse(res, 404, 'Payment not found');
+    }
+
+    if (String(payment.userId) !== String(req.user._id)) {
+      return errorResponse(res, 403, 'Not authorized for this payment');
+    }
+
+    if (payment.status === 'success') {
+      return successResponse(res, 200, 'Payment already verified', { payment });
     }
 
     console.log('📄 Payment record found:', payment._id);
@@ -191,6 +240,14 @@ exports.verifyPayment = async (req, res) => {
     // Update order payment status
     const order = await Order.findById(payment.orderId);
     if (order) {
+      if (String(order.userId) !== String(req.user._id)) {
+        return errorResponse(res, 403, 'Not authorized for this order payment');
+      }
+
+      if (!approximatelyEqual(order.total, payment.amount)) {
+        return errorResponse(res, 400, 'Payment amount mismatch with order total');
+      }
+
       order.paymentStatus = 'completed';
       // Don't auto-confirm - restaurant needs to confirm manually
       // Order stays in 'pending' status until restaurant confirms
@@ -219,6 +276,10 @@ exports.handlePaymentFailure = async (req, res) => {
       return errorResponse(res, 404, 'Payment not found');
     }
 
+    if (String(payment.userId) !== String(req.user._id)) {
+      return errorResponse(res, 403, 'Not authorized for this payment');
+    }
+
     payment.status = 'failed';
     payment.gatewayResponse = req.body.error;
     await payment.save();
@@ -242,7 +303,10 @@ exports.handlePaymentFailure = async (req, res) => {
 // @access  Private
 exports.getPaymentByOrderId = async (req, res) => {
   try {
-    const payment = await Payment.findOne({ orderId: req.params.orderId });
+    const payment = await Payment.findOne({
+      orderId: req.params.orderId,
+      userId: req.user._id
+    });
 
     if (!payment) {
       return errorResponse(res, 404, 'Payment not found');

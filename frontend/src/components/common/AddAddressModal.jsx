@@ -3,7 +3,6 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import { addAddress } from '../../api/userApi';
 import { autocompleteAddress, geocodeAddressText, reverseGeocodeCoordinates } from '../../api/locationApi';
 import toast from 'react-hot-toast';
-import AddressInput from '../location/AddressInput';
 import MapPicker from '../location/MapPicker';
 
 const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
@@ -127,22 +126,6 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
-  };
-
-  const handleGoogleAddressSelect = (selection) => {
-    const lat = Number(selection?.lat);
-    const lng = Number(selection?.lng);
-
-    setFormData((prev) => ({
-      ...prev,
-      street: selection?.street || selection?.address || prev.street,
-      city: selection?.city || prev.city,
-      state: selection?.state || prev.state,
-      zipCode: selection?.zipCode || prev.zipCode,
-      fullAddress: selection?.fullAddress || selection?.address || prev.fullAddress,
-      coordinates: Number.isFinite(lat) && Number.isFinite(lng) ? [lng, lat] : prev.coordinates
-    }));
-    setAddressSuggestions([]);
   };
 
   const handleMapSelect = async ({ lat, lng }) => {
@@ -287,17 +270,10 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Street Address *
             </label>
-            <AddressInput
-              value={formData.fullAddress || formData.street}
-              onChange={(value) => setFormData({ ...formData, street: value, fullAddress: value, coordinates: null })}
-              onSelect={handleGoogleAddressSelect}
-              placeholder="Enter delivery address"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
             <input
               type="text"
               value={formData.street}
-              onChange={(e) => setFormData({ ...formData, street: e.target.value, fullAddress: '' })}
+              onChange={(e) => setFormData({ ...formData, street: e.target.value, fullAddress: e.target.value, coordinates: null })}
               placeholder="House/Flat No., Street name"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               required

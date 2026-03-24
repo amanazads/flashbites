@@ -108,6 +108,21 @@ exports.addAddress = async (req, res) => {
       return errorResponse(res, 400, 'Street address is required');
     }
 
+    const duplicateAddress = await Address.findOne({
+      userId: req.user._id,
+      fullAddress: payload.fullAddress,
+      street: payload.street,
+      city: payload.city,
+      state: payload.state,
+      zipCode: payload.zipCode,
+      coordinates: payload.coordinates,
+      createdAt: { $gte: new Date(Date.now() - 60 * 1000) }
+    });
+
+    if (duplicateAddress) {
+      return successResponse(res, 200, 'Address already exists', { address: duplicateAddress });
+    }
+
     // If this is set as default, unset other default addresses
     if (payload.isDefault) {
       await Address.updateMany(
@@ -212,6 +227,15 @@ exports.deleteAddress = async (req, res) => {
 // @access  Private
 exports.setDefaultAddress = async (req, res) => {
   try {
+    const existingAddress = await Address.findOne({ _id: req.params.id, userId: req.user._id });
+    if (!existingAddress) {
+      return errorResponse(res, 404, 'Address not found');
+    }
+
+    if (existingAddress.isDefault) {
+      return successResponse(res, 200, 'Default address updated', { address: existingAddress });
+    }
+
     // Unset all default addresses
     await Address.updateMany(
       { userId: req.user._id },
@@ -224,10 +248,6 @@ exports.setDefaultAddress = async (req, res) => {
       { isDefault: true },
       { new: true }
     );
-
-    if (!address) {
-      return errorResponse(res, 404, 'Address not found');
-    }
 
     successResponse(res, 200, 'Default address updated', { address });
   } catch (error) {

@@ -132,8 +132,7 @@ const Payment = () => {
           ondismiss: async function () {
             toast.dismiss();
             toast.error('Payment cancelled.');
-            await recordPaymentFailure({
-              orderId: order._id,
+            await recordPaymentFailure(razorpayResponse.data.paymentId, {
               gateway: 'razorpay',
               reason: 'User cancelled payment'
             });

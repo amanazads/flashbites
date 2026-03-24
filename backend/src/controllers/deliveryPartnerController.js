@@ -73,26 +73,38 @@ exports.acceptOrder = async (req, res) => {
       return errorResponse(res, 400, 'You are currently off duty. Turn on duty to accept orders.');
     }
 
-    const order = await Order.findById(orderId);
+    const acceptedOrder = await Order.findOneAndUpdate(
+      {
+        _id: orderId,
+        status: { $in: ['ready', 'confirmed'] },
+        $or: [{ deliveryPartnerId: { $exists: false } }, { deliveryPartnerId: null }],
+      },
+      {
+        $set: {
+          deliveryPartnerId: req.user._id,
+          status: 'out_for_delivery',
+        }
+      },
+      { new: true }
+    );
 
-    if (!order) {
-      return errorResponse(res, 404, 'Order not found');
+    let orderToReturn = acceptedOrder;
+    if (!orderToReturn) {
+      const existingOrder = await Order.findById(orderId).select('deliveryPartnerId status');
+      if (!existingOrder) {
+        return errorResponse(res, 404, 'Order not found');
+      }
+
+      if (String(existingOrder.deliveryPartnerId || '') === String(req.user._id) && existingOrder.status === 'out_for_delivery') {
+        orderToReturn = existingOrder;
+      } else if (existingOrder.deliveryPartnerId) {
+        return errorResponse(res, 400, 'Order already assigned to another delivery partner');
+      } else {
+        return errorResponse(res, 400, 'Order is not available for delivery');
+      }
     }
 
-    if (order.deliveryPartnerId) {
-      return errorResponse(res, 400, 'Order already assigned to another delivery partner');
-    }
-
-    if (!['ready', 'confirmed'].includes(order.status)) {
-      return errorResponse(res, 400, 'Order is not available for delivery');
-    }
-
-    // Assign order to delivery partner
-    order.deliveryPartnerId = req.user._id;
-    order.status = 'out_for_delivery';
-    await order.save();
-
-    const updatedOrder = await Order.findById(orderId)
+    const updatedOrder = await Order.findById(orderToReturn._id)
       .populate('userId', 'name phone')
       .populate('restaurantId', 'name address phone location')
       .populate('addressId');
@@ -193,8 +205,16 @@ exports.markAsDelivered = async (req, res) => {
       return errorResponse(res, 404, 'Order not found');
     }
 
-    if (order.deliveryPartnerId.toString() !== req.user._id.toString()) {
+    if (!order.deliveryPartnerId || order.deliveryPartnerId.toString() !== req.user._id.toString()) {
       return errorResponse(res, 403, 'You are not assigned to this order');
+    }
+
+    if (order.status === 'delivered') {
+      const alreadyDelivered = await Order.findById(orderId)
+        .populate('userId', 'name phone')
+        .populate('restaurantId', 'name address phone location ownerId')
+        .populate('addressId');
+      return successResponse(res, 200, 'Order already marked as delivered', { order: alreadyDelivered });
     }
 
     if (order.status !== 'out_for_delivery') {
@@ -365,21 +385,27 @@ exports.updateLocation = async (req, res) => {
       });
 
       if (order) {
+        const prevLng = Number(order.deliveryPartnerLocation?.coordinates?.[0]);
+        const prevLat = Number(order.deliveryPartnerLocation?.coordinates?.[1]);
+        const sameCoordinates = Number.isFinite(prevLat) && Number.isFinite(prevLng) && prevLat === lat && prevLng === lng;
+
         order.deliveryPartnerLocation = {
           type: 'Point',
           coordinates: [lng, lat],
           lastUpdated: new Date()
         };
 
-        // Add to tracking history
-        order.trackingHistory.push({
-          location: {
-            type: 'Point',
-            coordinates: [lng, lat]
-          },
-          timestamp: new Date(),
-          status: order.status
-        });
+        if (!sameCoordinates) {
+          // Avoid duplicate history entries when the same point is submitted repeatedly.
+          order.trackingHistory.push({
+            location: {
+              type: 'Point',
+              coordinates: [lng, lat]
+            },
+            timestamp: new Date(),
+            status: order.status
+          });
+        }
 
         await order.save();
 

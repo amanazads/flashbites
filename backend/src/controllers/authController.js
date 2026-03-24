@@ -1,9 +1,14 @@
 const axios = require('axios');
 const User = require('../models/User');
-const { generateToken, generateRefreshToken } = require('../utils/tokenUtils');
+const { generateToken, generateRefreshToken, hashRefreshToken } = require('../utils/tokenUtils');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { verifyFirebaseToken } = require('../config/firebaseAdmin');
 const { sendWelcomeEmail, sendPasswordResetSuccessEmail } = require('../utils/emailService');
+
+const storeRefreshTokenHash = async (user, rawRefreshToken) => {
+  user.refreshToken = hashRefreshToken(rawRefreshToken);
+  await user.save({ validateBeforeSave: false });
+};
 
 // @desc    Register new user (with Firebase Phone OTP verification)
 // @route   POST /api/auth/register
@@ -78,8 +83,7 @@ exports.register = async (req, res) => {
     const refreshToken = generateRefreshToken(user._id);
 
     // Save refresh token
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
+    await storeRefreshTokenHash(user, refreshToken);
 
     // Remove password from response
     user.password = undefined;
@@ -134,7 +138,8 @@ exports.login = async (req, res) => {
       const normalizedPhone = phone.replace(/\D/g, '').slice(-10);
       user = await User.findOne({ phone: normalizedPhone }).select('+password');
     } else {
-      user = await User.findOne({ email }).select('+password');
+      const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+      user = await User.findOne({ email: normalizedEmail }).select('+password');
     }
 
     if (!user) {
@@ -165,8 +170,7 @@ exports.login = async (req, res) => {
     const refreshToken = generateRefreshToken(user._id);
 
     // Save refresh token
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
+    await storeRefreshTokenHash(user, refreshToken);
 
     // Remove sensitive fields
     user.password = undefined;
@@ -214,7 +218,7 @@ exports.refreshToken = async (req, res) => {
 
     const user = await User.findOne({
       _id: decoded.id,
-      refreshToken: refreshToken
+      refreshToken: hashRefreshToken(refreshToken)
     });
 
     if (!user) {
@@ -270,8 +274,7 @@ exports.updatePassword = async (req, res) => {
     const accessToken = generateToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
+    await storeRefreshTokenHash(user, refreshToken);
 
     successResponse(res, 200, 'Password updated successfully', {
       accessToken,
@@ -359,8 +362,7 @@ exports.googleAuth = async (req, res) => {
     const accessToken = generateToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
+    await storeRefreshTokenHash(user, refreshToken);
 
     user.password = undefined;
     user.refreshToken = undefined;

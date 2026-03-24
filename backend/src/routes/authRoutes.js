@@ -14,19 +14,27 @@ const {
   // googleAuth // Commented out - not using Google OAuth for now
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
+const validateRequest = require('../middleware/validateRequest');
+const {
+  registerValidator,
+  loginValidator,
+  refreshTokenValidator,
+  updatePasswordValidator,
+  resetPasswordValidator,
+} = require('../validators/authValidators');
 
 // OTP routes
 router.post('/send-otp', sendOTP);
 router.post('/verify-otp', verifyOTP);
 
 // Auth routes
-router.post('/register', register);
-router.post('/login', login);
+router.post('/register', registerValidator, validateRequest, register);
+router.post('/login', loginValidator, validateRequest, login);
 router.post('/logout', protect, logout);
-router.post('/refresh', refreshToken);
+router.post('/refresh', refreshTokenValidator, validateRequest, refreshToken);
 router.get('/me', protect, getMe);
-router.put('/password', protect, updatePassword);
-router.post('/reset-password', resetPassword);
+router.put('/password', protect, updatePasswordValidator, validateRequest, updatePassword);
+router.post('/reset-password', resetPasswordValidator, validateRequest, resetPassword);
 
 // Google OAuth routes - COMMENTED OUT
 // router.get('/google', 
