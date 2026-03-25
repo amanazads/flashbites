@@ -180,7 +180,7 @@ const TermsAndConditions = () => {
               <li>First: customer support</li>
               <li>Then: arbitration</li>
               <li>Law: India</li>
-              <li>Seat: Delhi / Chandigarh</li>
+              <li>Seat: Lucknow</li>
               <li>Language: English</li>
             </ul>
           </section>

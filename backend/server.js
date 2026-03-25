@@ -75,15 +75,48 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: 'Too many requests from this IP, please try again later.',
-  skip: (req) => req.path.startsWith('/api/admin')
+  // Admin and auth have their own dedicated limiters.
+  skip: (req) => req.path.startsWith('/api/admin') || req.path.startsWith('/api/auth')
 });
 
 const authLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
-  max: process.env.NODE_ENV === 'production' ? 30 : 120,
+  max: process.env.NODE_ENV === 'production' ? 120 : 300,
   standardHeaders: true,
   legacyHeaders: false,
   message: 'Too many auth attempts. Please try again later.'
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: process.env.NODE_ENV === 'production' ? 40 : 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many registration attempts. Please try again later.',
+  keyGenerator: (req) => {
+    const phone = typeof req.body?.phone === 'string' ? req.body.phone.trim() : '';
+    if (phone) return `register:phone:${phone}`;
+    const safeIp = typeof rateLimit.ipKeyGenerator === 'function'
+      ? rateLimit.ipKeyGenerator(req.ip)
+      : req.ip;
+    return `register:ip:${safeIp}`;
+  }
+});
+
+const loginLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: process.env.NODE_ENV === 'production' ? 25 : 80,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many login attempts. Please try again later.',
+  keyGenerator: (req) => {
+    const phone = typeof req.body?.phone === 'string' ? req.body.phone.trim() : '';
+    if (phone) return `login:phone:${phone}`;
+    const safeIp = typeof rateLimit.ipKeyGenerator === 'function'
+      ? rateLimit.ipKeyGenerator(req.ip)
+      : req.ip;
+    return `login:ip:${safeIp}`;
+  }
 });
 
 const paymentLimiter = rateLimit({
@@ -184,7 +217,10 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // API Routes
-app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', authLimiter);
+app.use('/api/auth/register', registerLimiter);
+app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/menu', menuRoutes);

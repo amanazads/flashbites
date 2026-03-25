@@ -19,6 +19,9 @@ const Register = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPasswordGuide, setShowPasswordGuide] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -88,11 +91,26 @@ const Register = () => {
     return '';
   };
 
+  const passwordRules = {
+    minLength: (formData.password || '').length >= 6,
+    uppercase: /[A-Z]/.test(formData.password || ''),
+    lowercase: /[a-z]/.test(formData.password || ''),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(formData.password || '')
+  };
+
+  const passwordValid = Object.values(passwordRules).every(Boolean);
+  const passwordsMatch = Boolean(formData.confirmPassword) && formData.password === formData.confirmPassword;
+
   const handleSendOTP = async (e) => {
     e.preventDefault();
 
     const validationError = getRegistrationValidationError();
     if (validationError) {
+      const isPasswordValidation = validationError.toLowerCase().includes('password');
+      if (isPasswordValidation) {
+        setShowPasswordGuide(true);
+        return;
+      }
       toast.error(validationError);
       return;
     }
@@ -304,15 +322,72 @@ const Register = () => {
 
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Password</label>
-                  <input name="password" type="password" required value={formData.password} onChange={handleChange}
-                    placeholder="Min 6 characters" className="input-field" />
+                  <div className="relative">
+                    <input
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={formData.password}
+                      onChange={handleChange}
+                      onFocus={() => setShowPasswordGuide(true)}
+                      placeholder="Min 6 characters"
+                      className="input-field pr-16"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-500 hover:text-gray-700"
+                    >
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Confirm Password</label>
-                  <input name="confirmPassword" type="password" required value={formData.confirmPassword} onChange={handleChange}
-                    placeholder="Re-enter password" className="input-field" />
+                  <div className="relative">
+                    <input
+                      name="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      required
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      onFocus={() => setShowPasswordGuide(true)}
+                      placeholder="Re-enter password"
+                      className="input-field pr-16"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-500 hover:text-gray-700"
+                    >
+                      {showConfirmPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
                 </div>
+
+                {showPasswordGuide && (
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs space-y-1">
+                    <p className="font-semibold text-gray-700">Password requirements</p>
+                    <p className={passwordRules.minLength ? 'text-green-600' : 'text-gray-500'}>
+                      {passwordRules.minLength ? '✓' : '•'} At least 6 characters
+                    </p>
+                    <p className={passwordRules.uppercase ? 'text-green-600' : 'text-gray-500'}>
+                      {passwordRules.uppercase ? '✓' : '•'} One uppercase letter
+                    </p>
+                    <p className={passwordRules.lowercase ? 'text-green-600' : 'text-gray-500'}>
+                      {passwordRules.lowercase ? '✓' : '•'} One lowercase letter
+                    </p>
+                    <p className={passwordRules.special ? 'text-green-600' : 'text-gray-500'}>
+                      {passwordRules.special ? '✓' : '•'} One special character
+                    </p>
+                    {formData.confirmPassword && (
+                      <p className={passwordsMatch ? 'text-green-600' : 'text-red-500'}>
+                        {passwordsMatch ? '✓ Passwords match' : '• Passwords do not match'}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <button type="submit" disabled={loading} className="btn-primary w-full py-3.5 mt-2">
                   {loading ? (
