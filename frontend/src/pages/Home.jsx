@@ -569,7 +569,7 @@ const Home = () => {
       />
       <div className="max-w-7xl mx-auto w-full max-[388px]:px-3">
 
-        <div className="sticky top-[calc(var(--nav-height-mob)+env(safe-area-inset-top,0px))] z-40 bg-[var(--bg-app)] pb-2 mb-3 sm:mb-4">
+        <div className="sticky top-[calc(var(--nav-height-mob)+env(safe-area-inset-top,0px))] z-40 bg-[var(--bg-app)] pb-3 mb-4 sm:mb-5">
 
       {/* ══════════════════════════════════
           DELIVERY ADDRESS SELECTOR
@@ -695,7 +695,7 @@ const Home = () => {
       {/* ══════════════════════════════════
           SEARCH BAR
       ══════════════════════════════════ */}
-      <div className="container-px pb-5 lg:hidden max-[388px]:pb-3">
+      <div className="container-px pb-6 lg:hidden max-[388px]:pb-4">
         <form onSubmit={handleSearch} ref={searchRef} className="relative">
           <div className="search-bar">
             <img
@@ -782,8 +782,8 @@ const Home = () => {
       </div>
 
       {/* Promo banners — Figma style */}
-      <div className="mb-6 container-px">
-        <div className="snap-scroll-row pt-1 pb-2" ref={promoRowRef}>
+      <div className="mt-2 sm:mt-3 mb-6 container-px">
+        <div className="snap-scroll-row pt-2 pb-2" ref={promoRowRef}>
           {promoLoopItems.map((p, index) => (
             <Link
               key={`${p.id || p.tag || 'promo'}-${index}`}
