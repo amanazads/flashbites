@@ -122,7 +122,7 @@ const Home = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { restaurants, loading, error: restaurantError } = useSelector((s) => s.restaurant);
-  const { isAuthenticated } = useSelector((s) => s.auth);
+  const { isAuthenticated, user } = useSelector((s) => s.auth);
   const selectedAddress = useSelector((s) => s.ui.selectedDeliveryAddress);
   const { items: cartItems } = useSelector((s) => s.cart);
 
@@ -477,6 +477,7 @@ const Home = () => {
   const cartTotal = calculateCartTotal(cartItems);
   const [cartExpanded, setCartExpanded] = useState(false);
   const greeting = new Date().getHours() >= 17 ? 'Good Evening' : 'Hello';
+  const displayName = isAuthenticated ? (user?.name?.split(' ')[0] || 'Friend') : 'Guest';
 
   useEffect(() => {
     if (activeCat === 'all') {
@@ -633,7 +634,7 @@ const Home = () => {
           >
             <div className="rounded-3xl border border-gray-200 p-4 sm:p-5 backdrop-blur-xl" style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.94), rgba(250,250,250,0.92))', boxShadow: '0 4px 14px rgba(15,23,42,0.08)' }}>
               <p className="text-[13px] tracking-wide text-gray-500">{greeting},</p>
-              <h1 className="text-gray-900 text-2xl sm:text-3xl font-black mt-1" style={{ letterSpacing: '-0.03em' }}>Aman</h1>
+              <h1 className="text-gray-900 text-2xl sm:text-3xl font-black mt-1" style={{ letterSpacing: '-0.03em' }}>{displayName}</h1>
 
               <form onSubmit={handleSearch} ref={searchRef} className="relative mt-4">
                 <div className="flex items-center gap-3 rounded-full border border-gray-200 px-4 py-3 bg-white focus-within:border-[#F97316] focus-within:shadow-[0_0_0_2px_rgba(255,122,0,0.14)] transition-all">
