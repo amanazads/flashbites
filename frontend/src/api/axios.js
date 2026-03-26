@@ -50,6 +50,10 @@ const getRefreshToken = async () => {
 
 let refreshPromise = null;
 
+const protectedPagePrefixes = ['/checkout', '/orders', '/payment', '/profile', '/notifications', '/dashboard', '/delivery-dashboard', '/admin'];
+
+const isOnProtectedPage = () => protectedPagePrefixes.some((prefix) => window.location.pathname.startsWith(prefix));
+
 const instance = axios.create({
   baseURL: apiUrl,
   timeout: isCapacitor ? 60000 : 30000, // 60s on mobile (Render cold start), 30s on web
@@ -92,7 +96,7 @@ instance.interceptors.request.use(
       const startedAt = await getSessionStartedAt();
       if (startedAt && Date.now() - startedAt > SESSION_MAX_AGE_MS) {
         await clearAuthStorage();
-        if (!window.location.pathname.includes('/login')) {
+        if (isOnProtectedPage() && !window.location.pathname.includes('/login')) {
           window.location.href = '/login';
         }
         return Promise.reject(new Error('Session expired after 30 days. Please login again.'));
@@ -169,7 +173,7 @@ instance.interceptors.response.use(
         } catch (refreshError) {
           refreshPromise = null;
           await clearAuthStorage();
-          if (!window.location.pathname.includes('/login')) {
+          if (isOnProtectedPage() && !window.location.pathname.includes('/login')) {
             window.location.href = '/login';
           }
           return Promise.reject(refreshError);
@@ -191,12 +195,11 @@ instance.interceptors.response.use(
       // Background calls (FCM token, /auth/me, socket setup, etc.) should NOT wipe the session.
       const protectedRoutes = ['/checkout', '/orders', '/payment', '/profile', '/auth/logout', '/users/addresses'];
       const isProtectedRequest = protectedRoutes.some(route => url.includes(route));
-      const protectedPagePrefixes = ['/checkout', '/orders', '/payment', '/profile', '/notifications', '/dashboard', '/delivery-dashboard', '/admin'];
-      const isOnProtectedPage = protectedPagePrefixes.some((prefix) => window.location.pathname.startsWith(prefix));
+      const onProtectedPage = isOnProtectedPage();
 
       // Only clear tokens + redirect when this is a user-facing protected action, not a background call.
       // This prevents register/login flows from being disrupted by background 401s (e.g. FCM token, /auth/me)
-      if (isProtectedRequest && isOnProtectedPage) {
+      if (isProtectedRequest && onProtectedPage) {
         await clearAuthStorage();
 
         if (!window.location.pathname.includes('/login')) {

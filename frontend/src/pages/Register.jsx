@@ -155,6 +155,11 @@ const Register = () => {
   const handleSendOTP = async (e) => {
     e.preventDefault();
 
+    if (otpBlockRemaining > 0) {
+      toast.error(`Please wait ${otpBlockRemaining}s before requesting OTP again.`);
+      return;
+    }
+
     const validationError = getRegistrationValidationError();
     if (validationError) {
       const isPasswordValidation = validationError.toLowerCase().includes('password');
@@ -174,9 +179,9 @@ const Register = () => {
       setStep(2);
       setResendCountdown(30); // 30s before resend allowed
     } catch (error) {
-      console.error('Send OTP error:', error);
       if (isTooManyRequestsError(error)) {
-        toast.error(`Too many OTP attempts from Firebase for +91${formData.phone}. Try another number or retry after a short wait.`);
+        startOtpBlock();
+        toast.error('OTP is temporarily rate-limited for this number/device. Please wait a few minutes and try again.');
         return;
       }
       toast.error(getReadableFirebaseAuthError(error));
@@ -259,7 +264,7 @@ const Register = () => {
   };
 
   const handleResendOTP = async () => {
-    if (resendCountdown > 0) return;
+    if (resendCountdown > 0 || otpBlockRemaining > 0) return;
     setLoading(true);
     try {
       const phoneWithCode = `+91${formData.phone}`;
@@ -268,7 +273,8 @@ const Register = () => {
       setResendCountdown(30);
     } catch (error) {
       if (isTooManyRequestsError(error)) {
-        toast.error(`Too many OTP attempts from Firebase for +91${formData.phone}. Try another number or retry after a short wait.`);
+        startOtpBlock();
+        toast.error('OTP is temporarily rate-limited for this number/device. Please wait a few minutes and try again.');
         return;
       }
       toast.error(getReadableFirebaseAuthError(error));
@@ -439,13 +445,13 @@ const Register = () => {
                   </div>
                 )}
 
-                <button type="submit" disabled={loading} className="btn-primary w-full py-3.5 mt-2">
+                <button type="submit" disabled={loading || otpBlockRemaining > 0} className="btn-primary w-full py-3.5 mt-2">
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
                       <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                       Sending OTP...
                     </span>
-                  ) : 'Send OTP →'}
+                  ) : otpBlockRemaining > 0 ? `Try again in ${otpBlockRemaining}s` : 'Send OTP →'}
                 </button>
               </form>
             )}
@@ -475,9 +481,9 @@ const Register = () => {
 
                 <div className="flex items-center justify-between text-sm">
                   <button type="button" onClick={handleResendOTP}
-                    disabled={loading || resendCountdown > 0}
+                    disabled={loading || resendCountdown > 0 || otpBlockRemaining > 0}
                     className="font-semibold disabled:opacity-40" style={{ color: BRAND }}>
-                    {resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend OTP'}
+                    {otpBlockRemaining > 0 ? `Try again in ${otpBlockRemaining}s` : resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend OTP'}
                   </button>
                   <button type="button" onClick={() => setStep(1)}
                     className="text-gray-400 hover:text-gray-600">
