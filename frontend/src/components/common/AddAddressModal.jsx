@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { addAddress } from '../../api/userApi';
+import { reverseGeocodeCoordinates } from '../../api/locationApi';
 import toast from 'react-hot-toast';
 import AddressInput from '../location/AddressInput';
 import MapPicker from '../location/MapPicker';
@@ -17,6 +18,8 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
     coordinates: null
   });
   const [loading, setLoading] = useState(false);
+  const [reverseLookupLoading, setReverseLookupLoading] = useState(false);
+  const [locating, setLocating] = useState(false);
 
   const getQueryText = () => {
     const query = [formData.street, formData.landmark, formData.city, formData.state, formData.zipCode, 'India']
@@ -61,17 +64,35 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
 
     setFormData((prev) => ({ ...prev, coordinates: [lngNum, latNum] }));
 
-    // Keep selected coordinates from map click. User can refine text fields manually.
+    // Auto-fill address fields from the map pin for better coordinate/address consistency.
+    try {
+      setReverseLookupLoading(true);
+      const response = await reverseGeocodeCoordinates(latNum, lngNum);
+      const location = response?.data?.location || response?.location || null;
+      if (!location) return;
+
+      setFormData((prev) => ({
+        ...prev,
+        fullAddress: location.fullAddress || prev.fullAddress,
+        street: location.street || prev.street,
+        city: location.city || prev.city,
+        state: location.state || prev.state,
+        zipCode: location.zipCode || prev.zipCode,
+        coordinates: [lngNum, latNum]
+      }));
+    } catch {
+      // Keep coordinates even if reverse lookup fails.
+    } finally {
+      setReverseLookupLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.street || !formData.city || !formData.state) {
-      if (!formData.fullAddress?.trim()) {
-        toast.error('Please fill address details and select from suggestions');
-        return;
-      }
+    if (!formData.fullAddress?.trim()) {
+      toast.error('Please search and select a delivery address');
+      return;
     }
 
     const coordinates = formData.coordinates;
@@ -84,6 +105,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
     try {
       const payload = {
         ...formData,
+        street: formData.street || formData.fullAddress,
         fullAddress: formData.fullAddress || getQueryText(),
         coordinates,
         lat: coordinates?.[1],
@@ -115,6 +137,73 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUseCurrentLocation = () => {
+    setLocating(true);
+
+    const browserFallback = () => {
+      if (!navigator.geolocation) {
+        setLocating(false);
+        toast.error('Geolocation is not supported on this device/browser');
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = Number(position?.coords?.latitude);
+          const lng = Number(position?.coords?.longitude);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            setLocating(false);
+            toast.error('Unable to read your current location');
+            return;
+          }
+
+          await handleMapSelect({ lat, lng });
+          setLocating(false);
+          toast.success('Current location selected');
+        },
+        () => {
+          setLocating(false);
+          toast.error('Unable to fetch current location. Please allow location permission.');
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
+    };
+
+    // Use native permission flow in Capacitor apps.
+    if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
+      import('@capacitor/geolocation')
+        .then(async ({ Geolocation }) => {
+          await Geolocation.requestPermissions();
+          const position = await Geolocation.getCurrentPosition({
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0,
+          });
+
+          const lat = Number(position?.coords?.latitude);
+          const lng = Number(position?.coords?.longitude);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            throw new Error('Invalid location coordinates');
+          }
+
+          await handleMapSelect({ lat, lng });
+          setLocating(false);
+          toast.success('Current location selected');
+        })
+        .catch(() => {
+          // Fallback to browser geolocation in case plugin is unavailable.
+          browserFallback();
+        });
+      return;
+    }
+
+    browserFallback();
   };
 
   if (!isOpen) return null;
@@ -164,27 +253,27 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
             </div>
           </div>
 
-          {/* Street */}
+          {/* Search address */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Street Address *
+              Search Delivery Address *
             </label>
+            <button
+              type="button"
+              onClick={handleUseCurrentLocation}
+              disabled={locating}
+              className="mb-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold border border-primary-200 text-primary-700 bg-primary-50 hover:bg-primary-100 disabled:opacity-60"
+            >
+              {locating ? 'Locating...' : 'Use Current Location'}
+            </button>
             <AddressInput
-              value={formData.fullAddress || formData.street}
-              onChange={(value) => setFormData({ ...formData, street: value, fullAddress: value, coordinates: null })}
+              value={formData.fullAddress}
+              onChange={(value) => setFormData({ ...formData, fullAddress: value, coordinates: null })}
               onSelect={handleGoogleAddressSelect}
               placeholder="Search delivery address"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
-            <input
-              type="text"
-              value={formData.street}
-              onChange={(e) => setFormData({ ...formData, street: e.target.value, fullAddress: e.target.value, coordinates: null })}
-              placeholder="House/Flat No., Street name"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              required
-            />
-            <p className="mt-1 text-xs text-gray-500">Select an address from suggestions to lock accurate coordinates.</p>
+            <p className="mt-1 text-xs text-gray-500">Select from suggestions, then optionally fine-tune the pin on map.</p>
           </div>
 
           <div className="mb-4">
@@ -204,6 +293,23 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
                 Coordinates: {Number(formData.coordinates[1]).toFixed(6)}, {Number(formData.coordinates[0]).toFixed(6)}
               </p>
             )}
+            {reverseLookupLoading && (
+              <p className="mt-1 text-xs text-gray-500">Resolving map pin address...</p>
+            )}
+          </div>
+
+          {/* Flat / house details */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Flat / House / Area Details
+            </label>
+            <input
+              type="text"
+              value={formData.street}
+              onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+              placeholder="Flat no, floor, nearby spot"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
           </div>
 
           {/* Landmark */}
@@ -224,28 +330,26 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                City *
+                City
               </label>
               <input
                 type="text"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                placeholder="City"
+                placeholder="Auto-filled city"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                State *
+                State
               </label>
               <input
                 type="text"
                 value={formData.state}
                 onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                placeholder="State"
+                placeholder="Auto-filled state"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                required
               />
             </div>
           </div>

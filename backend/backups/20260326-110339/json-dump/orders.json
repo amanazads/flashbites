@@ -1,0 +1,758 @@
+[
+  {
+    "_id": "69bcf829b3fd40285585f279",
+    "userId": "69bcf786b3fd40285585f24e",
+    "restaurantId": "69ad0b5fae88d71cf65d21ec",
+    "deliveryPartnerId": null,
+    "addressId": "69bcf802b3fd40285585f272",
+    "deliveryAddress": null,
+    "items": [
+      {
+        "menuItemId": "69ada3cf174aa3749951099c",
+        "name": "Lachha Paratha",
+        "quantity": 1,
+        "price": 44,
+        "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1772987342/flashbites/menu-items/jvdq9fhftxr2737hf8rg.jpg",
+        "_id": "69bcf829b3fd40285585f27a"
+      },
+      {
+        "menuItemId": "69ad876a174aa37499510916",
+        "name": "Regular Thali",
+        "quantity": 2,
+        "price": 99,
+        "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1772980072/flashbites/menu-items/smp2jvtuj76fap7nhdyk.jpg",
+        "_id": "69bcf829b3fd40285585f27b"
+      }
+    ],
+    "subtotal": 242,
+    "deliveryFee": 30,
+    "tax": 12.100000000000001,
+    "discount": 0,
+    "couponCode": null,
+    "total": 284.1,
+    "paymentMethod": "cod",
+    "paymentStatus": "pending",
+    "status": "pending",
+    "estimatedDelivery": "2026-03-20T08:02:57.414Z",
+    "cancellationFee": 0,
+    "refundAmount": 0,
+    "deliveryPartnerLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "trackingHistory": [],
+    "createdAt": "2026-03-20T07:32:57.643Z",
+    "updatedAt": "2026-03-20T07:32:57.643Z",
+    "__v": 0
+  },
+  {
+    "_id": "69bd6606b3fd40285585f6bd",
+    "userId": "69bd6507b3fd40285585f65f",
+    "restaurantId": "69ad04ddadadf0706a4464a5",
+    "deliveryPartnerId": null,
+    "addressId": "69bd65a1b3fd40285585f697",
+    "deliveryAddress": null,
+    "items": [
+      {
+        "menuItemId": "69ae8a99174aa37499510a26",
+        "name": "Cheese & Capsicum Pizza (Regular)",
+        "quantity": 1,
+        "price": 163,
+        "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1773046424/flashbites/menu-items/rfcedahhvl2q1fppko7w.jpg",
+        "_id": "69bd6606b3fd40285585f6be"
+      }
+    ],
+    "subtotal": 163,
+    "deliveryFee": 30,
+    "tax": 8.15,
+    "discount": 0,
+    "couponCode": null,
+    "total": 201.15,
+    "paymentMethod": "cod",
+    "paymentStatus": "pending",
+    "status": "cancelled",
+    "estimatedDelivery": "2026-03-20T15:51:42.330Z",
+    "cancellationFee": 0,
+    "refundAmount": 0,
+    "deliveryPartnerLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "trackingHistory": [],
+    "createdAt": "2026-03-20T15:21:42.556Z",
+    "updatedAt": "2026-03-20T15:31:46.286Z",
+    "__v": 0,
+    "cancellationReason": "Cancelled by restaurant",
+    "cancelledAt": "2026-03-20T15:31:46.283Z"
+  },
+  {
+    "_id": "69be60e2237f471f6ef65a88",
+    "userId": "69bd55cab3fd40285585f2ce",
+    "restaurantId": "69ad04ddadadf0706a4464a5",
+    "deliveryPartnerId": "69bcf786b3fd40285585f24e",
+    "addressId": "69be60d9237f471f6ef65a81",
+    "deliveryAddress": null,
+    "items": [
+      {
+        "menuItemId": "69ae8a99174aa37499510a26",
+        "name": "Cheese & Capsicum Pizza (Regular)",
+        "quantity": 1,
+        "price": 163,
+        "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1773046424/flashbites/menu-items/rfcedahhvl2q1fppko7w.jpg",
+        "_id": "69be60e2237f471f6ef65a89"
+      }
+    ],
+    "subtotal": 163,
+    "deliveryFee": 30,
+    "tax": 8.15,
+    "discount": 0,
+    "couponCode": null,
+    "total": 201.15,
+    "paymentMethod": "cod",
+    "paymentStatus": "pending",
+    "status": "delivered",
+    "estimatedDelivery": "2026-03-21T09:42:02.033Z",
+    "cancellationFee": 0,
+    "refundAmount": 0,
+    "deliveryPartnerLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "trackingHistory": [],
+    "createdAt": "2026-03-21T09:12:02.260Z",
+    "updatedAt": "2026-03-24T15:13:17.317Z",
+    "__v": 0,
+    "confirmedAt": "2026-03-21T09:12:37.426Z",
+    "deliveredAt": "2026-03-21T09:16:33.761Z",
+    "adminEarning": 63.35,
+    "deliveryPartnerEarning": 40,
+    "deliveryPartnerPayoutSnapshot": {
+      "perOrder": 40,
+      "bonusThreshold": 13,
+      "bonusAmount": 850,
+      "bonusApplied": false
+    },
+    "restaurantEarning": 97.8,
+    "restaurantPayoutRateSnapshot": 0.6,
+    "deliveryEarning": 40,
+    "platformProfit": 63.35,
+    "totalAmount": 201.15
+  },
+  {
+    "_id": "69bfea5c1f608824d9f040f3",
+    "userId": "69bab5f695555a6ada09c844",
+    "restaurantId": "69ad04ddadadf0706a4464a5",
+    "deliveryPartnerId": null,
+    "addressId": "69bfc28b74237fd5bd87fe0c",
+    "deliveryAddress": {
+      "street": "near vmart sidhauli",
+      "city": "Sidhauli",
+      "state": "UTTAR PRADESH",
+      "zipCode": "261303",
+      "coordinates": [
+        80.8337913,
+        27.2525389
+      ]
+    },
+    "items": [
+      {
+        "menuItemId": "69afb092a14082a2ff2d2f60",
+        "name": "Hot Coffee",
+        "quantity": 1,
+        "price": 33,
+        "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1773122097/flashbites/menu-items/o6g1nhxdx0ieiodwtshj.jpg",
+        "_id": "69bfea5c1f608824d9f040f4"
+      }
+    ],
+    "subtotal": 33,
+    "deliveryFee": 30,
+    "tax": 1.6500000000000001,
+    "discount": 0,
+    "couponCode": null,
+    "total": 64.65,
+    "paymentMethod": "upi",
+    "paymentStatus": "refunded",
+    "status": "cancelled",
+    "estimatedDelivery": "2026-03-22T13:40:52.554Z",
+    "cancellationFee": 0,
+    "refundAmount": 64.65,
+    "deliveryPartnerLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "trackingHistory": [],
+    "createdAt": "2026-03-22T13:10:52.792Z",
+    "updatedAt": "2026-03-22T13:12:46.681Z",
+    "__v": 0,
+    "cancellationReason": "Ordered by mistake",
+    "cancelledAt": "2026-03-22T13:12:46.680Z"
+  },
+  {
+    "_id": "69bfee721f608824d9f042b1",
+    "userId": "69bab5f695555a6ada09c844",
+    "restaurantId": "69ad04ddadadf0706a4464a5",
+    "deliveryPartnerId": null,
+    "addressId": "69bfc28b74237fd5bd87fe0c",
+    "deliveryAddress": {
+      "street": "near vmart sidhauli",
+      "city": "Sidhauli",
+      "state": "UTTAR PRADESH",
+      "zipCode": "261303",
+      "coordinates": [
+        80.8337913,
+        27.2525389
+      ]
+    },
+    "items": [
+      {
+        "menuItemId": "69afb9dfa14082a2ff2d2fb0",
+        "name": "Veggie Roll",
+        "quantity": 1,
+        "price": 75.9,
+        "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1773124062/flashbites/menu-items/s2hekbcfk1yhjmogxhgu.jpg",
+        "_id": "69bfee721f608824d9f042b2"
+      }
+    ],
+    "subtotal": 75.9,
+    "deliveryFee": 30,
+    "tax": 3.7950000000000004,
+    "discount": 0,
+    "couponCode": null,
+    "total": 109.69500000000001,
+    "paymentMethod": "upi",
+    "paymentStatus": "pending",
+    "status": "cancelled",
+    "estimatedDelivery": "2026-03-22T13:58:18.017Z",
+    "cancellationFee": 0,
+    "refundAmount": 0,
+    "deliveryPartnerLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "trackingHistory": [],
+    "createdAt": "2026-03-22T13:28:18.246Z",
+    "updatedAt": "2026-03-23T15:34:17.682Z",
+    "__v": 0,
+    "cancellationReason": "Cancelled by restaurant",
+    "cancelledAt": "2026-03-23T15:34:17.681Z",
+    "platformFee": 0
+  },
+  {
+    "_id": "69c108405d785c9cc04065ea",
+    "userId": "69bd6507b3fd40285585f65f",
+    "restaurantId": "69ad04ddadadf0706a4464a5",
+    "deliveryPartnerId": null,
+    "addressId": "69c1082e5d785c9cc04065db",
+    "deliveryAddress": {
+      "street": "NH24 Narottam Nagar Sidhauli",
+      "city": "Sitapur",
+      "state": "Uttar Pradesh",
+      "zipCode": "261303",
+      "coordinates": [
+        80.8337913,
+        27.2525389
+      ]
+    },
+    "items": [
+      {
+        "menuItemId": "69afb2eda14082a2ff2d2f82",
+        "name": "White Sauce Pasta",
+        "quantity": 1,
+        "price": 108.9,
+        "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1773122284/flashbites/menu-items/sawsxgulwhvh3gcwjt46.jpg",
+        "_id": "69c108405d785c9cc04065eb"
+      }
+    ],
+    "subtotal": 108.9,
+    "deliveryFee": 0,
+    "platformFee": 25,
+    "tax": 10.89,
+    "discount": 0,
+    "couponCode": null,
+    "total": 144.79000000000002,
+    "paymentMethod": "upi",
+    "paymentStatus": "pending",
+    "status": "cancelled",
+    "estimatedDelivery": "2026-03-23T10:00:40.344Z",
+    "cancellationFee": 0,
+    "refundAmount": 0,
+    "deliveryPartnerLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "trackingHistory": [],
+    "createdAt": "2026-03-23T09:30:40.587Z",
+    "updatedAt": "2026-03-23T15:33:53.617Z",
+    "__v": 0,
+    "cancellationReason": "Cancelled by restaurant",
+    "cancelledAt": "2026-03-23T15:33:53.613Z"
+  },
+  {
+    "_id": "69c275d5e3f4fa94f0056c1c",
+    "userId": "69c2682f6d5648a954347c46",
+    "restaurantId": "69ad04ddadadf0706a4464a5",
+    "deliveryPartnerId": null,
+    "addressId": "69c274f0e3f4fa94f0056bff",
+    "deliveryAddress": {
+      "street": "Main Road",
+      "city": "Sidhauli",
+      "state": "Uttar Pradesh",
+      "zipCode": "261303",
+      "fullAddress": "Main Road, Sidhauli, Uttar Pradesh 261303",
+      "lat": 27.28,
+      "lng": 80.83,
+      "coordinates": [
+        80.83,
+        27.28
+      ]
+    },
+    "items": [
+      {
+        "menuItemId": "69afb14ba14082a2ff2d2f6a",
+        "name": "Strawberry Milk Shake",
+        "quantity": 1,
+        "price": 99,
+        "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1773121866/flashbites/menu-items/cn7elspfgwqnmykeczud.jpg",
+        "_id": "69c275d5e3f4fa94f0056c1d"
+      }
+    ],
+    "subtotal": 99,
+    "deliveryFee": 0,
+    "platformFee": 25,
+    "tax": 9.9,
+    "discount": 0,
+    "total": 133.9,
+    "paymentMethod": "cod",
+    "paymentStatus": "pending",
+    "status": "cancelled",
+    "deliveryInstructions": "Smoke test order",
+    "estimatedDelivery": "2026-03-24T12:00:29.057Z",
+    "cancellationFee": 0,
+    "refundAmount": 0,
+    "deliveryPartnerLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "trackingHistory": [],
+    "createdAt": "2026-03-24T11:30:29.284Z",
+    "updatedAt": "2026-03-24T17:23:34.537Z",
+    "__v": 0,
+    "adminEarning": 0,
+    "cancellationReason": "na",
+    "cancelledAt": "2026-03-24T17:23:34.535Z",
+    "deliveryEarning": 0,
+    "deliveryPartnerEarning": 0,
+    "deliveryPartnerPayoutSnapshot": {
+      "bonusAmount": 0,
+      "bonusApplied": false,
+      "bonusThreshold": 13,
+      "perOrder": 0
+    },
+    "etaMinutes": 0,
+    "platformProfit": 0,
+    "restaurantEarning": 0,
+    "restaurantPayoutRateSnapshot": 0.75,
+    "totalAmount": 0
+  },
+  {
+    "_id": "69c277f7e3f4fa94f0056c3c",
+    "userId": "69c2682f6d5648a954347c46",
+    "restaurantId": "69ad04ddadadf0706a4464a5",
+    "deliveryPartnerId": null,
+    "addressId": "69c274f0e3f4fa94f0056bff",
+    "deliveryAddress": {
+      "street": "Main Road",
+      "city": "Sidhauli",
+      "state": "Uttar Pradesh",
+      "zipCode": "261303",
+      "fullAddress": "Main Road, Sidhauli, Uttar Pradesh 261303",
+      "lat": 27.28,
+      "lng": 80.83,
+      "coordinates": [
+        80.83,
+        27.28
+      ]
+    },
+    "items": [
+      {
+        "menuItemId": "69afb14ba14082a2ff2d2f6a",
+        "name": "Strawberry Milk Shake",
+        "quantity": 1,
+        "price": 99,
+        "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1773121866/flashbites/menu-items/cn7elspfgwqnmykeczud.jpg",
+        "_id": "69c277f7e3f4fa94f0056c3d"
+      }
+    ],
+    "subtotal": 99,
+    "deliveryFee": 0,
+    "platformFee": 25,
+    "tax": 9.9,
+    "discount": 0,
+    "total": 133.9,
+    "paymentMethod": "cod",
+    "paymentStatus": "pending",
+    "status": "cancelled",
+    "deliveryInstructions": "Smoke test order",
+    "estimatedDelivery": "2026-03-24T12:09:35.579Z",
+    "cancellationFee": 0,
+    "refundAmount": 0,
+    "deliveryPartnerLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "trackingHistory": [],
+    "createdAt": "2026-03-24T11:39:35.802Z",
+    "updatedAt": "2026-03-24T17:23:18.297Z",
+    "__v": 0,
+    "adminEarning": 0,
+    "cancellationReason": "na",
+    "cancelledAt": "2026-03-24T17:23:18.295Z",
+    "deliveryEarning": 0,
+    "deliveryPartnerEarning": 0,
+    "deliveryPartnerPayoutSnapshot": {
+      "bonusAmount": 0,
+      "bonusApplied": false,
+      "bonusThreshold": 13,
+      "perOrder": 0
+    },
+    "etaMinutes": 0,
+    "platformProfit": 0,
+    "restaurantEarning": 0,
+    "restaurantPayoutRateSnapshot": 0.75,
+    "totalAmount": 0
+  },
+  {
+    "_id": "69c27b53e3f4fa94f0056c5d",
+    "userId": "69c2682f6d5648a954347c46",
+    "restaurantId": "69ad04ddadadf0706a4464a5",
+    "deliveryPartnerId": null,
+    "addressId": "69c274f0e3f4fa94f0056bff",
+    "deliveryAddress": {
+      "street": "Main Road",
+      "city": "Sidhauli",
+      "state": "Uttar Pradesh",
+      "zipCode": "261303",
+      "fullAddress": "Main Road, Sidhauli, Uttar Pradesh 261303",
+      "lat": 27.28,
+      "lng": 80.83,
+      "coordinates": [
+        80.83,
+        27.28
+      ]
+    },
+    "items": [
+      {
+        "menuItemId": "69afb14ba14082a2ff2d2f6a",
+        "name": "Strawberry Milk Shake",
+        "quantity": 1,
+        "price": 99,
+        "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1773121866/flashbites/menu-items/cn7elspfgwqnmykeczud.jpg",
+        "_id": "69c27b53e3f4fa94f0056c5e"
+      }
+    ],
+    "subtotal": 99,
+    "deliveryFee": 0,
+    "platformFee": 25,
+    "tax": 9.9,
+    "discount": 0,
+    "total": 133.9,
+    "paymentMethod": "cod",
+    "paymentStatus": "pending",
+    "status": "cancelled",
+    "deliveryInstructions": "Smoke test order",
+    "estimatedDelivery": "2026-03-24T12:23:55.005Z",
+    "cancellationFee": 0,
+    "refundAmount": 0,
+    "deliveryPartnerLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "trackingHistory": [],
+    "createdAt": "2026-03-24T11:53:55.231Z",
+    "updatedAt": "2026-03-24T17:22:59.892Z",
+    "__v": 0,
+    "adminEarning": 0,
+    "cancellationReason": "na",
+    "cancelledAt": "2026-03-24T17:22:59.888Z",
+    "deliveryEarning": 0,
+    "deliveryPartnerEarning": 0,
+    "deliveryPartnerPayoutSnapshot": {
+      "bonusAmount": 0,
+      "bonusApplied": false,
+      "bonusThreshold": 13,
+      "perOrder": 0
+    },
+    "etaMinutes": 0,
+    "platformProfit": 0,
+    "restaurantEarning": 0,
+    "restaurantPayoutRateSnapshot": 0.75,
+    "totalAmount": 0
+  },
+  {
+    "_id": "69c2820b6a177b21309016ae",
+    "userId": "69c2682f6d5648a954347c46",
+    "restaurantId": "69bed9df3cfb9796c7d11bde",
+    "deliveryPartnerId": "69bcf786b3fd40285585f24e",
+    "addressId": "69c281c76a177b2130901693",
+    "deliveryAddress": {
+      "street": "Panjab University Swami Sarvanand Giri",
+      "city": "Hoshiarpur",
+      "state": "Punjab",
+      "zipCode": "146021",
+      "fullAddress": "Panjab University Swami Sarvanand Giri",
+      "lat": 31.51830294038064,
+      "lng": 75.9706393814087,
+      "coordinates": [
+        75.9706393814087,
+        31.51830294038064
+      ]
+    },
+    "items": [
+      {
+        "menuItemId": "69c215cc35f0ee98abdefd53",
+        "name": "Mint Dip",
+        "quantity": 1,
+        "price": 36,
+        "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1774327243/flashbites/menu-items/uiwahvfa1vch9wq9xb9o.jpg",
+        "_id": "69c2820b6a177b21309016af"
+      }
+    ],
+    "subtotal": 36,
+    "deliveryFee": 0,
+    "platformFee": 25,
+    "tax": 3.6,
+    "discount": 0,
+    "couponCode": null,
+    "total": 64.6,
+    "paymentMethod": "upi",
+    "paymentStatus": "completed",
+    "status": "delivered",
+    "estimatedDelivery": "2026-03-24T12:54:35.659Z",
+    "etaMinutes": 32,
+    "cancellationFee": 0,
+    "refundAmount": 0,
+    "deliveryPartnerLocation": {
+      "type": "Point",
+      "coordinates": [
+        75.96983247376255,
+        31.518030776353253
+      ],
+      "lastUpdated": "2026-03-24T12:31:38.743Z"
+    },
+    "trackingHistory": [
+      {
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            75.96966932961826,
+            31.51784626415006
+          ]
+        },
+        "timestamp": "2026-03-24T12:26:12.207Z",
+        "status": "out_for_delivery",
+        "_id": "69c282e46a177b213090178d"
+      },
+      {
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            75.96966932961826,
+            31.51784626415006
+          ]
+        },
+        "timestamp": "2026-03-24T12:26:12.213Z",
+        "status": "out_for_delivery",
+        "_id": "69c282e46a177b2130901790"
+      },
+      {
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            75.96966917466406,
+            31.517845935024297
+          ]
+        },
+        "timestamp": "2026-03-24T12:26:12.215Z",
+        "status": "out_for_delivery",
+        "_id": "69c282e46a177b2130901793"
+      },
+      {
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            75.96966932961826,
+            31.51784626415006
+          ]
+        },
+        "timestamp": "2026-03-24T12:26:12.231Z",
+        "status": "out_for_delivery",
+        "_id": "69c282e46a177b2130901796"
+      },
+      {
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            75.96966923665593,
+            31.517846065255988
+          ]
+        },
+        "timestamp": "2026-03-24T12:26:12.235Z",
+        "status": "out_for_delivery",
+        "_id": "69c282e46a177b2130901799"
+      },
+      {
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            75.96966930457823,
+            31.517846207927484
+          ]
+        },
+        "timestamp": "2026-03-24T12:26:37.427Z",
+        "status": "out_for_delivery",
+        "_id": "69c282fd6a177b21309017ad"
+      },
+      {
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            75.96966930457823,
+            31.517846207927484
+          ]
+        },
+        "timestamp": "2026-03-24T12:26:37.453Z",
+        "status": "out_for_delivery",
+        "_id": "69c282fd6a177b21309017b5"
+      },
+      {
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            75.96966928759076,
+            31.517846172301233
+          ]
+        },
+        "timestamp": "2026-03-24T12:26:37.457Z",
+        "status": "out_for_delivery",
+        "_id": "69c282fd6a177b21309017bd"
+      },
+      {
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            75.96966929311917,
+            31.5178461838944
+          ]
+        },
+        "timestamp": "2026-03-24T12:26:37.474Z",
+        "status": "out_for_delivery",
+        "_id": "69c282fd6a177b21309017c5"
+      },
+      {
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            75.96983232562448,
+            31.51803059474794
+          ]
+        },
+        "timestamp": "2026-03-24T12:31:38.621Z",
+        "status": "out_for_delivery",
+        "_id": "69c2842a6a177b2130901a2e"
+      },
+      {
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            75.96983232562448,
+            31.51803059474794
+          ]
+        },
+        "timestamp": "2026-03-24T12:31:38.639Z",
+        "status": "out_for_delivery",
+        "_id": "69c2842a6a177b2130901a3a"
+      },
+      {
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            75.96983232562448,
+            31.51803059474794
+          ]
+        },
+        "timestamp": "2026-03-24T12:31:38.653Z",
+        "status": "out_for_delivery",
+        "_id": "69c2842a6a177b2130901a46"
+      },
+      {
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            75.96983252640004,
+            31.518030839000634
+          ]
+        },
+        "timestamp": "2026-03-24T12:31:38.729Z",
+        "status": "out_for_delivery",
+        "_id": "69c2842a6a177b2130901a52"
+      },
+      {
+        "location": {
+          "type": "Point",
+          "coordinates": [
+            75.96983247376255,
+            31.518030776353253
+          ]
+        },
+        "timestamp": "2026-03-24T12:31:38.744Z",
+        "status": "out_for_delivery",
+        "_id": "69c2842a6a177b2130901a5e"
+      }
+    ],
+    "createdAt": "2026-03-24T12:22:35.889Z",
+    "updatedAt": "2026-03-24T15:13:17.317Z",
+    "__v": 14,
+    "confirmedAt": "2026-03-24T12:24:27.577Z",
+    "deliveredAt": "2026-03-24T12:31:52.957Z",
+    "adminEarning": 3,
+    "deliveryPartnerEarning": 40,
+    "deliveryPartnerPayoutSnapshot": {
+      "perOrder": 40,
+      "bonusThreshold": 13,
+      "bonusAmount": 850,
+      "bonusApplied": false
+    },
+    "restaurantEarning": 21.6,
+    "restaurantPayoutRateSnapshot": 0.6,
+    "deliveryEarning": 40,
+    "platformProfit": 3,
+    "totalAmount": 64.6
+  }
+]

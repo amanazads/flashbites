@@ -3,9 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { PlusIcon, MinusIcon } from '@heroicons/react/24/solid';
 import { addToCart, updateQuantity } from '../../redux/slices/cartSlice';
 import { formatCurrency } from '../../utils/formatters';
+import { BRAND } from '../../constants/theme';
 import toast from 'react-hot-toast';
-
-const BRAND = '#FF523B';
 
 const MenuCard = ({ item, restaurant, disabled = false }) => {
   const dispatch = useDispatch();

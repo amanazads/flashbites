@@ -1,25 +1,27 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import logo from '../../assets/logo.png';
-
-const BRAND = '#FF523B';
+import { BRAND } from '../../constants/theme';
 
 const Footer = () => {
   return (
-    <footer className="bg-gray-900 text-gray-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    <footer className="relative overflow-hidden border-t border-gray-200 bg-[#F8FAFC] text-gray-600">
+      <div className="pointer-events-none absolute -top-16 -left-20 h-64 w-64 rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,82,59,0.05), transparent 68%)' }} />
+      <div className="pointer-events-none absolute -bottom-20 -right-20 h-72 w-72 rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,82,59,0.04), transparent 72%)' }} />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
           {/* Company Info */}
           <div>
-            <div className="inline-flex items-center justify-start mb-4 rounded-lg bg-white/5 px-3 py-2">
+            <div className="inline-flex items-center justify-start mb-4 rounded-xl border border-gray-200 bg-white px-3 py-2 backdrop-blur-sm">
               <img
                 src={logo}
                 alt="FlashBites"
                 className="h-10 w-10 object-contain"
-                style={{ filter: 'brightness(1.25) contrast(1.15) drop-shadow(0 1px 1px rgba(0,0,0,0.35))' }}
+                style={{ filter: 'brightness(1.08) contrast(1.05)' }}
               />
             </div>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-gray-500 mb-4">
               Your favorite food delivered fast. Order from the best restaurants in town.
             </p>
             <div className="flex gap-4">
@@ -27,7 +29,7 @@ const Footer = () => {
                 href="https://www.linkedin.com/company/flash-bites/" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-gray-400 hover:text-white transition"
+                className="text-gray-500 hover:text-[var(--brand)] transition"
                 aria-label="LinkedIn"
               >
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -38,7 +40,7 @@ const Footer = () => {
                 href="https://www.instagram.com/flashbites.in/" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-gray-400 hover:text-white transition"
+                className="text-gray-500 hover:text-[var(--brand)] transition"
                 aria-label="Instagram"
               >
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -50,20 +52,20 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 className="text-white font-semibold mb-4">Quick Links</h4>
+            <h4 className="font-semibold mb-4" style={{ color: BRAND }}>Quick Links</h4>
             <ul className="space-y-2">
               <li>
-                <Link to="/restaurants" className="hover:text-white transition">
+                <Link to="/restaurants" className="hover:text-[var(--brand)] transition">
                   Restaurants
                 </Link>
               </li>
               <li>
-                <Link to="/about" className="hover:text-white transition">
+                <Link to="/about" className="hover:text-[var(--brand)] transition">
                   About Us
                 </Link>
               </li>
               <li>
-                <Link to="/contact" className="hover:text-white transition">
+                <Link to="/contact" className="hover:text-[var(--brand)] transition">
                   Contact
                 </Link>
               </li>
@@ -72,15 +74,15 @@ const Footer = () => {
 
           {/* For Partners */}
           <div>
-            <h4 className="text-white font-semibold mb-4">For Partners</h4>
+            <h4 className="font-semibold mb-4" style={{ color: BRAND }}>For Partners</h4>
             <ul className="space-y-2">
               <li>
-                <Link to="/partner" className="hover:text-white transition">
+                <Link to="/partner" className="hover:text-[var(--brand)] transition">
                   Partner with us
                 </Link>
               </li>
               <li>
-                <Link to="/login" className="hover:text-white transition">
+                <Link to="/login" className="hover:text-[var(--brand)] transition">
                   Restaurant Login
                 </Link>
               </li>
@@ -89,15 +91,15 @@ const Footer = () => {
 
           {/* Legal */}
           <div>
-            <h4 className="text-white font-semibold mb-4">Legal</h4>
+            <h4 className="font-semibold mb-4" style={{ color: BRAND }}>Legal</h4>
             <ul className="space-y-2">
               <li>
-                <Link to="/terms" className="hover:text-white transition">
+                <Link to="/terms" className="hover:text-[var(--brand)] transition">
                   Terms &amp; Conditions
                 </Link>
               </li>
               <li>
-                <Link to="/privacy" className="hover:text-white transition">
+                <Link to="/privacy" className="hover:text-[var(--brand)] transition">
                   Privacy Policy
                 </Link>
               </li>
@@ -105,8 +107,8 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="mt-8 pt-8 border-t border-gray-800 text-center text-sm">
-          <p>&copy; {new Date().getFullYear()} FlashBites. All rights reserved. | <a href="https://flashbites.in" className="hover:text-white transition">flashbites.in</a></p>
+        <div className="mt-8 pt-8 border-t border-gray-200 text-center text-sm text-gray-500">
+          <p>&copy; {new Date().getFullYear()} FlashBites. All rights reserved. | <a href="https://flashbites.in" className="hover:text-[var(--brand)] transition">flashbites.in</a></p>
         </div>
       </div>
     </footer>

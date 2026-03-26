@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { MapContainer, Marker as LeafletMarker, TileLayer, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.REACT_APP_GOOGLE_KEY;
 const MAP_LIBRARIES = ['places'];
@@ -8,6 +14,25 @@ const MAP_OPTIONS = {
   mapTypeControl: false,
   fullscreenControl: false,
   gestureHandling: 'greedy'
+};
+
+const fallbackLeafletIcon = L.icon({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const LeafletClickHandler = ({ onMapClick }) => {
+  useMapEvents({
+    click: (e) => {
+      onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng });
+    },
+  });
+  return null;
 };
 
 export default function MapPicker({
@@ -32,20 +57,55 @@ export default function MapPicker({
     libraries: MAP_LIBRARIES
   });
 
-  if (!GOOGLE_KEY) {
-    return (
-      <div className="w-full rounded-lg border border-dashed border-gray-300 p-4 text-xs text-gray-500">
-        Google Maps key missing. You can still enter coordinates manually.
+  const emitSelection = (nextPosition) => {
+    setPosition(nextPosition);
+    if (typeof onSelect === 'function') {
+      onSelect(nextPosition);
+    }
+  };
+
+  const renderLeafletFallback = (showError = false) => (
+    <div className="rounded-lg overflow-hidden border border-gray-200">
+      {showError && (
+        <div className="p-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-200">
+          Google map unavailable. Using fallback map.
+        </div>
+      )}
+      <MapContainer
+        center={position}
+        zoom={15}
+        style={{ width: '100%', height: `${mapHeight}px` }}
+      >
+        <TileLayer
+          attribution='&copy; OpenStreetMap contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <LeafletClickHandler onMapClick={emitSelection} />
+        <LeafletMarker
+          position={position}
+          draggable
+          icon={fallbackLeafletIcon}
+          eventHandlers={{
+            dragend: (event) => {
+              const marker = event.target;
+              const latlng = marker.getLatLng();
+              emitSelection({ lat: latlng.lat, lng: latlng.lng });
+            },
+          }}
+        />
+      </MapContainer>
+      <div className="bg-white text-[11px] text-gray-600 px-2 py-1 border-t border-gray-200">
+        Tap map or drag pin
       </div>
-    );
+    </div>
+  );
+
+  if (!GOOGLE_KEY) {
+    return renderLeafletFallback(false);
   }
 
   if (loadError) {
-    return (
-      <div className="w-full rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-700">
-        Unable to load map right now. Please type your address and use suggestions.
-      </div>
-    );
+    return renderLeafletFallback(true);
   }
 
   if (!isLoaded) {
@@ -57,42 +117,40 @@ export default function MapPicker({
   }
 
   return (
-    <GoogleMap
-      center={position}
-      zoom={15}
-      options={MAP_OPTIONS}
-      mapContainerStyle={{ width: '100%', height: `${mapHeight}px` }}
-      onClick={(e) => {
-        const lat = Number(e.latLng?.lat?.());
-        const lng = Number(e.latLng?.lng?.());
-
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-
-        const nextPosition = { lat, lng };
-        setPosition(nextPosition);
-
-        if (typeof onSelect === 'function') {
-          onSelect(nextPosition);
-        }
-      }}
-    >
-      <Marker
-        position={position}
-        draggable
-        onDragEnd={(e) => {
+    <div className="relative rounded-lg overflow-hidden border border-gray-200">
+      <GoogleMap
+        center={position}
+        zoom={15}
+        options={MAP_OPTIONS}
+        mapContainerStyle={{ width: '100%', height: `${mapHeight}px` }}
+        onClick={(e) => {
           const lat = Number(e.latLng?.lat?.());
           const lng = Number(e.latLng?.lng?.());
 
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
           const nextPosition = { lat, lng };
-          setPosition(nextPosition);
-
-          if (typeof onSelect === 'function') {
-            onSelect(nextPosition);
-          }
+          emitSelection(nextPosition);
         }}
-      />
-    </GoogleMap>
+      >
+        <Marker
+          position={position}
+          draggable
+          zIndex={999}
+          onDragEnd={(e) => {
+            const lat = Number(e.latLng?.lat?.());
+            const lng = Number(e.latLng?.lng?.());
+
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+            const nextPosition = { lat, lng };
+            emitSelection(nextPosition);
+          }}
+        />
+      </GoogleMap>
+      <div className="absolute left-2 bottom-2 bg-white/90 text-[11px] text-gray-600 px-2 py-1 rounded-md border border-gray-200 pointer-events-none">
+        Tap map or drag pin
+      </div>
+    </div>
   );
 }

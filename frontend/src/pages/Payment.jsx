@@ -97,7 +97,7 @@ const Payment = () => {
           email: order.userId?.email || '',
           contact: order.userId?.phone || ''
         },
-        theme: { color: '#E23744' },
+        theme: { color: '#EA580C' },
         method: {
           upi: paymentMethod === 'upi',
           card: paymentMethod === 'card',

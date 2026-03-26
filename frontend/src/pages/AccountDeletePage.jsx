@@ -4,8 +4,7 @@ import { useSelector } from 'react-redux';
 import { ArrowLeftIcon, TrashIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { submitAccountDeletionRequest, getMyDeletionRequest } from '../api/userApi';
-
-const BRAND = '#E23744';
+import { BRAND } from '../constants/theme';
 
 const AccountDeletePage = () => {
   const { user } = useSelector((state) => state.auth);

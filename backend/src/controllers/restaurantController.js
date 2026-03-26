@@ -96,6 +96,18 @@ const parseDeliveryZonePayload = (value) => {
   return normalizeDeliveryZone(raw);
 };
 
+const isUsableRestaurantDeliveryZone = (deliveryZone, restaurantCoords) => {
+  if (!deliveryZone?.coordinates?.[0]?.length) return false;
+  if (!Array.isArray(restaurantCoords) || restaurantCoords.length < 2) return false;
+
+  const restLng = Number(restaurantCoords[0]);
+  const restLat = Number(restaurantCoords[1]);
+  if (!Number.isFinite(restLng) || !Number.isFinite(restLat)) return false;
+
+  // If a saved zone does not even include the restaurant itself, treat it as stale/mismatched.
+  return isPointInDeliveryZone(deliveryZone, [restLng, restLat]);
+};
+
 const logNearbyGeoFallback = ({ lat, lng, maxDistance, limit, error }) => {
   if (process.env.NODE_ENV !== 'production') return;
 
@@ -348,13 +360,13 @@ exports.getAllRestaurants = async (req, res) => {
           if (coords.length !== 2) return null;
 
           const point = [lngNum, latNum];
-          const hasZone = Boolean(r.deliveryZone?.coordinates?.[0]?.length);
-          if (hasZone && !isPointInDeliveryZone(r.deliveryZone, point)) return null;
+          const hasUsableZone = isUsableRestaurantDeliveryZone(r.deliveryZone, coords);
+          if (hasUsableZone && !isPointInDeliveryZone(r.deliveryZone, point)) return null;
 
           const distanceKm = calculateDistance(latNum, lngNum, coords[1], coords[0]);
           const allowedKm = Number(r.deliveryRadiusKm || 20);
           if (!Number.isFinite(distanceKm)) return null;
-          if (!hasZone && distanceKm > allowedKm) return null;
+          if (!hasUsableZone && distanceKm > allowedKm) return null;
           return { ...r, distanceKm: Number(distanceKm.toFixed(2)) };
         })
         .filter(Boolean)
@@ -507,9 +519,10 @@ exports.getNearbyRestaurants = async (req, res) => {
     }
 
     const restaurants = candidates.filter((restaurant) => {
-      const hasZone = Boolean(restaurant.deliveryZone?.coordinates?.[0]?.length);
+      const coords = restaurant.location?.coordinates || [];
+      const hasUsableZone = isUsableRestaurantDeliveryZone(restaurant.deliveryZone, coords);
 
-      if (hasZone) {
+      if (hasUsableZone) {
         return isPointInDeliveryZone(restaurant.deliveryZone, [lng, lat]);
       }
 

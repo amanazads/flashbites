@@ -13,9 +13,9 @@ import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { BRAND } from '../../constants/theme';
 import toast from 'react-hot-toast';
 
-const BRAND = '#FF523B';
 const isNativePlatform = () => !!(window.Capacitor && window.Capacitor.isNativePlatform());
 
 const ORDER_TYPES = new Set([

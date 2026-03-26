@@ -221,9 +221,9 @@ const RestaurantLocationModal = ({ restaurant, onClose, onSave, saving }) => {
                   <Polygon
                     path={zonePath}
                     options={{
-                      fillColor: '#E23744',
+                      fillColor: '#EA580C',
                       fillOpacity: 0.2,
-                      strokeColor: '#E23744',
+                      strokeColor: '#EA580C',
                       strokeOpacity: 1,
                       strokeWeight: 2,
                       clickable: false,
@@ -241,9 +241,9 @@ const RestaurantLocationModal = ({ restaurant, onClose, onSave, saving }) => {
                       drawingModes: [window.google.maps.drawing.OverlayType.POLYGON],
                     },
                     polygonOptions: {
-                      fillColor: '#E23744',
+                      fillColor: '#EA580C',
                       fillOpacity: 0.2,
-                      strokeColor: '#E23744',
+                      strokeColor: '#EA580C',
                       strokeWeight: 2,
                       clickable: false,
                       editable: true,

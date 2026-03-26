@@ -4,8 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { login, clearError } from '../redux/slices/authSlice';
 import toast from 'react-hot-toast';
 import logo from '../assets/logo.png';
-
-const BRAND = '#FF523B';
+import { BRAND } from '../constants/theme';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -46,7 +45,7 @@ const Login = () => {
         <div className="relative z-10 text-center max-w-sm">
           <div className="flex items-center justify-center gap-3 mb-10">
             <img src={logo} alt="FlashBites" className="h-14 w-14 rounded-2xl shadow-md" />
-            <span className="text-3xl font-extrabold text-brand-gradient">FlashBites</span>
+            <span className="text-3xl font-extrabold" style={{ color: BRAND }}>FlashBites</span>
           </div>
           <h1 className="text-4xl font-extrabold text-gray-900 leading-tight mb-4">
             Food you love,{' '}
@@ -78,7 +77,7 @@ const Login = () => {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2 justify-center mb-8">
             <img src={logo} alt="FlashBites" className="h-10 w-10 rounded-xl shadow" />
-            <span className="text-2xl font-extrabold text-brand-gradient">FlashBites</span>
+            <span className="text-2xl font-extrabold" style={{ color: BRAND }}>FlashBites</span>
           </div>
 
           <div className="bg-white rounded-3xl p-8 sm:p-10"

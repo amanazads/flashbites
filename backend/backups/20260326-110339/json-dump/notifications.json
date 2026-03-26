@@ -1,0 +1,798 @@
+[
+  {
+    "_id": "69bcf82bb3fd40285585f283",
+    "recipient": "69ad09c0ae88d71cf65d2171",
+    "type": "new_order",
+    "title": "🔔 New Order Received!",
+    "message": "Order #5585f279 - 2 items - ₹284.1",
+    "data": {
+      "orderId": "69bcf829b3fd40285585f279"
+    },
+    "read": false,
+    "priority": "high",
+    "expiresAt": "2026-04-19T07:32:59.746Z",
+    "createdAt": "2026-03-20T07:32:59.746Z",
+    "updatedAt": "2026-03-20T07:32:59.746Z",
+    "__v": 0
+  },
+  {
+    "_id": "69bcf82cb3fd40285585f286",
+    "recipient": "69bcf786b3fd40285585f24e",
+    "type": "order_placed",
+    "title": "✅ Order Placed Successfully",
+    "message": "Your order #5585f279 has been placed at Dosai Pure Veg Restaurant",
+    "data": {
+      "orderId": "69bcf829b3fd40285585f279",
+      "restaurantId": "69ad0b5fae88d71cf65d21ec"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-19T07:33:00.234Z",
+    "createdAt": "2026-03-20T07:33:00.235Z",
+    "updatedAt": "2026-03-24T10:37:58.582Z",
+    "__v": 0
+  },
+  {
+    "_id": "69bd6608b3fd40285585f6c5",
+    "recipient": "69ad0055cb6fac366eb079e7",
+    "type": "new_order",
+    "title": "🔔 New Order Received!",
+    "message": "Order #5585f6bd - 1 items - ₹201.15",
+    "data": {
+      "orderId": "69bd6606b3fd40285585f6bd"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-19T15:21:44.670Z",
+    "createdAt": "2026-03-20T15:21:44.670Z",
+    "updatedAt": "2026-03-23T14:43:10.189Z",
+    "__v": 0
+  },
+  {
+    "_id": "69bd6609b3fd40285585f6c8",
+    "recipient": "69bd6507b3fd40285585f65f",
+    "type": "order_placed",
+    "title": "✅ Order Placed Successfully",
+    "message": "Your order #5585f6bd has been placed at Amazing Pizza",
+    "data": {
+      "orderId": "69bd6606b3fd40285585f6bd",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-19T15:21:45.134Z",
+    "createdAt": "2026-03-20T15:21:45.134Z",
+    "updatedAt": "2026-03-22T06:45:36.750Z",
+    "__v": 0
+  },
+  {
+    "_id": "69bd6863363012da589d57e0",
+    "recipient": "69bd6507b3fd40285585f65f",
+    "type": "order_cancelled",
+    "title": "❌ Order Cancelled",
+    "message": "Your order #5585f6bd has been cancelled",
+    "data": {
+      "orderId": "69bd6606b3fd40285585f6bd",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-19T15:31:47.197Z",
+    "createdAt": "2026-03-20T15:31:47.197Z",
+    "updatedAt": "2026-03-22T06:45:36.750Z",
+    "__v": 0
+  },
+  {
+    "_id": "69be60e4237f471f6ef65a90",
+    "recipient": "69ad0055cb6fac366eb079e7",
+    "type": "new_order",
+    "title": "🔔 New Order Received!",
+    "message": "Order #6ef65a88 - 1 items - ₹201.15",
+    "data": {
+      "orderId": "69be60e2237f471f6ef65a88"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-20T09:12:04.334Z",
+    "createdAt": "2026-03-21T09:12:04.335Z",
+    "updatedAt": "2026-03-23T14:43:10.189Z",
+    "__v": 0
+  },
+  {
+    "_id": "69be60e4237f471f6ef65a93",
+    "recipient": "69bd55cab3fd40285585f2ce",
+    "type": "order_placed",
+    "title": "✅ Order Placed Successfully",
+    "message": "Your order #6ef65a88 has been placed at Amazing Pizza",
+    "data": {
+      "orderId": "69be60e2237f471f6ef65a88",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": false,
+    "priority": "high",
+    "expiresAt": "2026-04-20T09:12:04.792Z",
+    "createdAt": "2026-03-21T09:12:04.793Z",
+    "updatedAt": "2026-03-21T09:12:04.793Z",
+    "__v": 0
+  },
+  {
+    "_id": "69be6107237f471f6ef65ab5",
+    "recipient": "69bd55cab3fd40285585f2ce",
+    "type": "order_confirmed",
+    "title": "✅ Order Confirmed",
+    "message": "Your order #6ef65a88 has been confirmed by Amazing Pizza",
+    "data": {
+      "orderId": "69be60e2237f471f6ef65a88",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": false,
+    "priority": "medium",
+    "expiresAt": "2026-04-20T09:12:39.464Z",
+    "createdAt": "2026-03-21T09:12:39.465Z",
+    "updatedAt": "2026-03-21T09:12:39.465Z",
+    "__v": 0
+  },
+  {
+    "_id": "69be6107237f471f6ef65ab8",
+    "recipient": "69ad0055cb6fac366eb079e7",
+    "type": "order_placed",
+    "title": "🔔 New Order Received",
+    "message": "New order #6ef65a88 - ₹201.15",
+    "data": {
+      "orderId": "69be60e2237f471f6ef65a88"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-20T09:12:39.910Z",
+    "createdAt": "2026-03-21T09:12:39.910Z",
+    "updatedAt": "2026-03-23T14:43:10.189Z",
+    "__v": 0
+  },
+  {
+    "_id": "69be6123237f471f6ef65ad4",
+    "recipient": "69bd55cab3fd40285585f2ce",
+    "type": "order_preparing",
+    "title": "👨‍🍳 Preparing Your Order",
+    "message": "Your order #6ef65a88 is being prepared",
+    "data": {
+      "orderId": "69be60e2237f471f6ef65a88",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": false,
+    "priority": "medium",
+    "expiresAt": "2026-04-20T09:13:07.263Z",
+    "createdAt": "2026-03-21T09:13:07.263Z",
+    "updatedAt": "2026-03-21T09:13:07.263Z",
+    "__v": 0
+  },
+  {
+    "_id": "69be613e237f471f6ef65b02",
+    "recipient": "69bd55cab3fd40285585f2ce",
+    "type": "order_ready",
+    "title": "✨ Order Ready",
+    "message": "Your order #6ef65a88 is ready for pickup",
+    "data": {
+      "orderId": "69be60e2237f471f6ef65a88",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": false,
+    "priority": "medium",
+    "expiresAt": "2026-04-20T09:13:34.650Z",
+    "createdAt": "2026-03-21T09:13:34.650Z",
+    "updatedAt": "2026-03-21T09:13:34.650Z",
+    "__v": 0
+  },
+  {
+    "_id": "69be6188237f471f6ef65b3b",
+    "recipient": "69bd55cab3fd40285585f2ce",
+    "type": "delivery_assigned",
+    "title": "🚴 Delivery Partner Assigned",
+    "message": "Yash will deliver your order #6ef65a88",
+    "data": {
+      "orderId": "69be60e2237f471f6ef65a88"
+    },
+    "read": false,
+    "priority": "medium",
+    "expiresAt": "2026-04-20T09:14:48.329Z",
+    "createdAt": "2026-03-21T09:14:48.330Z",
+    "updatedAt": "2026-03-21T09:14:48.330Z",
+    "__v": 0
+  },
+  {
+    "_id": "69be6190237f471f6ef65b5c",
+    "recipient": "69bd55cab3fd40285585f2ce",
+    "type": "order_picked_up",
+    "title": "🚴 On the Way",
+    "message": "Your order #6ef65a88 has been picked up and is on the way",
+    "data": {
+      "orderId": "69be60e2237f471f6ef65a88",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": false,
+    "priority": "medium",
+    "expiresAt": "2026-04-20T09:14:56.775Z",
+    "createdAt": "2026-03-21T09:14:56.775Z",
+    "updatedAt": "2026-03-21T09:14:56.775Z",
+    "__v": 0
+  },
+  {
+    "_id": "69be6191237f471f6ef65b5f",
+    "recipient": "69bd55cab3fd40285585f2ce",
+    "type": "payment_reminder",
+    "title": "💰 Payment Reminder",
+    "message": "Please keep ₹201.15 ready for order #6ef65a88",
+    "data": {
+      "orderId": "69be60e2237f471f6ef65a88",
+      "amount": 201.15
+    },
+    "read": false,
+    "priority": "medium",
+    "expiresAt": "2026-04-20T09:14:57.220Z",
+    "createdAt": "2026-03-21T09:14:57.221Z",
+    "updatedAt": "2026-03-21T09:14:57.221Z",
+    "__v": 0
+  },
+  {
+    "_id": "69be61f3237f471f6ef65b9f",
+    "recipient": "69bd55cab3fd40285585f2ce",
+    "type": "order_delivered",
+    "title": "🎉 Order Delivered",
+    "message": "Your order #6ef65a88 has been delivered. Enjoy your meal!",
+    "data": {
+      "orderId": "69be60e2237f471f6ef65a88",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": false,
+    "priority": "medium",
+    "expiresAt": "2026-04-20T09:16:35.318Z",
+    "createdAt": "2026-03-21T09:16:35.318Z",
+    "updatedAt": "2026-03-21T09:16:35.318Z",
+    "__v": 0
+  },
+  {
+    "_id": "69bfea5e1f608824d9f040fb",
+    "recipient": "69ad0055cb6fac366eb079e7",
+    "type": "new_order",
+    "title": "🔔 New Order Received!",
+    "message": "Order #d9f040f3 - 1 items - ₹64.65",
+    "data": {
+      "orderId": "69bfea5c1f608824d9f040f3"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-21T13:10:54.898Z",
+    "createdAt": "2026-03-22T13:10:54.899Z",
+    "updatedAt": "2026-03-23T14:43:10.189Z",
+    "__v": 0
+  },
+  {
+    "_id": "69bfea5f1f608824d9f040fe",
+    "recipient": "69bab5f695555a6ada09c844",
+    "type": "order_placed",
+    "title": "✅ Order Placed Successfully",
+    "message": "Your order #d9f040f3 has been placed at Amazing Pizza",
+    "data": {
+      "orderId": "69bfea5c1f608824d9f040f3",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-21T13:10:55.357Z",
+    "createdAt": "2026-03-22T13:10:55.357Z",
+    "updatedAt": "2026-03-22T13:55:33.138Z",
+    "__v": 0
+  },
+  {
+    "_id": "69bfeacf1f608824d9f04131",
+    "recipient": "69bab5f695555a6ada09c844",
+    "type": "order_cancelled",
+    "title": "❌ Order Cancelled",
+    "message": "Your order #d9f040f3 has been cancelled",
+    "data": {
+      "orderId": "69bfea5c1f608824d9f040f3",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-21T13:12:47.583Z",
+    "createdAt": "2026-03-22T13:12:47.584Z",
+    "updatedAt": "2026-03-22T13:55:33.138Z",
+    "__v": 0
+  },
+  {
+    "_id": "69bfee721f608824d9f042b9",
+    "recipient": "69ad0055cb6fac366eb079e7",
+    "type": "new_order",
+    "title": "🔔 New Order Received!",
+    "message": "Order #d9f042b1 - 1 items - ₹109.69500000000001",
+    "data": {
+      "orderId": "69bfee721f608824d9f042b1"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-21T13:28:18.948Z",
+    "createdAt": "2026-03-22T13:28:18.948Z",
+    "updatedAt": "2026-03-23T14:43:10.189Z",
+    "__v": 0
+  },
+  {
+    "_id": "69bfee731f608824d9f042bc",
+    "recipient": "69bab5f695555a6ada09c844",
+    "type": "order_placed",
+    "title": "✅ Order Placed Successfully",
+    "message": "Your order #d9f042b1 has been placed at Amazing Pizza",
+    "data": {
+      "orderId": "69bfee721f608824d9f042b1",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-21T13:28:19.404Z",
+    "createdAt": "2026-03-22T13:28:19.404Z",
+    "updatedAt": "2026-03-22T13:55:33.138Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c0044a6107ba67fcc1d417",
+    "recipient": "69b004b5793f00c3ba26b1ef",
+    "type": "coupon_available",
+    "title": "🎁 Special Discount Available!",
+    "message": "Use code FB199 and get ₹100 off",
+    "data": {
+      "couponId": "69c0044a6107ba67fcc1d414"
+    },
+    "read": false,
+    "priority": "medium",
+    "expiresAt": "2026-04-21T15:01:30.562Z",
+    "createdAt": "2026-03-22T15:01:30.565Z",
+    "updatedAt": "2026-03-22T15:01:30.565Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c0044a6107ba67fcc1d418",
+    "recipient": "69b25ae067febc5ae1606e8e",
+    "type": "coupon_available",
+    "title": "🎁 Special Discount Available!",
+    "message": "Use code FB199 and get ₹100 off",
+    "data": {
+      "couponId": "69c0044a6107ba67fcc1d414"
+    },
+    "read": false,
+    "priority": "medium",
+    "expiresAt": "2026-04-21T15:01:30.562Z",
+    "createdAt": "2026-03-22T15:01:30.565Z",
+    "updatedAt": "2026-03-22T15:01:30.565Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c0044a6107ba67fcc1d41c",
+    "recipient": "69bd6507b3fd40285585f65f",
+    "type": "coupon_available",
+    "title": "🎁 Special Discount Available!",
+    "message": "Use code FB199 and get ₹100 off",
+    "data": {
+      "couponId": "69c0044a6107ba67fcc1d414"
+    },
+    "read": true,
+    "priority": "medium",
+    "expiresAt": "2026-04-21T15:01:30.563Z",
+    "createdAt": "2026-03-22T15:01:30.565Z",
+    "updatedAt": "2026-03-23T09:25:57.801Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c0044a6107ba67fcc1d41b",
+    "recipient": "69bd55cab3fd40285585f2ce",
+    "type": "coupon_available",
+    "title": "🎁 Special Discount Available!",
+    "message": "Use code FB199 and get ₹100 off",
+    "data": {
+      "couponId": "69c0044a6107ba67fcc1d414"
+    },
+    "read": false,
+    "priority": "medium",
+    "expiresAt": "2026-04-21T15:01:30.563Z",
+    "createdAt": "2026-03-22T15:01:30.565Z",
+    "updatedAt": "2026-03-22T15:01:30.565Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c0044a6107ba67fcc1d419",
+    "recipient": "69b397cb67febc5ae1606f17",
+    "type": "coupon_available",
+    "title": "🎁 Special Discount Available!",
+    "message": "Use code FB199 and get ₹100 off",
+    "data": {
+      "couponId": "69c0044a6107ba67fcc1d414"
+    },
+    "read": false,
+    "priority": "medium",
+    "expiresAt": "2026-04-21T15:01:30.562Z",
+    "createdAt": "2026-03-22T15:01:30.565Z",
+    "updatedAt": "2026-03-22T15:01:30.565Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c0044a6107ba67fcc1d41a",
+    "recipient": "69bab5f695555a6ada09c844",
+    "type": "coupon_available",
+    "title": "🎁 Special Discount Available!",
+    "message": "Use code FB199 and get ₹100 off",
+    "data": {
+      "couponId": "69c0044a6107ba67fcc1d414"
+    },
+    "read": true,
+    "priority": "medium",
+    "expiresAt": "2026-04-21T15:01:30.563Z",
+    "createdAt": "2026-03-22T15:01:30.565Z",
+    "updatedAt": "2026-03-22T15:11:41.537Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c108415d785c9cc04065f2",
+    "recipient": "69ad0055cb6fac366eb079e7",
+    "type": "new_order",
+    "title": "🔔 New Order Received!",
+    "message": "Order #c04065ea - 1 items - ₹144.79000000000002",
+    "data": {
+      "orderId": "69c108405d785c9cc04065ea"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-22T09:30:41.287Z",
+    "createdAt": "2026-03-23T09:30:41.288Z",
+    "updatedAt": "2026-03-23T14:43:10.189Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c108415d785c9cc04065f5",
+    "recipient": "69bd6507b3fd40285585f65f",
+    "type": "order_placed",
+    "title": "✅ Order Placed Successfully",
+    "message": "Your order #c04065ea has been placed at Amazing Pizza",
+    "data": {
+      "orderId": "69c108405d785c9cc04065ea",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-22T09:30:41.750Z",
+    "createdAt": "2026-03-23T09:30:41.751Z",
+    "updatedAt": "2026-03-23T11:23:20.836Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c15d6318caac533620081a",
+    "recipient": "69bd6507b3fd40285585f65f",
+    "type": "order_cancelled",
+    "title": "❌ Order Cancelled",
+    "message": "Your order #c04065ea has been cancelled",
+    "data": {
+      "orderId": "69c108405d785c9cc04065ea",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-22T15:33:55.768Z",
+    "createdAt": "2026-03-23T15:33:55.769Z",
+    "updatedAt": "2026-03-24T06:29:02.462Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c15d7a18caac5336200847",
+    "recipient": "69bab5f695555a6ada09c844",
+    "type": "order_cancelled",
+    "title": "❌ Order Cancelled",
+    "message": "Your order #d9f042b1 has been cancelled",
+    "data": {
+      "orderId": "69bfee721f608824d9f042b1",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-22T15:34:18.604Z",
+    "createdAt": "2026-03-23T15:34:18.605Z",
+    "updatedAt": "2026-03-25T14:18:57.664Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c275d8e3f4fa94f0056c27",
+    "recipient": "69ad0055cb6fac366eb079e7",
+    "type": "new_order",
+    "title": "🔔 New Order Received!",
+    "message": "Order #f0056c1c - 1 items - ₹133.9",
+    "data": {
+      "orderId": "69c275d5e3f4fa94f0056c1c"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-23T11:30:32.069Z",
+    "createdAt": "2026-03-24T11:30:32.069Z",
+    "updatedAt": "2026-03-24T17:22:48.127Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c275d9e3f4fa94f0056c2c",
+    "recipient": "69c2682f6d5648a954347c46",
+    "type": "order_placed",
+    "title": "✅ Order Placed Successfully",
+    "message": "Your order #f0056c1c has been placed at Amazing Pizza",
+    "data": {
+      "orderId": "69c275d5e3f4fa94f0056c1c",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-23T11:30:33.041Z",
+    "createdAt": "2026-03-24T11:30:33.042Z",
+    "updatedAt": "2026-03-24T12:03:01.738Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c277fae3f4fa94f0056c47",
+    "recipient": "69ad0055cb6fac366eb079e7",
+    "type": "new_order",
+    "title": "🔔 New Order Received!",
+    "message": "Order #f0056c3c - 1 items - ₹133.9",
+    "data": {
+      "orderId": "69c277f7e3f4fa94f0056c3c"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-23T11:39:38.500Z",
+    "createdAt": "2026-03-24T11:39:38.501Z",
+    "updatedAt": "2026-03-24T17:22:48.127Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c277fae3f4fa94f0056c4b",
+    "recipient": "69c2682f6d5648a954347c46",
+    "type": "order_placed",
+    "title": "✅ Order Placed Successfully",
+    "message": "Your order #f0056c3c has been placed at Amazing Pizza",
+    "data": {
+      "orderId": "69c277f7e3f4fa94f0056c3c",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-23T11:39:38.954Z",
+    "createdAt": "2026-03-24T11:39:38.955Z",
+    "updatedAt": "2026-03-24T12:03:01.738Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c27b55e3f4fa94f0056c68",
+    "recipient": "69ad0055cb6fac366eb079e7",
+    "type": "new_order",
+    "title": "🔔 New Order Received!",
+    "message": "Order #f0056c5d - 1 items - ₹133.9",
+    "data": {
+      "orderId": "69c27b53e3f4fa94f0056c5d"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-23T11:53:57.970Z",
+    "createdAt": "2026-03-24T11:53:57.970Z",
+    "updatedAt": "2026-03-24T17:22:48.127Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c27b56e3f4fa94f0056c6c",
+    "recipient": "69c2682f6d5648a954347c46",
+    "type": "order_placed",
+    "title": "✅ Order Placed Successfully",
+    "message": "Your order #f0056c5d has been placed at Amazing Pizza",
+    "data": {
+      "orderId": "69c27b53e3f4fa94f0056c5d",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-23T11:53:58.431Z",
+    "createdAt": "2026-03-24T11:53:58.431Z",
+    "updatedAt": "2026-03-24T12:03:01.738Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c2820e6a177b21309016b9",
+    "recipient": "69bed89f3cfb9796c7d11bb0",
+    "type": "new_order",
+    "title": "🔔 New Order Received!",
+    "message": "Order #309016ae - 1 items - ₹64.6",
+    "data": {
+      "orderId": "69c2820b6a177b21309016ae"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-23T12:22:38.615Z",
+    "createdAt": "2026-03-24T12:22:38.616Z",
+    "updatedAt": "2026-03-24T12:33:05.900Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c2820f6a177b21309016bd",
+    "recipient": "69c2682f6d5648a954347c46",
+    "type": "order_placed",
+    "title": "✅ Order Placed Successfully",
+    "message": "Your order #309016ae has been placed at Tac Cafe",
+    "data": {
+      "orderId": "69c2820b6a177b21309016ae",
+      "restaurantId": "69bed9df3cfb9796c7d11bde"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-23T12:22:39.072Z",
+    "createdAt": "2026-03-24T12:22:39.073Z",
+    "updatedAt": "2026-03-24T13:38:45.099Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c2827d6a177b21309016fa",
+    "recipient": "69c2682f6d5648a954347c46",
+    "type": "order_confirmed",
+    "title": "✅ Order Confirmed",
+    "message": "Your order #309016ae has been confirmed by Tac Cafe",
+    "data": {
+      "orderId": "69c2820b6a177b21309016ae",
+      "restaurantId": "69bed9df3cfb9796c7d11bde"
+    },
+    "read": true,
+    "priority": "medium",
+    "expiresAt": "2026-04-23T12:24:29.673Z",
+    "createdAt": "2026-03-24T12:24:29.674Z",
+    "updatedAt": "2026-03-24T13:38:45.099Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c2827e6a177b2130901703",
+    "recipient": "69bed89f3cfb9796c7d11bb0",
+    "type": "order_placed",
+    "title": "🔔 New Order Received",
+    "message": "New order #309016ae - ₹64.6",
+    "data": {
+      "orderId": "69c2820b6a177b21309016ae"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-23T12:24:30.137Z",
+    "createdAt": "2026-03-24T12:24:30.137Z",
+    "updatedAt": "2026-03-24T12:33:05.900Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c282da6a177b2130901769",
+    "recipient": "69c2682f6d5648a954347c46",
+    "type": "delivery_assigned",
+    "title": "🚴 Delivery Partner Assigned",
+    "message": "Yash will deliver your order #309016ae",
+    "data": {
+      "orderId": "69c2820b6a177b21309016ae"
+    },
+    "read": true,
+    "priority": "medium",
+    "expiresAt": "2026-04-23T12:26:02.575Z",
+    "createdAt": "2026-03-24T12:26:02.576Z",
+    "updatedAt": "2026-03-24T13:38:45.099Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c283186a177b21309017f5",
+    "recipient": "69c2682f6d5648a954347c46",
+    "type": "order_preparing",
+    "title": "👨‍🍳 Preparing Your Order",
+    "message": "Your order #309016ae is being prepared",
+    "data": {
+      "orderId": "69c2820b6a177b21309016ae",
+      "restaurantId": "69bed9df3cfb9796c7d11bde"
+    },
+    "read": true,
+    "priority": "medium",
+    "expiresAt": "2026-04-23T12:27:04.734Z",
+    "createdAt": "2026-03-24T12:27:04.734Z",
+    "updatedAt": "2026-03-24T13:38:45.099Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c283b76a177b213090189c",
+    "recipient": "69c2682f6d5648a954347c46",
+    "type": "order_ready",
+    "title": "✨ Order Ready",
+    "message": "Your order #309016ae is ready for pickup",
+    "data": {
+      "orderId": "69c2820b6a177b21309016ae",
+      "restaurantId": "69bed9df3cfb9796c7d11bde"
+    },
+    "read": true,
+    "priority": "medium",
+    "expiresAt": "2026-04-23T12:29:43.110Z",
+    "createdAt": "2026-03-24T12:29:43.110Z",
+    "updatedAt": "2026-03-24T13:38:45.099Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c283b76a177b21309018a0",
+    "recipient": "69bcf786b3fd40285585f24e",
+    "type": "order_ready_pickup",
+    "title": "📦 Order Ready for Pickup",
+    "message": "Order #309016ae is ready at Tac Cafe",
+    "data": {
+      "orderId": "69c2820b6a177b21309016ae",
+      "restaurantId": "69bed9df3cfb9796c7d11bde"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-23T12:29:43.570Z",
+    "createdAt": "2026-03-24T12:29:43.571Z",
+    "updatedAt": "2026-03-24T12:37:49.060Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c284396a177b2130901a88",
+    "recipient": "69c2682f6d5648a954347c46",
+    "type": "order_delivered",
+    "title": "🎉 Order Delivered",
+    "message": "Your order #309016ae has been delivered. Enjoy your meal!",
+    "data": {
+      "orderId": "69c2820b6a177b21309016ae",
+      "restaurantId": "69bed9df3cfb9796c7d11bde"
+    },
+    "read": true,
+    "priority": "medium",
+    "expiresAt": "2026-04-23T12:31:53.654Z",
+    "createdAt": "2026-03-24T12:31:53.655Z",
+    "updatedAt": "2026-03-24T13:38:45.099Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c2c875500958d05633477d",
+    "recipient": "69c2682f6d5648a954347c46",
+    "type": "order_cancelled",
+    "title": "❌ Order Cancelled",
+    "message": "Your order #f0056c5d has been cancelled",
+    "data": {
+      "orderId": "69c27b53e3f4fa94f0056c5d",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-23T17:23:01.940Z",
+    "createdAt": "2026-03-24T17:23:01.941Z",
+    "updatedAt": "2026-03-25T09:23:33.936Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c2c887500958d05633479c",
+    "recipient": "69c2682f6d5648a954347c46",
+    "type": "order_cancelled",
+    "title": "❌ Order Cancelled",
+    "message": "Your order #f0056c3c has been cancelled",
+    "data": {
+      "orderId": "69c277f7e3f4fa94f0056c3c",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-23T17:23:19.201Z",
+    "createdAt": "2026-03-24T17:23:19.201Z",
+    "updatedAt": "2026-03-25T09:23:33.936Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c2c897500958d0563347bb",
+    "recipient": "69c2682f6d5648a954347c46",
+    "type": "order_cancelled",
+    "title": "❌ Order Cancelled",
+    "message": "Your order #f0056c1c has been cancelled",
+    "data": {
+      "orderId": "69c275d5e3f4fa94f0056c1c",
+      "restaurantId": "69ad04ddadadf0706a4464a5"
+    },
+    "read": true,
+    "priority": "high",
+    "expiresAt": "2026-04-23T17:23:35.443Z",
+    "createdAt": "2026-03-24T17:23:35.443Z",
+    "updatedAt": "2026-03-25T09:23:33.936Z",
+    "__v": 0
+  }
+]

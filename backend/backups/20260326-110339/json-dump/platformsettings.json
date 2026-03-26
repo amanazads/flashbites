@@ -1,0 +1,28 @@
+[
+  {
+    "_id": "69bffbcc6107ba67fcc1d222",
+    "platformFee": 25,
+    "taxRate": 0.05,
+    "deliveryChargeRules": [
+      {
+        "minDistance": 0,
+        "maxDistance": 5,
+        "charge": 35
+      },
+      {
+        "minDistance": 5,
+        "maxDistance": 15,
+        "charge": 40
+      },
+      {
+        "minDistance": 15,
+        "maxDistance": 9999,
+        "charge": 45
+      }
+    ],
+    "promoBanners": [],
+    "createdAt": "2026-03-22T14:25:16.112Z",
+    "updatedAt": "2026-03-24T13:44:22.568Z",
+    "__v": 0
+  }
+]

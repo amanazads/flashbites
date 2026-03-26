@@ -52,8 +52,8 @@ const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[60vh]">
     <div className="flex flex-col items-center gap-3">
       <svg className="animate-spin w-10 h-10" fill="none" viewBox="0 0 24 24">
-        <circle className="opacity-20" cx="12" cy="12" r="10" stroke="#E23744" strokeWidth="4" />
-        <path className="opacity-80" fill="#E23744" d="M4 12a8 8 0 018-8v8z" />
+        <circle className="opacity-20" cx="12" cy="12" r="10" stroke="#EA580C" strokeWidth="4" />
+        <path className="opacity-80" fill="#EA580C" d="M4 12a8 8 0 018-8v8z" />
       </svg>
       <p className="text-sm text-gray-400 font-medium">Loading…</p>
     </div>
@@ -180,8 +180,8 @@ function App() {
       try {
         if (isNative && Capacitor.isPluginAvailable('StatusBar')) {
           await StatusBar.setOverlaysWebView({ overlay: false });
-          await StatusBar.setStyle({ style: Style.Light });
-          await StatusBar.setBackgroundColor({ color: '#000000' });
+          await StatusBar.setStyle({ style: Style.Dark });
+          await StatusBar.setBackgroundColor({ color: '#F8FAFC' });
           console.log('Status bar initialized successfully');
         }
       } catch (error) {
@@ -227,11 +227,12 @@ function App() {
     const location = useLocation();
     const authPaths = ['/login', '/register', '/forgot-password', '/auth/google/success'];
     const isAuthPage = authPaths.some((path) => location.pathname.startsWith(path));
+    const isHomePage = location.pathname === '/';
 
     return (
       <div className="min-h-screen">
         {!isAuthPage && <Navbar />}
-        <main className={`w-full relative z-0 bg-white lg:bg-[var(--bg-app)] ${isAuthPage ? '' : 'content-mobile-safe'}`}>
+        <main className={`w-full relative z-0 ${isHomePage ? 'bg-[#F8FAFC]' : 'bg-white lg:bg-[var(--bg-app)]'} ${isAuthPage ? '' : isHomePage ? 'pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-0' : 'content-mobile-safe'}`}>
             <React.Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public Routes */}

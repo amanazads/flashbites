@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
+import { autocompleteAddress, geocodeAddressQuery } from '../../api/locationApi';
 
 const PLACES_LIBRARIES = ['places'];
 
@@ -21,7 +22,11 @@ const parseAddressComponents = (components = []) => {
 
 export default function AddressInput({ value = '', onChange, onSelect, placeholder = 'Enter delivery address', className = '' }) {
   const autocompleteRef = useRef(null);
+  const fallbackContainerRef = useRef(null);
   const [inputValue, setInputValue] = useState(value);
+  const [fallbackSuggestions, setFallbackSuggestions] = useState([]);
+  const [fallbackLoading, setFallbackLoading] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
   const libraries = useMemo(() => PLACES_LIBRARIES, []);
   const { isLoaded } = useJsApiLoader({
     id: 'flashbites-google-map-picker',
@@ -44,6 +49,51 @@ export default function AddressInput({ value = '', onChange, onSelect, placehold
       });
     };
   }, []);
+
+  useEffect(() => {
+    const closeOnOutsideClick = (e) => {
+      if (fallbackContainerRef.current && !fallbackContainerRef.current.contains(e.target)) {
+        setShowFallback(false);
+      }
+    };
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    // Always load backend suggestions as a resilient fallback.
+    const query = String(inputValue || '').trim();
+    if (query.length < 3) {
+      setFallbackSuggestions([]);
+      setShowFallback(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setFallbackLoading(true);
+      try {
+        const response = await autocompleteAddress(query);
+        const suggestions = response?.data?.suggestions || response?.suggestions || [];
+        if (!cancelled) {
+          setFallbackSuggestions(Array.isArray(suggestions) ? suggestions : []);
+          setShowFallback(Array.isArray(suggestions) && suggestions.length > 0);
+        }
+      } catch {
+        if (!cancelled) {
+          setFallbackSuggestions([]);
+          setShowFallback(false);
+        }
+      } finally {
+        if (!cancelled) setFallbackLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [inputValue]);
 
   const handleLocalChange = (nextValue) => {
     setInputValue(nextValue);
@@ -79,17 +129,87 @@ export default function AddressInput({ value = '', onChange, onSelect, placehold
         ...parsed
       });
     }
+
+    setShowFallback(false);
   };
+
+  const selectFallbackSuggestion = async (suggestion) => {
+    const formattedAddress = suggestion?.fullAddress || suggestion?.label || inputValue;
+    const lat = Number(suggestion?.lat);
+    const lng = Number(suggestion?.lng);
+
+    let resolved = {
+      fullAddress: formattedAddress,
+      address: formattedAddress,
+      city: suggestion?.city || '',
+      state: suggestion?.state || '',
+      zipCode: suggestion?.zipCode || '',
+      street: suggestion?.street || '',
+      lat,
+      lng,
+    };
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      try {
+        const geocodeRes = await geocodeAddressQuery(formattedAddress);
+        const loc = geocodeRes?.data?.location || geocodeRes?.location || null;
+        if (loc) {
+          resolved = {
+            ...resolved,
+            fullAddress: loc.fullAddress || formattedAddress,
+            address: loc.fullAddress || formattedAddress,
+            city: loc.city || resolved.city,
+            state: loc.state || resolved.state,
+            zipCode: loc.zipCode || resolved.zipCode,
+            street: loc.street || resolved.street,
+            lat: Number(loc.lat),
+            lng: Number(loc.lng),
+          };
+        }
+      } catch {
+        // Keep text-only selection if geocode lookup fails.
+      }
+    }
+
+    handleLocalChange(resolved.fullAddress || formattedAddress);
+    setShowFallback(false);
+    if (typeof onSelect === 'function') onSelect(resolved);
+  };
+
+  const fallbackDropdown = showFallback && (
+    <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-56 overflow-auto">
+      {fallbackLoading ? (
+        <div className="px-3 py-2 text-xs text-gray-500">Searching addresses...</div>
+      ) : fallbackSuggestions.length === 0 ? (
+        <div className="px-3 py-2 text-xs text-gray-500">No suggestions found.</div>
+      ) : (
+        fallbackSuggestions.map((suggestion, idx) => (
+          <button
+            key={`${suggestion.placeId || suggestion.label || 's'}-${idx}`}
+            type="button"
+            onClick={() => selectFallbackSuggestion(suggestion)}
+            className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+          >
+            <div className="text-sm text-gray-800 truncate">{suggestion.label || suggestion.fullAddress}</div>
+          </button>
+        ))
+      )}
+    </div>
+  );
 
   if (!GOOGLE_KEY) {
     return (
-      <input
-        type="text"
-        value={inputValue}
-        onChange={(e) => handleLocalChange(e.target.value)}
-        placeholder={placeholder}
-        className={className || 'w-full p-3 border rounded-lg'}
-      />
+      <div className="relative" ref={fallbackContainerRef}>
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => handleLocalChange(e.target.value)}
+          onFocus={() => setShowFallback(fallbackSuggestions.length > 0)}
+          placeholder={placeholder}
+          className={className || 'w-full p-3 border rounded-lg'}
+        />
+        {fallbackDropdown}
+      </div>
     );
   }
 
@@ -106,14 +226,18 @@ export default function AddressInput({ value = '', onChange, onSelect, placehold
   }
 
   return (
-    <Autocomplete onLoad={onLoad} onPlaceChanged={onPlaceChanged}>
-      <input
-        type="text"
-        value={inputValue}
-        onChange={(e) => handleLocalChange(e.target.value)}
-        placeholder={placeholder}
-        className={className || 'w-full p-3 border rounded-lg'}
-      />
-    </Autocomplete>
+    <div className="relative" ref={fallbackContainerRef}>
+      <Autocomplete onLoad={onLoad} onPlaceChanged={onPlaceChanged}>
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => handleLocalChange(e.target.value)}
+          onFocus={() => setShowFallback(fallbackSuggestions.length > 0)}
+          placeholder={placeholder}
+          className={className || 'w-full p-3 border rounded-lg'}
+        />
+      </Autocomplete>
+      {fallbackDropdown}
+    </div>
   );
 }

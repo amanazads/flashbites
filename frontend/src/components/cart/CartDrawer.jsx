@@ -6,9 +6,8 @@ import { toggleCart, closeCart } from '../../redux/slices/uiSlice';
 import { removeFromCart, updateQuantity, clearCart } from '../../redux/slices/cartSlice';
 import { formatCurrency } from '../../utils/formatters';
 import { calculateCartTotal } from '../../utils/helpers';
+import { BRAND } from '../../constants/theme';
 import Swal from 'sweetalert2';
-
-const BRAND = '#E23744';
 
 const CartDrawer = () => {
   const dispatch = useDispatch();
@@ -96,9 +95,9 @@ const CartDrawer = () => {
             <div className="flex flex-col items-center justify-center h-full text-center py-16">
               <div
                 className="w-20 h-20 rounded-full mb-5 flex items-center justify-center"
-                style={{ background: '#FEF2F3' }}
+                style={{ background: '#FFF7ED' }}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="#E23744" strokeWidth="1.5" className="w-9 h-9">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth="1.5" className="w-9 h-9">
                   <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" strokeLinecap="round" strokeLinejoin="round"/>
                   <line x1="3" y1="6" x2="21" y2="6"/>
                   <path d="M16 10a4 4 0 01-8 0" strokeLinecap="round" strokeLinejoin="round"/>
@@ -112,7 +111,7 @@ const CartDrawer = () => {
                   navigate('/restaurants');
                 }}
                 className="text-sm max-[388px]:text-xs font-semibold px-5 max-[388px]:px-4 py-2.5 max-[388px]:py-2 rounded-xl touch-feedback transition-colors"
-                style={{ background: '#FEF2F3', color: BRAND }}
+                style={{ background: '#FFF7ED', color: BRAND }}
               >
                 Browse Restaurants
               </button>
@@ -197,7 +196,7 @@ const CartDrawer = () => {
                     text: 'All items will be removed.',
                     icon: 'warning',
                     showCancelButton: true,
-                    confirmButtonColor: '#E23744',
+                    confirmButtonColor: '#EA580C',
                     cancelButtonColor: '#9CA3AF',
                     confirmButtonText: 'Yes, clear it',
                     cancelButtonText: 'Keep items',
@@ -242,7 +241,7 @@ const CartDrawer = () => {
             <button
               onClick={handleCheckout}
               className="w-full py-3.5 max-[388px]:py-3 text-[15px] max-[388px]:text-[14px] font-bold text-white rounded-xl touch-feedback transition-all"
-              style={{ background: 'linear-gradient(135deg, #E23744 0%, #C92535 100%)', boxShadow: '0 4px 14px rgba(226,55,68,0.35)' }}
+              style={{ background: BRAND, boxShadow: 'none' }}
             >
               Proceed to Checkout · {formatCurrency(total)}
             </button>

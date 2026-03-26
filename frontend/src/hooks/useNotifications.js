@@ -214,7 +214,7 @@ export const useNotifications = () => {
             sound: 'default',
             vibration: true,
             lights: true,
-            lightColor: '#E23744',
+            lightColor: '#EA580C',
           }).catch(() => {}); // createChannel only exists on Android
         }).catch(() => {});
       } else if ('Notification' in window && Notification.permission === 'default') {

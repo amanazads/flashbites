@@ -1,0 +1,286 @@
+[
+  {
+    "_id": "69c41775df9ea53a92c05c0a",
+    "name": "Aman Azad",
+    "password": "$2b$10$2Ad.AOyOD7auA0ho3aHxDO88jPs3bCbgU7hOCJNvuOTVPdqDoHByy",
+    "phone": "9999999990",
+    "googleId": null,
+    "role": "admin",
+    "avatar": null,
+    "isActive": true,
+    "isEmailVerified": false,
+    "isPhoneVerified": true,
+    "isOnDuty": false,
+    "dutyStatusUpdatedAt": null,
+    "refreshToken": "093afdbfd3ba038a0cd1bbe4842dbcc53edd0a84988f54ae006ecf972c6b224b",
+    "resetPasswordToken": null,
+    "resetPasswordExpires": null,
+    "emailVerificationToken": null,
+    "emailVerificationExpires": null,
+    "otp": null,
+    "otpExpires": null,
+    "passwordChangedAt": null,
+    "fcmToken": "eidIypxXQBHCMLYgJKAxjM:APA91bFWSScd7iCX9dIZy8RpGk2Bboy8U1t-SNCN5jmCpzi_14VmviG5MjQzj4CS5a3wEFflV0us4RJ_--RXazcq7CpcaMX11IhssAOOjCUufoNVN8_CTW4",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "lastLocationUpdate": null,
+    "deliveryPayoutOverride": {
+      "isActive": false,
+      "perOrder": 0,
+      "bonusThreshold": 13,
+      "bonusAmount": 0
+    },
+    "createdAt": "2026-03-25T17:12:21.587Z",
+    "updatedAt": "2026-03-25T17:13:22.445Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c41840df9ea53a92c05c5d",
+    "name": "Aman",
+    "password": "$2b$10$8sTciURZexzTcb8O16U0He/RzJDYqgCpF82q99tVCiALqkKT55tBe",
+    "phone": "1234567890",
+    "googleId": null,
+    "role": "user",
+    "avatar": null,
+    "isActive": true,
+    "isEmailVerified": false,
+    "isPhoneVerified": true,
+    "isOnDuty": false,
+    "dutyStatusUpdatedAt": null,
+    "refreshToken": "923948ff1d94a3df9b38e2468504590f78c03e0dc8ba9b15129bfbe3b65793a0",
+    "resetPasswordToken": null,
+    "resetPasswordExpires": null,
+    "emailVerificationToken": null,
+    "emailVerificationExpires": null,
+    "otp": null,
+    "otpExpires": null,
+    "passwordChangedAt": null,
+    "fcmToken": "e9Aw5DEe5M-4oQUXfJTRqb:APA91bHrCErp1HauD_DNK6EV2C0AUtwMh6Acuhc0vG2PDtykoL32ARpEACROhSwgQXPIwYr5zZvTboqxNWvlxiqZYDxSnAj9wOal29lLEAzMOhEUvFDIQLQ",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "lastLocationUpdate": null,
+    "deliveryPayoutOverride": {
+      "isActive": false,
+      "perOrder": 0,
+      "bonusThreshold": 13,
+      "bonusAmount": 0
+    },
+    "createdAt": "2026-03-25T17:15:44.149Z",
+    "updatedAt": "2026-03-26T05:30:23.948Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c41efd22f0cb745e2f739c",
+    "name": "Amazing Pizza",
+    "email": "owner@example.com",
+    "password": "$2b$10$WUaLyvtVKeDJKBuLVCST9OSdrG5RrOJrPEDG/BRtPnn1qjJWyPCXe",
+    "phone": "8445233392",
+    "googleId": null,
+    "role": "restaurant_owner",
+    "avatar": null,
+    "isActive": true,
+    "isEmailVerified": false,
+    "isPhoneVerified": true,
+    "isOnDuty": false,
+    "dutyStatusUpdatedAt": null,
+    "refreshToken": "8c10754f00220b3d644347c2bc11c620c7c9e19094ec99774609ae741cb0df75",
+    "resetPasswordToken": null,
+    "resetPasswordExpires": null,
+    "emailVerificationToken": null,
+    "emailVerificationExpires": null,
+    "otp": null,
+    "otpExpires": null,
+    "passwordChangedAt": "2026-03-25T17:35:57.999Z",
+    "fcmToken": null,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "lastLocationUpdate": null,
+    "deliveryPayoutOverride": {
+      "isActive": false,
+      "perOrder": 0,
+      "bonusThreshold": 13,
+      "bonusAmount": 0
+    },
+    "createdAt": "2026-03-25T15:17:08.918Z",
+    "updatedAt": "2026-03-25T17:47:11.804Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c4218717188fc419adb03a",
+    "name": "Dosai Pure Veg Restaurant Owner",
+    "password": "$2b$10$ZbDUm5YgrJVwB6zMM6TvK.Hbo4d2aahPI5pUuXx2wJRu6eI53wVi.",
+    "phone": "9450452129",
+    "googleId": null,
+    "role": "restaurant_owner",
+    "avatar": null,
+    "isActive": true,
+    "isEmailVerified": false,
+    "isPhoneVerified": true,
+    "isOnDuty": false,
+    "dutyStatusUpdatedAt": null,
+    "refreshToken": "2fa93f46bfdc523d5e241a67733e07556a4dc4aa450c01e66b39393aab06b900",
+    "resetPasswordToken": null,
+    "resetPasswordExpires": null,
+    "emailVerificationToken": null,
+    "emailVerificationExpires": null,
+    "otp": null,
+    "otpExpires": null,
+    "passwordChangedAt": "2026-03-25T17:58:52.886Z",
+    "fcmToken": null,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "lastLocationUpdate": null,
+    "deliveryPayoutOverride": {
+      "isActive": false,
+      "perOrder": 0,
+      "bonusThreshold": 13,
+      "bonusAmount": 0
+    },
+    "createdAt": "2026-03-25T17:55:19.372Z",
+    "updatedAt": "2026-03-25T17:59:09.303Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c4241c3dd438f7a2e92fce",
+    "name": "Mr Sandwich Owner",
+    "email": "info.flashbites@gmail.com",
+    "password": "$2b$10$UK3rqCl6JMpFJD3GUYx3hOiFog5eH8BvFL0QgyoPZM55MA2nWbw8e",
+    "phone": "7007464755",
+    "googleId": null,
+    "role": "restaurant_owner",
+    "avatar": null,
+    "isActive": true,
+    "isEmailVerified": false,
+    "isPhoneVerified": true,
+    "isOnDuty": false,
+    "dutyStatusUpdatedAt": null,
+    "refreshToken": "215516293933acda5b56932e6e6bed282e31da73643d1ab28ecc49cc6c70f192",
+    "resetPasswordToken": null,
+    "resetPasswordExpires": null,
+    "emailVerificationToken": null,
+    "emailVerificationExpires": null,
+    "otp": null,
+    "otpExpires": null,
+    "passwordChangedAt": "2026-03-25T18:10:35.048Z",
+    "fcmToken": null,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "lastLocationUpdate": null,
+    "deliveryPayoutOverride": {
+      "isActive": false,
+      "perOrder": 0,
+      "bonusThreshold": 13,
+      "bonusAmount": 0
+    },
+    "createdAt": "2026-03-25T18:06:20.584Z",
+    "updatedAt": "2026-03-25T18:44:42.401Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c426688bde35af3f51e4b7",
+    "name": "Tac Cafe Owner",
+    "email": "info.flashbites+owner1@gmail.com",
+    "password": "$2b$10$d18da9u0X9RHDQu1Izz.Oeilyy0EyV7oT1a0P4NeOZ7qmpYRL5Bua",
+    "phone": "7696764202",
+    "googleId": null,
+    "role": "restaurant_owner",
+    "avatar": null,
+    "isActive": true,
+    "isEmailVerified": false,
+    "isPhoneVerified": true,
+    "isOnDuty": false,
+    "dutyStatusUpdatedAt": null,
+    "refreshToken": "014c2d2984ab524a04669679158fd7b8baf513bfe168aecf3dbf544b4d31d42b",
+    "resetPasswordToken": null,
+    "resetPasswordExpires": null,
+    "emailVerificationToken": null,
+    "emailVerificationExpires": null,
+    "otp": null,
+    "otpExpires": null,
+    "passwordChangedAt": "2026-03-25T18:19:40.903Z",
+    "fcmToken": null,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "lastLocationUpdate": null,
+    "deliveryPayoutOverride": {
+      "isActive": false,
+      "perOrder": 0,
+      "bonusThreshold": 13,
+      "bonusAmount": 0
+    },
+    "createdAt": "2026-03-25T18:16:08.831Z",
+    "updatedAt": "2026-03-25T18:38:23.408Z",
+    "__v": 0
+  },
+  {
+    "_id": "69c426eb431d8209df8803ed",
+    "name": "Grill Hut Junction Owner",
+    "email": "info.flashbites+owner2@gmail.com",
+    "password": "$2b$10$YV1yUH30xA8RSddoc.3Qq.KrNBmEfekZ52VMlctG.wLpNJBnDqeqK",
+    "phone": "8872565600",
+    "googleId": null,
+    "role": "restaurant_owner",
+    "avatar": null,
+    "isActive": true,
+    "isEmailVerified": false,
+    "isPhoneVerified": true,
+    "isOnDuty": false,
+    "dutyStatusUpdatedAt": null,
+    "refreshToken": "04193b2130bf8cf9e3fb9cad2ff76820b452a79328992f3cdc77042a4664f9c4",
+    "resetPasswordToken": null,
+    "resetPasswordExpires": null,
+    "emailVerificationToken": null,
+    "emailVerificationExpires": null,
+    "otp": null,
+    "otpExpires": null,
+    "passwordChangedAt": "2026-03-25T18:22:18.813Z",
+    "fcmToken": null,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "lastLocationUpdate": null,
+    "deliveryPayoutOverride": {
+      "isActive": false,
+      "perOrder": 0,
+      "bonusThreshold": 13,
+      "bonusAmount": 0
+    },
+    "createdAt": "2026-03-25T18:18:19.455Z",
+    "updatedAt": "2026-03-26T04:48:27.006Z",
+    "__v": 0
+  }
+]

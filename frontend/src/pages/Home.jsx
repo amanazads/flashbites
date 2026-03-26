@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { AnimatePresence, motion } from 'framer-motion';
 import { fetchRestaurants } from '../redux/slices/restaurantSlice';
 import { clearSelectedDeliveryAddress, openCart, setSelectedDeliveryAddress } from '../redux/slices/uiSlice';
 import { getAddresses } from '../api/userApi';
@@ -11,25 +12,24 @@ import RestaurantCard from '../components/restaurant/RestaurantCard';
 import { Loader } from '../components/common/Loader';
 import { calculateCartTotal, calculateDistance } from '../utils/helpers';
 import { formatCurrency } from '../utils/formatters';
+import { BRAND } from '../constants/theme';
 import SEO from '../components/common/SEO';
 import toast from 'react-hot-toast';
 import {
   MagnifyingGlassIcon,
-  FireIcon,
   MapPinIcon,
   ChevronDownIcon,
   XMarkIcon,
   CheckIcon,
 } from '@heroicons/react/24/outline';
 
-const BRAND = '#E23744';
 const ALL_CATEGORY_IMAGE = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80';
 const SEARCH_IMAGE = 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=120&q=80';
 const SELECTED_ADDRESS_KEY = 'fb_selected_address';
 
 const mapSavedAddressToSelection = (addr) => {
-  const addrLng = Number(addr?.lng ?? addr?.coordinates?.[0]);
-  const addrLat = Number(addr?.lat ?? addr?.coordinates?.[1]);
+  const addrLng = Number(addr?.coordinates?.[0] ?? addr?.lng);
+  const addrLat = Number(addr?.coordinates?.[1] ?? addr?.lat);
   const hasStoredCoords = Number.isFinite(addrLat) && Number.isFinite(addrLng) && (addrLat !== 0 || addrLng !== 0);
   if (!hasStoredCoords) return null;
 
@@ -86,7 +86,7 @@ const PROMOS = [
     bold: 'Free delivery on all orders',
     sub: 'No minimum limits. Just great food delivered.',
     cta: 'Order Now',
-    bg: 'linear-gradient(135deg, #E23744 0%, #C92535 100%)',
+    bg: 'linear-gradient(135deg, #EA580C 0%, #C2410C 100%)',
     img: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=280&q=80',
   },
   {
@@ -118,8 +118,6 @@ const hasRealCoords = (r) => {
   return Array.isArray(coords) && coords.length === 2 && (coords[0] !== 0 || coords[1] !== 0);
 };
 
-// Live location is intentionally disabled. Users select a saved delivery location.
-
 const Home = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -132,6 +130,7 @@ const Home = () => {
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
   const [showAddAddressModal, setShowAddAddressModal] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
   const pickerRef = useRef(null);
   const promoRowRef = useRef(null);
   const promoAutoTimerRef = useRef(null);
@@ -344,7 +343,7 @@ const Home = () => {
     };
   }, [searchQ, restaurants]);
 
-  // Live location disabled: no GPS prompt or auto-fill.
+  // Location is selected manually from saved addresses or via current GPS.
 
   useEffect(() => {
     if (!selectedAddress) {
@@ -381,6 +380,55 @@ const Home = () => {
     }
 
     dispatch(setSelectedDeliveryAddress(mapped));
+  };
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Location services are not supported on this device.');
+      return;
+    }
+
+    setDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const latitude = Number(position?.coords?.latitude || 0);
+        const longitude = Number(position?.coords?.longitude || 0);
+
+        setDetectingLocation(false);
+
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || (latitude === 0 && longitude === 0)) {
+          toast.error('Could not detect your current location. Please try again.');
+          return;
+        }
+
+        dispatch(setSelectedDeliveryAddress({
+          id: 'current-location',
+          type: 'current',
+          typeLabel: 'Current',
+          city: 'Current Area',
+          fullAddress: `Current location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+          latitude,
+          longitude,
+        }));
+
+        setNoServiceArea(false);
+        setShowAddressPicker(false);
+      },
+      () => {
+        setDetectingLocation(false);
+        toast.error('Unable to access your location. Please allow location permission.');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 180000,
+      }
+    );
+  };
+
+  const handleOpenAddAddress = () => {
+    setShowAddressPicker(false);
+    setTimeout(() => setShowAddAddressModal(true), 120);
   };
 
   const handleAddressAdded = (newAddress) => {
@@ -427,6 +475,8 @@ const Home = () => {
   const promoLoopItems = promosToShow.length > 1 ? [...promosToShow, promosToShow[0]] : promosToShow;
   const cartItemCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
   const cartTotal = calculateCartTotal(cartItems);
+  const [cartExpanded, setCartExpanded] = useState(false);
+  const greeting = new Date().getHours() >= 17 ? 'Good Evening' : 'Hello';
 
   useEffect(() => {
     if (activeCat === 'all') {
@@ -560,365 +610,233 @@ const Home = () => {
 
   return (
     <>
-    <div className="page-wrapper flex justify-center lg:pt-10 max-[388px]:pt-4">
-      <SEO
-        title="Order Food Online – Best Restaurants Near You"
-        description="Order fresh, hot food online from top restaurants near you. Fast delivery, exclusive restaurant deals, and 500+ menu options. FlashBites – India's fastest food delivery."
-        url="/"
-        keywords="food delivery, order food online, restaurant near me, online food order India, FlashBites, fast delivery food, food app India"
-      />
-      <div className="max-w-7xl mx-auto w-full max-[388px]:px-3">
+      <div
+        className="min-h-screen"
+        style={{
+          backgroundColor: '#F8FAFC',
+          backgroundImage: 'none',
+        }}
+      >
+        <SEO
+          title="Order Food Online – Best Restaurants Near You"
+          description="Order fresh, hot food online from top restaurants near you. Fast delivery, exclusive restaurant deals, and 500+ menu options. FlashBites – India's fastest food delivery."
+          url="/"
+          keywords="food delivery, order food online, restaurant near me, online food order India, FlashBites, fast delivery food, food app India"
+        />
 
-        <div className="sticky top-[calc(var(--nav-height-mob)+env(safe-area-inset-top,0px))] z-40 bg-[var(--bg-app)] pb-3 mb-4 sm:mb-5">
-
-      {/* ══════════════════════════════════
-          DELIVERY ADDRESS SELECTOR
-      ══════════════════════════════════ */}
-      <div className="container-px pt-5 pb-3 max-[388px]:pt-3 max-[388px]:pb-2">
-        <div ref={pickerRef} className="relative">
-          <button
-            onClick={() => setShowAddressPicker(!showAddressPicker)}
-            className="w-full flex items-center gap-3 px-4 py-3.5 bg-white rounded-2xl text-left transition-all max-[388px]:px-3 max-[388px]:py-3"
-            style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.08)', border: showAddressPicker ? `1.5px solid ${BRAND}` : '1.5px solid transparent' }}
+        <div className="max-w-7xl mx-auto px-4 pb-32 lg:pb-12">
+          <motion.section
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45 }}
+            className="relative z-30 pt-[calc(var(--nav-height-mob)+env(safe-area-inset-top,0px)+10px)] lg:pt-8"
           >
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: selectedAddress ? '#FEF2F3' : '#F5F7FA' }}
-            >
-              <MapPinIcon className="w-5 h-5" style={{ color: selectedAddress ? BRAND : '#9CA3AF' }} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 max-[388px]:text-[9px]">Deliver to</p>
-              <p className="text-[14.5px] font-bold text-gray-900 truncate mt-0.5 max-[388px]:text-[13px]">
-                {selectedAddress ? selectedAddress.fullAddress : 'Select delivery location'}
-              </p>
-            </div>
-            {selectedAddress ? (
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={(e) => { e.stopPropagation(); clearAddress(); }}
-                onKeyDown={(e) => e.key === 'Enter' && clearAddress()}
-                className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 cursor-pointer hover:bg-gray-200"
-                aria-label="Clear address"
-              >
-                <XMarkIcon className="w-4 h-4 text-gray-500" />
-              </div>
-            ) : (
-              <ChevronDownIcon
-                className="w-5 h-5 text-gray-400 flex-shrink-0 transition-transform"
-                style={{ transform: showAddressPicker ? 'rotate(180deg)' : 'rotate(0deg)' }}
-              />
-            )}
-          </button>
+            <div className="rounded-3xl border border-gray-200 p-4 sm:p-5 backdrop-blur-xl" style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.94), rgba(250,250,250,0.92))', boxShadow: '0 4px 14px rgba(15,23,42,0.08)' }}>
+              <p className="text-[13px] tracking-wide text-gray-500">{greeting},</p>
+              <h1 className="text-gray-900 text-2xl sm:text-3xl font-black mt-1" style={{ letterSpacing: '-0.03em' }}>Aman</h1>
 
-          {/* Dropdown */}
-          {showAddressPicker && (
-            <div
-              className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl overflow-hidden z-50 animate-slide-down"
-              style={{ boxShadow: '0 12px 40px rgba(0,0,0,0.14)' }}
-            >
-              <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-[12px] text-gray-600">Restaurants are shown only for your selected delivery address coordinates.</p>
-              </div>
+              <form onSubmit={handleSearch} ref={searchRef} className="relative mt-4">
+                <div className="flex items-center gap-3 rounded-full border border-gray-200 px-4 py-3 bg-white focus-within:border-[#F97316] focus-within:shadow-[0_0_0_2px_rgba(255,122,0,0.14)] transition-all">
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-500" />
+                  <input
+                    type="text"
+                    value={searchQ}
+                    onFocus={() => setShowSuggestions(searchQ.trim().length >= 2)}
+                    onChange={(e) => {
+                      setSearchQ(e.target.value);
+                      setShowSuggestions(e.target.value.trim().length >= 2);
+                    }}
+                    placeholder="Search food, restaurants, cuisines"
+                    className="w-full bg-transparent text-gray-900 placeholder:text-gray-400 text-sm outline-none"
+                  />
+                </div>
 
-              {/* Saved addresses */}
-              {savedAddresses.length > 0 && (
-                <>
-                  <div className="px-4 py-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Saved Addresses</p>
+                {showSuggestions && (
+                  <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-2xl overflow-hidden z-50 shadow-xl">
+                    {suggestionsLoading ? (
+                      <div className="px-4 py-3 text-[13px] text-gray-500">Searching...</div>
+                    ) : (
+                      <>
+                        {searchSuggestions.restaurants.length === 0 && searchSuggestions.items.length === 0 ? (
+                          <div className="px-4 py-3 text-[13px] text-gray-500">No related restaurants or items found</div>
+                        ) : (
+                          <>
+                            {searchSuggestions.restaurants.slice(0, 4).map((restaurant) => (
+                              <button
+                                key={`rest-${restaurant._id}`}
+                                type="button"
+                                onMouseDown={() => {
+                                  setShowSuggestions(false);
+                                  navigate(`/restaurant/${restaurant._id}`);
+                                }}
+                                className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100"
+                              >
+                                <p className="text-[13px] font-semibold text-gray-900">{restaurant.name}</p>
+                                <p className="text-[11px] text-gray-500">
+                                  {Array.isArray(restaurant.cuisines) ? restaurant.cuisines.slice(0, 2).join(', ') : 'Restaurant'}
+                                </p>
+                              </button>
+                            ))}
+
+                            {searchSuggestions.items.slice(0, 6).map((item) => (
+                              <button
+                                key={`item-${item._id}`}
+                                type="button"
+                                onMouseDown={() => {
+                                  setShowSuggestions(false);
+                                  setSearchQ(item.name);
+                                  navigate(`/restaurants?search=${encodeURIComponent(item.name)}`);
+                                }}
+                                className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100"
+                              >
+                                <p className="text-[13px] font-semibold text-gray-900">{item.name}</p>
+                                <p className="text-[11px] text-gray-500">in {item.restaurantName || 'Restaurant'}</p>
+                              </button>
+                            ))}
+                          </>
+                        )}
+                      </>
+                    )}
                   </div>
-                  {savedAddresses.map((addr) => (
-                    <button
-                      key={addr._id}
-                      onClick={() => handleSelectSavedAddress(addr)}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
-                    >
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ background: '#FEF2F3' }}
-                      >
-                        <MapPinIcon className="w-4 h-4" style={{ color: BRAND }} />
-                      </div>
-                      <div className="flex-1 text-left min-w-0">
-                        <p className="text-[13px] font-semibold text-gray-800">
-                          <span className="capitalize">{addr.type}</span> – {addr.city}
-                        </p>
-                        <p className="text-[11px] text-gray-400 truncate">{addr.fullAddress || addr.street}</p>
-                      </div>
-                      <CheckIcon
-                        className="w-3.5 h-3.5 flex-shrink-0"
-                        style={{ color: BRAND, opacity: selectedAddress?.id === addr._id ? 1 : 0 }}
-                      />
-                    </button>
-                  ))}
-                </>
-              )}
+                )}
+              </form>
 
-              {/* Add Address CTA — shown when logged in but no saved addresses */}
-              {isAuthenticated && (
-                <div className="px-4 py-3 border-t border-gray-100">
-                  {savedAddresses.length === 0 && (
-                    <p className="text-[12px] text-gray-500 mb-2">No saved addresses yet.</p>
-                  )}
+              <div ref={pickerRef} className="relative z-[140] mt-4">
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowAddressPicker(false);
-                      setShowAddAddressModal(true);
-                    }}
-                    className="flex items-center gap-2 text-[13px] font-bold px-3 py-2 rounded-xl"
-                    style={{ background: '#FEF2F3', color: BRAND }}
+                    onClick={() => setShowAddressPicker(!showAddressPicker)}
+                    className="flex-1 flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3.5 bg-white hover:border-orange-200 transition-colors"
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-                      <line x1="12" y1="5" x2="12" y2="19" strokeLinecap="round" />
-                      <line x1="5" y1="12" x2="19" y2="12" strokeLinecap="round" />
-                    </svg>
-                    Add New Address
+                    <div className="h-9 w-9 rounded-xl flex items-center justify-center bg-orange-50">
+                      <MapPinIcon className="h-5 w-5 text-[#FB923C]" />
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-[11px] text-gray-500">Delivery Location</p>
+                      <p className="text-[13px] text-gray-900 font-semibold truncate">
+                        {selectedAddress ? selectedAddress.fullAddress : 'Select delivery location'}
+                      </p>
+                    </div>
+                    <ChevronDownIcon className="h-5 w-5 text-gray-500" />
                   </button>
-                </div>
-              )}
 
-              {/* Login nudge — for non-authenticated users */}
-              {!isAuthenticated && (
-                <div className="px-4 py-3 border-t border-gray-100">
-                  <p className="text-[12px] text-gray-400">
-                    <Link to="/login" className="font-semibold" style={{ color: BRAND }}>Sign in</Link> to use your saved addresses
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════
-          SEARCH BAR
-      ══════════════════════════════════ */}
-      <div className="container-px pb-6 lg:hidden max-[388px]:pb-4">
-        <form onSubmit={handleSearch} ref={searchRef} className="relative">
-          <div className="search-bar">
-            <img
-              src={SEARCH_IMAGE}
-              alt=""
-              className="h-5 w-5 rounded-full object-cover flex-shrink-0"
-              loading="lazy"
-            />
-            <input
-              type="text"
-              value={searchQ}
-              onFocus={() => setShowSuggestions(searchQ.trim().length >= 2)}
-              onChange={(e) => {
-                setSearchQ(e.target.value);
-                setShowSuggestions(e.target.value.trim().length >= 2);
-              }}
-              placeholder="Search for restaurants, dishes..."
-            />
-            {searchQ && (
-              <button
-                type="submit"
-                className="flex-shrink-0 inline-flex items-center justify-center h-8 px-3 rounded-lg text-sm font-semibold leading-none max-[388px]:px-2 max-[388px]:text-xs"
-                style={{ color: BRAND }}
-              >
-                Search
-              </button>
-            )}
-          </div>
-
-          {showSuggestions && (
-            <div
-              className="absolute left-0 right-0 mt-2 bg-white rounded-2xl overflow-hidden z-50"
-              style={{ boxShadow: '0 12px 36px rgba(0,0,0,0.12)' }}
-            >
-              {suggestionsLoading ? (
-                <div className="px-4 py-3 text-[13px] text-gray-500">Searching...</div>
-              ) : (
-                <>
-                  {searchSuggestions.restaurants.length === 0 && searchSuggestions.items.length === 0 ? (
-                    <div className="px-4 py-3 text-[13px] text-gray-500">No related restaurants or items found</div>
-                  ) : (
-                    <>
-                      {searchSuggestions.restaurants.slice(0, 4).map((restaurant) => (
-                        <button
-                          key={`rest-${restaurant._id}`}
-                          type="button"
-                          onMouseDown={() => {
-                            setShowSuggestions(false);
-                            navigate(`/restaurant/${restaurant._id}`);
-                          }}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100"
-                        >
-                          <p className="text-[13px] font-semibold text-gray-900">{restaurant.name}</p>
-                          <p className="text-[11px] text-gray-500">
-                            {Array.isArray(restaurant.cuisines) ? restaurant.cuisines.slice(0, 2).join(', ') : 'Restaurant'}
-                          </p>
-                        </button>
-                      ))}
-
-                      {searchSuggestions.items.slice(0, 6).map((item) => (
-                        <button
-                          key={`item-${item._id}`}
-                          type="button"
-                          onMouseDown={() => {
-                            setShowSuggestions(false);
-                            setSearchQ(item.name);
-                            navigate(`/restaurants?search=${encodeURIComponent(item.name)}`);
-                          }}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100"
-                        >
-                          <p className="text-[13px] font-semibold text-gray-900">{item.name}</p>
-                          <p className="text-[11px] text-gray-500">in {item.restaurantName || 'Restaurant'}</p>
-                        </button>
-                      ))}
-                    </>
+                  {selectedAddress && (
+                    <button
+                      type="button"
+                      onClick={clearAddress}
+                      className="h-10 w-10 rounded-xl border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 flex items-center justify-center"
+                      aria-label="Clear selected address"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                    </button>
                   )}
-                </>
-              )}
-            </div>
-          )}
-        </form>
-      </div>
+                </div>
 
-      </div>
+                <AnimatePresence>
+                  {showAddressPicker && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                      transition={{ duration: 0.18, ease: 'easeOut' }}
+                      className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl z-[160] max-h-[65vh] flex flex-col overflow-hidden"
+                    >
+                      <div className="p-2 border-b border-gray-100 bg-[#FFFBF7]">
+                        <button
+                          type="button"
+                          onClick={handleUseCurrentLocation}
+                          disabled={detectingLocation}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-orange-50 disabled:opacity-60"
+                        >
+                          <div className="h-8 w-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                            <MapPinIcon className="h-4 w-4 text-[#EA580C]" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-semibold text-gray-900">
+                              {detectingLocation ? 'Detecting current location...' : 'Use Current Location'}
+                            </p>
+                            <p className="text-[11px] text-gray-500">Fetch nearby restaurants from your live GPS</p>
+                          </div>
+                        </button>
+                      </div>
 
-      {/* Promo banners — Figma style */}
-      <div className="mt-2 sm:mt-3 mb-6 container-px">
-        <div className="snap-scroll-row pt-2 pb-2" ref={promoRowRef}>
-          {promoLoopItems.map((p, index) => (
-            <Link
-              key={`${p.id || p.tag || 'promo'}-${index}`}
-              to="/restaurants"
-              className="promo-banner snap-start flex-shrink-0 touch-feedback relative"
-              style={{
-                background: p.bg,
-                width: 'clamp(230px, 78vw, 420px)',
-                minWidth: '230px',
-                minHeight: '135px',
-                borderRadius: '20px',
-              }}
-            >
-              <div className="flex-1 min-w-0 pr-2 z-10">
-                <p className="text-white/70 text-[10px] font-bold uppercase tracking-wider mb-1.5">{p.tag}</p>
-                <p className="text-white text-xl sm:text-2xl font-extrabold leading-tight mb-2 max-[388px]:text-lg" style={{ letterSpacing: '-0.02em' }}>{p.bold}</p>
-                <p className="text-white/60 text-xs mb-3 line-clamp-2 max-[388px]:text-[11px]">{p.sub}</p>
-                <button
-                  className="text-white font-semibold text-sm px-5 py-2 rounded-xl max-[388px]:text-xs max-[388px]:px-4 max-[388px]:py-1.5"
-                  style={{ background: 'rgba(255,255,255,0.22)', backdropFilter: 'blur(4px)' }}
-                >
-                  {p.cta}
-                </button>
+                      <div className="flex-1 overflow-y-auto overscroll-contain py-1">
+                        {savedAddresses.length > 0 ? savedAddresses.map((addr) => (
+                          <button
+                            key={addr._id}
+                            onClick={() => handleSelectSavedAddress(addr)}
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50"
+                          >
+                            <MapPinIcon className="h-4 w-4 text-[#FB923C]" />
+                            <div className="flex-1 text-left min-w-0">
+                              <p className="text-[13px] text-gray-900 font-semibold truncate">{addr.fullAddress || addr.street}</p>
+                              <p className="text-[11px] text-gray-500 capitalize">{addr.type}</p>
+                            </div>
+                            <CheckIcon className="h-4 w-4 text-[#F97316]" style={{ opacity: selectedAddress?.id === addr._id ? 1 : 0 }} />
+                          </button>
+                        )) : (
+                          <p className="px-4 py-3 text-[12px] text-gray-500">No saved addresses yet.</p>
+                        )}
+                      </div>
+
+                      <div className="px-4 py-3 border-t border-gray-100 bg-white sticky bottom-0">
+                        {isAuthenticated ? (
+                          <button
+                            type="button"
+                            onClick={handleOpenAddAddress}
+                            className="w-full text-left text-sm font-semibold text-[#FB923C]"
+                          >
+                            + Add New Address
+                          </button>
+                        ) : (
+                          <p className="text-[12px] text-gray-500">
+                            <Link to="/login" className="text-[#FB923C] font-semibold">Sign in</Link> to use your saved addresses
+                          </p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              <img
-                src={p.img}
-                alt=""
-                className="h-24 w-24 xs:h-28 xs:w-28 object-cover rounded-2xl flex-shrink-0"
-                loading="lazy"
-              />
-            </Link>
-          ))}
-        </div>
-      </div>
+            </div>
+          </motion.section>
 
-      {/* Categories */}
-      <div className="mb-6 container-px">
-        <div className="section-header">
-          <h2 className="section-title max-[388px]:text-[16px]">Categories</h2>
-          <Link to="/restaurants" className="section-link">See all</Link>
-        </div>
-        <div className="snap-scroll-row">
-          {/* "All" pill */}
-          <button
-            onClick={() => setActiveCat('all')}
-            className={`cat-card snap-start ${activeCat === 'all' ? 'active' : ''}`}
-          >
-            <img
-              src={ALL_CATEGORY_IMAGE}
-              alt="All"
-              className={`h-8 w-8 rounded-full object-cover ${activeCat === 'all' ? 'ring-2 ring-white/90' : 'ring-1 ring-black/5'}`}
-              loading="lazy"
-            />
-            <span className="text-xs font-semibold" style={activeCat === 'all' ? { color: 'white' } : { color: '#6B7280' }}>All</span>
-          </button>
-
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCat(cat.id)}
-              className={`cat-card snap-start ${activeCat === cat.id ? 'active' : ''}`}
-            >
-              <img
-                src={cat.image}
-                alt={cat.label}
-                className={`h-8 w-8 rounded-full object-cover ${activeCat === cat.id ? 'ring-2 ring-white/90' : 'ring-1 ring-black/5'}`}
-                loading="lazy"
-              />
-              <span className="text-xs font-semibold whitespace-nowrap" style={activeCat === cat.id ? { color: 'white' } : { color: '#6B7280' }}>
-                {cat.label}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Featured section */}
-      {!loading && restaurants.length > 0 && (
-        <div className="mb-6 container-px">
-          <div className="section-header">
-            <h2 className="section-title flex items-center gap-1.5 max-[388px]:text-[16px]">
-              <FireIcon className="h-5 w-5" style={{ color: BRAND }} />
-              Featured
-            </h2>
-            <Link to="/restaurants" className="section-link">See all</Link>
-          </div>
-          <div className="snap-scroll-row">
-            {restaurants.slice(0, 6).map((r) => (
-              <Link
-                key={r._id}
-                to={`/restaurant/${r._id}`}
-                className="snap-start flex-shrink-0 group"
-              style={{ width: 'clamp(170px, 55vw, 260px)', minWidth: '170px' }}
-              >
-                <div className="card relative" style={{ borderRadius: '16px', overflow: 'hidden' }}>
-                  <div className="relative" style={{ height: '160px' }}>
-                    <img
-                      src={r.image || 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&q=80'}
-                      alt={r.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 img-overlay" />
-                    <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
-                      <p className="text-xs font-medium text-white/70">{r.cuisines?.[0] || 'Restaurant'}</p>
-                      <p className="font-bold text-base leading-tight">{r.name}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="rating-badge text-xs py-0.5">⭐ {r.rating || '4.0'}</span>
-                        <span className="text-xs text-white/70">{r.deliveryTime || '30'} min</span>
+          <section className="relative z-10 mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-gray-900 text-lg font-semibold">Categories</h2>
+              <Link to="/restaurants" className="text-[#FB923C] text-sm">See all</Link>
+            </div>
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
+              {[{ id: 'all', label: 'All', image: ALL_CATEGORY_IMAGE }, ...CATEGORIES].map((cat) => {
+                const active = activeCat === cat.id;
+                return (
+                  <motion.button
+                    key={cat.id}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setActiveCat(cat.id)}
+                    className="flex-shrink-0 w-[82px]"
+                  >
+                    <div className="mx-auto h-14 w-14 rounded-full p-[2px]" style={{ background: active ? '#FB923C' : 'rgba(255,255,255,0.16)', boxShadow: 'none' }}>
+                      <div className="h-full w-full rounded-full bg-white flex items-center justify-center">
+                        <img src={cat.image} alt={cat.label} className="h-9 w-9 rounded-full object-cover" loading="lazy" />
                       </div>
                     </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
+                    <p className="mt-2 text-xs font-semibold truncate" style={{ color: active ? '#C2410C' : '#6B7280' }}>{cat.label}</p>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </section>
 
-      {/* ══════════════════════════════════
-          NEARBY RESTAURANTS — full-width cards
-      ══════════════════════════════════ */}
-      <div className="container-px">
-        <div className="section-header">
-          <h2 className="section-title">
-            {selectedAddress
-              ? `${restaurants.length > 0 ? restaurants.length + ' Restaurants near ' : 'Restaurants near '} ${selectedAddress.city || 'selected address'}`
-              : 'All Restaurants'}
-          </h2>
-          <Link to="/restaurants" className="section-link flex items-center gap-1">
-            View All
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
-        </div>
+          <section className="mt-8">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-gray-900 text-lg font-semibold">
+                {selectedAddress
+                  ? `${restaurants.length > 0 ? `${restaurants.length} Restaurants near ` : 'Restaurants near '}${selectedAddress.city || 'selected address'}`
+                  : 'All Restaurants'}
+              </h2>
+              <Link to="/restaurants" className="text-[#FB923C] text-sm">View all</Link>
+            </div>
 
         {(loading || (activeCat !== 'all' && categoryFilterLoading)) ? (
           <div className="flex flex-col items-center justify-center py-16 gap-4">
@@ -926,10 +844,10 @@ const Home = () => {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke={BRAND} strokeWidth="4" />
               <path className="opacity-75" fill={BRAND} d="M4 12a8 8 0 018-8v8z" />
             </svg>
-            <p className="text-[14px] font-semibold text-gray-500">
+            <p className="text-[14px] font-semibold text-gray-700">
               {activeCat === 'all' ? 'Loading restaurants…' : `Finding ${activeCat} items across restaurants…`}
             </p>
-            <p className="text-[12px] text-gray-400">
+            <p className="text-[12px] text-gray-500">
               {activeCat === 'all' ? 'This may take a moment on first load' : 'Checking menu items in available restaurants'}
             </p>
           </div>
@@ -937,18 +855,18 @@ const Home = () => {
           /* ── Error / Retry state ── */
           <div
             className="text-center py-10 px-6 rounded-2xl"
-            style={{ background: 'white', boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
+            style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 8px 24px rgba(15,23,42,0.08)' }}
           >
             <div
               className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-              style={{ background: '#FEF2F3' }}
+              style={{ background: 'rgba(255,122,0,0.14)' }}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke={BRAND} strokeWidth="1.5" className="w-8 h-8">
                 <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
             <h3 className="text-[17px] font-bold text-gray-900 mb-1">Couldn't load restaurants</h3>
-            <p className="text-[13px] text-gray-400 mb-5">The server may be waking up. Please try again.</p>
+            <p className="text-[13px] text-gray-500 mb-5">The server may be waking up. Please try again.</p>
             <button
               onClick={() => {
                 const lat = Number(selectedAddress?.latitude || 0);
@@ -981,11 +899,11 @@ const Home = () => {
           /* ── Coming soon to this location ── */
           <div
             className="text-center py-10 px-6 rounded-2xl"
-            style={{ background: 'white', boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
+            style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 8px 24px rgba(15,23,42,0.08)' }}
           >
             <div
               className="w-20 h-20 rounded-2xl mx-auto mb-5 flex items-center justify-center"
-              style={{ background: '#FEF2F3' }}
+              style={{ background: 'rgba(255,122,0,0.14)' }}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke={BRAND} strokeWidth="1.5" className="w-10 h-10">
                 <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" />
@@ -998,7 +916,7 @@ const Home = () => {
             >
               Coming Soon to {selectedAddress?.city || 'Your Area'}!
             </h3>
-            <p className="text-[13px] text-gray-400 max-w-xs mx-auto mb-5 leading-relaxed">
+            <p className="text-[13px] text-gray-500 max-w-xs mx-auto mb-5 leading-relaxed">
               We don't have restaurants delivering to <strong>{selectedAddress?.city}</strong> yet.
               FlashBites is expanding fast — we'll be there soon!
             </p>
@@ -1009,7 +927,7 @@ const Home = () => {
                   setShowAddressPicker(true);
                 }}
                 className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-[14px] font-bold text-white"
-                style={{ background: `linear-gradient(135deg, ${BRAND}, #C92535)`, boxShadow: `0 4px 14px rgba(226,55,68,0.3)` }}
+                style={{ background: BRAND, boxShadow: 'none' }}
               >
                 Select Another Address
               </button>
@@ -1026,7 +944,7 @@ const Home = () => {
           <div className="text-center py-16">
             <div
               className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-              style={{ background: '#FEF2F3' }}
+              style={{ background: 'rgba(255,122,0,0.14)' }}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke={BRAND} strokeWidth="1.5" className="w-7 h-7">
                 <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" strokeLinecap="round" strokeLinejoin="round" />
@@ -1039,105 +957,48 @@ const Home = () => {
             </button>
           </div>
         )}
-      </div>
+          </section>
 
-      {/* ══════════════════════════════════
-          APP DOWNLOAD CTA (from Figma)
-      ══════════════════════════════════ */}
-      <div className="hidden sm:block container-px mt-10 mb-6">
-        <div className="app-download-section">
-          <h2 className="text-2xl sm:text-3xl font-extrabold mb-3 relative z-10">
-            Get the FlashBites app for better experience
-          </h2>
-          <p className="text-gray-400 text-sm mb-6 max-w-md mx-auto relative z-10">
-            Faster ordering, real-time tracking, and exclusive app-only deals delivered to your fingertips.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 relative z-10">
-            <button className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 px-5 py-3 rounded-xl transition-all text-sm font-semibold">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.523 2H6.477C5.662 2 5 2.662 5 3.477v17.046C5 21.338 5.662 22 6.477 22h11.046c.815 0 1.477-.662 1.477-1.477V3.477C19 2.662 18.338 2 17.523 2zM12 21a1 1 0 110-2 1 1 0 010 2zm5-3H7V4h10v14z"/></svg>
-              App Store
-            </button>
-            <button className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 px-5 py-3 rounded-xl transition-all text-sm font-semibold">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M3 20.5v-17c0-.83.67-1.5 1.5-1.5.31 0 .6.1.84.27L17.35 10a1.5 1.5 0 010 4L5.34 21.73A1.5 1.5 0 013 20.5z"/></svg>
-              Play Store
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════
-          WHY FLASHBITES
-      ══════════════════════════════════ */}
-      <div className="px-4 mt-6 pb-4">
-        <h2 className="section-title mb-4">Why FlashBites?</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {[
-            {
-              icon: (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              ),
-              title: '30 min',
-              sub: 'Avg. delivery'
-            },
-            {
-              icon: (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M9 22V12h6v10" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              ),
-              title: '500+',
-              sub: 'Restaurants'
-            },
-            {
-              icon: (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              ),
-              title: '4.8★',
-              sub: 'Avg. rating'
-            },
-          ].map((f) => (
-            <div key={f.title} className="card text-center py-4 px-2" style={{ borderRadius: '14px' }}>
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2"
-                style={{ background: '#FEF2F3', color: '#E23744' }}
+          {cartItemCount > 0 && (
+            <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-4 right-4 z-50 lg:hidden">
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                type="button"
+                onClick={() => setCartExpanded((v) => !v)}
+                className="w-full rounded-2xl px-4 py-3 text-white border border-orange-300"
+                style={{ background: '#F97316', boxShadow: '0 2px 8px rgba(234,88,12,0.12)' }}
               >
-                {f.icon}
-              </div>
-              <p className="text-sm font-bold text-gray-900">{f.title}</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">{f.sub}</p>
+                <div className="flex items-center justify-between text-sm font-semibold">
+                  <span>🛒 {cartItemCount} Items</span>
+                  <span>{formatCurrency(cartTotal)} →</span>
+                </div>
+              </motion.button>
+              <AnimatePresence>
+                {cartExpanded && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    className="mt-2 rounded-2xl p-3 border border-gray-200"
+                    style={{ background: 'rgba(255,255,255,0.98)' }}
+                  >
+                    <div className="flex gap-2">
+                      <button onClick={() => dispatch(openCart())} className="flex-1 rounded-xl py-2 text-sm font-semibold bg-gray-100 text-gray-900">View Cart</button>
+                      <button onClick={() => navigate('/checkout')} className="flex-1 rounded-xl py-2 text-sm font-semibold text-white" style={{ background: '#EA580C' }}>Checkout</button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-          ))}
+          )}
         </div>
       </div>
 
-      {cartItemCount > 0 && (
-        <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-4 right-4 z-50 lg:hidden">
-          <button
-            type="button"
-            onClick={() => dispatch(openCart())}
-            className="w-full rounded-2xl px-4 py-3.5 text-white shadow-xl transition-transform active:scale-[0.98]"
-            style={{ background: 'linear-gradient(135deg, #FF523B 0%, #E23744 100%)' }}
-          >
-            <div className="flex items-center justify-between text-sm font-semibold">
-              <span>{cartItemCount} item{cartItemCount > 1 ? 's' : ''}</span>
-              <span>View Cart • {formatCurrency(cartTotal)}</span>
-            </div>
-          </button>
-        </div>
-      )}
-      </div>
-    </div>
-
-    <AddAddressModal
-      isOpen={showAddAddressModal}
-      onClose={() => setShowAddAddressModal(false)}
-      onAddressAdded={handleAddressAdded}
-    />
+      <AddAddressModal
+        isOpen={showAddAddressModal}
+        onClose={() => setShowAddAddressModal(false)}
+        onAddressAdded={handleAddressAdded}
+      />
     </>
   );
 };

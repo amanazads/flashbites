@@ -8,6 +8,7 @@ import RestaurantCard from '../components/restaurant/RestaurantCard';
 import { Loader } from '../components/common/Loader';
 import { CUISINES } from '../utils/constants';
 import { AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
+import { BRAND } from '../constants/theme';
 
 const CUISINE_TABS = [
   { id: 'All',       label: 'All',       image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80' },
@@ -25,8 +26,6 @@ const CUISINE_TABS = [
 ];
 
 const SORT_OPTIONS = ['Ratings 4.0+', 'New to you', 'Fastest delivery', 'Free delivery'];
-
-const BRAND = '#FF523B';
 
 const RestaurantPage = () => {
   const dispatch = useDispatch();
@@ -156,7 +155,7 @@ const RestaurantPage = () => {
                     src={tab.image}
                     alt={tab.label}
                     className={`h-8 w-8 max-[388px]:h-7 max-[388px]:w-7 rounded-full object-cover ${
-                      active ? 'ring-2 ring-[#FF523B]' : 'ring-1 ring-black/5'
+                      active ? 'ring-2 ring-[#EA580C]' : 'ring-1 ring-black/5'
                     }`}
                     loading="lazy"
                   />

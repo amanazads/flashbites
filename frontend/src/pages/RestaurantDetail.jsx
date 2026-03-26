@@ -13,9 +13,8 @@ import { formatCurrency } from '../utils/formatters';
 import { FOOD_CATEGORIES } from '../utils/constants';
 import { isRestaurantOpen } from '../utils/helpers';
 import SEO from '../components/common/SEO';
+import { BRAND } from '../constants/theme';
 import toast from 'react-hot-toast';
-
-const BRAND = '#FF523B';
 
 const RestaurantDetail = () => {
   const { id } = useParams();
@@ -123,9 +122,9 @@ const RestaurantDetail = () => {
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
               <div className="min-w-0">
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl max-[388px]:text-xl font-bold mb-2 break-words text-white drop-shadow-lg">{restaurant.name}</h1>
-                <p className="text-sm sm:text-base lg:text-lg max-[388px]:text-xs mb-2 sm:mb-3 line-clamp-2 sm:line-clamp-none text-white/90 drop-shadow-md">{restaurant.description}</p>
-                <p className="text-sm max-[388px]:text-xs mb-4 max-[388px]:mb-3 text-white/80 drop-shadow">{restaurant.cuisines.join(' • ')}</p>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl max-[388px]:text-xl font-bold mb-2 break-words text-white">{restaurant.name}</h1>
+                <p className="text-sm sm:text-base lg:text-lg max-[388px]:text-xs mb-2 sm:mb-3 line-clamp-2 sm:line-clamp-none text-white/90">{restaurant.description}</p>
+                <p className="text-sm max-[388px]:text-xs mb-4 max-[388px]:mb-3 text-white/80">{restaurant.cuisines.join(' • ')}</p>
                 
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-[388px]:gap-x-3 max-[388px]:gap-y-1.5 text-xs sm:text-sm">
                   <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md border border-white/20 px-3 py-1.5 max-[388px]:px-2.5 max-[388px]:py-1 rounded-xl">
@@ -143,12 +142,12 @@ const RestaurantDetail = () => {
               {/* Open/Closed Status Badge */}
               <div className="flex flex-col items-start sm:items-end">
                 {isOpen ? (
-                  <span className="px-4 sm:px-6 py-2 max-[388px]:px-3 max-[388px]:py-1.5 bg-green-500 text-white text-xs sm:text-sm max-[388px]:text-[11px] font-bold rounded-full shadow-lg mb-2 flex items-center gap-2">
+                  <span className="px-4 sm:px-6 py-2 max-[388px]:px-3 max-[388px]:py-1.5 bg-green-500 text-white text-xs sm:text-sm max-[388px]:text-[11px] font-bold rounded-full mb-2 flex items-center gap-2">
                     <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
                     OPEN NOW · Closes at {closesAt}
                   </span>
                 ) : (
-                  <span className="px-4 sm:px-6 py-2 max-[388px]:px-3 max-[388px]:py-1.5 bg-gray-700 text-white text-xs sm:text-sm max-[388px]:text-[11px] font-bold rounded-full shadow-lg mb-2">
+                  <span className="px-4 sm:px-6 py-2 max-[388px]:px-3 max-[388px]:py-1.5 bg-gray-700 text-white text-xs sm:text-sm max-[388px]:text-[11px] font-bold rounded-full mb-2">
                     CLOSED · Opens at {opensAt}
                   </span>
                 )}
@@ -433,7 +432,7 @@ const RestaurantDetail = () => {
             type="button"
             onClick={() => dispatch(openCart())}
             className="w-full rounded-2xl text-white px-4 py-3.5 shadow-xl transition-transform active:scale-[0.98]"
-            style={{ background: 'linear-gradient(135deg, #FF523B 0%, #E23744 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #EA580C 0%, #EA580C 100%)' }}
           >
             <div className="flex items-center justify-between text-sm font-semibold">
               <span>{cartItemCount} item{cartItemCount > 1 ? 's' : ''}</span>

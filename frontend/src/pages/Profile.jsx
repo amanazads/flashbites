@@ -22,9 +22,9 @@ import {
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
+import { BRAND } from '../constants/theme';
 
-const BRAND = '#E23744';
-const BRAND_BG = '#FEF2F3';
+const BRAND_BG = '#FFF7ED';
 
 /* ─────────────────────────
    SVG Icon helpers
@@ -53,7 +53,7 @@ const MenuRow = ({ icon: Icon, label, sublabel, badge, onClick, to, danger }) =>
         className="w-9 h-9 max-[388px]:w-8 max-[388px]:h-8 rounded-xl flex items-center justify-center flex-shrink-0"
         style={{ background: danger ? '#FFF0F0' : BRAND_BG }}
       >
-        <Icon className="w-[18px] h-[18px]" style={{ color: danger ? '#E23744' : BRAND }} />
+        <Icon className="w-[18px] h-[18px]" style={{ color: danger ? '#EA580C' : BRAND }} />
       </div>
       <div className="flex-1 min-w-0">
         <p className={`text-[14.5px] max-[388px]:text-[13px] font-semibold leading-tight ${danger ? 'text-red-500' : 'text-gray-800'}`}>{label}</p>
@@ -78,7 +78,7 @@ const MenuRow = ({ icon: Icon, label, sublabel, badge, onClick, to, danger }) =>
    Address type config
 ───────────────────────── */
 const ADDRESS_TYPES = {
-  home:  { label: 'Home',  color: '#E23744', bg: '#FEF2F3' },
+  home:  { label: 'Home',  color: '#EA580C', bg: '#FFF7ED' },
   work:  { label: 'Work',  color: '#2563EB', bg: '#EFF6FF' },
   other: { label: 'Other', color: '#7C3AED', bg: '#F5F3FF' },
 };
@@ -96,8 +96,8 @@ const Profile = () => {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-app)' }}>
         <svg className="animate-spin w-8 h-8" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="#E23744" strokeWidth="4" />
-          <path className="opacity-75" fill="#E23744" d="M4 12a8 8 0 018-8v8z" />
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="#EA580C" strokeWidth="4" />
+          <path className="opacity-75" fill="#EA580C" d="M4 12a8 8 0 018-8v8z" />
         </svg>
       </div>
     );
@@ -117,7 +117,7 @@ const Profile = () => {
           >
             <div
               className="w-20 h-20 max-[388px]:w-16 max-[388px]:h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-              style={{ background: 'rgba(226,55,68,0.25)' }}
+              style={{ background: 'rgba(234,88,12,0.25)' }}
             >
               <UserCircleIcon className="w-10 h-10 text-white" />
             </div>
@@ -129,7 +129,7 @@ const Profile = () => {
             <Link
               to="/login"
               className="block w-full py-3.5 max-[388px]:py-3 rounded-2xl text-[15px] max-[388px]:text-[14px] font-bold text-white text-center"
-              style={{ background: 'linear-gradient(135deg, #E23744, #C92535)', boxShadow: '0 4px 14px rgba(226,55,68,0.3)' }}
+              style={{ background: BRAND, boxShadow: 'none' }}
             >
               Sign In
             </Link>
@@ -251,7 +251,7 @@ const Profile = () => {
       text: "You won't be able to revert this!",
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#E23744',
+      confirmButtonColor: '#EA580C',
       cancelButtonColor: '#9CA3AF',
       confirmButtonText: 'Yes, remove it',
       borderRadius: '1rem',
@@ -332,8 +332,8 @@ const Profile = () => {
             <div
               className="w-[72px] h-[72px] max-[388px]:w-[60px] max-[388px]:h-[60px] rounded-2xl flex items-center justify-center text-white text-[28px] max-[388px]:text-[22px] font-bold flex-shrink-0"
               style={{
-                background: `linear-gradient(135deg, ${BRAND} 0%, #C92535 100%)`,
-                boxShadow: '0 8px 24px rgba(226,55,68,0.45)',
+                background: BRAND,
+                boxShadow: 'none',
               }}
             >
               {avatarLetter}
@@ -461,7 +461,7 @@ const Profile = () => {
                       type="submit"
                       disabled={savingProfile}
                       className="flex-1 py-3 max-[388px]:py-2.5 rounded-xl text-[14px] max-[388px]:text-[13px] font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-60"
-                      style={{ background: `linear-gradient(135deg, ${BRAND}, #C92535)`, boxShadow: '0 4px 14px rgba(226,55,68,0.3)' }}
+                      style={{ background: BRAND, boxShadow: 'none' }}
                     >
                       {savingProfile ? (
                         <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -588,8 +588,8 @@ const Profile = () => {
               style={{
                 background: showAddressForm
                   ? '#6B7280'
-                  : `linear-gradient(135deg, ${BRAND}, #C92535)`,
-                boxShadow: showAddressForm ? 'none' : '0 4px 14px rgba(226,55,68,0.3)',
+                  : BRAND,
+                boxShadow: 'none',
               }}
             >
               {showAddressForm ? (
@@ -657,7 +657,7 @@ const Profile = () => {
                   <button
                     type="submit"
                     className="w-full py-3 max-[388px]:py-2.5 rounded-xl text-[14px] max-[388px]:text-[13px] font-bold text-white"
-                    style={{ background: `linear-gradient(135deg, ${BRAND}, #C92535)`, boxShadow: '0 4px 14px rgba(226,55,68,0.3)' }}
+                    style={{ background: BRAND, boxShadow: 'none' }}
                   >
                     Save Address
                   </button>

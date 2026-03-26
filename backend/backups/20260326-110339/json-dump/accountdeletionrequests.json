@@ -1,0 +1,19 @@
+[
+  {
+    "_id": "69bac7e60377f2c744f1858c",
+    "userId": "69bab5f695555a6ada09c844",
+    "name": "test",
+    "email": "vivekkumarprince1@gmail.com",
+    "phone": "1234567890",
+    "reason": "not application",
+    "details": "",
+    "status": "rejected",
+    "adminNotes": "it was just a testing",
+    "reviewedBy": "69acf17c7948cd90501e55b3",
+    "reviewedAt": "2026-03-20T14:40:15.110Z",
+    "expectedDeletionWindow": "2-4 weeks",
+    "createdAt": "2026-03-18T15:42:30.992Z",
+    "updatedAt": "2026-03-20T14:40:15.111Z",
+    "__v": 0
+  }
+]

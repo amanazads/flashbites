@@ -24,8 +24,7 @@ import { useSwipeBack } from '../../hooks/useSwipeBack';
 import toast from 'react-hot-toast';
 import logo from '../../assets/logo.png';
 import NotificationBell from './NotificationBell';
-
-const BRAND = '#FF523B';
+import { BRAND } from '../../constants/theme';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -118,17 +117,18 @@ const Navbar = () => {
           MOBILE TOP BAR
       ═══════════════════════════════════════ */}
       <div
-        className="mobile-top-nav lg:hidden fixed top-0 left-0 right-0 z-[1200] bg-white"
+        className="mobile-top-nav lg:hidden fixed top-0 left-0 right-0 z-[1200]"
         style={{ 
           paddingTop: 'max(env(safe-area-inset-top), 10px)',
           paddingLeft: 'env(safe-area-inset-left)',
           paddingRight: 'env(safe-area-inset-right)',
-          boxShadow: '0 1px 0 rgba(0,0,0,0.05)',
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.92))',
+          boxShadow: '0 1px 0 rgba(15,23,42,0.08)',
         }}
       >
         <div
-          className="mx-2 sm:mx-3 px-3 sm:px-4 flex items-center justify-between gap-2 bg-white rounded-2xl"
-          style={{ minHeight: '64px', boxShadow: '0 4px 14px rgba(0,0,0,0.12)' }}
+          className="mx-2 sm:mx-3 px-3 sm:px-4 flex items-center justify-between gap-2 rounded-2xl border border-gray-200"
+          style={{ minHeight: '64px', background: 'rgba(255,255,255,0.94)', backdropFilter: 'blur(10px)', boxShadow: '0 8px 24px rgba(15,23,42,0.10)' }}
         >
 
           {/* Back button — visible on non-home pages, also supports swipe-right */}
@@ -204,7 +204,7 @@ const Navbar = () => {
 
         {/* Expandable search bar */}
         {showMobileSearch && shouldShowSearch && (
-          <div className="mx-2 sm:mx-3 mt-2 px-4 pb-3 bg-white rounded-2xl border border-black/20 animate-slide-down" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <div className="mx-2 sm:mx-3 mt-2 px-4 pb-3 rounded-2xl border border-gray-200 animate-slide-down" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(15,23,42,0.10)' }}>
             <form onSubmit={handleMobileSearch} className="search-bar">
               <MagnifyingGlassIcon className="h-4 w-4 flex-shrink-0 text-gray-400" />
               <input
@@ -213,6 +213,7 @@ const Navbar = () => {
                 value={mobileSearch}
                 onChange={(e) => setMobileSearch(e.target.value)}
                 placeholder="Restaurant or dish..."
+                className="bg-transparent text-gray-900 placeholder:text-gray-400"
               />
               {mobileSearch && (
                 <button type="submit" className="flex-shrink-0 text-sm font-semibold" style={{ color: BRAND }}>
@@ -228,8 +229,8 @@ const Navbar = () => {
           DESKTOP TOP NAV
       ═══════════════════════════════════════ */}
       <div
-        className="hidden lg:block sticky top-0 z-40 bg-white"
-        style={{ boxShadow: '0 1px 0 #E5E7EB' }}
+        className="hidden lg:block sticky top-0 z-40 border-b border-gray-200"
+        style={{ background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(10px)' }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-6">
@@ -237,7 +238,7 @@ const Navbar = () => {
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
               <img src={logo} alt="FlashBites" className="h-9 w-9 object-contain rounded-xl" />
-              <span className="text-xl font-bold text-brand-gradient">FlashBites</span>
+              <span className="text-xl font-bold text-gray-900">FlashBites</span>
             </Link>
 
             {/* Search */}
@@ -250,9 +251,9 @@ const Navbar = () => {
                   if (q) navigate(`/restaurants?search=${encodeURIComponent(q)}`);
                 }}
               >
-                <div className="search-bar">
+                <div className="search-bar" style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
                   <MagnifyingGlassIcon className="h-4.5 w-4.5 text-gray-400 flex-shrink-0" style={{ width: '18px', height: '18px' }} />
-                  <input name="q" type="text" placeholder='Search "pizza" or restaurant...' />
+                  <input name="q" type="text" placeholder='Search "pizza" or restaurant...' className="text-gray-900 placeholder:text-gray-400" />
                 </div>
               </form>
             ) : (
@@ -307,14 +308,14 @@ const Navbar = () => {
                       <span>{user?.name?.split(' ')[0]}</span>
                     </button>
                     {showDropdown && (
-                      <div className="absolute right-0 mt-2 w-44 bg-white rounded-2xl shadow-xl border border-gray-100 py-1 z-50 animate-slide-down">
+                      <div className="absolute right-0 mt-2 w-44 bg-white rounded-2xl shadow-xl border border-gray-200 py-1 z-50 animate-slide-down">
                         <Link to="/profile" onClick={() => setShowDropdown(false)}
-                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-primary-50 transition-colors">
+                          className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                           👤 My Profile
                         </Link>
                         <button
                           onClick={() => { setShowDropdown(false); handleLogout(); }}
-                          className="w-full text-left block px-4 py-2.5 text-sm text-gray-700 hover:bg-primary-50 transition-colors"
+                          className="w-full text-left block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                           🚪 Sign out
                         </button>
@@ -352,9 +353,11 @@ const Navbar = () => {
         }}
       >
         <div
-          className="bg-white flex items-center gap-1 rounded-[28px] px-2 py-2"
+          className="flex items-center gap-1 rounded-[28px] px-2 py-2 border border-gray-200"
           style={{
-            boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
+            background: 'linear-gradient(160deg, rgba(255,255,255,0.96), rgba(248,250,252,0.96))',
+            backdropFilter: 'blur(14px)',
+            boxShadow: '0 14px 30px rgba(15,23,42,0.14)',
             pointerEvents: 'auto'
           }}
         >
@@ -378,11 +381,11 @@ const Navbar = () => {
                   }
                 }}
                 className={`flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-2xl transition-all duration-200 touch-feedback`}
-                style={tab.isCart ? {} : active ? { background: '#FFF0ED' } : {}}
+                style={tab.isCart ? {} : active ? { background: 'rgba(234,88,12,0.08)', boxShadow: '0 0 0 1px rgba(234,88,12,0.14)' } : {}}
               >
                 {tab.isCart ? (
                   /* Cart — branded circle */
-                  <div className="relative flex items-center justify-center w-11 h-11 rounded-2xl" style={{ background: BRAND }}>
+                  <div className="relative flex items-center justify-center w-10 h-10 rounded-xl border border-orange-300" style={{ background: '#F97316', boxShadow: '0 2px 8px rgba(234,88,12,0.22)' }}>
                     <ShoppingCartIcon className="h-5 w-5 text-white stroke-2" />
                     {cartCount > 0 && (
                       <span className="absolute -top-1 -right-1 bg-white text-gray-900 text-[8px] rounded-full h-4 min-w-[16px] px-0.5 flex items-center justify-center font-bold border border-primary-100">
@@ -394,11 +397,11 @@ const Navbar = () => {
                   <>
                     <Icon
                       className="h-5 w-5 transition-all"
-                      style={active ? { color: BRAND } : { color: '#9CA3AF' }}
+                      style={active ? { color: '#EA580C' } : { color: '#6B7280' }}
                     />
                     <span
                       className="text-[10px] font-semibold leading-none"
-                      style={active ? { color: BRAND } : { color: '#9CA3AF' }}
+                      style={active ? { color: '#C2410C' } : { color: '#6B7280' }}
                     >
                       {tab.label}
                     </span>

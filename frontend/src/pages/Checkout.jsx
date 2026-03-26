@@ -357,7 +357,7 @@ const Checkout = () => {
                 <button
                   onClick={() => navigate(`/restaurant/${restaurant._id}`)}
                   className="mt-3 text-sm font-semibold max-[300px]:text-xs"
-                  style={{ color: '#E23744' }}
+                  style={{ color: '#EA580C' }}
                 >
                   + Add more items
                 </button>
@@ -378,7 +378,7 @@ const Checkout = () => {
                       <button
                         onClick={() => dispatch(updateQuantity({ itemId: item._id, quantity: item.quantity - 1 }))}
                         className="w-7 h-7 max-[320px]:w-6 max-[320px]:h-6 rounded-lg flex items-center justify-center"
-                        style={{ border: '1.5px solid #E23744', color: '#E23744' }}
+                        style={{ border: '1.5px solid #EA580C', color: '#EA580C' }}
                       >
                         <MinusIcon className="h-3.5 w-3.5" />
                       </button>
@@ -386,7 +386,7 @@ const Checkout = () => {
                       <button
                         onClick={() => dispatch(updateQuantity({ itemId: item._id, quantity: item.quantity + 1 }))}
                         className="w-7 h-7 max-[320px]:w-6 max-[320px]:h-6 rounded-lg flex items-center justify-center"
-                        style={{ background: '#E23744', color: 'white' }}
+                        style={{ background: '#EA580C', color: 'white' }}
                       >
                         <PlusIcon className="h-3.5 w-3.5" />
                       </button>
@@ -409,7 +409,7 @@ const Checkout = () => {
                 <button
                   onClick={() => setShowAddAddressModal(true)}
                   className="text-sm font-semibold flex items-center gap-1 max-[320px]:text-xs"
-                  style={{ color: '#E23744' }}
+                  style={{ color: '#EA580C' }}
                 >
                   + Add New
                 </button>
@@ -432,7 +432,7 @@ const Checkout = () => {
                           ? 'border-2 bg-red-50'
                           : 'border border-gray-200 hover:border-gray-300'
                       }`}
-                      style={selectedAddress === address._id ? { borderColor: '#E23744' } : {}}
+                      style={selectedAddress === address._id ? { borderColor: '#EA580C' } : {}}
                     >
                       <input
                         type="radio"
@@ -443,7 +443,7 @@ const Checkout = () => {
                           setSelectedAddress(address._id);
                         }}
                         className="mt-1 flex-shrink-0"
-                        style={{ accentColor: '#E23744' }}
+                        style={{ accentColor: '#EA580C' }}
                       />
                       <div className="min-w-0">
                         <span className="font-semibold capitalize text-sm text-gray-900 max-[320px]:text-xs">{address.type}</span>
@@ -522,7 +522,7 @@ const Checkout = () => {
                         <button
                           onClick={() => handleApplySuggestedCoupon(coupon.code)}
                           className="text-xs font-semibold px-3 py-1 max-[320px]:px-2.5 max-[320px]:py-0.5 rounded-lg"
-                          style={{ color: '#E23744', background: '#FEF2F3' }}
+                          style={{ color: '#EA580C', background: '#FFF7ED' }}
                         >
                           Apply
                         </button>
@@ -547,7 +547,7 @@ const Checkout = () => {
                     className={`flex items-center gap-3 p-3.5 rounded-xl cursor-pointer transition-all max-[400px]:p-3 max-[320px]:p-2.5 ${
                       paymentMethod === opt.value ? 'border-2 bg-red-50' : 'border border-gray-200'
                     }`}
-                    style={paymentMethod === opt.value ? { borderColor: '#E23744' } : {}}
+                    style={paymentMethod === opt.value ? { borderColor: '#EA580C' } : {}}
                   >
                     <input
                       type="radio"
@@ -556,9 +556,9 @@ const Checkout = () => {
                       checked={paymentMethod === opt.value}
                       onChange={(e) => setPaymentMethod(e.target.value)}
                       className="flex-shrink-0"
-                      style={{ accentColor: '#E23744' }}
+                      style={{ accentColor: '#EA580C' }}
                     />
-                    <span className="flex-shrink-0" style={{ color: paymentMethod === opt.value ? '#E23744' : '#6B7280' }}>
+                    <span className="flex-shrink-0" style={{ color: paymentMethod === opt.value ? '#EA580C' : '#6B7280' }}>
                       {opt.icon}
                     </span>
                     <div className="flex-1 min-w-0">
@@ -616,7 +616,7 @@ const Checkout = () => {
                 </div>
                 <div className="flex justify-between text-[15px] max-[320px]:text-[14px] font-bold pt-2 border-t border-gray-200">
                   <span>Total</span>
-                  <span style={{ color: '#E23744' }}>{formatCurrency(total)}</span>
+                  <span style={{ color: '#EA580C' }}>{formatCurrency(total)}</span>
                 </div>
               </div>
 

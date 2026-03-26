@@ -2,15 +2,29 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from '../api/axios';
-import { setupRecaptcha, sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../firebase';
+import { sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../firebase';
 import { validatePassword, validatePhone } from '../utils/validators';
+import { BRAND } from '../constants/theme';
 
-const BRAND = '#FF523B';
+const OTP_BLOCK_SECONDS = 300;
+const OTP_BLOCK_KEY = 'fb_otp_block_until';
+
+const getSecondsUntil = (untilTs) => {
+  const diff = Math.ceil((untilTs - Date.now()) / 1000);
+  return diff > 0 ? diff : 0;
+};
+
+const isTooManyRequestsError = (error) => {
+  const code = String(error?.code || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+  return code.includes('too-many-requests') || message.includes('auth/too-many-requests');
+};
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1); // 1: phone, 2: otp, 3: new password
   const [loading, setLoading] = useState(false);
+  const [otpBlockRemaining, setOtpBlockRemaining] = useState(0);
   const [formData, setFormData] = useState({
     phone: '',
     otp: '',
@@ -18,6 +32,37 @@ const ForgotPassword = () => {
     confirmPassword: ''
   });
   const [firebaseToken, setFirebaseToken] = useState(null);
+
+  React.useEffect(() => {
+    const stored = Number(localStorage.getItem(OTP_BLOCK_KEY) || 0);
+    if (!stored) return;
+    const remaining = getSecondsUntil(stored);
+    if (remaining > 0) {
+      setOtpBlockRemaining(remaining);
+    } else {
+      localStorage.removeItem(OTP_BLOCK_KEY);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (otpBlockRemaining <= 0) return;
+    const t = setInterval(() => {
+      setOtpBlockRemaining((prev) => {
+        if (prev <= 1) {
+          localStorage.removeItem(OTP_BLOCK_KEY);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [otpBlockRemaining]);
+
+  const startOtpBlock = (seconds = OTP_BLOCK_SECONDS) => {
+    const until = Date.now() + seconds * 1000;
+    localStorage.setItem(OTP_BLOCK_KEY, String(until));
+    setOtpBlockRemaining(seconds);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -32,6 +77,11 @@ const ForgotPassword = () => {
   const handleSendOTP = async (e) => {
     e.preventDefault();
 
+    if (otpBlockRemaining > 0) {
+      toast.error(`Please wait ${otpBlockRemaining}s before trying OTP again.`);
+      return;
+    }
+
     if (!validatePhone(formData.phone)) {
       toast.error('Please enter a valid 10-digit phone number');
       return;
@@ -39,13 +89,15 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      setupRecaptcha();
       const phoneWithCode = `+91${formData.phone}`;
       await sendPhoneOTP(phoneWithCode);
       toast.success('OTP sent to your phone number');
       setStep(2);
     } catch (error) {
       console.error('Send OTP error:', error);
+      if (isTooManyRequestsError(error)) {
+        startOtpBlock();
+      }
       toast.error(getReadableFirebaseAuthError(error));
     } finally {
       setLoading(false);
@@ -104,13 +156,16 @@ const ForgotPassword = () => {
   };
 
   const handleResendOTP = async () => {
+    if (otpBlockRemaining > 0) return;
     setLoading(true);
     try {
-      setupRecaptcha();
       const phoneWithCode = `+91${formData.phone}`;
       await sendPhoneOTP(phoneWithCode);
       toast.success('OTP resent to your phone');
     } catch (error) {
+      if (isTooManyRequestsError(error)) {
+        startOtpBlock();
+      }
       toast.error(getReadableFirebaseAuthError(error));
     } finally {
       setLoading(false);
@@ -172,9 +227,9 @@ const ForgotPassword = () => {
                 </div>
               </div>
 
-              <button type="submit" disabled={loading}
+              <button type="submit" disabled={loading || otpBlockRemaining > 0}
                 className="btn-primary w-full py-3">
-                {loading ? 'Sending...' : 'Send OTP'}
+                {loading ? 'Sending...' : otpBlockRemaining > 0 ? `Try again in ${otpBlockRemaining}s` : 'Send OTP'}
               </button>
             </form>
           )}
@@ -206,7 +261,7 @@ const ForgotPassword = () => {
               <div className="text-center">
                 <button type="button" onClick={handleResendOTP} disabled={loading}
                   className="text-sm font-semibold" style={{ color: BRAND }}>
-                  Resend OTP
+                  {otpBlockRemaining > 0 ? `Retry in ${otpBlockRemaining}s` : 'Resend OTP'}
                 </button>
               </div>
             </form>
@@ -253,9 +308,6 @@ const ForgotPassword = () => {
           </div>
         </div>
       </div>
-
-      {/* Invisible reCAPTCHA container */}
-      <div id="recaptcha-container"></div>
     </div>
   );
 };

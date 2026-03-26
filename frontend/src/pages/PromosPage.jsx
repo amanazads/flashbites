@@ -13,8 +13,7 @@ import {
   GiftIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline';
-
-const BRAND = '#E23744';
+import { BRAND } from '../constants/theme';
 
 const getCouponMeta = (coupon) => {
   if (coupon.discountType === 'percentage') {
@@ -34,7 +33,7 @@ const getCouponMeta = (coupon) => {
     tag: 'FLAT DEAL',
     icon: TagIcon,
     iconColor: BRAND,
-    gradient: `linear-gradient(135deg, ${BRAND} 0%, #C92535 100%)`,
+    gradient: `linear-gradient(135deg, ${BRAND} 0%, #C2410C 100%)`,
   };
 };
 
@@ -144,7 +143,7 @@ const CouponCard = ({ coupon }) => {
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all active:scale-95"
             style={{
               background: copied ? '#1BA672' : coupon.gradient,
-              boxShadow: `0 4px 12px ${coupon.iconColor}40`,
+              boxShadow: 'none',
               minWidth: '90px',
             }}
           >
@@ -223,7 +222,7 @@ const PromosPage = () => {
             </div>
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: '#FEF2F3' }}
+              style={{ background: '#FFF7ED' }}
             >
               <StarIcon className="w-5 h-5" style={{ color: BRAND }} />
             </div>
@@ -251,7 +250,7 @@ const PromosPage = () => {
           {!isAuthenticated && (
             <div
               className="p-4 rounded-2xl flex items-center gap-3"
-              style={{ background: '#FEF2F3', border: `1.5px solid ${BRAND}22` }}
+              style={{ background: '#FFF7ED', border: `1.5px solid ${BRAND}22` }}
             >
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"

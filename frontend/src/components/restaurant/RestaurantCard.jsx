@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { StarIcon } from '@heroicons/react/24/solid';
 import { ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { isRestaurantOpen } from '../../utils/helpers';
+import { BRAND } from '../../constants/theme';
 
-const BRAND = '#E23744';
 const DELIVERY_RADIUS_KM = 20;
 
 const getDiscount = (r) => {
@@ -15,7 +15,7 @@ const getDiscount = (r) => {
 const RestaurantCard = ({ restaurant: r, matchedItems = [], selectedCategory = null, matchedItemsTitle = null }) => {
   const discount = getDiscount(r);
   const rating = parseFloat(r.rating) || 4.0;
-  const ratingBg = rating >= 4.5 ? '#1BA672' : rating >= 4.0 ? '#1BA672' : rating >= 3.5 ? '#E8A020' : '#E23744';
+  const ratingBg = rating >= 4.5 ? '#1BA672' : rating >= 4.0 ? '#1BA672' : rating >= 3.5 ? '#E8A020' : '#EA580C';
 
   const { isOpen, opensAt } = isRestaurantOpen(r.timing, r.acceptingOrders !== false);
   const outOfRange = r.distance !== undefined && r.distance > DELIVERY_RADIUS_KM;
@@ -61,7 +61,7 @@ const RestaurantCard = ({ restaurant: r, matchedItems = [], selectedCategory = n
           {isOpen && !outOfRange && rating >= 4.5 && (
             <span
               className="text-white text-[10px] max-[300px]:text-[9px] font-bold px-2 py-1 max-[300px]:px-1.5 max-[300px]:py-0.5 rounded-lg"
-              style={{ background: 'rgba(226,55,68,0.92)', backdropFilter: 'blur(4px)' }}
+              style={{ background: 'rgba(234,88,12,0.92)', backdropFilter: 'blur(4px)' }}
             >
               TOP RATED
             </span>
@@ -69,7 +69,7 @@ const RestaurantCard = ({ restaurant: r, matchedItems = [], selectedCategory = n
           {isOpen && !outOfRange && rating < 4.5 && (
             <span
               className="text-white text-[10px] max-[300px]:text-[9px] font-bold px-2 py-1 max-[300px]:px-1.5 max-[300px]:py-0.5 rounded-lg"
-              style={{ background: 'rgba(226,55,68,0.88)', backdropFilter: 'blur(4px)' }}
+              style={{ background: 'rgba(234,88,12,0.88)', backdropFilter: 'blur(4px)' }}
             >
               {r.isPureVeg ? 'PURE VEG' : `₹${discount} OFF`}
             </span>
@@ -128,7 +128,7 @@ const RestaurantCard = ({ restaurant: r, matchedItems = [], selectedCategory = n
                 <span
                   key={item._id || item.name}
                   className="text-[10px] font-semibold px-2 py-1 rounded-full"
-                  style={{ background: '#FEF2F3', color: BRAND }}
+                  style={{ background: '#FFF7ED', color: BRAND }}
                 >
                   {item.name}
                 </span>
@@ -164,7 +164,7 @@ const RestaurantCard = ({ restaurant: r, matchedItems = [], selectedCategory = n
           >
             <div
               className="h-4 w-4 rounded flex items-center justify-center flex-shrink-0"
-              style={{ background: '#FEF2F3' }}
+              style={{ background: '#FFF7ED' }}
             >
               <span className="text-[9px] font-black" style={{ color: BRAND }}>%</span>
             </div>

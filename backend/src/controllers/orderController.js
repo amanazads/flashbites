@@ -479,8 +479,10 @@ exports.createOrder = async (req, res) => {
 
     const distance = calculateDistance(restLat, restLng, addrLat, addrLng);
     const hasDeliveryZone = Boolean(restaurant.deliveryZone?.coordinates?.[0]?.length);
+    const hasUsableDeliveryZone = hasDeliveryZone
+      && isPointInDeliveryZone(restaurant.deliveryZone, [restLng, restLat]);
 
-    if (hasDeliveryZone) {
+    if (hasUsableDeliveryZone) {
       const isDeliverableByZone = isPointInDeliveryZone(restaurant.deliveryZone, [addrLng, addrLat]);
       if (!isDeliverableByZone) {
         return errorResponse(res, 400, 'Restaurant does not deliver to this location');
@@ -514,7 +516,7 @@ exports.createOrder = async (req, res) => {
       return errorResponse(res, 400, 'Invalid address: could not calculate delivery distance. Please update your address location.');
     }
 
-    if (!hasDeliveryZone && distance > maxDistanceKm) {
+    if (!hasUsableDeliveryZone && distance > maxDistanceKm) {
       if (debugAddressFlow) {
         const debugData = {
           distanceKm: Number(distance.toFixed(2)),

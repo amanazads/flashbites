@@ -8,8 +8,7 @@ import {
   ClockIcon,
   BuildingOffice2Icon,
 } from '@heroicons/react/24/outline';
-
-const BRAND = '#E23744';
+import { BRAND } from '../constants/theme';
 
 const faqs = [
   {
@@ -64,7 +63,7 @@ const FaqItem = ({ faq, index }) => {
         <p className="text-[14px] font-semibold text-gray-800 flex-1">{faq.q}</p>
         <div
           className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all"
-          style={open ? { background: '#FEF2F3' } : { background: '#F5F7FA' }}
+          style={open ? { background: '#FFF7ED' } : { background: '#F5F7FA' }}
         >
           <ChevronDownIcon
             className="w-4 h-4 transition-transform duration-200"
@@ -93,7 +92,7 @@ const HelpPage = () => {
         <div className="text-center mb-8">
           <div
             className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-            style={{ background: '#FEF2F3' }}
+            style={{ background: '#FFF7ED' }}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke={BRAND} strokeWidth="1.5" className="w-8 h-8">
               <circle cx="12" cy="12" r="10" />
@@ -134,7 +133,7 @@ const HelpPage = () => {
             className="bg-white rounded-2xl p-4 flex items-start gap-3 transition-all hover:shadow-md"
             style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
           >
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#FEF2F3' }}>
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#FFF7ED' }}>
               <EnvelopeIcon className="w-5 h-5" style={{ color: BRAND }} />
             </div>
             <div>

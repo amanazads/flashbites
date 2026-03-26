@@ -11,8 +11,7 @@ import {
   ShoppingBagIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
-
-const BRAND = '#E23744';
+import { BRAND } from '../constants/theme';
 
 /* ─── Status config ─── */
 const STATUS_CONFIG = {
@@ -22,9 +21,9 @@ const STATUS_CONFIG = {
   ready:              { label: 'Ready',       color: '#10B981', bg: '#ECFDF5', dot: '#10B981' },
   out_for_delivery:   { label: 'On the way',  color: '#3B82F6', bg: '#EFF6FF', dot: '#3B82F6' },
   delivered:          { label: 'Delivered',   color: '#1BA672', bg: '#ECFDF5', dot: '#1BA672' },
-  cancelled:          { label: 'Cancelled',   color: '#E23744', bg: '#FEF2F3', dot: '#E23744' },
-  canceled:           { label: 'Cancelled',   color: '#E23744', bg: '#FEF2F3', dot: '#E23744' },
-  failed:             { label: 'Failed',      color: '#E23744', bg: '#FEF2F3', dot: '#E23744' },
+  cancelled:          { label: 'Cancelled',   color: '#EA580C', bg: '#FFF7ED', dot: '#EA580C' },
+  canceled:           { label: 'Cancelled',   color: '#EA580C', bg: '#FFF7ED', dot: '#EA580C' },
+  failed:             { label: 'Failed',      color: '#EA580C', bg: '#FFF7ED', dot: '#EA580C' },
   refunded:           { label: 'Refunded',    color: '#6B7280', bg: '#F3F4F6', dot: '#6B7280' },
 };
 
@@ -44,7 +43,7 @@ const EmptyState = ({ isActive }) => (
   <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
     <div
       className="w-20 h-20 rounded-2xl mb-5 flex items-center justify-center"
-      style={{ background: '#FEF2F3' }}
+      style={{ background: '#FFF7ED' }}
     >
       <ShoppingBagIcon className="w-9 h-9" style={{ color: BRAND }} />
     </div>
@@ -60,8 +59,8 @@ const EmptyState = ({ isActive }) => (
       to="/restaurants"
       className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold text-white"
       style={{
-        background: `linear-gradient(135deg, ${BRAND}, #C92535)`,
-        boxShadow: '0 4px 14px rgba(226,55,68,0.3)',
+        background: BRAND,
+        boxShadow: 'none',
       }}
     >
       <ShoppingBagIcon className="w-4 h-4" />
@@ -148,7 +147,7 @@ const OrderCard = ({ order }) => {
 
           <span
             className="text-[12px] font-bold px-3 py-1.5 rounded-xl"
-            style={{ background: '#FEF2F3', color: BRAND }}
+            style={{ background: '#FFF7ED', color: BRAND }}
           >
             View Details
           </span>
@@ -212,7 +211,7 @@ const Orders = () => {
             {uniqueOrders.length > 0 && (
               <span
                 className="text-[12px] max-[388px]:text-[11px] font-bold px-2.5 py-1 rounded-full"
-                style={{ background: '#FEF2F3', color: BRAND }}
+                style={{ background: '#FFF7ED', color: BRAND }}
               >
                 {uniqueOrders.length}
               </span>

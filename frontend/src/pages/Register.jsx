@@ -1,24 +1,37 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { clearError, setAuthUser } from '../redux/slices/authSlice';
 import toast from 'react-hot-toast';
 import { validateEmail, validatePhone, validatePassword } from '../utils/validators';
 import axios from '../api/axios';
-import { setupRecaptcha, sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../firebase';
+import { sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../firebase';
 import logo from '../assets/logo.png';
+import { BRAND } from '../constants/theme';
 
-const BRAND = '#FF523B';
+const OTP_BLOCK_SECONDS = 300;
+const OTP_BLOCK_KEY = 'fb_otp_block_until';
+
+const getSecondsUntil = (untilTs) => {
+  const diff = Math.ceil((untilTs - Date.now()) / 1000);
+  return diff > 0 ? diff : 0;
+};
+
+const isTooManyRequestsError = (error) => {
+  const code = String(error?.code || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+  return code.includes('too-many-requests') || message.includes('auth/too-many-requests');
+};
 
 const Register = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { error, isAuthenticated, user } = useSelector((state) => state.auth);
-  const recaptchaReady = useRef(false);
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
+  const [otpBlockRemaining, setOtpBlockRemaining] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showPasswordGuide, setShowPasswordGuide] = useState(false);
@@ -31,27 +44,43 @@ const Register = () => {
     otp: ''
   });
 
-  /* Pre-warm reCAPTCHA as soon as the page loads — saves 2-3s on OTP send */
-  useEffect(() => {
-    const warmUp = () => {
-      try {
-        setupRecaptcha();
-        recaptchaReady.current = true;
-      } catch (e) {
-        // Will retry on button click
-      }
-    };
-    // Give the DOM a tick to render the #recaptcha-container
-    const t = setTimeout(warmUp, 300);
-    return () => clearTimeout(t);
-  }, []);
-
   /* Resend countdown timer */
   useEffect(() => {
     if (resendCountdown <= 0) return;
     const t = setInterval(() => setResendCountdown(c => c - 1), 1000);
     return () => clearInterval(t);
   }, [resendCountdown]);
+
+  useEffect(() => {
+    const stored = Number(localStorage.getItem(OTP_BLOCK_KEY) || 0);
+    if (!stored) return;
+    const remaining = getSecondsUntil(stored);
+    if (remaining > 0) {
+      setOtpBlockRemaining(remaining);
+    } else {
+      localStorage.removeItem(OTP_BLOCK_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (otpBlockRemaining <= 0) return;
+    const t = setInterval(() => {
+      setOtpBlockRemaining((prev) => {
+        if (prev <= 1) {
+          localStorage.removeItem(OTP_BLOCK_KEY);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [otpBlockRemaining]);
+
+  const startOtpBlock = (seconds = OTP_BLOCK_SECONDS) => {
+    const until = Date.now() + seconds * 1000;
+    localStorage.setItem(OTP_BLOCK_KEY, String(until));
+    setOtpBlockRemaining(seconds);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -104,6 +133,11 @@ const Register = () => {
   const handleSendOTP = async (e) => {
     e.preventDefault();
 
+    if (otpBlockRemaining > 0) {
+      toast.error(`Please wait ${otpBlockRemaining}s before trying OTP again.`);
+      return;
+    }
+
     const validationError = getRegistrationValidationError();
     if (validationError) {
       const isPasswordValidation = validationError.toLowerCase().includes('password');
@@ -117,11 +151,6 @@ const Register = () => {
 
     setLoading(true);
     try {
-      // Ensure reCAPTCHA is ready (may already be pre-warmed)
-      if (!recaptchaReady.current || !window.recaptchaVerifier) {
-        setupRecaptcha();
-        recaptchaReady.current = true;
-      }
       const phoneWithCode = `+91${formData.phone}`;
       await sendPhoneOTP(phoneWithCode);
       toast.success('OTP sent to your phone number');
@@ -129,7 +158,9 @@ const Register = () => {
       setResendCountdown(30); // 30s before resend allowed
     } catch (error) {
       console.error('Send OTP error:', error);
-      recaptchaReady.current = false; // reset so next click re-inits
+      if (isTooManyRequestsError(error)) {
+        startOtpBlock();
+      }
       toast.error(getReadableFirebaseAuthError(error));
     } finally {
       setLoading(false);
@@ -210,17 +241,17 @@ const Register = () => {
   };
 
   const handleResendOTP = async () => {
-    if (resendCountdown > 0) return;
+    if (resendCountdown > 0 || otpBlockRemaining > 0) return;
     setLoading(true);
     try {
-      setupRecaptcha();
-      recaptchaReady.current = true;
       const phoneWithCode = `+91${formData.phone}`;
       await sendPhoneOTP(phoneWithCode);
       toast.success('OTP resent to your phone');
       setResendCountdown(30);
     } catch (error) {
-      recaptchaReady.current = false;
+      if (isTooManyRequestsError(error)) {
+        startOtpBlock();
+      }
       toast.error(getReadableFirebaseAuthError(error));
     } finally {
       setLoading(false);
@@ -240,7 +271,7 @@ const Register = () => {
         <div className="relative z-10 text-center max-w-sm">
           <div className="flex items-center justify-center gap-3 mb-10">
             <img src={logo} alt="FlashBites" className="h-14 w-14 rounded-2xl shadow-md" />
-            <span className="text-3xl font-extrabold text-brand-gradient">FlashBites</span>
+            <span className="text-3xl font-extrabold" style={{ color: BRAND }}>FlashBites</span>
           </div>
           <h1 className="text-4xl font-extrabold text-gray-900 leading-tight mb-4">
             Join <span style={{ color: BRAND }}>FlashBites</span>
@@ -271,7 +302,7 @@ const Register = () => {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2 justify-center mb-8">
             <img src={logo} alt="FlashBites" className="h-10 w-10 rounded-xl shadow" />
-            <span className="text-2xl font-extrabold text-brand-gradient">FlashBites</span>
+            <span className="text-2xl font-extrabold" style={{ color: BRAND }}>FlashBites</span>
           </div>
 
           <div className="bg-white rounded-3xl p-8 sm:p-10"
@@ -389,13 +420,13 @@ const Register = () => {
                   </div>
                 )}
 
-                <button type="submit" disabled={loading} className="btn-primary w-full py-3.5 mt-2">
+                <button type="submit" disabled={loading || otpBlockRemaining > 0} className="btn-primary w-full py-3.5 mt-2">
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
                       <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                       Sending OTP...
                     </span>
-                  ) : 'Send OTP →'}
+                  ) : otpBlockRemaining > 0 ? `Try again in ${otpBlockRemaining}s` : 'Send OTP →'}
                 </button>
               </form>
             )}
@@ -425,9 +456,9 @@ const Register = () => {
 
                 <div className="flex items-center justify-between text-sm">
                   <button type="button" onClick={handleResendOTP}
-                    disabled={loading || resendCountdown > 0}
+                    disabled={loading || resendCountdown > 0 || otpBlockRemaining > 0}
                     className="font-semibold disabled:opacity-40" style={{ color: BRAND }}>
-                    {resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend OTP'}
+                    {otpBlockRemaining > 0 ? `Retry in ${otpBlockRemaining}s` : resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend OTP'}
                   </button>
                   <button type="button" onClick={() => setStep(1)}
                     className="text-gray-400 hover:text-gray-600">
@@ -439,9 +470,6 @@ const Register = () => {
           </div>
         </div>
       </div>
-
-      {/* Invisible reCAPTCHA container */}
-      <div id="recaptcha-container"></div>
     </div>
   );
 };

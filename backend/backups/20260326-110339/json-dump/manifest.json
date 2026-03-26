@@ -1,0 +1,57 @@
+{
+  "createdAt": "2026-03-26T05:33:41.436Z",
+  "database": "flashbites",
+  "collectionCount": 10,
+  "collections": [
+    {
+      "name": "accountdeletionrequests",
+      "count": 1,
+      "file": "accountdeletionrequests.json"
+    },
+    {
+      "name": "payments",
+      "count": 2,
+      "file": "payments.json"
+    },
+    {
+      "name": "addresses",
+      "count": 16,
+      "file": "addresses.json"
+    },
+    {
+      "name": "notifications",
+      "count": 48,
+      "file": "notifications.json"
+    },
+    {
+      "name": "restaurants",
+      "count": 5,
+      "file": "restaurants.json"
+    },
+    {
+      "name": "platformsettings",
+      "count": 1,
+      "file": "platformsettings.json"
+    },
+    {
+      "name": "menuitems",
+      "count": 459,
+      "file": "menuitems.json"
+    },
+    {
+      "name": "users",
+      "count": 7,
+      "file": "users.json"
+    },
+    {
+      "name": "orders",
+      "count": 10,
+      "file": "orders.json"
+    },
+    {
+      "name": "coupons",
+      "count": 4,
+      "file": "coupons.json"
+    }
+  ]
+}

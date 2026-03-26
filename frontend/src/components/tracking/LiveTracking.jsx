@@ -75,11 +75,10 @@ const buildRiderIcon = (headingDeg) => L.divIcon({
       border-radius:9999px;
       background:linear-gradient(135deg,#22c55e,#16a34a);
       border:2px solid #ffffff;
-      box-shadow:0 10px 24px rgba(22,163,74,0.35);
+      box-shadow:0 4px 10px rgba(22,163,74,0.18);
       display:flex;
       align-items:center;
       justify-content:center;
-      animation: bikePulse 1.6s ease-in-out infinite;
       transform: rotate(${headingDeg.toFixed(2)}deg);
       transform-origin:center;
     ">
