@@ -15,6 +15,14 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const RECAPTCHA_ROOT_ID = 'recaptcha-root';
+const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const isOtpTestMode = import.meta.env.VITE_FIREBASE_OTP_TEST_MODE === 'true';
+
+// Allows local testing with Firebase fictional phone numbers without strict app verification.
+if (isLocalhost && isOtpTestMode) {
+  auth.settings.appVerificationDisabledForTesting = true;
+}
 
 const requiredFirebaseKeys = [
   'apiKey',
@@ -106,27 +114,67 @@ export const onForegroundMessage = async (callback) => {
 
 /**
  * Setup invisible reCAPTCHA verifier.
- * Call this before sending OTP. The #recaptcha-container element must exist in the DOM.
+ * Uses an ephemeral hidden DOM node to avoid duplicate render conflicts.
  */
-export const setupRecaptcha = () => {
+const ensureRecaptchaRoot = () => {
+  let root = document.getElementById(RECAPTCHA_ROOT_ID);
+  if (!root) {
+    root = document.createElement('div');
+    root.id = RECAPTCHA_ROOT_ID;
+    root.style.position = 'fixed';
+    root.style.left = '-9999px';
+    root.style.top = '0';
+    root.style.width = '1px';
+    root.style.height = '1px';
+    root.style.overflow = 'hidden';
+    root.style.pointerEvents = 'none';
+    document.body.appendChild(root);
+  }
+  return root;
+};
+
+const createRecaptchaContainer = () => {
+  const root = ensureRecaptchaRoot();
+  const container = document.createElement('div');
+  const uniqueId = `recaptcha-container-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  container.id = uniqueId;
+  root.appendChild(container);
+  window.recaptchaContainerId = uniqueId;
+  return uniqueId;
+};
+
+const resetRecaptcha = () => {
+  if (window.recaptchaVerifier) {
+    try { window.recaptchaVerifier.clear(); } catch (e) { /* ignore */ }
+  }
+
+  window.recaptchaVerifier = null;
+  window.recaptchaWidgetPromise = null;
+
+  const oldContainerId = window.recaptchaContainerId;
+  if (oldContainerId) {
+    const container = document.getElementById(oldContainerId);
+    if (container?.parentNode) {
+      container.parentNode.removeChild(container);
+    }
+    window.recaptchaContainerId = null;
+  }
+};
+
+export const setupRecaptcha = ({ force = false } = {}) => {
   if (!isFirebaseAuthConfigured()) {
     throw new Error('Firebase config missing. Please set VITE_FIREBASE_* env values.');
   }
 
-  const containerId = 'recaptcha-container';
-  let container = document.getElementById(containerId);
-  if (!container) {
-    container = document.createElement('div');
-    container.id = containerId;
-    container.style.display = 'none';
-    document.body.appendChild(container);
+  ensureRecaptchaRoot();
+
+  if (force) {
+    resetRecaptcha();
+  } else if (window.recaptchaVerifier) {
+    return window.recaptchaVerifier;
   }
 
-  // Clear existing verifier to avoid conflicts on re-renders
-  if (window.recaptchaVerifier) {
-    try { window.recaptchaVerifier.clear(); } catch (e) { /* ignore */ }
-    window.recaptchaVerifier = null;
-  }
+  const containerId = createRecaptchaContainer();
 
   const verifier = new RecaptchaVerifier(
     auth,
@@ -138,15 +186,17 @@ export const setupRecaptcha = () => {
       },
       "expired-callback": () => {
         // Response expired - ask user to retry
-        window.recaptchaVerifier = null;
-        window.recaptchaWidgetPromise = null;
+        resetRecaptcha();
       }
     }
   );
 
   window.recaptchaVerifier = verifier;
   // Render immediately so OTP send doesn't fail on first interaction.
-  window.recaptchaWidgetPromise = verifier.render().catch(() => null);
+  window.recaptchaWidgetPromise = verifier.render().catch((error) => {
+    resetRecaptcha();
+    throw error;
+  });
 
   return verifier;
 };
@@ -160,10 +210,8 @@ export const sendPhoneOTP = async (phoneNumber) => {
     throw new Error('Firebase Phone Auth is not configured. Please contact support.');
   }
 
-  let appVerifier = window.recaptchaVerifier;
-  if (!appVerifier) {
-    appVerifier = setupRecaptcha();
-  }
+  // Always use a fresh verifier to avoid stale credentials from older renders.
+  const appVerifier = setupRecaptcha({ force: true });
 
   if (window.recaptchaWidgetPromise) {
     await window.recaptchaWidgetPromise;
@@ -175,16 +223,11 @@ export const sendPhoneOTP = async (phoneNumber) => {
     return confirmationResult;
   } catch (error) {
     const code = extractFirebaseAuthCode(error);
+    console.error('OTP_DIAGNOSTIC', buildOtpDiagnostic(code));
 
-    // A stale/expired app credential can happen in WebView; re-init reCAPTCHA and retry once.
-    if (code === 'auth/invalid-app-credential' || code === 'auth/captcha-check-failed') {
-      if (window.recaptchaVerifier) {
-        try { window.recaptchaVerifier.clear(); } catch (e) { /* ignore */ }
-        window.recaptchaVerifier = null;
-        window.recaptchaWidgetPromise = null;
-      }
-
-      const freshVerifier = setupRecaptcha();
+    // Retry only captcha-check-failed once; avoid retry loops on invalid-app-credential.
+    if (code === 'auth/captcha-check-failed') {
+      const freshVerifier = setupRecaptcha({ force: true });
       if (window.recaptchaWidgetPromise) {
         await window.recaptchaWidgetPromise;
       }
@@ -195,11 +238,7 @@ export const sendPhoneOTP = async (phoneNumber) => {
     }
 
     // Reset reCAPTCHA on non-retryable errors so user can retry manually.
-    if (window.recaptchaVerifier) {
-      try { window.recaptchaVerifier.clear(); } catch (e) { /* ignore */ }
-      window.recaptchaVerifier = null;
-      window.recaptchaWidgetPromise = null;
-    }
+    resetRecaptcha();
     throw error;
   }
 };
@@ -214,11 +253,19 @@ const extractFirebaseAuthCode = (error) => {
   return match ? match[0].toLowerCase() : '';
 };
 
+const buildOtpDiagnostic = (errorCode) => ({
+  hostname: window.location.hostname,
+  authDomain: firebaseConfig.authDomain || '',
+  online: navigator.onLine,
+  otpTestMode: isOtpTestMode,
+  firebaseCode: errorCode || 'unknown',
+});
+
 export const getReadableFirebaseAuthError = (error) => {
   const code = extractFirebaseAuthCode(error);
 
   if (code === 'auth/too-many-requests') {
-    return 'Too many OTP attempts. Please try again later.';
+    return 'Too many OTP attempts. Please wait 5-10 minutes before trying again.';
   }
   if (code === 'auth/invalid-phone-number') {
     return 'Invalid phone number format. Please check and retry.';
@@ -230,7 +277,7 @@ export const getReadableFirebaseAuthError = (error) => {
     return 'This app domain is not authorized for Firebase Phone Auth.';
   }
   if (code === 'auth/captcha-check-failed' || code === 'auth/invalid-app-credential') {
-    return 'Could not verify your request right now. Please check your internet and tap Send OTP again.';
+    return 'Could not verify this device request. Check Firebase Phone Auth authorized domains and try again after a short wait.';
   }
   if (code === 'auth/invalid-verification-code') {
     return 'The OTP is incorrect. Please enter the 6-digit code again.';
@@ -240,6 +287,9 @@ export const getReadableFirebaseAuthError = (error) => {
   }
   if (code === 'auth/missing-verification-code') {
     return 'Please enter the OTP sent to your phone.';
+  }
+  if (code === 'auth/network-request-failed') {
+    return 'Network error while sending OTP. Check internet/VPN/ad-blocker. For localhost testing, use Firebase test numbers with VITE_FIREBASE_OTP_TEST_MODE=true.';
   }
   return 'Something went wrong while verifying your phone. Please try again.';
 };

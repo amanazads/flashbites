@@ -15,8 +15,9 @@ class SocketService {
     // Determine the socket URL
     let SOCKET_URL;
     if (import.meta.env.DEV) {
-      // In development, connect directly to the backend
-      SOCKET_URL = 'http://localhost:8080';
+      // In development, derive from API URL when present, otherwise use backend default port
+      const devApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+      SOCKET_URL = devApiUrl.replace(/\/api\/?$/, '') || 'http://localhost:8080';
     } else {
       // In production, derive from the API URL by removing /api path
       let backendUrl = import.meta.env.VITE_API_URL || '';

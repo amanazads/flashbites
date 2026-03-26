@@ -37,10 +37,8 @@ const OrderDetail = () => {
 
   // Initialize socket connection
   useEffect(() => {
-    const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-    const socketUrl = import.meta.env.DEV
-      ? 'http://localhost:8080'
-      : rawApiUrl.replace(/\/api\/?$/, '') || window.location.origin;
+    const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+    const socketUrl = rawApiUrl.replace(/\/api\/?$/, '') || window.location.origin;
 
     const newSocket = io(socketUrl, {
       auth: {
