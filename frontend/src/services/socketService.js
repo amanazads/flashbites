@@ -8,7 +8,6 @@ class SocketService {
 
   connect(token) {
     if (this.socket?.connected) {
-      console.log('Socket already connected');
       return;
     }
 
@@ -24,8 +23,6 @@ class SocketService {
       SOCKET_URL = backendUrl.replace(/\/api\/?$/, '') || window.location.origin;
     }
     
-    console.log('🔌 Connecting to Socket.IO:', SOCKET_URL);
-    
     const socketIns = io(SOCKET_URL, {
       auth: { token },
       reconnection: true,
@@ -33,21 +30,15 @@ class SocketService {
       reconnectionAttempts: 5
     });
 
-    socketIns.on('connect', () => {
-      console.log('✅ Socket connected:', socketIns.id);
-    });
+    socketIns.on('connect', () => {});
 
-    socketIns.on('disconnect', (reason) => {
-      console.log('❌ Socket disconnected:', reason);
-    });
+    socketIns.on('disconnect', () => {});
 
     socketIns.on('connect_error', (error) => {
       console.error('Socket connection error:', error.message);
     });
 
-    socketIns.on('reconnect', (attemptNumber) => {
-      console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
-    });
+    socketIns.on('reconnect', () => {});
 
     this.socket = socketIns;
     // Setup default listeners
@@ -78,7 +69,6 @@ class SocketService {
       }
       this.socket = null;
       this.listeners.clear();
-      console.log('Socket disconnected manually');
     }
   }
 
@@ -86,7 +76,6 @@ class SocketService {
   joinRestaurant(restaurantId) {
     if (this.socket?.connected) {
       this.socket.emit('join-restaurant', restaurantId);
-      console.log('Joined restaurant room:', restaurantId);
     }
   }
 

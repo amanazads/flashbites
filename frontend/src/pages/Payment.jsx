@@ -231,13 +231,6 @@ const Payment = () => {
               >
                 {paying ? 'Opening Razorpay...' : `Pay ${formatCurrency(summary?.total || 0)}`}
               </button>
-
-              <button
-                onClick={() => navigate(`/orders/${order._id}`)}
-                className="mt-3 w-full rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm py-2.5"
-              >
-                Pay later
-              </button>
             </div>
           </div>
 

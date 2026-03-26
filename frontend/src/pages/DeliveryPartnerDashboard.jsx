@@ -57,20 +57,17 @@ const DeliveryPartnerDashboard = () => {
     if (!user || user.role !== 'delivery_partner') return;
 
     // Listen for new order notifications
-    const handleNewOrder = (data) => {
-      console.log('🔄 Dashboard: Auto-refreshing data on available order:', data.order?._id);
+    const handleNewOrder = () => {
       if (autoRefreshEnabled) fetchData(); // Refresh orders
     };
 
     // Listen for order assignment
-    const handleOrderAssigned = (data) => {
-      console.log('🔄 Dashboard: Auto-refreshing data on assigned order:', data.order?._id);
+    const handleOrderAssigned = () => {
       if (autoRefreshEnabled) fetchData(); // Refresh orders
     };
 
     // Listen for order cancellation
-    const handleOrderCancelled = (data) => {
-      console.log('🔄 Dashboard: Auto-refreshing data on cancelled order:', data.order?._id);
+    const handleOrderCancelled = () => {
       if (autoRefreshEnabled) fetchData(); // Refresh orders
     };
 

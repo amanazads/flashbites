@@ -94,7 +94,6 @@ const Checkout = () => {
       dispatch(setSelectedDeliveryAddress(mapped));
     }
     setShowAddAddressModal(false);
-    toast.success('Address added successfully!');
   };
 
   useEffect(() => {
@@ -280,29 +279,20 @@ const Checkout = () => {
         }
 
         const orderId = createdOrder._id;
-        const orderTotal = createdOrder.total;
         
         // Clear cart first to prevent re-submission
         dispatch(clearCart());
         
-        // Handle payment based on method
-        if (paymentMethod === 'upi' || paymentMethod === 'card') {
-          navigate(`/payment/${orderId}`, { state: { paymentMethod } });
-        } else if (paymentMethod === 'cod') {
-          // Cash on delivery - no payment needed
+        if (paymentMethod === 'cod') {
           toast.success('Order placed successfully! Pay on delivery');
-          navigate(`/orders/${orderId}`);
         } else {
-          // Default fallback
           toast.success('Order placed successfully!');
-          navigate(`/orders/${orderId}`);
         }
+        navigate(`/orders/${orderId}`);
       } else if (createOrder.rejected.match(result)) {
-        console.error('Order rejected:', result.payload);
         toast.error(result.payload || 'Unable to place your order right now. Please check your address and try again.');
       }
     } catch (error) {
-      console.error('Order error:', error);
       toast.error(error.message || 'Unable to place your order right now. Please try again.');
     } finally {
       setLoading(false);

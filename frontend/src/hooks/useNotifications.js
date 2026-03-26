@@ -43,7 +43,6 @@ const sendSystemNotification = async (title, body, data = {}) => {
           },
         ],
       });
-      console.log('✅ Native tray notification sent:', title);
     } else {
       // Web browser native notification
       if (!('Notification' in window)) return;
@@ -61,7 +60,6 @@ const sendSystemNotification = async (title, body, data = {}) => {
         if (data.url) {
           n.onclick = () => { window.focus(); window.location.href = data.url; n.close(); };
         }
-        console.log('✅ Browser notification sent:', title);
       }
     }
   } catch (err) {
@@ -77,9 +75,7 @@ const registerFCMToken = async (authAxios) => {
     if (!token) return;
     // Save token to backend so server can send targeted pushes
     await authAxios.post('/users/fcm-token', { token });
-    console.log('✅ FCM token registered with backend');
-  } catch (err) {
-    console.warn('FCM token registration with backend failed (may be OK if endpoint not set up yet):', err?.message);
+  } catch {
   }
 };
 
@@ -144,7 +140,6 @@ export const useNotifications = () => {
   // Initialize socket + audio + FCM
   useEffect(() => {
     if (token && user) {
-      console.log('🔌 Initializing socket for:', user.email, '| Role:', user.role);
       socketService.connect(token);
       setConnected(true);
 
@@ -168,7 +163,6 @@ export const useNotifications = () => {
 
         // Listen for foreground FCM messages (when app is open)
         onForegroundMessage((payload) => {
-          console.log('📨 FCM foreground message:', payload);
           const { title, body } = payload.notification || {};
           const orderId = payload?.data?.orderId || payload?.data?.order_id || '';
           const status = payload?.data?.status || '';
@@ -204,7 +198,6 @@ export const useNotifications = () => {
       // Request native notification permission on mobile
       if (isNativePlatform()) {
         LocalNotifications.requestPermissions().then((perm) => {
-          console.log('📱 Local notification permission:', perm.display);
           // Create notification channel for Android
           LocalNotifications.createChannel({
             id: 'flashbites-orders',
@@ -261,7 +254,6 @@ export const useNotifications = () => {
 
   // ─── Handlers ─────────────────────
   const handleNewOrder = useCallback((data) => {
-    console.log('🆕 New order received:', data);
     const key = `socket:new-order:${data?.order?._id || ''}`;
     if (!shouldNotifyForKey(key)) return;
 
@@ -281,7 +273,6 @@ export const useNotifications = () => {
   }, [soundEnabled, showToast, shouldNotifyForKey]);
 
   const handleOrderUpdate = useCallback((data) => {
-    console.log('📦 Order update received:', data);
     const key = `socket:order-update:${data?.order?._id || ''}:${data?.order?.status || ''}`;
     if (!shouldNotifyForKey(key)) return;
 
@@ -315,7 +306,6 @@ export const useNotifications = () => {
   }, [soundEnabled, showToast, shouldNotifyForKey]);
 
   const handleDeliveryUpdate = useCallback((data) => {
-    console.log('🚚 Delivery update:', data);
     const key = `socket:delivery-update:${data?.delivery?.orderId || ''}:${data?.delivery?.status || ''}:${data?.delivery?.message || ''}`;
     if (!shouldNotifyForKey(key)) return;
 

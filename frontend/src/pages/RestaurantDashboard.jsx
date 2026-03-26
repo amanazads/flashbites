@@ -200,7 +200,6 @@ const RestaurantDashboard = () => {
 
         // Join restaurant room for real-time notifications
         socketService.joinRestaurant(myRestaurant._id);
-        console.log('🏪 Joined restaurant room:', myRestaurant._id);
       } else {
         setRestaurant(null);
         setShowRestaurantForm(true);
@@ -223,8 +222,6 @@ const RestaurantDashboard = () => {
 
     // Listen for new orders (Data Refresh Only)
     const handleNewOrder = (data) => {
-      console.log('🔄 Dashboard: Auto-refreshing data on order event:', data.type);
-
       const latestStatus = data?.order?.status || data?.status;
       const isDeliveredEvent = data?.type === 'ORDER_DELIVERED' || latestStatus === 'delivered';
 
@@ -267,7 +264,6 @@ const RestaurantDashboard = () => {
     if (!autoRefreshOrders || activeTab !== 'orders' || !restaurant) return;
 
     const intervalId = setInterval(() => {
-      console.log('Auto-refreshing orders...');
       fetchOrders();
     }, 30000); // Refresh every 30 seconds
 
@@ -311,11 +307,8 @@ const RestaurantDashboard = () => {
 
   const fetchMenuItems = async (restaurantId) => {
     try {
-      console.log('Fetching menu items for restaurant:', restaurantId);
       const response = await getRestaurantMenuItems(restaurantId);
-      console.log('Menu items response:', response);
       const items = response.data?.items || response.items || [];
-      console.log('Setting menu items:', items.length, 'items');
       setMenuItems(items);
     } catch (error) {
       console.error('Failed to load menu items:', error);
@@ -472,7 +465,6 @@ const RestaurantDashboard = () => {
       
       // Immediately refresh menu items
       await fetchMenuItems(restaurant._id);
-      console.log('Menu items refreshed after add/update');
     } catch (error) {
       // Show the exact server error message for easy debugging
       const msg = error.response?.data?.message || error.message || 'Failed to save menu item';

@@ -50,11 +50,6 @@ const getRefreshToken = async () => {
 
 let refreshPromise = null;
 
-// Log the API URL and environment
-console.log('🔗 API Base URL:', apiUrl);
-console.log('📱 Running in Capacitor:', isCapacitor);
-console.log('🌍 Environment:', import.meta.env.MODE);
-
 const instance = axios.create({
   baseURL: apiUrl,
   timeout: isCapacitor ? 60000 : 30000, // 60s on mobile (Render cold start), 30s on web
@@ -86,7 +81,6 @@ instance.interceptors.request.use(
           token = lsToken;
           // Migrate to Preferences so next request finds it there
           await Preferences.set({ key: 'token', value: lsToken });
-          console.log('🔄 Token migrated from localStorage → Preferences');
         }
       }
     } else {
@@ -119,7 +113,6 @@ instance.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
@@ -191,16 +184,7 @@ instance.interceptors.response.use(
     const isExpectedAccountDeletionNotReady = status === 404 && url.includes('/users/account-deletion-requests');
     const isExpectedRestaurantSetupNotReady = status === 404 && url.includes('/restaurants/my-restaurant');
 
-    // Log the full error for debugging
-    if (!isExpectedAuthCheckFailure && !isExpectedCouponFailure && !isExpectedNotificationAuthFailure && !isExpectedAccountDeletionNotReady && !isExpectedRestaurantSetupNotReady) {
-      console.error('API Error:', {
-        url: error.config?.url,
-        method: error.config?.method,
-        status,
-        message: error.response?.data?.message || error.message,
-        baseURL: error.config?.baseURL,
-      });
-    }
+    // Skip noisy logs for expected API failures.
 
     if (status === 401) {
       // Only treat as a real session expiry if the user is explicitly on/navigating to a protected page.

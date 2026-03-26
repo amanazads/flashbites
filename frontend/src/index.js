@@ -31,5 +31,3 @@ root.render(
     </HelmetProvider>
   </React.StrictMode>
 );
-
-console.log('=== FlashBites App Rendered ===');

@@ -17,13 +17,9 @@ export const createOrder = createAsyncThunk(
   'order/createOrder',
   async (orderData, { rejectWithValue }) => {
     try {
-      console.log('Creating order with data:', orderData);
       const response = await orderApi.createOrder(orderData);
-      console.log('Order API response:', response);
       return response;
     } catch (error) {
-      console.error('Order creation error:', error);
-      console.error('Error response:', error.response?.data);
       return rejectWithValue(error.response?.data?.message || 'Failed to create order');
     }
   }

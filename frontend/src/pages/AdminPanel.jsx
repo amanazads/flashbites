@@ -175,7 +175,6 @@ const AdminPanel = () => {
 
     const interval = setInterval(() => {
       fetchData();
-      console.log('Admin panel auto-refreshed');
     }, 30000);
 
     return () => clearInterval(interval);
@@ -185,9 +184,7 @@ const AdminPanel = () => {
   useEffect(() => {
     if (user?.role !== 'admin') return;
 
-    const handleNewOrder = (data) => {
-      console.log('🔄 Admin: Auto-refreshing data on order event:', data.type);
-      
+    const handleNewOrder = () => {
       // Refresh data silently, global useNotifications handles UI
       if (autoRefreshEnabled && activeTab === 'orders') {
         fetchData();
@@ -258,7 +255,6 @@ const AdminPanel = () => {
       try {
         const restaurantsRes = await axios.get('/admin/restaurants');
         const restaurantsList = restaurantsRes.data?.data?.restaurants || restaurantsRes.data?.restaurants || [];
-        console.log('Admin restaurants loaded:', restaurantsList.length);
         setRestaurants(restaurantsList);
         setRestaurantPayoutDrafts((prev) => {
           const next = {};
@@ -282,24 +278,21 @@ const AdminPanel = () => {
       try {
         const usersRes = await axios.get('/admin/users');
         setUsers(usersRes.data?.data?.users || []);
-      } catch (err) {
-        console.log('Users endpoint not available yet');
+      } catch {
       }
       
       // Fetch orders
       try {
         const ordersRes = await axios.get('/admin/orders');
         setOrders(ordersRes.data?.data?.orders || []);
-      } catch (err) {
-        console.log('Orders endpoint not available yet');
+      } catch {
       }
       
       // Fetch partners
       try {
         const partnersRes = await getAllPartnerApplications();
         setPartners(partnersRes.data?.partners || []);
-      } catch (err) {
-        console.log('Partners endpoint not available yet');
+      } catch {
       }
 
       // Fetch delivery partner duty board
@@ -314,8 +307,7 @@ const AdminPanel = () => {
           offDutyCount: summary.offDutyCount || 0,
           activelyDeliveringCount: summary.activelyDeliveringCount || 0
         });
-      } catch (err) {
-        console.log('Duty board endpoint not available yet');
+      } catch {
       }
 
       // Fetch delivery tracking dashboard
@@ -328,8 +320,7 @@ const AdminPanel = () => {
           readyCount: trackingRes?.data?.data?.readyCount || 0,
           assignedCount: trackingRes?.data?.data?.assignedCount || 0,
         });
-      } catch (err) {
-        console.log('Delivery tracking endpoint not available yet');
+      } catch {
       }
 
       // Fetch delivery earnings controls
@@ -354,16 +345,14 @@ const AdminPanel = () => {
           return acc;
         }, {});
         setPartnerEarningDrafts(drafts);
-      } catch (err) {
-        console.log('Delivery earnings endpoint not available yet');
+      } catch {
       }
 
       // Fetch account deletion requests
       try {
         const requestsRes = await getAccountDeletionRequests({ limit: 100 });
         setDeletionRequests(requestsRes.data?.data?.requests || []);
-      } catch (err) {
-        console.log('Account deletion requests endpoint not available yet');
+      } catch {
       }
       
       setLoading(false);
@@ -686,7 +675,6 @@ const AdminPanel = () => {
     try {
       const response = await getComprehensiveAnalytics({ period });
       setAnalytics(response.data.data);
-      console.log('Analytics loaded:', response.data.data);
     } catch (error) {
       console.error('Failed to load analytics:', error);
       toast.error('Failed to load analytics');
