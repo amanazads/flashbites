@@ -180,8 +180,8 @@ function App() {
       try {
         if (isNative && Capacitor.isPluginAvailable('StatusBar')) {
           await StatusBar.setOverlaysWebView({ overlay: false });
-          await StatusBar.setStyle({ style: Style.Dark });
-          await StatusBar.setBackgroundColor({ color: '#F8FAFC' });
+          await StatusBar.setStyle({ style: Style.Light });
+          await StatusBar.setBackgroundColor({ color: '#111827' });
           console.log('Status bar initialized successfully');
         }
       } catch (error) {

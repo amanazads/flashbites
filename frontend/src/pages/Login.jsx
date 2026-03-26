@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { login, clearError } from '../redux/slices/authSlice';
@@ -12,6 +12,7 @@ const Login = () => {
   const { loading, error, isAuthenticated, user } = useSelector((s) => s.auth);
   const [formData, setFormData] = useState({ phone: '', password: '' });
   const [showPass, setShowPass] = useState(false);
+  const lastErrorRef = useRef('');
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -21,7 +22,11 @@ const Login = () => {
   }, [isAuthenticated, user, navigate]);
 
   useEffect(() => {
-    if (error) { toast.error(error); dispatch(clearError()); }
+    if (error && error !== lastErrorRef.current) {
+      lastErrorRef.current = error;
+      toast.error(error, { id: 'auth-login-error' });
+      dispatch(clearError());
+    }
   }, [error, dispatch]);
 
   const handleSubmit = async (e) => {

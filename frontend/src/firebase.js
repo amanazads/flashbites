@@ -225,8 +225,8 @@ export const sendPhoneOTP = async (phoneNumber) => {
     const code = extractFirebaseAuthCode(error);
     console.error('OTP_DIAGNOSTIC', buildOtpDiagnostic(code));
 
-    // Retry only captcha-check-failed once; avoid retry loops on invalid-app-credential.
-    if (code === 'auth/captcha-check-failed') {
+    // Retry once with a fresh verifier for common transient app-verifier failures.
+    if (code === 'auth/captcha-check-failed' || code === 'auth/invalid-app-credential') {
       const freshVerifier = setupRecaptcha({ force: true });
       if (window.recaptchaWidgetPromise) {
         await window.recaptchaWidgetPromise;

@@ -10,7 +10,13 @@ import logo from '../assets/logo.png';
 import { BRAND } from '../constants/theme';
 
 const OTP_BLOCK_SECONDS = 300;
-const OTP_BLOCK_KEY = 'fb_otp_block_until';
+const OTP_BLOCK_KEY_PREFIX = 'fb_otp_block_until:';
+
+const normalizePhone = (phone) => String(phone || '').replace(/\D/g, '').slice(-10);
+const getOtpBlockKey = (phone) => {
+  const normalized = normalizePhone(phone);
+  return normalized ? `${OTP_BLOCK_KEY_PREFIX}${normalized}` : '';
+};
 
 const getSecondsUntil = (untilTs) => {
   const diff = Math.ceil((untilTs - Date.now()) / 1000);
@@ -21,6 +27,22 @@ const isTooManyRequestsError = (error) => {
   const code = String(error?.code || '').toLowerCase();
   const message = String(error?.message || '').toLowerCase();
   return code.includes('too-many-requests') || message.includes('auth/too-many-requests');
+};
+
+const getRemainingOtpBlockSeconds = (phone) => {
+  const key = getOtpBlockKey(phone);
+  if (!key) return 0;
+
+  const stored = Number(localStorage.getItem(key) || 0);
+  if (!stored) return 0;
+
+  const remaining = getSecondsUntil(stored);
+  if (remaining <= 0) {
+    localStorage.removeItem(key);
+    return 0;
+  }
+
+  return remaining;
 };
 
 const Register = () => {
@@ -52,33 +74,33 @@ const Register = () => {
   }, [resendCountdown]);
 
   useEffect(() => {
-    const stored = Number(localStorage.getItem(OTP_BLOCK_KEY) || 0);
-    if (!stored) return;
-    const remaining = getSecondsUntil(stored);
-    if (remaining > 0) {
-      setOtpBlockRemaining(remaining);
-    } else {
-      localStorage.removeItem(OTP_BLOCK_KEY);
-    }
-  }, []);
+    setOtpBlockRemaining(getRemainingOtpBlockSeconds(formData.phone));
+  }, [formData.phone]);
 
   useEffect(() => {
     if (otpBlockRemaining <= 0) return;
+    const key = getOtpBlockKey(formData.phone);
+
     const t = setInterval(() => {
       setOtpBlockRemaining((prev) => {
         if (prev <= 1) {
-          localStorage.removeItem(OTP_BLOCK_KEY);
+          if (key) {
+            localStorage.removeItem(key);
+          }
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(t);
-  }, [otpBlockRemaining]);
+  }, [otpBlockRemaining, formData.phone]);
 
-  const startOtpBlock = (seconds = OTP_BLOCK_SECONDS) => {
+  const startOtpBlock = (seconds = OTP_BLOCK_SECONDS, phone = formData.phone) => {
+    const key = getOtpBlockKey(phone);
+    if (!key) return;
+
     const until = Date.now() + seconds * 1000;
-    localStorage.setItem(OTP_BLOCK_KEY, String(until));
+    localStorage.setItem(key, String(until));
     setOtpBlockRemaining(seconds);
   };
 
@@ -133,11 +155,6 @@ const Register = () => {
   const handleSendOTP = async (e) => {
     e.preventDefault();
 
-    if (otpBlockRemaining > 0) {
-      toast.error(`Please wait ${otpBlockRemaining}s before trying OTP again.`);
-      return;
-    }
-
     const validationError = getRegistrationValidationError();
     if (validationError) {
       const isPasswordValidation = validationError.toLowerCase().includes('password');
@@ -159,7 +176,8 @@ const Register = () => {
     } catch (error) {
       console.error('Send OTP error:', error);
       if (isTooManyRequestsError(error)) {
-        startOtpBlock();
+        toast.error(`Too many OTP attempts from Firebase for +91${formData.phone}. Try another number or retry after a short wait.`);
+        return;
       }
       toast.error(getReadableFirebaseAuthError(error));
     } finally {
@@ -241,7 +259,7 @@ const Register = () => {
   };
 
   const handleResendOTP = async () => {
-    if (resendCountdown > 0 || otpBlockRemaining > 0) return;
+    if (resendCountdown > 0) return;
     setLoading(true);
     try {
       const phoneWithCode = `+91${formData.phone}`;
@@ -250,7 +268,8 @@ const Register = () => {
       setResendCountdown(30);
     } catch (error) {
       if (isTooManyRequestsError(error)) {
-        startOtpBlock();
+        toast.error(`Too many OTP attempts from Firebase for +91${formData.phone}. Try another number or retry after a short wait.`);
+        return;
       }
       toast.error(getReadableFirebaseAuthError(error));
     } finally {
@@ -420,13 +439,13 @@ const Register = () => {
                   </div>
                 )}
 
-                <button type="submit" disabled={loading || otpBlockRemaining > 0} className="btn-primary w-full py-3.5 mt-2">
+                <button type="submit" disabled={loading} className="btn-primary w-full py-3.5 mt-2">
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
                       <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                       Sending OTP...
                     </span>
-                  ) : otpBlockRemaining > 0 ? `Try again in ${otpBlockRemaining}s` : 'Send OTP →'}
+                  ) : 'Send OTP →'}
                 </button>
               </form>
             )}
@@ -456,9 +475,9 @@ const Register = () => {
 
                 <div className="flex items-center justify-between text-sm">
                   <button type="button" onClick={handleResendOTP}
-                    disabled={loading || resendCountdown > 0 || otpBlockRemaining > 0}
+                    disabled={loading || resendCountdown > 0}
                     className="font-semibold disabled:opacity-40" style={{ color: BRAND }}>
-                    {otpBlockRemaining > 0 ? `Retry in ${otpBlockRemaining}s` : resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend OTP'}
+                    {resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend OTP'}
                   </button>
                   <button type="button" onClick={() => setStep(1)}
                     className="text-gray-400 hover:text-gray-600">

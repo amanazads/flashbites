@@ -122,7 +122,7 @@ const Navbar = () => {
           paddingTop: 'max(env(safe-area-inset-top), 10px)',
           paddingLeft: 'env(safe-area-inset-left)',
           paddingRight: 'env(safe-area-inset-right)',
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.92))',
+          background: 'linear-gradient(180deg, #E8EEF7 0%, rgba(255,255,255,0.98) 46%, rgba(248,250,252,0.92) 100%)',
           boxShadow: '0 1px 0 rgba(15,23,42,0.08)',
         }}
       >

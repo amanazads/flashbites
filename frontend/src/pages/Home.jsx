@@ -703,22 +703,22 @@ const Home = () => {
               </form>
 
               <div ref={pickerRef} className="relative z-[140] mt-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <button
                     type="button"
                     onClick={() => setShowAddressPicker(!showAddressPicker)}
-                    className="flex-1 flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3.5 bg-white hover:border-orange-200 transition-colors"
+                    className="min-w-0 flex-1 flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3.5 bg-white hover:border-orange-200 transition-colors overflow-hidden"
                   >
                     <div className="h-9 w-9 rounded-xl flex items-center justify-center bg-orange-50">
                       <MapPinIcon className="h-5 w-5 text-[#FB923C]" />
                     </div>
                     <div className="flex-1 min-w-0 text-left">
                       <p className="text-[11px] text-gray-500">Delivery Location</p>
-                      <p className="text-[13px] text-gray-900 font-semibold truncate">
+                      <p className="text-[13px] text-gray-900 font-semibold truncate pr-1">
                         {selectedAddress ? selectedAddress.fullAddress : 'Select delivery location'}
                       </p>
                     </div>
-                    <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+                    <ChevronDownIcon className="h-5 w-5 text-gray-500 flex-shrink-0" />
                   </button>
 
                   {selectedAddress && (
