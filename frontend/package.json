@@ -1,6 +1,6 @@
 {
   "name": "flashbites-frontend",
-  "version": "1.0.12",
+  "version": "1.0.15",
   "type": "module",
   "private": true,
   "scripts": {
