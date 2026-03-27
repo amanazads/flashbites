@@ -6,16 +6,17 @@ const config: CapacitorConfig = {
   appId: 'com.flashbites.app',
   appName: 'FlashBites',
   webDir: 'dist',
-  ...(useRemote
-    ? {
-        server: {
-          // Optional: load the hosted site in native WebView when explicitly enabled
+  server: {
+    // Keep a stable https://localhost origin in native WebView for Firebase auth.
+    androidScheme: 'https',
+    iosScheme: 'https',
+    ...(useRemote
+      ? {
+          // Optional: load the hosted site in native WebView when explicitly enabled.
           hostname: 'flashbites.in',
-          androidScheme: 'https',
-          iosScheme: 'https',
-        },
-      }
-    : {}),
+        }
+      : {}),
+  },
 };
 
 export default config;

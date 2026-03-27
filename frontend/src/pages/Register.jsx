@@ -23,22 +23,61 @@ const getSecondsUntil = (untilTs) => {
   return diff > 0 ? diff : 0;
 };
 
+const storageSet = async (key, value) => {
+  if (window.Capacitor) {
+    try {
+      const { Preferences } = await import('@capacitor/preferences');
+      await Preferences.set({ key, value: String(value) });
+      return;
+    } catch {
+      // Fall back to localStorage.
+    }
+  }
+  localStorage.setItem(key, String(value));
+};
+
+const storageGet = async (key) => {
+  if (window.Capacitor) {
+    try {
+      const { Preferences } = await import('@capacitor/preferences');
+      const { value } = await Preferences.get({ key });
+      return value;
+    } catch {
+      // Fall back to localStorage.
+    }
+  }
+  return localStorage.getItem(key);
+};
+
+const storageRemove = async (key) => {
+  if (window.Capacitor) {
+    try {
+      const { Preferences } = await import('@capacitor/preferences');
+      await Preferences.remove({ key });
+      return;
+    } catch {
+      // Fall back to localStorage.
+    }
+  }
+  localStorage.removeItem(key);
+};
+
 const isTooManyRequestsError = (error) => {
   const code = String(error?.code || '').toLowerCase();
   const message = String(error?.message || '').toLowerCase();
   return code.includes('too-many-requests') || message.includes('auth/too-many-requests');
 };
 
-const getRemainingOtpBlockSeconds = (phone) => {
+const getRemainingOtpBlockSeconds = async (phone) => {
   const key = getOtpBlockKey(phone);
   if (!key) return 0;
 
-  const stored = Number(localStorage.getItem(key) || 0);
+  const stored = Number((await storageGet(key)) || 0);
   if (!stored) return 0;
 
   const remaining = getSecondsUntil(stored);
   if (remaining <= 0) {
-    localStorage.removeItem(key);
+    await storageRemove(key);
     return 0;
   }
 
@@ -74,7 +113,16 @@ const Register = () => {
   }, [resendCountdown]);
 
   useEffect(() => {
-    setOtpBlockRemaining(getRemainingOtpBlockSeconds(formData.phone));
+    let cancelled = false;
+    getRemainingOtpBlockSeconds(formData.phone).then((remaining) => {
+      if (!cancelled) {
+        setOtpBlockRemaining(remaining);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [formData.phone]);
 
   useEffect(() => {
@@ -85,7 +133,7 @@ const Register = () => {
       setOtpBlockRemaining((prev) => {
         if (prev <= 1) {
           if (key) {
-            localStorage.removeItem(key);
+            void storageRemove(key);
           }
           return 0;
         }
@@ -95,12 +143,12 @@ const Register = () => {
     return () => clearInterval(t);
   }, [otpBlockRemaining, formData.phone]);
 
-  const startOtpBlock = (seconds = OTP_BLOCK_SECONDS, phone = formData.phone) => {
+  const startOtpBlock = async (seconds = OTP_BLOCK_SECONDS, phone = formData.phone) => {
     const key = getOtpBlockKey(phone);
     if (!key) return;
 
     const until = Date.now() + seconds * 1000;
-    localStorage.setItem(key, String(until));
+    await storageSet(key, String(until));
     setOtpBlockRemaining(seconds);
   };
 
@@ -180,7 +228,7 @@ const Register = () => {
       setResendCountdown(30); // 30s before resend allowed
     } catch (error) {
       if (isTooManyRequestsError(error)) {
-        startOtpBlock();
+        await startOtpBlock();
         toast.error('OTP is temporarily rate-limited for this number/device. Please wait a few minutes and try again.');
         return;
       }
@@ -273,7 +321,7 @@ const Register = () => {
       setResendCountdown(30);
     } catch (error) {
       if (isTooManyRequestsError(error)) {
-        startOtpBlock();
+        await startOtpBlock();
         toast.error('OTP is temporarily rate-limited for this number/device. Please wait a few minutes and try again.');
         return;
       }
