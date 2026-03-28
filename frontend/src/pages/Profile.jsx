@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateProfile, getAddresses, addAddress, deleteAddress } from '../api/userApi';
 import { logout } from '../redux/slices/authSlice';
+import * as authApi from '../api/authApi';
 import {
   PencilIcon,
   TrashIcon,
@@ -265,7 +266,12 @@ const Profile = () => {
     } catch { toast.error('Could not remove address'); }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      // Continue local logout even if server logout fails.
+    }
     dispatch(logout());
     toast.success('You\'ve been signed out');
     navigate('/');

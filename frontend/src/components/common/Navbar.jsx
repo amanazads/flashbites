@@ -21,6 +21,7 @@ import {
 import { logout } from '../../redux/slices/authSlice';
 import { toggleCart, closeCart } from '../../redux/slices/uiSlice';
 import { useSwipeBack } from '../../hooks/useSwipeBack';
+import * as authApi from '../../api/authApi';
 import toast from 'react-hot-toast';
 import logo from '../../assets/logo.png';
 import NotificationBell from './NotificationBell';
@@ -51,7 +52,12 @@ const Navbar = () => {
     return location.pathname.startsWith(path);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      // Continue local logout even if server logout fails.
+    }
     dispatch(logout());
     toast.success('Logged out');
     navigate('/');

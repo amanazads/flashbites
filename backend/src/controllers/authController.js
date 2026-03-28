@@ -1,5 +1,6 @@
 const axios = require('axios');
 const User = require('../models/User');
+const PushSubscription = require('../models/PushSubscription');
 const { generateToken, generateRefreshToken, hashRefreshToken } = require('../utils/tokenUtils');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { verifyFirebaseToken } = require('../config/firebaseAdmin');
@@ -191,7 +192,10 @@ exports.login = async (req, res) => {
 // @access  Private
 exports.logout = async (req, res) => {
   try {
-    await User.findByIdAndUpdate(req.user._id, { refreshToken: null });
+    await Promise.all([
+      User.findByIdAndUpdate(req.user._id, { refreshToken: null, fcmToken: null }),
+      PushSubscription.updateMany({ user: req.user._id }, { $set: { isActive: false } })
+    ]);
     successResponse(res, 200, 'Logout successful');
   } catch (error) {
     errorResponse(res, 500, 'Logout failed', error.message);

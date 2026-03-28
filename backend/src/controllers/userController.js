@@ -260,11 +260,23 @@ exports.setDefaultAddress = async (req, res) => {
 // @access  Private
 exports.saveFcmToken = async (req, res) => {
   try {
-    const { token } = req.body;
+    const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
 
     if (!token) {
       return errorResponse(res, 400, 'FCM token is required');
     }
+
+    // Keep a token bound to only one user to prevent cross-account notifications
+    // on shared/reused devices.
+    await User.updateMany(
+      {
+        _id: { $ne: req.user._id },
+        fcmToken: token
+      },
+      {
+        $set: { fcmToken: null }
+      }
+    );
 
     await User.findByIdAndUpdate(
       req.user._id,

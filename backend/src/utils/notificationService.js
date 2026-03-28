@@ -280,6 +280,11 @@ const notifyUser = async (userId, notificationData) => {
       return null;
     }
 
+    const user = await User.findById(userId).select('_id isActive').lean();
+    if (!user || user.isActive === false) {
+      return null;
+    }
+
     const fingerprintSource = [
       String(userId),
       String(notificationData.type || 'general_notification'),
