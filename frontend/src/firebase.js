@@ -13,6 +13,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 auth.useDeviceLanguage();
+let otpRequestPromise = null;
 
 // We DO NOT set appVerificationDisabledForTesting = true here.
 // Doing so would block REAL phone numbers from receiving OTPs on localhost.
@@ -20,17 +21,46 @@ auth.useDeviceLanguage();
 // the static #recaptcha-wrapper in index.html which prevents Vite HMR from 
 // destroying the google iframes mid-flight.
 
-export const setupRecaptcha = () => {
-  if (!document.getElementById('recaptcha-container')) {
-    const container = document.createElement('div');
+const getOrCreateRecaptchaContainer = () => {
+  let container = document.getElementById('recaptcha-container');
+
+  if (!container) {
+    container = document.createElement('div');
     container.id = 'recaptcha-container';
-    
-    // Append to the static wrapper defined in index.html, not document.body.
-    // React mutates document.body during hot-reloads, destroying ReCAPTCHA Enterprise 
-    // network iframes mid-flight which causes "The network connection was lost."
+
+    // Append to static wrapper in index.html to avoid HMR/body mutations.
     const wrapper = document.getElementById('recaptcha-wrapper') || document.body;
     wrapper.appendChild(container);
+    return container;
   }
+
+  // If Firebase verifier reference was lost but widget markup remains, recreate node.
+  if (!window.recaptchaVerifier && container.childElementCount > 0) {
+    const fresh = document.createElement('div');
+    fresh.id = 'recaptcha-container';
+    container.replaceWith(fresh);
+    return fresh;
+  }
+
+  return container;
+};
+
+const resetRecaptchaState = () => {
+  if (window.recaptchaVerifier) {
+    try { window.recaptchaVerifier.clear(); } catch (e) {}
+    window.recaptchaVerifier = null;
+  }
+
+  const container = document.getElementById('recaptcha-container');
+  if (container && container.childElementCount > 0) {
+    const fresh = document.createElement('div');
+    fresh.id = 'recaptcha-container';
+    container.replaceWith(fresh);
+  }
+};
+
+export const setupRecaptcha = () => {
+  getOrCreateRecaptchaContainer();
 
   // Only create the verifier if it doesn't already exist
   if (!window.recaptchaVerifier) {
@@ -41,10 +71,7 @@ export const setupRecaptcha = () => {
       },
       'expired-callback': () => {
         console.log("reCAPTCHA expired");
-        if (window.recaptchaVerifier) {
-          window.recaptchaVerifier.clear();
-          window.recaptchaVerifier = null;
-        }
+        resetRecaptchaState();
       }
     });
   }
@@ -52,6 +79,11 @@ export const setupRecaptcha = () => {
 };
 
 export const sendPhoneOTP = async (phoneNumber) => {
+  if (otpRequestPromise) {
+    return otpRequestPromise;
+  }
+
+  otpRequestPromise = (async () => {
   try {
     const appVerifier = setupRecaptcha();
     
@@ -65,13 +97,15 @@ export const sendPhoneOTP = async (phoneNumber) => {
     return confirmationResult;
   } catch (error) {
     console.error("Sending OTP error:", error);
-    // Let the user try again clearly by resetting the widget state
-    if (window.recaptchaVerifier) {
-      try { window.recaptchaVerifier.clear(); } catch(e) {}
-      window.recaptchaVerifier = null;
-    }
+    // Let the user retry by fully resetting verifier/container state.
+    resetRecaptchaState();
     throw error;
+  } finally {
+    otpRequestPromise = null;
   }
+  })();
+
+  return otpRequestPromise;
 };
 
 export const verifyPhoneOTP = async (otpCode) => {
