@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -14,6 +15,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 auth.useDeviceLanguage();
 let otpRequestPromise = null;
+let nativeVerificationId = null;
+let nativePhoneFlowStarted = false;
+
+const isNativePlatform = () => Boolean(window?.Capacitor?.isNativePlatform?.());
 
 // We DO NOT set appVerificationDisabledForTesting = true here.
 // Doing so would block REAL phone numbers from receiving OTPs on localhost.
@@ -84,6 +89,64 @@ export const sendPhoneOTP = async (phoneNumber) => {
   }
 
   otpRequestPromise = (async () => {
+  if (isNativePlatform()) {
+    const listenerHandles = [];
+
+    try {
+      const payload = await new Promise(async (resolve, reject) => {
+        let settled = false;
+        const timeoutId = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error('Phone verification timed out. Please try again.'));
+        }, 90000);
+
+        const settleResolve = (value) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          resolve(value);
+        };
+
+        const settleReject = (error) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          reject(error instanceof Error ? error : new Error(String(error || 'Phone verification failed')));
+        };
+
+        try {
+          listenerHandles.push(await FirebaseAuthentication.addListener('phoneCodeSent', (event) => {
+            nativeVerificationId = event?.verificationId || null;
+            nativePhoneFlowStarted = true;
+            settleResolve({ verificationId: nativeVerificationId });
+          }));
+
+          listenerHandles.push(await FirebaseAuthentication.addListener('phoneVerificationCompleted', () => {
+            nativePhoneFlowStarted = true;
+            settleResolve({ autoVerified: true });
+          }));
+
+          listenerHandles.push(await FirebaseAuthentication.addListener('phoneVerificationFailed', (event) => {
+            settleReject(new Error(event?.message || 'Phone verification failed'));
+          }));
+
+          await FirebaseAuthentication.signInWithPhoneNumber({
+            phoneNumber,
+            resendCode: nativePhoneFlowStarted,
+            timeout: 60
+          });
+        } catch (error) {
+          settleReject(error);
+        }
+      });
+
+      return payload;
+    } finally {
+      await Promise.allSettled(listenerHandles.map((h) => h.remove()));
+    }
+  }
+
   try {
     const appVerifier = setupRecaptcha();
     
@@ -109,6 +172,34 @@ export const sendPhoneOTP = async (phoneNumber) => {
 };
 
 export const verifyPhoneOTP = async (otpCode) => {
+  if (isNativePlatform()) {
+    try {
+      if (nativeVerificationId && otpCode) {
+        await FirebaseAuthentication.confirmVerificationCode({
+          verificationId: nativeVerificationId,
+          verificationCode: otpCode
+        });
+      } else {
+        const current = await FirebaseAuthentication.getCurrentUser();
+        if (!current?.user) {
+          throw new Error('No OTP request found. Please request OTP again.');
+        }
+      }
+
+      const { token } = await FirebaseAuthentication.getIdToken({ forceRefresh: true });
+      if (!token) {
+        throw new Error('Phone verification token not available. Please try again.');
+      }
+
+      nativeVerificationId = null;
+      nativePhoneFlowStarted = false;
+      return token;
+    } catch (error) {
+      console.error("Verifying OTP error (native):", error);
+      throw error;
+    }
+  }
+
   if (!window.confirmationResult) {
     throw new Error('No OTP request found. Please request OTP again.');
   }

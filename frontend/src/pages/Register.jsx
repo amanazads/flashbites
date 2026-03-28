@@ -88,6 +88,7 @@ const Register = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { error, isAuthenticated, user } = useSelector((state) => state.auth);
+  const nativePlatform = Boolean(window?.Capacitor?.isNativePlatform?.());
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -241,7 +242,7 @@ const Register = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
 
-    if (!formData.otp || formData.otp.length !== 6) {
+    if (!nativePlatform && (!formData.otp || formData.otp.length !== 6)) {
       toast.error('Please enter valid 6-digit OTP');
       return;
     }

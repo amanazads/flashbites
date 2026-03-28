@@ -22,6 +22,7 @@ const isTooManyRequestsError = (error) => {
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
+  const nativePlatform = Boolean(window?.Capacitor?.isNativePlatform?.());
   const [step, setStep] = useState(1); // 1: phone, 2: otp, 3: new password
   const [loading, setLoading] = useState(false);
   const [otpBlockRemaining, setOtpBlockRemaining] = useState(0);
@@ -107,7 +108,7 @@ const ForgotPassword = () => {
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
 
-    if (!formData.otp || formData.otp.length !== 6) {
+    if (!nativePlatform && (!formData.otp || formData.otp.length !== 6)) {
       toast.error('Please enter valid 6-digit OTP');
       return;
     }
