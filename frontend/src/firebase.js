@@ -22,14 +22,14 @@ const OTP_PROVIDER_BLOCK_MS = 10 * 60 * 1000;
 const OTP_PROVIDER_BLOCK_KEY_PREFIX = 'fb_otp_provider_block_until:';
 const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const isOtpTestMode = import.meta.env.VITE_FIREBASE_OTP_TEST_MODE === 'true';
+const isNativeOtpTestMode = import.meta.env.VITE_FIREBASE_NATIVE_OTP_TEST_MODE === 'true';
 const allowLocalhostRealOtp = import.meta.env.VITE_FIREBASE_ALLOW_LOCALHOST_REAL_OTP === 'true';
 const isCapacitorNative = !!(window.Capacitor?.isNativePlatform?.() ?? window.Capacitor);
 let otpSendInFlight = false;
 let otpLastAttemptAt = 0;
 
-// Disable reCAPTCHA app verification where it is not reliable (native WebView)
-// and for localhost fictional-number testing mode.
-if (isCapacitorNative || (isLocalhost && isOtpTestMode)) {
+// Disable app verification only for explicit test modes.
+if ((isLocalhost && isOtpTestMode) || (isCapacitorNative && isNativeOtpTestMode)) {
   auth.settings.appVerificationDisabledForTesting = true;
 }
 
@@ -104,30 +104,6 @@ const normalizeFirebaseErrorCode = (rawCode) => {
   };
 
   return map[normalized] || '';
-};
-
-const shouldRetryWithFreshVerifier = (error, code) => {
-  if (
-    code === 'auth/too-many-requests'
-    || code === 'auth/provider-throttled-local'
-    || code === 'auth/invalid-recaptcha-token'
-  ) {
-    return false;
-  }
-
-  if (code === 'auth/captcha-check-failed' || code === 'auth/invalid-app-credential') {
-    return true;
-  }
-
-  const text = JSON.stringify({
-    message: String(error?.message || ''),
-    tokenMessage: String(error?.customData?._tokenResponse?.error?.message || ''),
-    serverError: error?.customData?._serverResponse,
-  }).toLowerCase();
-
-  return text.includes('captcha')
-    || text.includes('invalid_app_credential')
-    || text.includes('invalid app credential');
 };
 
 // ─── FCM Messaging ────────────────────────────────────────────────────────────
@@ -260,10 +236,6 @@ export const setupRecaptcha = ({ force = false } = {}) => {
     throw new Error('Firebase config missing. Please set VITE_FIREBASE_* env values.');
   }
 
-  if (isCapacitorNative) {
-    return null;
-  }
-
   ensureRecaptchaRoot();
 
   if (force) {
@@ -349,23 +321,25 @@ export const sendPhoneOTP = async (phoneNumber) => {
   let appVerifier = null;
 
   try {
-    if (!isCapacitorNative) {
-      appVerifier = setupRecaptcha({ force: false });
+    // Native WebView flows are more sensitive to stale verifier state.
+    const forceFreshVerifier = isCapacitorNative;
+    appVerifier = setupRecaptcha({ force: forceFreshVerifier });
 
-      if (window.recaptchaWidgetPromise) {
-        try {
+    if (window.recaptchaWidgetPromise) {
+      try {
+        await window.recaptchaWidgetPromise;
+      } catch {
+        appVerifier = setupRecaptcha({ force: true });
+        if (window.recaptchaWidgetPromise) {
           await window.recaptchaWidgetPromise;
-        } catch {
-          appVerifier = setupRecaptcha({ force: true });
-          if (window.recaptchaWidgetPromise) {
-            await window.recaptchaWidgetPromise;
-          }
         }
       }
     }
 
     const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
     window.confirmationResult = confirmationResult;
+    // Clear verifier after a successful send so the next attempt starts clean.
+    resetRecaptcha();
     return confirmationResult;
   } catch (error) {
     const code = extractFirebaseAuthCode(error);
@@ -375,19 +349,8 @@ export const sendPhoneOTP = async (phoneNumber) => {
       await storageSet(providerBlockKey, String(Date.now() + OTP_PROVIDER_BLOCK_MS));
     }
 
-    // Retry once with a fresh verifier for common transient app-verifier failures.
-    if (!isCapacitorNative && shouldRetryWithFreshVerifier(error, code)) {
-      const freshVerifier = setupRecaptcha({ force: true });
-      if (window.recaptchaWidgetPromise) {
-        await window.recaptchaWidgetPromise;
-      }
-
-      const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, freshVerifier);
-      window.confirmationResult = confirmationResult;
-      return confirmationResult;
-    }
-
-    // Reset reCAPTCHA on non-retryable errors so user can retry manually.
+    // Do not auto-retry sendVerificationCode. Firebase SDK may already perform
+    // internal fallback flows, and a second app-level retry can trigger provider throttling.
     resetRecaptcha();
     throw error;
   } finally {
@@ -487,8 +450,17 @@ export const getReadableFirebaseAuthError = (error) => {
   if (code === 'auth/captcha-check-failed' || code === 'auth/invalid-app-credential') {
     return 'Could not verify this device request. Check Firebase Phone Auth authorized domains and try again after a short wait.';
   }
+  if (code === 'auth/argument-error') {
+    return 'OTP verification setup failed on this app session. Please close and reopen the app, then request OTP again.';
+  }
   if (code === 'auth/invalid-verification-code') {
     return 'The OTP is incorrect. Please enter the 6-digit code again.';
+  }
+  if (code === 'auth/invalid-verification-id' || code === 'auth/missing-verification-id') {
+    return 'Your OTP session is invalid or expired. Please request a fresh OTP and try again.';
+  }
+  if (code === 'auth/session-expired') {
+    return 'Your OTP session has expired. Please request a new OTP.';
   }
   if (code === 'auth/code-expired') {
     return 'This OTP has expired. Please request a new OTP.';
@@ -505,7 +477,22 @@ export const getReadableFirebaseAuthError = (error) => {
   if (code === 'auth/billing-not-enabled') {
     return 'Firebase Phone Auth billing/quota is not enabled for this project. Check Firebase Console -> Usage and billing.';
   }
-  return 'Something went wrong while verifying your phone. Please try again.';
+
+  // Prefer a specific backend/Firebase message when code parsing fails.
+  const responseMessage =
+    error?.response?.data?.message
+    || error?.response?.data?.error?.message
+    || (typeof error?.response?.data?.errors === 'string' ? error.response.data.errors : '');
+  const rawMessage = String(responseMessage || error?.message || '').trim();
+
+  if (rawMessage) {
+    const cleaned = rawMessage.replace(/^firebase:\s*/i, '').replace(/^error:\s*/i, '').trim();
+    if (cleaned.length > 4) {
+      return cleaned;
+    }
+  }
+
+  return 'Could not verify OTP right now. Please request a new OTP and try again.';
 };
 
 /**

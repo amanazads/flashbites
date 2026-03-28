@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "931194780491",
+    "project_id": "flashbites-fb",
+    "storage_bucket": "flashbites-fb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:931194780491:android:55f3083d909c23aeb106ce",
+        "android_client_info": {
+          "package_name": "com.flashbites.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWmTmsKNNTbO3m-y6iKTsX6EwZyDbrMow"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

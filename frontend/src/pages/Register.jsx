@@ -299,7 +299,11 @@ const Register = () => {
       const roleMap = { restaurant_owner: '/dashboard', delivery_partner: '/delivery-dashboard' };
       navigate(roleMap[userData.role] || '/');
     } catch (error) {
-      const backendMessage = error.response?.data?.message;
+      const backendMessage =
+        error.response?.data?.message
+        || error.response?.data?.error?.message
+        || (typeof error.response?.data?.errors === 'string' ? error.response.data.errors : '')
+        || error.message;
       const errorMessage = backendMessage || 'Could not create your account right now. Please try again.';
       toast.error(errorMessage);
 

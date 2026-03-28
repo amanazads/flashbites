@@ -27,4 +27,17 @@ printf 'sdk.dir=%s\n' "$ANDROID_HOME" > "$PROJECT_ROOT/android/local.properties"
 
 cd "$PROJECT_ROOT"
 npm run app:sync
-npx cap run android
+
+# Prefer a connected physical device to avoid flaky emulator installs.
+TARGET_DEVICE=""
+if command -v adb >/dev/null 2>&1; then
+  TARGET_DEVICE="$(adb devices -l | awk '/device usb:/{print $1; exit}')"
+fi
+
+if [[ -n "$TARGET_DEVICE" ]]; then
+  echo "Using connected Android device: $TARGET_DEVICE"
+  npx cap run android --target "$TARGET_DEVICE"
+else
+  echo "No USB Android device detected, falling back to default target selection."
+  npx cap run android
+fi
