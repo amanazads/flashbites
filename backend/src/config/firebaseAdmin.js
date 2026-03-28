@@ -22,14 +22,14 @@ if (!admin.apps.length) {
       console.error('❌ Firebase Admin: Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:', err.message);
       // Fallback: try projectId-only initialization
       firebaseApp = admin.initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID || 'flashbites-shop',
+        projectId: process.env.FIREBASE_PROJECT_ID || 'flashbites-fb',
       });
       console.warn('⚠️ Firebase Admin: Falling back to projectId-only init (token verification may fail)');
     }
   } else {
     // Local dev: rely on GOOGLE_APPLICATION_CREDENTIALS file or projectId
     firebaseApp = admin.initializeApp({
-      projectId: process.env.FIREBASE_PROJECT_ID || 'flashbites-shop',
+      projectId: process.env.FIREBASE_PROJECT_ID || 'flashbites-fb',
     });
     console.log('🔥 Firebase Admin: initialized with application default credentials (local dev)');
   }

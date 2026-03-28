@@ -20,6 +20,10 @@ const config: CapacitorConfig = {
       'checkout-static-next.razorpay.com',
       'api.razorpay.com',
       'lumberjack.razorpay.com',
+      '*.firebaseapp.com',
+      '*.googleapis.com',
+      '*.google.com',
+      '*.gstatic.com'
     ],
     ...(useRemote
       ? {
