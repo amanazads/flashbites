@@ -156,6 +156,11 @@ EMAIL_USER=<your-email>
 EMAIL_PASSWORD=<gmail-app-password>
 BACKEND_URL=<your-railway-url>
 FRONTEND_URL=<your-vercel-url>
+
+# Firebase — REQUIRED for phone OTP login to work in production
+# See README.md "Firebase Setup" section for how to obtain the service account JSON.
+FIREBASE_PROJECT_ID=<your-firebase-project-id>
+FIREBASE_SERVICE_ACCOUNT_JSON=<single-line-service-account-json>
 ```
 
 ### Frontend (Vercel):

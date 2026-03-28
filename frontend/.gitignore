@@ -33,3 +33,6 @@ yarn-error.log*
 
 # Android signing keys (never commit)
 keystores/
+
+# Firebase config files (contain credentials — obtain from Firebase Console)
+google-services.json

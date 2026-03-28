@@ -402,6 +402,55 @@ PUT    /api/admin/users/:id/status     # Update user status
 PUT    /api/admin/restaurants/:id/approve # Approve restaurant
 ```
 
+## 🔥 Firebase Setup
+
+FlashBites uses Firebase for **phone OTP authentication** (backend token verification) and **push notifications** (FCM).
+
+### Frontend Firebase Config
+
+Add these to `frontend/.env`:
+
+```env
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
+
+Find these values in **Firebase Console → Project Settings → General → Your apps**.
+
+### Backend Firebase Admin Config (`FIREBASE_SERVICE_ACCOUNT_JSON`)
+
+The backend uses the Firebase Admin SDK to verify phone-auth ID tokens. The behavior differs by environment:
+
+| Environment | Required? | Behavior without it |
+|-------------|-----------|---------------------|
+| **Production** (Railway, Render, etc.) | ✅ **Required** | Token verification fails → phone OTP login will not work |
+| **Local development** | Optional | Falls back to project-ID-only init; Firebase ID tokens **cannot** be verified, so phone OTP login will return a 401 error unless `GOOGLE_APPLICATION_CREDENTIALS` points to the key file |
+
+#### How to generate the service account key
+
+1. Go to [Firebase Console](https://console.firebase.google.com) → **Project Settings** → **Service Accounts**
+2. Click **"Generate new private key"** and save the downloaded `.json` file
+3. Collapse the JSON to a single line (macOS/Linux: `jq -c . your-key.json`)
+4. Set it as an environment variable:
+
+```env
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n","client_email":"firebase-adminsdk-xxxxx@your_project.iam.gserviceaccount.com",...}
+```
+
+> **Important**: `\n` characters inside `private_key` must remain as the two-character sequence `\n` (backslash + n), not an actual newline. The server normalizes them automatically.
+
+#### Also set:
+
+```env
+FIREBASE_PROJECT_ID=your_firebase_project_id
+```
+
+---
+
 ## 💳 Payment Integration
 
 FlashBites uses **Razorpay** for secure payment processing:
@@ -628,6 +677,12 @@ lsof -ti:5000 | xargs kill -9
 **5. Payment Not Working**
 - Verify Razorpay keys
 - Check test mode is enabled
+
+**6. Phone OTP / Firebase Auth Not Working**
+- In **production**, confirm that `FIREBASE_SERVICE_ACCOUNT_JSON` is set in your backend environment variables. Without it, the server can't verify Firebase ID tokens and phone OTP login will fail with a 401 error.
+- In **local development**, you can either set `FIREBASE_SERVICE_ACCOUNT_JSON`, or point `GOOGLE_APPLICATION_CREDENTIALS` to the downloaded key file. The server also accepts a fallback projectId-only mode, but token verification will not work in that mode.
+- Ensure `FIREBASE_PROJECT_ID` matches the project where Phone Authentication is enabled in the Firebase Console.
+- In the Firebase Console → Authentication → Settings → Authorized domains, make sure your frontend domain is listed.
 
 ---
 
