@@ -137,6 +137,11 @@ EMAIL_PORT=587
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASSWORD=your_app_password
 
+# Firebase Admin SDK (required in production for phone OTP token verification)
+# See the "Firebase Setup" section below for how to obtain this value.
+FIREBASE_SERVICE_ACCOUNT_JSON=
+FIREBASE_PROJECT_ID=your_firebase_project_id
+
 # Frontend URL
 FRONTEND_URL=http://localhost:3000
 ```
@@ -166,6 +171,15 @@ Configure frontend `.env`:
 ```env
 VITE_API_URL=http://localhost:5000/api
 VITE_RAZORPAY_KEY_ID=your_razorpay_key_id
+
+# Firebase (required for phone OTP authentication)
+# Get these from Firebase Console → Project Settings → Your Apps → web app
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain
+VITE_FIREBASE_PROJECT_ID=your_firebase_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_firebase_messaging_sender_id
+VITE_FIREBASE_APP_ID=your_firebase_app_id
 ```
 
 ```bash
@@ -424,7 +438,71 @@ FlashBites uses **Razorpay** for secure payment processing:
    - CVV: Any 3 digits
    - Expiry: Any future date
 
-## 🖼️ Image Upload
+## 🔥 Firebase Setup
+
+FlashBites uses Firebase for **phone number OTP authentication** and **push notifications (FCM)**. Both the frontend and backend require Firebase to be configured.
+
+### 1. Create a Firebase Project
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Click **Add project** and follow the setup wizard
+3. Enable **Google Analytics** (optional)
+
+### 2. Enable Phone Authentication
+
+1. In the Firebase Console, go to **Authentication → Sign-in method**
+2. Enable **Phone** as a sign-in provider
+3. Add your production domain (e.g., `flashbites.in`) to **Authorized domains**
+
+### 3. Register a Web App (Frontend)
+
+1. Go to **Project Settings → Your apps**
+2. Click **Add app → Web** and register it
+3. Copy the `firebaseConfig` values into your **frontend `.env`**:
+
+```env
+VITE_FIREBASE_API_KEY=AIza...
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+VITE_FIREBASE_APP_ID=1:123456789:web:abc123
+```
+
+### 4. Generate a Service Account Key (Backend — Required in Production)
+
+The backend uses the **Firebase Admin SDK** to verify the ID tokens issued by Firebase after a user completes phone OTP. Without a service account key, the backend cannot validate these tokens.
+
+1. In the Firebase Console, go to **Project Settings → Service accounts**
+2. Click **Generate new private key** → **Generate key**
+3. A JSON file will be downloaded — keep it secret and **never commit it to git**. Exposing this key grants full admin access to your Firebase project.
+4. Convert the file to a single-line JSON string and set it as the `FIREBASE_SERVICE_ACCOUNT_JSON` environment variable on your server:
+
+```bash
+# One-liner to produce a single-line escaped JSON string from the downloaded file:
+cat path/to/serviceAccountKey.json | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)))"
+```
+
+5. Paste the output as the value of `FIREBASE_SERVICE_ACCOUNT_JSON` in **backend `.env`**:
+
+```env
+# Backend .env
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"your-project-id","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n","client_email":"firebase-adminsdk-xxxxx@your-project-id.iam.gserviceaccount.com",...}
+FIREBASE_PROJECT_ID=your-project-id
+```
+
+> **Do I need this for local development?**
+> No. When `FIREBASE_SERVICE_ACCOUNT_JSON` is not set the backend falls back to a project-ID-only initialization which is sufficient for local testing. For a deployed (production) environment you **must** set this variable, otherwise Firebase ID token verification will fail and phone OTP login will be broken.
+
+### 5. Set the Variable on Your Hosting Platform
+
+| Platform | How to add the variable |
+|----------|------------------------|
+| **Railway** | Dashboard → your service → Variables → Add |
+| **Render** | Dashboard → your service → Environment → Add |
+| **Vercel** | Project Settings → Environment Variables → Add |
+
+
 
 Cloudinary integration for image management:
 
@@ -628,6 +706,12 @@ lsof -ti:5000 | xargs kill -9
 **5. Payment Not Working**
 - Verify Razorpay keys
 - Check test mode is enabled
+
+**6. Firebase Token Verification Failing (Phone OTP login broken in production)**
+- Ensure `FIREBASE_SERVICE_ACCOUNT_JSON` is set on your backend hosting platform
+- The value must be the **full service account JSON** as a single-line string (see Firebase Setup above)
+- Confirm `FIREBASE_PROJECT_ID` matches the project in the service account JSON
+- Re-generate the service account key if you deleted/recreated the Firebase project
 
 ---
 
