@@ -17,8 +17,19 @@ auth.useDeviceLanguage();
 let otpRequestPromise = null;
 let nativeVerificationId = null;
 let nativePhoneFlowStarted = false;
+let currentOtpMode = 'web';
 
 const isNativePlatform = () => Boolean(window?.Capacitor?.isNativePlatform?.());
+
+const isNativeAuthConfigurationError = (error) => {
+  const message = String(error?.message || error || '').toLowerCase();
+  return (
+    message.includes('not authorized to use firebase authentication') ||
+    message.includes('play_integrity_token') ||
+    message.includes('no matching sha-256') ||
+    message.includes('package name/sha256')
+  );
+};
 
 // We DO NOT set appVerificationDisabledForTesting = true here.
 // Doing so would block REAL phone numbers from receiving OTPs on localhost.
@@ -83,96 +94,106 @@ export const setupRecaptcha = () => {
   return window.recaptchaVerifier;
 };
 
+const sendPhoneOtpWeb = async (phoneNumber) => {
+  const appVerifier = setupRecaptcha();
+
+  // Do NOT call await appVerifier.render() manually.
+  // signInWithPhoneNumber will automatically render and verify the reCAPTCHA.
+  const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+  window.confirmationResult = confirmationResult;
+  return confirmationResult;
+};
+
 export const sendPhoneOTP = async (phoneNumber) => {
   if (otpRequestPromise) {
     return otpRequestPromise;
   }
 
   otpRequestPromise = (async () => {
-  if (isNativePlatform()) {
-    const listenerHandles = [];
-
     try {
-      const payload = await new Promise(async (resolve, reject) => {
-        let settled = false;
-        const timeoutId = setTimeout(() => {
-          if (settled) return;
-          settled = true;
-          reject(new Error('Phone verification timed out. Please try again.'));
-        }, 90000);
-
-        const settleResolve = (value) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeoutId);
-          resolve(value);
-        };
-
-        const settleReject = (error) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeoutId);
-          reject(error instanceof Error ? error : new Error(String(error || 'Phone verification failed')));
-        };
+      if (isNativePlatform()) {
+        const listenerHandles = [];
 
         try {
-          listenerHandles.push(await FirebaseAuthentication.addListener('phoneCodeSent', (event) => {
-            nativeVerificationId = event?.verificationId || null;
-            nativePhoneFlowStarted = true;
-            settleResolve({ verificationId: nativeVerificationId });
-          }));
+          const payload = await new Promise(async (resolve, reject) => {
+            let settled = false;
+            const timeoutId = setTimeout(() => {
+              if (settled) return;
+              settled = true;
+              reject(new Error('Phone verification timed out. Please try again.'));
+            }, 90000);
 
-          listenerHandles.push(await FirebaseAuthentication.addListener('phoneVerificationCompleted', () => {
-            nativePhoneFlowStarted = true;
-            settleResolve({ autoVerified: true });
-          }));
+            const settleResolve = (value) => {
+              if (settled) return;
+              settled = true;
+              clearTimeout(timeoutId);
+              resolve(value);
+            };
 
-          listenerHandles.push(await FirebaseAuthentication.addListener('phoneVerificationFailed', (event) => {
-            settleReject(new Error(event?.message || 'Phone verification failed'));
-          }));
+            const settleReject = (error) => {
+              if (settled) return;
+              settled = true;
+              clearTimeout(timeoutId);
+              reject(error instanceof Error ? error : new Error(String(error || 'Phone verification failed')));
+            };
 
-          await FirebaseAuthentication.signInWithPhoneNumber({
-            phoneNumber,
-            resendCode: nativePhoneFlowStarted,
-            timeout: 60
+            try {
+              listenerHandles.push(await FirebaseAuthentication.addListener('phoneCodeSent', (event) => {
+                nativeVerificationId = event?.verificationId || null;
+                nativePhoneFlowStarted = true;
+                settleResolve({ verificationId: nativeVerificationId });
+              }));
+
+              listenerHandles.push(await FirebaseAuthentication.addListener('phoneVerificationCompleted', () => {
+                nativePhoneFlowStarted = true;
+                settleResolve({ autoVerified: true });
+              }));
+
+              listenerHandles.push(await FirebaseAuthentication.addListener('phoneVerificationFailed', (event) => {
+                settleReject(new Error(event?.message || 'Phone verification failed'));
+              }));
+
+              await FirebaseAuthentication.signInWithPhoneNumber({
+                phoneNumber,
+                resendCode: nativePhoneFlowStarted,
+                timeout: 60
+              });
+            } catch (error) {
+              settleReject(error);
+            }
           });
+
+          currentOtpMode = 'native';
+          return payload;
         } catch (error) {
-          settleReject(error);
+          if (!isNativeAuthConfigurationError(error)) {
+            throw error;
+          }
+
+          // Fallback to web flow for emergency continuity while Firebase SHA config is fixed.
+          currentOtpMode = 'web';
+          nativeVerificationId = null;
+        } finally {
+          await Promise.allSettled(listenerHandles.map((h) => h.remove()));
         }
-      });
+      }
 
-      return payload;
+      currentOtpMode = 'web';
+      return await sendPhoneOtpWeb(phoneNumber);
+    } catch (error) {
+      console.error("Sending OTP error:", error);
+      resetRecaptchaState();
+      throw error;
     } finally {
-      await Promise.allSettled(listenerHandles.map((h) => h.remove()));
+      otpRequestPromise = null;
     }
-  }
-
-  try {
-    const appVerifier = setupRecaptcha();
-    
-    // Do NOT call await appVerifier.render() manually.
-    // signInWithPhoneNumber will automatically render and verify the reCAPTCHA.
-    // Manually rendering it and then letting Firebase interact with it is a common 
-    // root cause of the "Network connection was lost / Enterprise config" timeout error.
-
-    const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
-    window.confirmationResult = confirmationResult;
-    return confirmationResult;
-  } catch (error) {
-    console.error("Sending OTP error:", error);
-    // Let the user retry by fully resetting verifier/container state.
-    resetRecaptchaState();
-    throw error;
-  } finally {
-    otpRequestPromise = null;
-  }
   })();
 
   return otpRequestPromise;
 };
 
 export const verifyPhoneOTP = async (otpCode) => {
-  if (isNativePlatform()) {
+  if (isNativePlatform() && currentOtpMode === 'native') {
     try {
       if (nativeVerificationId && otpCode) {
         await FirebaseAuthentication.confirmVerificationCode({
@@ -217,10 +238,19 @@ export const verifyPhoneOTP = async (otpCode) => {
 export const getReadableFirebaseAuthError = (error) => {
   if (!error) return "An unknown error occurred. Please try again.";
   const msg = error.code || error.message || String(error);
+  const normalized = String(msg).toLowerCase();
   if (msg.includes('auth/invalid-phone-number')) return "Invalid phone number format. Please check the number.";
   if (msg.includes('auth/too-many-requests')) return "Too many attempts. Please try again later.";
   if (msg.includes('auth/invalid-verification-code')) return "Incorrect OTP code. Please enter the correct code.";
   if (msg.includes('auth/code-expired')) return "The OTP code has expired. Please request a new one.";
+  if (
+    normalized.includes('not authorized to use firebase authentication') ||
+    normalized.includes('play_integrity_token') ||
+    normalized.includes('no matching sha-256') ||
+    normalized.includes('package name/sha256')
+  ) {
+    return "Android app verification is not configured in Firebase yet (package/SHA mismatch). Please add the correct SHA-256 and SHA-1 for this app in Firebase Console and try again.";
+  }
   if (msg.includes('auth/captcha-check-failed') || msg.includes('auth/invalid-app-credential')) return "Device verification failed. Please check your connection and try again.";
   if (msg.includes('auth/network-request-failed')) return "Network error. Please check your internet connection.";
   return `Error: ${msg.replace('auth/', '')}`;
