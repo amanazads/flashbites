@@ -16,10 +16,64 @@ const auth = getAuth(app);
 auth.useDeviceLanguage();
 let otpRequestPromise = null;
 let nativeVerificationId = null;
-let nativePhoneFlowStarted = false;
 let currentOtpMode = 'web';
+const FIREBASE_PROJECT_MARKER_KEY = 'flashbites.firebase.project.marker.v1';
+let projectMigrationPromise = null;
 
 const isNativePlatform = () => Boolean(window?.Capacitor?.isNativePlatform?.());
+
+const getCurrentProjectMarker = () => {
+  const projectId = firebaseConfig.projectId || 'unknown-project';
+  const appId = firebaseConfig.appId || 'unknown-app';
+  return `${projectId}:${appId}`;
+};
+
+const resetOtpFlowState = () => {
+  otpRequestPromise = null;
+  nativeVerificationId = null;
+  currentOtpMode = 'web';
+  if (typeof window !== 'undefined') {
+    window.confirmationResult = null;
+  }
+  resetRecaptchaState();
+};
+
+const ensureProjectMigrationState = async () => {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return;
+  }
+
+  if (!projectMigrationPromise) {
+    projectMigrationPromise = (async () => {
+      const currentMarker = getCurrentProjectMarker();
+      const previousMarker = window.localStorage.getItem(FIREBASE_PROJECT_MARKER_KEY);
+
+      if (previousMarker === currentMarker) {
+        return;
+      }
+
+      // Firebase project switched on this device; clear stale auth and OTP state.
+      resetOtpFlowState();
+
+      try {
+        await auth.signOut();
+      } catch (e) {}
+
+      if (isNativePlatform()) {
+        try {
+          await FirebaseAuthentication.signOut();
+        } catch (e) {}
+      }
+
+      window.localStorage.setItem(FIREBASE_PROJECT_MARKER_KEY, currentMarker);
+    })()
+      .finally(() => {
+        projectMigrationPromise = null;
+      });
+  }
+
+  await projectMigrationPromise;
+};
 
 const isNativeAuthConfigurationError = (error) => {
   const message = String(error?.message || error || '').toLowerCase();
@@ -111,6 +165,8 @@ export const sendPhoneOTP = async (phoneNumber) => {
 
   otpRequestPromise = (async () => {
     try {
+      await ensureProjectMigrationState();
+
       if (isNativePlatform()) {
         const listenerHandles = [];
 
@@ -140,12 +196,10 @@ export const sendPhoneOTP = async (phoneNumber) => {
             try {
               listenerHandles.push(await FirebaseAuthentication.addListener('phoneCodeSent', (event) => {
                 nativeVerificationId = event?.verificationId || null;
-                nativePhoneFlowStarted = true;
                 settleResolve({ verificationId: nativeVerificationId });
               }));
 
               listenerHandles.push(await FirebaseAuthentication.addListener('phoneVerificationCompleted', () => {
-                nativePhoneFlowStarted = true;
                 settleResolve({ autoVerified: true });
               }));
 
@@ -155,7 +209,6 @@ export const sendPhoneOTP = async (phoneNumber) => {
 
               await FirebaseAuthentication.signInWithPhoneNumber({
                 phoneNumber,
-                resendCode: nativePhoneFlowStarted,
                 timeout: 60
               });
             } catch (error) {
@@ -193,16 +246,34 @@ export const sendPhoneOTP = async (phoneNumber) => {
 };
 
 export const verifyPhoneOTP = async (otpCode) => {
+  await ensureProjectMigrationState();
+
   if (isNativePlatform() && currentOtpMode === 'native') {
     try {
-      if (nativeVerificationId && otpCode) {
-        await FirebaseAuthentication.confirmVerificationCode({
-          verificationId: nativeVerificationId,
-          verificationCode: otpCode
-        });
-      } else {
-        const current = await FirebaseAuthentication.getCurrentUser();
-        if (!current?.user) {
+      // Native phone auth can auto-complete in the background on Android.
+      // If user is already signed in, reuse that token instead of confirming code again.
+      const currentBeforeConfirm = await FirebaseAuthentication.getCurrentUser();
+
+      if (!currentBeforeConfirm?.user) {
+        if (nativeVerificationId && otpCode) {
+          try {
+            await FirebaseAuthentication.confirmVerificationCode({
+              verificationId: nativeVerificationId,
+              verificationCode: otpCode
+            });
+          } catch (confirmError) {
+            const message = String(confirmError?.message || confirmError || '').toLowerCase();
+            if (message.includes('session-expired')) {
+              // Recover race: verification may have already completed natively.
+              const currentAfterExpired = await FirebaseAuthentication.getCurrentUser();
+              if (!currentAfterExpired?.user) {
+                throw confirmError;
+              }
+            } else {
+              throw confirmError;
+            }
+          }
+        } else {
           throw new Error('No OTP request found. Please request OTP again.');
         }
       }
@@ -213,9 +284,12 @@ export const verifyPhoneOTP = async (otpCode) => {
       }
 
       nativeVerificationId = null;
-      nativePhoneFlowStarted = false;
       return token;
     } catch (error) {
+      const errorMessage = String(error?.message || error || '').toLowerCase();
+      if (errorMessage.includes('session-expired')) {
+        nativeVerificationId = null;
+      }
       console.error("Verifying OTP error (native):", error);
       throw error;
     }
@@ -241,6 +315,9 @@ export const getReadableFirebaseAuthError = (error) => {
   const normalized = String(msg).toLowerCase();
   if (msg.includes('auth/invalid-phone-number')) return "Invalid phone number format. Please check the number.";
   if (msg.includes('auth/too-many-requests')) return "Too many attempts. Please try again later.";
+  if (normalized.includes('session-expired') || normalized.includes('auth/session-expired')) {
+    return "OTP session expired. Please tap Resend OTP and try again.";
+  }
   if (msg.includes('auth/invalid-verification-code')) return "Incorrect OTP code. Please enter the correct code.";
   if (msg.includes('auth/code-expired')) return "The OTP code has expired. Please request a new one.";
   if (
