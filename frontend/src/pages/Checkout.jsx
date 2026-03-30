@@ -8,6 +8,7 @@ import { getAddresses } from '../api/userApi';
 import { formatCurrency } from '../utils/formatters';
 import { calculateCartTotal } from '../utils/helpers';
 import { calculateDistance } from '../utils/helpers';
+import { isRestaurantOpen } from '../utils/helpers';
 import { validateCoupon, getAvailableCoupons } from '../api/couponApi';
 import { getPlatformSettings } from '../api/settingsApi';
 import AddAddressModal from '../components/common/AddAddressModal';
@@ -185,6 +186,8 @@ const Checkout = () => {
         : 0);
   const tax = Math.max(subtotal - discount, 0) * taxRate;
   const total = subtotal + deliveryFee + platformFee + tax - discount;
+  const restaurantAvailability = isRestaurantOpen(restaurant?.timing, restaurant?.acceptingOrders !== false);
+  const isRestaurantCurrentlyOpen = !restaurant ? true : restaurantAvailability.isOpen;
 
   useEffect(() => {
     if (!restaurant?._id) return;
@@ -227,6 +230,17 @@ const Checkout = () => {
   const handlePlaceOrder = async () => {
     if (items.length === 0) {
       toast.error('Your cart is empty');
+      return;
+    }
+
+    if (!restaurant?._id) {
+      toast.error('Restaurant details are missing. Please refresh and try again.');
+      return;
+    }
+
+    if (!isRestaurantCurrentlyOpen) {
+      const opensAtText = restaurantAvailability.opensAt ? ` Opens at ${restaurantAvailability.opensAt}.` : '';
+      toast.error(`This outlet is currently closed.${opensAtText}`);
       return;
     }
 
@@ -279,15 +293,18 @@ const Checkout = () => {
         }
 
         const orderId = createdOrder._id;
+        const isOnlinePayment = paymentMethod === 'card' || paymentMethod === 'upi';
         
-        // Clear cart first to prevent re-submission
+        // Clear cart after order creation to prevent duplicate submissions.
         dispatch(clearCart());
-        
-        if (paymentMethod === 'cod') {
-          toast.success('Order placed successfully! Pay on delivery');
-        } else {
-          toast.success('Order placed successfully!');
+
+        if (isOnlinePayment) {
+          toast.success('Order created. Complete payment to confirm your order.');
+          navigate(`/payment/${orderId}`, { state: { paymentMethod } });
+          return;
         }
+
+        toast.success('Order placed successfully! Pay on delivery');
         navigate(`/orders/${orderId}`);
       } else if (createOrder.rejected.match(result)) {
         toast.error(result.payload || 'Unable to place your order right now. Please check your address and try again.');
@@ -338,6 +355,9 @@ const Checkout = () => {
                     ) : null}
                     {restaurant.address?.city && (
                       <p className="text-xs text-gray-500 mt-1 max-[300px]:text-[11px]">{restaurant.address.city}, {restaurant.address.state}</p>
+                    )}
+                    {!isRestaurantCurrentlyOpen && (
+                      <p className="text-xs font-semibold text-red-600 mt-2 max-[300px]:text-[11px]">Outlet is currently closed.</p>
                     )}
                   </div>
                   {restaurant.deliveryTime && (
@@ -612,10 +632,10 @@ const Checkout = () => {
 
               <button
                 onClick={handlePlaceOrder}
-                disabled={loading || !selectedAddress || items.length === 0}
+                disabled={loading || !selectedAddress || items.length === 0 || !isRestaurantCurrentlyOpen}
                 className="hidden md:block w-full btn-primary py-3.5 max-[320px]:py-3 text-[15px] max-[320px]:text-[14px] font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Placing Order...' : 'Place Order'}
+                {loading ? 'Placing Order...' : (isRestaurantCurrentlyOpen ? 'Place Order' : 'Outlet Closed')}
               </button>
             </div>
           </div>
@@ -630,10 +650,10 @@ const Checkout = () => {
           </div>
           <button
             onClick={handlePlaceOrder}
-            disabled={loading || !selectedAddress || items.length === 0}
+            disabled={loading || !selectedAddress || items.length === 0 || !isRestaurantCurrentlyOpen}
             className="btn-primary px-5 py-3 text-sm font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Placing...' : 'Place Order'}
+            {loading ? 'Placing...' : (isRestaurantCurrentlyOpen ? 'Place Order' : 'Outlet Closed')}
           </button>
         </div>
       </div>

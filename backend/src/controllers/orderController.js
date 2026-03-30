@@ -37,6 +37,7 @@ const { assignDeliveryPartner } = require('../services/deliveryAssignmentService
 const { calculateEtaMinutes, isPointInDeliveryZone } = require('../utils/deliveryGeo');
 
 const debugAddressFlow = process.env.DEBUG_ADDRESS_FLOW === 'true';
+const BUSINESS_TIMEZONE = process.env.BUSINESS_TIMEZONE || 'Asia/Kolkata';
 
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const razorpay = process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET
@@ -159,6 +160,70 @@ const getAddressCoordinates = (addressLike) => {
   }
 
   return null;
+};
+
+const parseTimeStringToMinutes = (value) => {
+  if (typeof value !== 'string') return null;
+
+  const match = value.trim().match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+  if (!match) return null;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  return (hours * 60) + minutes;
+};
+
+const getCurrentMinutesInTimezone = (timeZone) => {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit'
+    }).formatToParts(new Date());
+
+    const hour = Number(parts.find((part) => part.type === 'hour')?.value);
+    const minute = Number(parts.find((part) => part.type === 'minute')?.value);
+
+    if (Number.isFinite(hour) && Number.isFinite(minute)) {
+      return (hour * 60) + minute;
+    }
+  } catch {}
+
+  const now = new Date();
+  return (now.getHours() * 60) + now.getMinutes();
+};
+
+const getRestaurantAvailability = (restaurant) => {
+  const opensAt = restaurant?.timing?.open || '';
+  const closesAt = restaurant?.timing?.close || '';
+  const openMins = parseTimeStringToMinutes(opensAt);
+  const closeMins = parseTimeStringToMinutes(closesAt);
+
+  if (openMins == null || closeMins == null) {
+    return {
+      isOpen: true,
+      opensAt,
+      closesAt
+    };
+  }
+
+  const nowMins = getCurrentMinutesInTimezone(BUSINESS_TIMEZONE);
+  let isOpen = false;
+
+  if (openMins === closeMins) {
+    isOpen = true;
+  } else if (openMins < closeMins) {
+    isOpen = nowMins >= openMins && nowMins < closeMins;
+  } else {
+    isOpen = nowMins >= openMins || nowMins < closeMins;
+  }
+
+  return {
+    isOpen,
+    opensAt,
+    closesAt
+  };
 };
 
 const roundToTwo = (value) => Math.round((Number(value) || 0) * 100) / 100;
@@ -305,7 +370,7 @@ exports.createOrder = async (req, res) => {
 
     // Verify restaurant exists and is active
     const restaurant = await Restaurant.findById(restaurantId)
-      .select('name ownerId isActive isApproved acceptingOrders location deliveryTime deliveryRadiusKm address payoutRateOverride')
+      .select('name ownerId isActive isApproved acceptingOrders timing location deliveryTime deliveryRadiusKm address payoutRateOverride')
       .lean();
     
     if (!restaurant) {
@@ -318,6 +383,12 @@ exports.createOrder = async (req, res) => {
 
     if (!restaurant.acceptingOrders) {
       return errorResponse(res, 400, 'Restaurant is currently not accepting orders');
+    }
+
+    const availability = getRestaurantAvailability(restaurant);
+    if (!availability.isOpen) {
+      const opensAtMessage = availability.opensAt ? ` It opens at ${availability.opensAt}.` : '';
+      return errorResponse(res, 400, `Restaurant is currently closed.${opensAtMessage}`);
     }
 
     let settings = await PlatformSettings.findOne().lean();
@@ -886,6 +957,14 @@ exports.updateOrderStatus = async (req, res) => {
         .populate('addressId')
         .populate('items.menuItemId', 'name price');
       return successResponse(res, 200, 'Order status already up to date', { order: currentOrder });
+    }
+
+    if (
+      order.paymentMethod !== 'cod'
+      && order.paymentStatus !== 'completed'
+      && ['confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'].includes(status)
+    ) {
+      return errorResponse(res, 400, 'Payment is pending. Confirm payment before processing this order.');
     }
 
     console.log('✓ [updateOrderStatus] Order found, updating status to:', status);
