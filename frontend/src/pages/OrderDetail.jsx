@@ -10,6 +10,7 @@ import CancellationModal from '../components/common/CancellationModal';
 import LiveTracking from '../components/tracking/LiveTracking';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
+import { getSocketBaseUrl } from '../utils/apiBase';
 import {
   MapPinIcon,
   PhoneIcon,
@@ -37,8 +38,7 @@ const OrderDetail = () => {
 
   // Initialize socket connection
   useEffect(() => {
-    const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-    const socketUrl = rawApiUrl.replace(/\/api\/?$/, '') || window.location.origin;
+    const socketUrl = getSocketBaseUrl();
 
     const newSocket = io(socketUrl, {
       auth: {

@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { Preferences } from '@capacitor/preferences';
+import { getApiBaseUrl } from '../utils/apiBase';
 
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const apiUrl = getApiBaseUrl();
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 // Detect if running in Capacitor
