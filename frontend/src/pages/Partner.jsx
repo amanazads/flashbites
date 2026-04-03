@@ -263,7 +263,7 @@ const Partner = () => {
                 <ul className="space-y-3 mb-6">
                   <li className="flex items-start">
                     <CheckCircleIcon className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
-                    <span className="text-sm text-gray-700">Earn ₹15,000 - ₹30,000/month</span>
+                    <span className="text-sm text-gray-700">Earn minimum ₹15,000 - ₹30,000/month</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircleIcon className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
@@ -273,10 +273,10 @@ const Partner = () => {
                     <CheckCircleIcon className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
                     <span className="text-sm text-gray-700">Weekly payments</span>
                   </li>
-                  <li className="flex items-start">
+                  {/* <li className="flex items-start">
                     <CheckCircleIcon className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
                     <span className="text-sm text-gray-700">Fuel & maintenance support</span>
-                  </li>
+                  </li> */}
                 </ul>
                 <button
                   onClick={() => setActiveSection('delivery')}
@@ -287,7 +287,7 @@ const Partner = () => {
               </div>
 
               {/* Career */}
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-shadow">
+              {/* <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-shadow">
                 <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-6 mx-auto">
                   <BriefcaseIcon className="h-8 w-8 text-primary-600" />
                 </div>
@@ -319,7 +319,7 @@ const Partner = () => {
                 >
                   Explore Jobs
                 </button>
-              </div>
+              </div> */}
             </div>
 
             {/* Stats */}
