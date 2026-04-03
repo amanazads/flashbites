@@ -31,8 +31,16 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.phone || !formData.password) { toast.error('Please fill in all fields'); return; }
-    await dispatch(login(formData));
+    const normalizedPhone = String(formData.phone || '').replace(/\D/g, '').slice(-10);
+    if (!normalizedPhone || !formData.password) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+    if (normalizedPhone.length !== 10) {
+      toast.error('Please enter a valid 10-digit phone number');
+      return;
+    }
+    await dispatch(login({ phone: normalizedPhone, password: formData.password }));
   };
 
   return (
@@ -102,7 +110,7 @@ const Login = () => {
                   </span>
                   <input
                     id="phone" name="phone" type="tel" autoComplete="tel" required maxLength="10"
-                    value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                     placeholder="10-digit mobile number" className="input-field rounded-l-none flex-1"
                   />
                 </div>
