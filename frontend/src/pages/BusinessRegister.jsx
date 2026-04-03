@@ -9,17 +9,28 @@ const roleConfig = {
     title: 'Restaurant Registration',
     subtitle: 'Create your restaurant partner account',
     loginTo: '/accounts/restaurant/login',
+    supportLabel: 'Restaurant Onboarding Support',
   },
   delivery_partner: {
     title: 'Delivery Partner Registration',
     subtitle: 'Create your delivery partner account',
     loginTo: '/accounts/delivery/login',
+    supportLabel: 'Delivery Partner Onboarding Support',
   },
 };
+
+const ONBOARDING_SUPPORT_EMAIL = 'info.flashbites@gmail.com';
+const ONBOARDING_SUPPORT_PHONE = '+91 7068247779';
+const ONBOARDING_SUPPORT_WA = '917068247779';
 
 const BusinessRegister = ({ role }) => {
   const navigate = useNavigate();
   const config = roleConfig[role] || roleConfig.restaurant_owner;
+  const onboardingHelpMessage = encodeURIComponent(
+    role === 'restaurant_owner'
+      ? 'Hi FlashBites team, I need help with restaurant onboarding and registration.'
+      : 'Hi FlashBites team, I need help with delivery partner onboarding and registration.'
+  );
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -143,8 +154,74 @@ const BusinessRegister = ({ role }) => {
         });
       }
 
-      toast.success('Registration submitted. Wait for admin approval before login.');
-      navigate(config.loginTo);
+      toast.custom(() => (
+        <div
+          style={{
+            maxWidth: '420px',
+            width: '100%',
+            background: '#fff',
+            border: '1px solid #e5e7eb',
+            borderRadius: '16px',
+            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.15)',
+            padding: '16px'
+          }}
+        >
+          <p style={{ margin: 0, fontWeight: 700, color: '#111827' }}>Registration submitted</p>
+          <p style={{ margin: '6px 0 12px', fontSize: '13px', lineHeight: '1.5', color: '#4b5563' }}>
+            Wait for admin approval before login. If verification is delayed, contact our onboarding team directly.
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            <a
+              href={`tel:${ONBOARDING_SUPPORT_PHONE.replace(/\s+/g, '')}`}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '999px',
+                background: '#fff7ed',
+                color: '#c2410c',
+                border: '1px solid #fdba74',
+                fontSize: '12px',
+                fontWeight: 600,
+                textDecoration: 'none'
+              }}
+            >
+              Call: {ONBOARDING_SUPPORT_PHONE}
+            </a>
+            <a
+              href={`mailto:${ONBOARDING_SUPPORT_EMAIL}?subject=${encodeURIComponent(config.supportLabel)}`}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '999px',
+                background: '#eff6ff',
+                color: '#1d4ed8',
+                border: '1px solid #bfdbfe',
+                fontSize: '12px',
+                fontWeight: 600,
+                textDecoration: 'none'
+              }}
+            >
+              Email support
+            </a>
+            <a
+              href={`https://wa.me/${ONBOARDING_SUPPORT_WA}?text=${onboardingHelpMessage}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                padding: '8px 12px',
+                borderRadius: '999px',
+                background: '#f0fdf4',
+                color: '#15803d',
+                border: '1px solid #bbf7d0',
+                fontSize: '12px',
+                fontWeight: 600,
+                textDecoration: 'none'
+              }}
+            >
+              WhatsApp onboarding support
+            </a>
+          </div>
+        </div>
+      ));
+      setTimeout(() => navigate(config.loginTo), 3000);
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Registration failed');
     } finally {
@@ -167,6 +244,35 @@ const BusinessRegister = ({ role }) => {
             </p>
           </div>
         )}
+
+        <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+          <p className="text-sm font-semibold text-gray-900">{config.supportLabel}</p>
+          <p className="text-xs text-gray-600 mt-1">
+            Need help while filling the registration form? Our support and onboarding team can guide you step-by-step.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a
+              href={`tel:${ONBOARDING_SUPPORT_PHONE.replace(/\s+/g, '')}`}
+              className="text-xs px-3 py-1.5 rounded-full bg-primary-50 text-primary-700 border border-primary-200"
+            >
+              Call: {ONBOARDING_SUPPORT_PHONE}
+            </a>
+            <a
+              href={`mailto:${ONBOARDING_SUPPORT_EMAIL}?subject=${encodeURIComponent(config.supportLabel)}`}
+              className="text-xs px-3 py-1.5 rounded-full bg-primary-50 text-primary-700 border border-primary-200"
+            >
+              Email: {ONBOARDING_SUPPORT_EMAIL}
+            </a>
+            <a
+              href={`https://wa.me/${ONBOARDING_SUPPORT_WA}?text=${onboardingHelpMessage}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs px-3 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-200"
+            >
+              WhatsApp Onboarding Support
+            </a>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="mt-6 grid grid-cols-1 gap-4">
           {role === 'restaurant_owner' ? (
@@ -238,12 +344,156 @@ const BusinessRegister = ({ role }) => {
 
               <div className="rounded-xl border border-gray-200 p-4 space-y-3 bg-gray-50">
                 <p className="text-sm font-semibold text-gray-900">Partner Contract & Terms</p>
-                <div className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-700 space-y-2">
-                  <p>By onboarding with FlashBites, you confirm that all details and documents submitted are accurate and legally valid.</p>
-                  <p>You agree to comply with food safety regulations (including FSSAI), maintain authentic menu information, and uphold service quality commitments.</p>
-                  <p>FlashBites may review, verify, and request corrections in documents, menu details, pricing, images, and operational information.</p>
-                  <p>After verification, admin may edit restaurant profile content, images, pricing, menu items, and operational settings for platform compliance.</p>
-                  <p>Providing false information may result in rejection, suspension, or permanent delisting from the platform.</p>
+                <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 text-xs text-gray-700 space-y-3 leading-relaxed">
+                  <h4 className="font-semibold text-gray-900">FlashBites Restaurant Partner Terms</h4>
+                  <p>Welcome to FlashBites.</p>
+                  <p>
+                    By submitting the restaurant onboarding form and joining the FlashBites platform, you agree to the following
+                    Restaurant Partner Terms.
+                  </p>
+                  <p>
+                    These terms outline the basic responsibilities, commercial structure, payout process, and operational guidelines
+                    for listing your restaurant on FlashBites.
+                  </p>
+                  <p>Please read these terms carefully before proceeding.</p>
+
+                  <div>
+                    <p className="font-semibold text-gray-900">1. Platform Role</p>
+                    <p>
+                      FlashBites is a technology platform that connects customers with restaurant partners and delivery partners.
+                    </p>
+                    <p>FlashBites does not prepare, cook, own, or sell food items.</p>
+                    <p>
+                      All food items listed on the platform are solely prepared, owned, and sold by the Restaurant Partner.
+                    </p>
+                    <p>The sale of food takes place directly between the customer and the Restaurant Partner.</p>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-gray-900">2. Restaurant Responsibilities</p>
+                    <p>By joining FlashBites, you agree to:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>provide fresh, hygienic, and safe food</li>
+                      <li>maintain accurate menu items and pricing</li>
+                      <li>ensure availability of listed items</li>
+                      <li>accept and prepare orders on time</li>
+                      <li>use proper packaging</li>
+                      <li>comply with FSSAI and applicable food safety laws</li>
+                      <li>maintain professional conduct with customers and delivery partners</li>
+                    </ul>
+                    <p>You are responsible for keeping your restaurant details and menu updated.</p>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-gray-900">3. Pricing and Menu Control</p>
+                    <p>You retain full control over:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>menu pricing</li>
+                      <li>item descriptions</li>
+                      <li>availability</li>
+                      <li>special offers</li>
+                    </ul>
+                    <p>FlashBites will not change your menu pricing without your approval.</p>
+                    <p>Promotional discounts and campaign offers may be run only with mutual consent.</p>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-gray-900">4. Commission and Fees</p>
+                    <p>FlashBites charges a platform commission on every successfully completed order.</p>
+                    <p>
+                      The commission percentage may vary depending on location, category, and services provided.
+                    </p>
+                    <p>The applicable commission will be communicated during onboarding.</p>
+                    <p>No hidden charges will be applied.</p>
+                    <p>Optional marketing and featured listing services may be available separately.</p>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-gray-900">5. Payments and Settlements</p>
+                    <p>
+                      FlashBites collects customer payments on your behalf and settles the payable amount after deducting:
+                    </p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>commission</li>
+                      <li>taxes</li>
+                      <li>approved refund adjustments</li>
+                    </ul>
+                    <p>Payouts are processed on a weekly basis and are generally settled within 3 to 5 working days.</p>
+                    <p>A detailed payout statement will be shared through your dashboard.</p>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-gray-900">6. Refund and Complaint Responsibility</p>
+                    <p>You are responsible for issues arising from:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>food quality</li>
+                      <li>stale or unsafe food</li>
+                      <li>wrong or missing items</li>
+                      <li>preparation errors</li>
+                    </ul>
+                    <p>FlashBites will handle delivery-related issues including:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>rider misconduct</li>
+                      <li>delivery delay</li>
+                      <li>transit damage</li>
+                      <li>technical platform issues</li>
+                    </ul>
+                    <p>In disputed cases, the issue may be jointly reviewed.</p>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-gray-900">7. Delivery Services</p>
+                    <p>
+                      Where FlashBites provides delivery support, our delivery partners will handle order pickup and delivery.
+                    </p>
+                    <p>FlashBites is responsible for rider operations and delivery flow.</p>
+                    <p>Restaurants are expected to hand over orders in a timely and properly packed manner.</p>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-gray-900">8. Legal Compliance</p>
+                    <p>You confirm that your restaurant complies with all applicable laws including:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>FSSAI registration / license</li>
+                      <li>GST compliance (where applicable)</li>
+                      <li>local business licenses</li>
+                      <li>tax regulations</li>
+                    </ul>
+                    <p>FlashBites may request verification documents during onboarding or at any time.</p>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-gray-900">9. Non-Exclusivity</p>
+                    <p>
+                      Your partnership with FlashBites is non-exclusive. You are free to list your restaurant on other platforms
+                      and continue offline operations.
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-gray-900">10. Suspension and Termination</p>
+                    <p>FlashBites reserves the right to suspend or remove listings in cases involving:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>fraud</li>
+                      <li>unsafe food</li>
+                      <li>legal non-compliance</li>
+                      <li>repeated order issues</li>
+                      <li>customer complaints</li>
+                      <li>misuse of the platform</li>
+                    </ul>
+                    <p>Either party may terminate the partnership with prior notice.</p>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-gray-900">11. Acceptance</p>
+                    <p>By submitting the onboarding form, you confirm that:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>all information provided is correct</li>
+                      <li>you agree to these terms</li>
+                      <li>you consent to onboarding and listing on FlashBites</li>
+                    </ul>
+                    <p>For full legal agreement details, please contact our onboarding team.</p>
+                  </div>
                 </div>
                 <input
                   name="contractSignerName"

@@ -36,6 +36,35 @@ const normalizeDeliveryPartnerPayout = (payload = {}) => {
   };
 };
 
+const normalizeTemplateTaxRate = (rawValue) => {
+  const rate = Number(rawValue);
+  if (!Number.isFinite(rate)) return 0.05;
+  if (rate < 0) return 0;
+  if (rate > 1) return Math.min(1, rate / 100);
+  return rate;
+};
+
+const normalizeTemplateCommissionPercent = (rawValue) => {
+  const percent = Number(rawValue);
+  if (!Number.isFinite(percent)) return 25;
+  if (percent < 0) return 0;
+  if (percent <= 1) return Math.min(90, percent * 100);
+  return Math.min(90, percent);
+};
+
+const normalizeBillingVisibility = (visibility = {}) => ({
+  customer: {
+    deliveryFee: visibility.customer?.deliveryFee !== false,
+    platformFee: visibility.customer?.platformFee !== false,
+    tax: visibility.customer?.tax !== false
+  },
+  restaurant: {
+    deliveryFee: visibility.restaurant?.deliveryFee !== false,
+    platformFee: visibility.restaurant?.platformFee !== false,
+    tax: visibility.restaurant?.tax !== false
+  }
+});
+
 const normalizeSettingsPayload = (payload = {}) => {
   const commissionPercent = Number(payload.commissionPercent);
   const deliveryFee = Number(payload.deliveryFee);
@@ -1457,14 +1486,20 @@ exports.updateRestaurantPayoutRate = async (req, res) => {
       platformFeeOverride,
       taxRateOverride,
       commissionPercentOverride,
+      feeVisibilityOverride,
       resetToGlobal
     } = req.body || {};
 
     const hasPayoutOverride = payoutRateOverride !== undefined && payoutRateOverride !== null && String(payoutRateOverride).trim() !== '';
     const hasFeeOverride = [deliveryFeeOverride, platformFeeOverride, taxRateOverride, commissionPercentOverride]
       .some((value) => value !== undefined && value !== null && String(value).trim() !== '');
+    const hasVisibilityOverride = feeVisibilityOverride && typeof feeVisibilityOverride === 'object'
+      && ['customer', 'restaurant'].some((scope) => {
+        const scopeValue = feeVisibilityOverride[scope];
+        return scopeValue && ['deliveryFee', 'platformFee', 'tax'].some((field) => Object.prototype.hasOwnProperty.call(scopeValue, field));
+      });
 
-    const restaurantDoc = await Restaurant.findById(req.params.id).select('payoutRateOverride feeOverrides');
+    const restaurantDoc = await Restaurant.findById(req.params.id).select('payoutRateOverride feeOverrides feeVisibilityOverrides');
     if (!restaurantDoc) {
       return errorResponse(res, 404, 'Restaurant not found');
     }
@@ -1495,13 +1530,28 @@ exports.updateRestaurantPayoutRate = async (req, res) => {
         : Number(commissionPercentOverride)
     };
 
-    const shouldClearAll = Boolean(resetToGlobal) && !hasPayoutOverride && !hasFeeOverride;
+    let nextFeeVisibilityOverrides = restaurantDoc.feeVisibilityOverrides ?? null;
+    if (hasVisibilityOverride) {
+      nextFeeVisibilityOverrides = normalizeBillingVisibility({
+        customer: {
+          ...(restaurantDoc.feeVisibilityOverrides?.customer || {}),
+          ...(feeVisibilityOverride.customer || {})
+        },
+        restaurant: {
+          ...(restaurantDoc.feeVisibilityOverrides?.restaurant || {}),
+          ...(feeVisibilityOverride.restaurant || {})
+        }
+      });
+    }
+
+    const shouldClearAll = Boolean(resetToGlobal) && !hasPayoutOverride && !hasFeeOverride && !hasVisibilityOverride;
     if (shouldClearAll) {
       nextOverride = null;
       nextFeeOverrides.deliveryFee = null;
       nextFeeOverrides.platformFee = null;
       nextFeeOverrides.taxRate = null;
       nextFeeOverrides.commissionPercent = null;
+      nextFeeVisibilityOverrides = null;
     }
 
     const feeOverrides = {
@@ -1516,12 +1566,13 @@ exports.updateRestaurantPayoutRate = async (req, res) => {
       {
         $set: {
           payoutRateOverride: nextOverride,
-          feeOverrides: feeOverrides
+          feeOverrides: feeOverrides,
+          feeVisibilityOverrides: nextFeeVisibilityOverrides
         }
       },
       { new: true, runValidators: true }
     )
-      .select('name payoutRateOverride feeOverrides')
+      .select('name payoutRateOverride feeOverrides feeVisibilityOverrides')
       .lean();
 
     if (!restaurant) {
@@ -1532,7 +1583,7 @@ exports.updateRestaurantPayoutRate = async (req, res) => {
     return successResponse(
       res,
       200,
-      shouldReset ? 'Restaurant payout reset to global' : 'Restaurant payout and fee overrides updated',
+      shouldClearAll ? 'Restaurant payout and billing settings reset to global' : 'Restaurant payout and billing settings updated',
       {
         restaurant
       }
@@ -1649,8 +1700,8 @@ exports.createFeeTemplate = async (req, res) => {
       description: description ? String(description).trim() : '',
       deliveryFee: Number.isFinite(Number(deliveryFee)) ? Number(deliveryFee) : 0,
       platformFee: Number.isFinite(Number(platformFee)) ? Number(platformFee) : 0,
-      taxRate: Number.isFinite(Number(taxRate)) ? Number(taxRate) : 0.05,
-      commissionPercent: Number.isFinite(Number(commissionPercent)) ? Number(commissionPercent) : 0.15,
+      taxRate: normalizeTemplateTaxRate(taxRate),
+      commissionPercent: normalizeTemplateCommissionPercent(commissionPercent),
       createdBy: req.user._id
     });
 
@@ -1684,8 +1735,8 @@ exports.updateFeeTemplate = async (req, res) => {
     if (description !== undefined) template.description = String(description || '').trim();
     if (Number.isFinite(Number(deliveryFee))) template.deliveryFee = Number(deliveryFee);
     if (Number.isFinite(Number(platformFee))) template.platformFee = Number(platformFee);
-    if (Number.isFinite(Number(taxRate))) template.taxRate = Number(taxRate);
-    if (Number.isFinite(Number(commissionPercent))) template.commissionPercent = Number(commissionPercent);
+    if (taxRate !== undefined) template.taxRate = normalizeTemplateTaxRate(taxRate);
+    if (commissionPercent !== undefined) template.commissionPercent = normalizeTemplateCommissionPercent(commissionPercent);
     if (isActive !== undefined) template.isActive = Boolean(isActive);
 
     await template.save();

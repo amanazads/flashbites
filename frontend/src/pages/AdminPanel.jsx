@@ -101,6 +101,36 @@ const ORDER_STATUS_OPTIONS = [
   'cancelled'
 ];
 
+const DEFAULT_BILLING_VISIBILITY = {
+  customer: { deliveryFee: true, platformFee: true, tax: true },
+  restaurant: { deliveryFee: true, platformFee: true, tax: true }
+};
+
+const normalizeTemplatePercentForDisplay = (value) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return '';
+  return numericValue > 1 ? numericValue : numericValue * 100;
+};
+
+const normalizeTemplateTaxForDisplay = (value) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return '';
+  return numericValue > 1 ? numericValue : numericValue * 100;
+};
+
+const mergeBillingVisibility = (baseVisibility, draftVisibility) => ({
+  customer: {
+    deliveryFee: draftVisibility?.customer?.deliveryFee ?? baseVisibility?.customer?.deliveryFee ?? true,
+    platformFee: draftVisibility?.customer?.platformFee ?? baseVisibility?.customer?.platformFee ?? true,
+    tax: draftVisibility?.customer?.tax ?? baseVisibility?.customer?.tax ?? true
+  },
+  restaurant: {
+    deliveryFee: draftVisibility?.restaurant?.deliveryFee ?? baseVisibility?.restaurant?.deliveryFee ?? true,
+    platformFee: draftVisibility?.restaurant?.platformFee ?? baseVisibility?.restaurant?.platformFee ?? true,
+    tax: draftVisibility?.restaurant?.tax ?? baseVisibility?.restaurant?.tax ?? true
+  }
+});
+
 const AdminPanel = () => {
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
@@ -159,6 +189,7 @@ const AdminPanel = () => {
   });
   const [restaurantPayoutDrafts, setRestaurantPayoutDrafts] = useState({});
   const [restaurantFeeDrafts, setRestaurantFeeDrafts] = useState({});
+  const [restaurantBillingVisibilityDrafts, setRestaurantBillingVisibilityDrafts] = useState({});
   const [restaurantPayoutSavingId, setRestaurantPayoutSavingId] = useState(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [coupons, setCoupons] = useState([]);
@@ -451,7 +482,7 @@ const AdminPanel = () => {
     try {
       setFeeTemplatesLoading(true);
       const response = await getAllFeeTemplates();
-      const templates = response?.data?.data || response?.data?.templates || [];
+      const templates = response?.data?.data?.templates || response?.data?.templates || [];
       setFeeTemplates(templates);
     } catch (error) {
       toast.error('Failed to load fee templates');
@@ -685,8 +716,8 @@ const AdminPanel = () => {
       description: template.description,
       deliveryFee: template.deliveryFee,
       platformFee: template.platformFee,
-      taxRate: template.taxRate,
-      commissionPercent: template.commissionPercent,
+      taxRate: normalizeTemplateTaxForDisplay(template.taxRate),
+      commissionPercent: normalizeTemplatePercentForDisplay(template.commissionPercent),
       isActive: template.isActive
     });
     setEditingTemplateId(template._id);
@@ -706,7 +737,7 @@ const AdminPanel = () => {
         description: templateForm.description,
         deliveryFee: Number(templateForm.deliveryFee),
         platformFee: Number(templateForm.platformFee),
-        taxRate: Number(templateForm.taxRate),
+        taxRate: Number(templateForm.taxRate) / 100,
         commissionPercent: Number(templateForm.commissionPercent),
         isActive: templateForm.isActive
       };
@@ -1100,11 +1131,15 @@ const AdminPanel = () => {
       setRestaurantPayoutSavingId(restaurantId);
       const draftPercent = restaurantPayoutDrafts[restaurantId];
       const feeDraft = restaurantFeeDrafts[restaurantId] || {};
+      const visibilityDraft = restaurantBillingVisibilityDrafts[restaurantId] || {};
       const hasPayoutValue = draftPercent !== undefined && String(draftPercent).trim() !== '';
       const hasFeeValue = ['deliveryFee', 'platformFee', 'taxRate', 'commissionPercent']
         .some((field) => feeDraft[field] !== undefined && String(feeDraft[field]).trim() !== '');
+      const hasVisibilityValue = ['customer', 'restaurant'].some((scope) => (
+        ['deliveryFee', 'platformFee', 'tax'].some((field) => visibilityDraft?.[scope]?.[field] !== undefined)
+      ));
 
-      if (!hasPayoutValue && !hasFeeValue) {
+      if (!hasPayoutValue && !hasFeeValue && !hasVisibilityValue) {
         await updateRestaurantPayoutRate(restaurantId, { resetToGlobal: true });
       } else {
         const payload = {};
@@ -1131,10 +1166,18 @@ const AdminPanel = () => {
           payload.commissionPercentOverride = Number(feeDraft.commissionPercent);
         }
 
+        if (hasVisibilityValue) {
+          const restaurant = restaurants.find((entry) => entry._id === restaurantId);
+          payload.feeVisibilityOverride = mergeBillingVisibility(
+            restaurant?.feeVisibilityOverrides || DEFAULT_BILLING_VISIBILITY,
+            visibilityDraft
+          );
+        }
+
         await updateRestaurantPayoutRate(restaurantId, payload);
       }
 
-      toast.success('Restaurant settings updated');
+      toast.success('Restaurant billing settings updated');
       fetchData();
       fetchPlatformSettings();
     } catch (error) {
@@ -1156,7 +1199,11 @@ const AdminPanel = () => {
         ...prev,
         [restaurantId]: { deliveryFee: '', platformFee: '', taxRate: '', commissionPercent: '' }
       }));
-      toast.success('Restaurant payout reset to global');
+      setRestaurantBillingVisibilityDrafts((prev) => ({
+        ...prev,
+        [restaurantId]: {}
+      }));
+      toast.success('Restaurant payout and billing reset to global');
       fetchData();
       fetchPlatformSettings();
     } catch (error) {
@@ -2023,11 +2070,11 @@ const AdminPanel = () => {
                               </div>
                               <div className="text-sm">
                                 <p className="text-gray-500">Tax Rate</p>
-                                <p className="font-semibold">{template.taxRate}%</p>
+                                <p className="font-semibold">{normalizeTemplateTaxForDisplay(template.taxRate)}%</p>
                               </div>
                               <div className="text-sm">
                                 <p className="text-gray-500">Commission</p>
-                                <p className="font-semibold">{template.commissionPercent}%</p>
+                                <p className="font-semibold">{normalizeTemplatePercentForDisplay(template.commissionPercent)}%</p>
                               </div>
                             </div>
                             {template.restaurantIds && template.restaurantIds.length > 0 && (
@@ -2922,9 +2969,14 @@ const AdminPanel = () => {
                       {restaurants.map((restaurant) => {
                         const draftPercent = restaurantPayoutDrafts[restaurant._id] ?? '';
                         const feeDraft = restaurantFeeDrafts[restaurant._id] || {};
+                        const visibilityDraft = restaurantBillingVisibilityDrafts[restaurant._id] || {};
                         const effectiveOverride = Number(restaurant.payoutRateOverride);
                         const hasOverride = Number.isFinite(effectiveOverride);
                         const feeOverrides = restaurant.feeOverrides || {};
+                        const billingVisibility = mergeBillingVisibility(
+                          restaurant.feeVisibilityOverrides || DEFAULT_BILLING_VISIBILITY,
+                          visibilityDraft
+                        );
 
                         return (
                           <div key={restaurant._id} className="rounded-lg border border-gray-100 p-3 space-y-3">
@@ -3039,6 +3091,44 @@ const AdminPanel = () => {
                                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                                   placeholder="Global default"
                                 />
+                              </div>
+                            </div>
+
+                            <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 space-y-3">
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900">Billing Visibility</p>
+                                <p className="text-xs text-gray-500">Control which charges appear in billing for this restaurant.</p>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {['customer', 'restaurant'].map((scope) => (
+                                  <div key={scope} className="rounded-lg bg-white border border-gray-200 p-3">
+                                    <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                                      {scope === 'customer' ? 'Customer Invoice' : 'Restaurant Bill'}
+                                    </p>
+                                    {['deliveryFee', 'platformFee', 'tax'].map((field) => (
+                                      <label key={field} className="flex items-center justify-between gap-3 text-sm py-1.5">
+                                        <span className="text-gray-600">
+                                          {field === 'deliveryFee' ? 'Delivery Fee' : field === 'platformFee' ? 'Platform Fee' : 'Tax'}
+                                        </span>
+                                        <input
+                                          type="checkbox"
+                                          checked={Boolean(billingVisibility?.[scope]?.[field])}
+                                          onChange={(e) => setRestaurantBillingVisibilityDrafts((prev) => ({
+                                            ...prev,
+                                            [restaurant._id]: {
+                                              ...(prev[restaurant._id] || {}),
+                                              [scope]: {
+                                                ...((prev[restaurant._id] || {})[scope] || {}),
+                                                [field]: e.target.checked
+                                              }
+                                            }
+                                          }))}
+                                          className="h-4 w-4 rounded border-gray-300"
+                                        />
+                                      </label>
+                                    ))}
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           </div>

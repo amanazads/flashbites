@@ -275,6 +275,18 @@ const restaurantSchema = new mongoose.Schema({
       default: null
     }
   },
+  feeVisibilityOverrides: {
+    customer: {
+      deliveryFee: { type: Boolean, default: true },
+      platformFee: { type: Boolean, default: true },
+      tax: { type: Boolean, default: true }
+    },
+    restaurant: {
+      deliveryFee: { type: Boolean, default: true },
+      platformFee: { type: Boolean, default: true },
+      tax: { type: Boolean, default: true }
+    }
+  },
   feeTemplateId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'FeeTemplate',

@@ -35,8 +35,8 @@ const feeTemplateSchema = new mongoose.Schema({
   commissionPercent: {
     type: Number,
     min: 0,
-    max: 1,
-    default: 0.15,
+    max: 90,
+    default: 25,
   },
 
   // Restaurants using this template

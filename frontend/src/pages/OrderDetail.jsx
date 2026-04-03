@@ -23,7 +23,6 @@ import {
   BuildingStorefrontIcon,
   StarIcon,
   PrinterIcon,
-  ArrowDownTrayIcon,
   DocumentDuplicateIcon
 } from '@heroicons/react/24/outline';
 
@@ -199,19 +198,7 @@ const OrderDetail = () => {
     const lines = rows.map((row) => `<tr><td style="padding:8px 0;color:#4b5563;">${row.label}</td><td style="padding:8px 0;text-align:right;font-weight:600;">₹${Number(row.value || 0).toFixed(2)}</td></tr>`).join('');
     const itemLines = order.items.map((item) => `<tr><td style="padding:8px 0;">${item.quantity}x ${item.name}</td><td style="padding:8px 0;text-align:right;">₹${Number(item.price || 0).toFixed(2)}</td></tr>`).join('');
 
-    return `<!doctype html><html><head><meta charset="utf-8"/><title>${invoiceTitle}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:24px;background:#f8fafc;color:#111827} .card{max-width:900px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px} h1,h2,h3,p{margin:0} .muted{color:#6b7280} table{width:100%;border-collapse:collapse} .section{margin-top:24px} .total{font-size:20px;font-weight:700;color:#ea580c} .pill{display:inline-block;padding:4px 10px;border-radius:999px;background:#f3f4f6;font-size:12px;font-weight:700} .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px} @media print{body{background:#fff;padding:0}.card{border:none;border-radius:0;max-width:none}}</style></head><body><div class="card"><div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap"><div><h1 style="font-size:28px;margin-bottom:4px;">FlashBites ${invoiceTitle}</h1><p class="muted">Order #${order._id.slice(-8).toUpperCase()}</p><p class="muted">${new Date(order.createdAt).toLocaleString()}</p></div><div style="text-align:right"><div class="pill">${order.status.replace(/_/g, ' ').toUpperCase()}</div><p class="muted" style="margin-top:8px;">Payment: ${String(order.paymentMethod || '').toUpperCase()}</p></div></div><div class="section grid"><div><h3 style="font-size:16px;margin-bottom:8px;">Restaurant</h3><p>${order.restaurantId?.name || 'N/A'}</p><p class="muted">${order.restaurantId?.phone || ''}</p></div><div><h3 style="font-size:16px;margin-bottom:8px;">Customer</h3><p>${order.userId?.name || 'N/A'}</p><p class="muted">${order.userId?.phone || ''}</p></div></div><div class="section"><h3 style="font-size:16px;margin-bottom:8px;">Items</h3><table>${itemLines}</table></div><div class="section"><h3 style="font-size:16px;margin-bottom:8px;">Charges</h3><table>${lines}<tr><td style="padding:10px 0 0;font-size:18px;font-weight:700;">Total</td><td style="padding:10px 0 0;text-align:right;font-size:18px;font-weight:700;color:#ea580c;">₹${Number(order.total || order.totalAmount || 0).toFixed(2)}</td></tr></table></div></div></body></html>`;
-  };
-
-  const handleDownloadInvoice = (view) => {
-    const blob = new Blob([createInvoiceMarkup(view)], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `flashbites-${view}-invoice-${order._id.slice(-8)}.html`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    return `<!doctype html><html><head><meta charset="utf-8"/><title>${invoiceTitle}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:24px;background:#f8fafc;color:#111827} .card{max-width:900px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px} h1,h2,h3,p{margin:0} .muted{color:#6b7280} table{width:100%;border-collapse:collapse} .section{margin-top:24px} .total{font-size:20px;font-weight:700;color:#ea580c} .pill{display:inline-block;padding:4px 10px;border-radius:999px;background:#f3f4f6;font-size:12px;font-weight:700} .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px} @media print{body{background:#fff;padding:0}.card{border:none;border-radius:0;max-width:none}}</style></head><body><div class="card"><div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap"><div><h1 style="font-size:28px;margin-bottom:4px;">${invoiceTitle}</h1><p class="muted">Order #${order._id.slice(-8).toUpperCase()}</p><p class="muted">${new Date(order.createdAt).toLocaleString()}</p></div><div style="text-align:right"><div class="pill">${order.status.replace(/_/g, ' ').toUpperCase()}</div><p class="muted" style="margin-top:8px;">Payment: ${String(order.paymentMethod || '').toUpperCase()}</p></div></div><div class="section grid"><div><h3 style="font-size:16px;margin-bottom:8px;">Restaurant</h3><p>${order.restaurantId?.name || 'N/A'}</p><p class="muted">${order.restaurantId?.phone || ''}</p></div><div><h3 style="font-size:16px;margin-bottom:8px;">Customer</h3><p>${order.userId?.name || 'N/A'}</p><p class="muted">${order.userId?.phone || ''}</p></div></div><div class="section"><h3 style="font-size:16px;margin-bottom:8px;">Items</h3><table>${itemLines}</table></div><div class="section"><h3 style="font-size:16px;margin-bottom:8px;">Charges</h3><table>${lines}<tr><td style="padding:10px 0 0;font-size:18px;font-weight:700;">Total</td><td style="padding:10px 0 0;text-align:right;font-size:18px;font-weight:700;color:#ea580c;">₹${Number(order.total || order.totalAmount || 0).toFixed(2)}</td></tr></table></div></div></body></html>`;
   };
 
   const handlePrintInvoice = (view) => {
@@ -247,6 +234,11 @@ const OrderDetail = () => {
       console.error('PDF generation error:', error);
       toast.error('Failed to generate PDF. Please try again.');
     }
+  };
+
+  const handleDownloadBothInvoices = () => {
+    handleDownloadPDF('customer');
+    setTimeout(() => handleDownloadPDF('restaurant'), 500);
   };
 
   return (
@@ -489,35 +481,64 @@ const OrderDetail = () => {
                 <span className="text-primary-600">{formatCurrency(order.total)}</span>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                <button
-                  onClick={() => handleDownloadInvoice(invoiceView)}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-3 py-2 text-sm font-semibold text-white hover:bg-primary-700"
-                  title="Download as HTML"
-                >
-                  <ArrowDownTrayIcon className="h-4 w-4" />
-                  <span className="hidden sm:inline">Download</span>
-                  <span className="sm:hidden">HTML</span>
-                </button>
-                <button
-                  onClick={() => handleDownloadPDF(invoiceView)}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-pink-600 px-3 py-2 text-sm font-semibold text-white hover:bg-pink-700"
-                  title="Download as PDF"
-                >
-                  <DocumentDuplicateIcon className="h-4 w-4" />
-                  <span className="hidden sm:inline">PDF</span>
-                  <span className="sm:hidden">PDF</span>
-                </button>
-                <button
-                  onClick={() => handlePrintInvoice(invoiceView)}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                  title="Print invoice"
-                >
-                  <PrinterIcon className="h-4 w-4" />
-                  <span className="hidden sm:inline">Print</span>
-                  <span className="sm:hidden">Prnt</span>
-                </button>
-              </div>
+              {isRestaurantViewer ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                  <button
+                    onClick={() => handleDownloadPDF('customer')}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-pink-600 px-3 py-2 text-sm font-semibold text-white hover:bg-pink-700"
+                    title="Download customer invoice"
+                  >
+                    <DocumentDuplicateIcon className="h-4 w-4" />
+                    <span className="text-xs sm:text-sm">Customer PDF</span>
+                  </button>
+                  <button
+                    onClick={() => handleDownloadPDF('restaurant')}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-fuchsia-600 px-3 py-2 text-sm font-semibold text-white hover:bg-fuchsia-700"
+                    title="Download restaurant invoice"
+                  >
+                    <DocumentDuplicateIcon className="h-4 w-4" />
+                    <span className="text-xs sm:text-sm">Restaurant PDF</span>
+                  </button>
+                  <button
+                    onClick={handleDownloadBothInvoices}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-700"
+                    title="Download both invoices"
+                  >
+                    <DocumentDuplicateIcon className="h-4 w-4" />
+                    <span className="text-xs sm:text-sm">Both PDFs</span>
+                  </button>
+                  <button
+                    onClick={() => handlePrintInvoice(invoiceView)}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    title="Print invoice"
+                  >
+                    <PrinterIcon className="h-4 w-4" />
+                    <span className="hidden sm:inline">Print</span>
+                    <span className="sm:hidden">Prnt</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <button
+                    onClick={() => handleDownloadPDF(invoiceView)}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-pink-600 px-3 py-2 text-sm font-semibold text-white hover:bg-pink-700"
+                    title="Download as PDF"
+                  >
+                    <DocumentDuplicateIcon className="h-4 w-4" />
+                    <span className="hidden sm:inline">PDF</span>
+                    <span className="sm:hidden">PDF</span>
+                  </button>
+                  <button
+                    onClick={() => handlePrintInvoice(invoiceView)}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    title="Print invoice"
+                  >
+                    <PrinterIcon className="h-4 w-4" />
+                    <span className="hidden sm:inline">Print</span>
+                    <span className="sm:hidden">Prnt</span>
+                  </button>
+                </div>
+              )}
 
               {/* Payment Method */}
               <div className="bg-gray-50 rounded-lg p-4 max-[388px]:p-3 mb-4">
@@ -669,8 +690,8 @@ const OrderDetail = () => {
                     <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
-                    <a href="mailto:flashbites@gmail.com" className="hover:underline">
-                      flashbites@gmail.com
+                    <a href="mailto:info.flashbites@gmail.com" className="hover:underline">
+                      info.flashbites@gmail.com
                     </a>
                   </div>
                   <p className="text-xs text-gray-500 mt-2">

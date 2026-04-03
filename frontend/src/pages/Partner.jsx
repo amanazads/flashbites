@@ -535,6 +535,15 @@ const Partner = () => {
                     Take your restaurant online and start reaching more customers with FlashBites. Partner with us today
                     and grow your food business faster.
                   </p>
+                  <div className="mb-4 rounded-lg border border-primary-200 bg-white p-3 text-sm">
+                    <p className="font-semibold text-gray-900">Need Help with Restaurant Registration?</p>
+                    <p className="text-gray-600 mt-1">Our onboarding support team can assist with documents, menu setup, and compliance.</p>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                      <a href="tel:+917068247779" className="px-3 py-1.5 rounded-full bg-primary-50 text-primary-700 border border-primary-200">Call: +91 7068247779</a>
+                      <a href="mailto:info.flashbites@gmail.com?subject=Restaurant%20Onboarding%20Support" className="px-3 py-1.5 rounded-full bg-primary-50 text-primary-700 border border-primary-200">Email: info.flashbites@gmail.com</a>
+                      <a href="https://wa.me/917068247779?text=Hi%20FlashBites%20team%2C%20I%20need%20help%20with%20restaurant%20onboarding." target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-200">WhatsApp Support</a>
+                    </div>
+                  </div>
                   <div className="flex flex-wrap gap-4">
                     <button
                       onClick={() => navigate('/accounts/restaurant/register')}
@@ -593,6 +602,15 @@ const Partner = () => {
                 <div className="text-center">
                   <div className="text-primary-600 font-bold text-2xl mb-1">Weekly</div>
                   <div className="text-sm text-gray-600">Payment Cycle</div>
+                </div>
+              </div>
+              <div className="mt-5 rounded-lg border border-primary-200 bg-primary-50 p-4">
+                <p className="font-semibold text-gray-900">Need Help with Delivery Partner Registration?</p>
+                <p className="text-sm text-gray-700 mt-1">Our onboarding support team can help with documents, profile completion, and application steps.</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <a href="tel:+917068247779" className="px-3 py-1.5 rounded-full bg-white text-primary-700 border border-primary-200">Call: +91 7068247779</a>
+                  <a href="mailto:info.flashbites@gmail.com?subject=Delivery%20Partner%20Onboarding%20Support" className="px-3 py-1.5 rounded-full bg-white text-primary-700 border border-primary-200">Email: info.flashbites@gmail.com</a>
+                  <a href="https://wa.me/917068247779?text=Hi%20FlashBites%20team%2C%20I%20need%20help%20with%20delivery%20partner%20onboarding." target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-200">WhatsApp Support</a>
                 </div>
               </div>
             </div>

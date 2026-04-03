@@ -232,9 +232,31 @@ const normalizeCommissionPercent = (rawPercent) => {
   const percent = Number(rawPercent);
   if (!Number.isFinite(percent)) return 25;
   if (percent < 0) return 0;
+  if (percent <= 1) return Math.min(90, percent * 100);
   if (percent > 90) return 90;
   return percent;
 };
+
+const normalizeTaxRate = (rawRate) => {
+  const rate = Number(rawRate);
+  if (!Number.isFinite(rate)) return 0.05;
+  if (rate < 0) return 0;
+  if (rate > 1) return Math.min(1, rate / 100);
+  return rate;
+};
+
+const mergeFeeVisibility = (baseVisibility, overrides) => ({
+  customer: {
+    deliveryFee: overrides?.customer?.deliveryFee ?? baseVisibility?.customer?.deliveryFee ?? true,
+    platformFee: overrides?.customer?.platformFee ?? baseVisibility?.customer?.platformFee ?? true,
+    tax: overrides?.customer?.tax ?? baseVisibility?.customer?.tax ?? true
+  },
+  restaurant: {
+    deliveryFee: overrides?.restaurant?.deliveryFee ?? baseVisibility?.restaurant?.deliveryFee ?? true,
+    platformFee: overrides?.restaurant?.platformFee ?? baseVisibility?.restaurant?.platformFee ?? true,
+    tax: overrides?.restaurant?.tax ?? baseVisibility?.restaurant?.tax ?? true
+  }
+});
 
 const calculateEarnings = (listedPrice, commissionPercent = 25) => {
   const safeListed = Number(listedPrice);
@@ -370,7 +392,7 @@ exports.createOrder = async (req, res) => {
 
     // Verify restaurant exists and is active
     const restaurant = await Restaurant.findById(restaurantId)
-      .select('name ownerId isActive isApproved acceptingOrders timing location deliveryTime deliveryRadiusKm address payoutRateOverride feeOverrides feeTemplateId')
+      .select('name ownerId isActive isApproved acceptingOrders timing location deliveryTime deliveryRadiusKm address payoutRateOverride feeOverrides feeVisibilityOverrides feeTemplateId')
       .lean();
     
     if (!restaurant) {
@@ -426,11 +448,8 @@ exports.createOrder = async (req, res) => {
     );
     const deliveryFeeOverride = feeTemplate?.deliveryFee ?? restaurant.feeOverrides?.deliveryFee;
     const platformFeeOverride = feeTemplate?.platformFee ?? restaurant.feeOverrides?.platformFee;
-    const taxRateOverride = feeTemplate?.taxRate ?? restaurant.feeOverrides?.taxRate;
-    const feeVisibilitySnapshot = settings.feeVisibility || {
-      customer: { deliveryFee: true, platformFee: true, tax: true },
-      restaurant: { deliveryFee: true, platformFee: true, tax: true }
-    };
+    const taxRate = normalizeTaxRate(feeTemplate?.taxRate ?? restaurant.feeOverrides?.taxRate ?? settings.taxRate);
+    const feeVisibilitySnapshot = mergeFeeVisibility(settings.feeVisibility, restaurant.feeVisibilityOverrides);
 
     // Validate and calculate order totals
     let subtotal = 0;
@@ -684,11 +703,6 @@ exports.createOrder = async (req, res) => {
         ? platformFeeOverride
         : settings.platformFee || 0
     );
-    const taxRate = Number(
-      Number.isFinite(Number(taxRateOverride)) && Number(taxRateOverride) >= 0
-        ? taxRateOverride
-        : settings.taxRate || 0
-    );
     const restaurantPayoutRate = roundToTwo((100 - commissionPercent) / 100);
     const initialDeliveryEarning = Number(settings?.deliveryPartnerPayout?.perOrder);
     const deliveryEarning = Number.isFinite(initialDeliveryEarning) && initialDeliveryEarning >= 0
@@ -745,7 +759,7 @@ exports.createOrder = async (req, res) => {
       feeOverrideSnapshot: {
         deliveryFee: Number.isFinite(Number(deliveryFeeOverride)) ? Number(deliveryFeeOverride) : null,
         platformFee: Number.isFinite(Number(platformFeeOverride)) ? Number(platformFeeOverride) : null,
-        taxRate: Number.isFinite(Number(taxRateOverride)) ? Number(taxRateOverride) : null,
+        taxRate: Number.isFinite(Number(taxRate)) ? Number(taxRate) : null,
         commissionPercent: Number.isFinite(Number(restaurant.feeOverrides?.commissionPercent)) ? Number(restaurant.feeOverrides.commissionPercent) : null
       },
       feeTemplateSnapshot: feeTemplate ? {
