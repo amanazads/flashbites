@@ -171,6 +171,137 @@ const NativeBackHandler = () => {
   return null;
 };
 
+const AppShell = () => {
+  const location = useLocation();
+  const authPaths = ['/login', '/register', '/forgot-password', '/auth/google/success', '/accounts'];
+  const isAuthPage = authPaths.some((path) => location.pathname.startsWith(path));
+  const isHomePage = location.pathname === '/';
+
+  return (
+    <div className="min-h-screen">
+      {!isAuthPage && <Navbar />}
+      <main className={`w-full relative z-0 ${isHomePage ? 'bg-[#F8FAFC]' : 'bg-white lg:bg-[var(--bg-app)]'} ${isAuthPage ? '' : isHomePage ? 'pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-0' : 'content-mobile-safe'}`}>
+          <React.Suspense fallback={<PageLoader />}>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/accounts" element={<Accounts />} />
+            <Route path="/accounts/restaurant/login" element={<RestaurantLogin />} />
+            <Route path="/accounts/restaurant/register" element={<RestaurantRegister />} />
+            <Route path="/accounts/delivery/login" element={<DeliveryLogin />} />
+            <Route path="/accounts/delivery/register" element={<DeliveryRegister />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
+            <Route path="/restaurants" element={<RestaurantPage />} />
+            <Route path="/restaurant/:id" element={<RestaurantDetail />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/partner" element={<Partner />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/help" element={<HelpPage />} />
+            <Route path="/promos" element={<PromosPage />} />
+            <Route path="/contact" element={<Contact />} />
+
+            {/* Protected Routes */}
+            <Route
+              path="/checkout"
+              element={
+                <ProtectedRoute>
+                  <Checkout />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <ProtectedRoute>
+                  <Orders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/payment/:orderId"
+              element={
+                <ProtectedRoute>
+                  <Payment />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders/:id"
+              element={
+                <ProtectedRoute>
+                  <OrderDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute>
+                  <NotificationsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/account-delete"
+              element={
+                <ProtectedRoute>
+                  <AccountDeletePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <RestaurantDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/delivery-dashboard"
+              element={
+                <ProtectedRoute>
+                  <DeliveryPartnerDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminPanel />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          </React.Suspense>
+
+          {!isAuthPage && (
+            <footer className="hidden lg:block">
+              <Footer />
+            </footer>
+          )}
+          <CartDrawer />
+      </main>
+    </div>
+  );
+};
+
 function App() {
   const dispatch = useDispatch();
   const { isAuthenticated } = useSelector((state) => state.auth);
@@ -208,7 +339,7 @@ function App() {
     const restoreSession = async () => {
       let persistedToken = localStorage.getItem('token') || localStorage.getItem('accessToken');
 
-      if (!persistedToken && window.Capacitor) {
+      if (!persistedToken && isNative) {
         try {
           const { value } = await Preferences.get({ key: 'token' });
           persistedToken = value;
@@ -243,139 +374,6 @@ function App() {
       localStorage.removeItem(SELECTED_ADDRESS_KEY);
     }
   }, [selectedDeliveryAddress]);
-
-  const AppShell = () => {
-    const location = useLocation();
-    const authPaths = ['/login', '/register', '/forgot-password', '/auth/google/success', '/accounts'];
-    const isAuthPage = authPaths.some((path) => location.pathname.startsWith(path));
-    const isHomePage = location.pathname === '/';
-
-    return (
-      <div className="min-h-screen">
-        {!isAuthPage && <Navbar />}
-        <main className={`w-full relative z-0 ${isHomePage ? 'bg-[#F8FAFC]' : 'bg-white lg:bg-[var(--bg-app)]'} ${isAuthPage ? '' : isHomePage ? 'pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-0' : 'content-mobile-safe'}`}>
-            <React.Suspense fallback={<PageLoader />}>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/accounts" element={<Accounts />} />
-              <Route path="/accounts/restaurant/login" element={<RestaurantLogin />} />
-              <Route path="/accounts/restaurant/register" element={<RestaurantRegister />} />
-              <Route path="/accounts/delivery/login" element={<DeliveryLogin />} />
-              <Route path="/accounts/delivery/register" element={<DeliveryRegister />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
-              <Route path="/restaurants" element={<RestaurantPage />} />
-              <Route path="/restaurant/:id" element={<RestaurantDetail />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/partner" element={<Partner />} />
-              <Route path="/terms" element={<TermsPage />} />
-              <Route path="/privacy" element={<PrivacyPage />} />
-              <Route path="/help" element={<HelpPage />} />
-              <Route path="/promos" element={<PromosPage />} />
-              <Route path="/contact" element={<Contact />} />
-
-              {/* Protected Routes */}
-              <Route
-                path="/checkout"
-                element={
-                  <ProtectedRoute>
-                    <Checkout />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/orders"
-                element={
-                  <ProtectedRoute>
-                    <Orders />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/payment/:orderId"
-                element={
-                  <ProtectedRoute>
-                    <Payment />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/orders/:id"
-                element={
-                  <ProtectedRoute>
-                    <OrderDetail />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <Profile />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/notifications"
-                element={
-                  <ProtectedRoute>
-                    <NotificationsPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/account-delete"
-                element={
-                  <ProtectedRoute>
-                    <AccountDeletePage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <RestaurantDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/delivery-dashboard"
-                element={
-                  <ProtectedRoute>
-                    <DeliveryPartnerDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute>
-                    <AdminPanel />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* 404 */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            </React.Suspense>
-
-            {!isAuthPage && (
-              <footer className="hidden lg:block">
-                <Footer />
-              </footer>
-            )}
-            <CartDrawer />
-        </main>
-      </div>
-    );
-  };
-
-
 
   return (
     <div className="min-h-screen bg-[var(--bg-app)]">

@@ -115,6 +115,13 @@ const buildRestaurantRequestKey = (filters = {}) => {
   return JSON.stringify(normalized);
 };
 
+const isNativePlatform = () => !!(
+  typeof window !== 'undefined'
+  && window.Capacitor
+  && typeof window.Capacitor.isNativePlatform === 'function'
+  && window.Capacitor.isNativePlatform()
+);
+
 const Home = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -185,7 +192,7 @@ const Home = () => {
   // On mobile (Capacitor) wait for health ping before fetching to avoid cold-start race
   useEffect(() => {
     const apiBase = getApiBaseUrl().replace(/\/api\/?$/, '');
-    const isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform());
+    const isCapacitor = isNativePlatform();
 
     const boot = async () => {
       try {

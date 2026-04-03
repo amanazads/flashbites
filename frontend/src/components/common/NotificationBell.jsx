@@ -16,7 +16,12 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { BRAND } from '../../constants/theme';
 import toast from 'react-hot-toast';
 
-const isNativePlatform = () => !!(window.Capacitor && window.Capacitor.isNativePlatform());
+const isNativePlatform = () => !!(
+  typeof window !== 'undefined'
+  && window.Capacitor
+  && typeof window.Capacitor.isNativePlatform === 'function'
+  && window.Capacitor.isNativePlatform()
+);
 
 const ORDER_TYPES = new Set([
   'new_order',
@@ -99,7 +104,31 @@ const NotificationBell = () => {
     return typeof Notification !== 'undefined' ? Notification.permission : 'default';
   });
   const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const userId = user?._id;
 
+  const fetchNotifications = async () => {
+    if (!isAuthenticated || !userId) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    try {
+      const { data } = await axiosInstance.get('/notifications?limit=5');
+      const payload = data?.data || {};
+      const items = Array.isArray(payload.notifications) ? payload.notifications : [];
+      setNotifications(items);
+      setUnreadCount(typeof payload.unreadCount === 'number' ? payload.unreadCount : items.filter(n => !n.read).length);
+    } catch (err) {
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
+      console.error('Failed to fetch real-time notifications', err);
+    }
+  };
   const syncNativePermission = async () => {
     try {
       if (!isNativePlatform()) return;
@@ -143,45 +172,27 @@ const NotificationBell = () => {
     toast.success(next ? 'Alert sound enabled' : 'Alert sound muted');
   };
 
-  // Fetch real notifications whenever the menu is opened or component mounts
+  // Fetch unread count once when auth state changes.
   useEffect(() => {
-    const fetchNotifications = async () => {
-      if (!isAuthenticated || !user) {
-        setNotifications([]);
-        setUnreadCount(0);
-        return;
-      }
+    fetchNotifications();
+  }, [isAuthenticated, userId]);
 
-      try {
-        const { data } = await axiosInstance.get('/notifications?limit=5');
-        const payload = data?.data || {};
-        const items = Array.isArray(payload.notifications) ? payload.notifications : [];
-        setNotifications(items);
-        setUnreadCount(typeof payload.unreadCount === 'number' ? payload.unreadCount : items.filter(n => !n.read).length);
-      } catch (err) {
-        const status = err?.response?.status;
-        if (status === 401 || status === 403) {
-          setNotifications([]);
-          setUnreadCount(0);
-          return;
-        }
-        console.error('Failed to fetch real-time notifications', err);
-      }
-    };
-    if (showMenu) fetchNotifications();
-    else fetchNotifications(); // load unread count silently
-  }, [showMenu, isAuthenticated, user]);
+  // Fetch latest notifications when menu opens.
+  useEffect(() => {
+    if (!showMenu) return;
+    fetchNotifications();
+  }, [showMenu]);
 
   useEffect(() => {
     syncNativePermission();
   }, []);
 
   const markAllRead = async () => {
-    if (!isAuthenticated || !user) return;
+    if (!isAuthenticated || !userId) return;
 
     try {
       await axiosInstance.put('/notifications/read-all');
-      setNotifications(notifications.map(n => ({ ...n, read: true })));
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (err) {
       const status = err?.response?.status;

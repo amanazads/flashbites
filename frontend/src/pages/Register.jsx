@@ -23,8 +23,15 @@ const getSecondsUntil = (untilTs) => {
   return diff > 0 ? diff : 0;
 };
 
+const isNativePlatform = () => !!(
+  typeof window !== 'undefined'
+  && window.Capacitor
+  && typeof window.Capacitor.isNativePlatform === 'function'
+  && window.Capacitor.isNativePlatform()
+);
+
 const storageSet = async (key, value) => {
-  if (window.Capacitor) {
+  if (isNativePlatform()) {
     try {
       const { Preferences } = await import('@capacitor/preferences');
       await Preferences.set({ key, value: String(value) });
@@ -37,7 +44,7 @@ const storageSet = async (key, value) => {
 };
 
 const storageGet = async (key) => {
-  if (window.Capacitor) {
+  if (isNativePlatform()) {
     try {
       const { Preferences } = await import('@capacitor/preferences');
       const { value } = await Preferences.get({ key });
@@ -50,7 +57,7 @@ const storageGet = async (key) => {
 };
 
 const storageRemove = async (key) => {
-  if (window.Capacitor) {
+  if (isNativePlatform()) {
     try {
       const { Preferences } = await import('@capacitor/preferences');
       await Preferences.remove({ key });
@@ -88,7 +95,7 @@ const Register = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { error, isAuthenticated, user } = useSelector((state) => state.auth);
-  const nativePlatform = Boolean(window?.Capacitor?.isNativePlatform?.());
+  const nativePlatform = isNativePlatform();
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -278,7 +285,7 @@ const Register = () => {
       localStorage.setItem('sessionStartedAt', sessionStartedAt);
 
       // Also store in Capacitor Preferences so native app sessions persist
-      if (window.Capacitor) {
+      if (isNativePlatform()) {
         try {
           const { Preferences: P } = await import('@capacitor/preferences');
           await P.set({ key: 'token', value: accessToken });
