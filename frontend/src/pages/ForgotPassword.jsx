@@ -137,7 +137,7 @@ const ForgotPassword = () => {
     e.preventDefault();
 
     if (!validatePassword(formData.newPassword)) {
-      toast.error('Password must be at least 6 characters, with one uppercase, one lowercase, and one special character');
+      toast.error('Password must be at least 8 characters, with one uppercase, one lowercase, and one special character');
       return;
     }
 
@@ -286,7 +286,7 @@ const ForgotPassword = () => {
                   id="newPassword" name="newPassword" type="password" required
                   value={formData.newPassword} onChange={handleChange}
                   className="input-field"
-                  placeholder="Min 6 characters"
+                  placeholder="Min 8 characters"
                 />
               </div>
 
