@@ -8,6 +8,7 @@ const {
   login, 
   logout, 
   refreshToken, 
+  getPhoneAuthStatus,
   getMe, 
   updatePassword,
   sendOTP,
@@ -53,6 +54,7 @@ router.post('/login', loginValidator, validateRequest, login);
 router.post('/business-login', businessLoginValidator, validateRequest, login);
 router.post('/logout', protect, logout);
 router.post('/refresh', refreshTokenValidator, validateRequest, refreshToken);
+router.get('/phone-status', getPhoneAuthStatus);
 router.get('/me', protect, getMe);
 router.put('/password', protect, updatePasswordValidator, validateRequest, updatePassword);
 router.post('/reset-password', resetPasswordValidator, validateRequest, resetPassword);

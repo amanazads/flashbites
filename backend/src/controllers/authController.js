@@ -518,6 +518,38 @@ exports.refreshToken = async (req, res) => {
   }
 };
 
+// @desc    Check phone account status for auth flows
+// @route   GET /api/auth/phone-status
+// @access  Public
+exports.getPhoneAuthStatus = async (req, res) => {
+  try {
+    const rawPhone = String(req.query?.phone || req.body?.phone || '');
+    const purpose = String(req.query?.purpose || req.body?.purpose || 'register').toLowerCase();
+    const normalizedPhone = rawPhone.replace(/\D/g, '').slice(-10);
+
+    if (!/^[0-9]{10}$/.test(normalizedPhone)) {
+      return errorResponse(res, 400, 'Phone must be a valid 10-digit number');
+    }
+
+    const user = await User.findOne({ phone: normalizedPhone }).select('+password isPhoneVerified isActive');
+    const hasAccount = Boolean(user && user.isPhoneVerified && user.password && user.isActive !== false);
+    const canSendOtp = purpose === 'register' ? !hasAccount : hasAccount;
+
+    const message = purpose === 'register'
+      ? (hasAccount ? 'Phone number already registered. Please login.' : 'Phone number available for registration.')
+      : (hasAccount ? 'Account found. You can continue with OTP verification.' : 'No account found with this phone number.');
+
+    return successResponse(res, 200, message, {
+      phone: normalizedPhone,
+      purpose,
+      hasAccount,
+      canSendOtp
+    });
+  } catch (error) {
+    return errorResponse(res, 500, 'Failed to check phone status', error.message);
+  }
+};
+
 // @desc    Get current user
 // @route   GET /api/auth/me
 // @access  Private

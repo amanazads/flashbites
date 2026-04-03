@@ -15,12 +15,30 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 auth.useDeviceLanguage();
 let otpRequestPromise = null;
+let otpRequestStartedAt = 0;
 let nativeVerificationId = null;
 let currentOtpMode = 'web';
+const OTP_REQUEST_STALE_MS = 30000;
 const FIREBASE_PROJECT_MARKER_KEY = 'flashbites.firebase.project.marker.v1';
 let projectMigrationPromise = null;
 
-const isNativePlatform = () => Boolean(window?.Capacitor?.isNativePlatform?.());
+const isNativePlatform = () => {
+  if (typeof window === 'undefined') return false;
+
+  const cap = window.Capacitor;
+  if (!cap) return false;
+
+  if (typeof cap.isNativePlatform === 'function') {
+    return cap.isNativePlatform();
+  }
+
+  if (typeof cap.getPlatform === 'function') {
+    return cap.getPlatform() !== 'web';
+  }
+
+  // Fallback for older runtime shims where platform helpers are unavailable.
+  return window.location.protocol === 'https:' && window.location.hostname === 'localhost';
+};
 
 const getCurrentProjectMarker = () => {
   const projectId = firebaseConfig.projectId || 'unknown-project';
@@ -30,6 +48,7 @@ const getCurrentProjectMarker = () => {
 
 const resetOtpFlowState = () => {
   otpRequestPromise = null;
+  otpRequestStartedAt = 0;
   nativeVerificationId = null;
   currentOtpMode = 'web';
   if (typeof window !== 'undefined') {
@@ -158,10 +177,22 @@ const sendPhoneOtpWeb = async (phoneNumber) => {
   return confirmationResult;
 };
 
-export const sendPhoneOTP = async (phoneNumber) => {
-  if (otpRequestPromise) {
-    return otpRequestPromise;
+export const sendPhoneOTP = async (phoneNumber, options = {}) => {
+  const force = Boolean(options?.force);
+
+  if (force) {
+    resetOtpFlowState();
   }
+
+  if (otpRequestPromise) {
+    const age = Date.now() - otpRequestStartedAt;
+    if (age <= OTP_REQUEST_STALE_MS) {
+      return otpRequestPromise;
+    }
+    resetOtpFlowState();
+  }
+
+  otpRequestStartedAt = Date.now();
 
   otpRequestPromise = (async () => {
     try {
@@ -177,7 +208,7 @@ export const sendPhoneOTP = async (phoneNumber) => {
               if (settled) return;
               settled = true;
               reject(new Error('Phone verification timed out. Please try again.'));
-            }, 90000);
+            }, 45000);
 
             const settleResolve = (value) => {
               if (settled) return;
@@ -239,6 +270,7 @@ export const sendPhoneOTP = async (phoneNumber) => {
       throw error;
     } finally {
       otpRequestPromise = null;
+      otpRequestStartedAt = 0;
     }
   })();
 

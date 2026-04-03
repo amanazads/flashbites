@@ -5,13 +5,25 @@ import { getApiBaseUrl } from '../utils/apiBase';
 const apiUrl = getApiBaseUrl();
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
+const isNativePlatform = () => {
+  if (typeof window === 'undefined') return false;
+
+  const cap = window.Capacitor;
+  if (!cap) return false;
+
+  if (typeof cap.isNativePlatform === 'function') {
+    return cap.isNativePlatform();
+  }
+
+  if (typeof cap.getPlatform === 'function') {
+    return cap.getPlatform() !== 'web';
+  }
+
+  return window.location.protocol === 'https:' && window.location.hostname === 'localhost';
+};
+
 // Detect true native Capacitor runtime only (not plain web with capacitor scripts present)
-const isCapacitor = !!(
-  typeof window !== 'undefined'
-  && window.Capacitor
-  && typeof window.Capacitor.isNativePlatform === 'function'
-  && window.Capacitor.isNativePlatform()
-);
+const isCapacitor = isNativePlatform();
 
 const clearAuthStorage = async () => {
   if (isCapacitor) {

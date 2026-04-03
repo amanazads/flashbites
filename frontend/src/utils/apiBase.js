@@ -7,7 +7,19 @@ const isLocalHost = () => {
 
 const isNativePlatform = () => {
   if (typeof window === 'undefined') return false;
-  return Boolean(window?.Capacitor?.isNativePlatform?.());
+
+  const cap = window.Capacitor;
+  if (!cap) return false;
+
+  if (typeof cap.isNativePlatform === 'function') {
+    return cap.isNativePlatform();
+  }
+
+  if (typeof cap.getPlatform === 'function') {
+    return cap.getPlatform() !== 'web';
+  }
+
+  return window.location.protocol === 'https:' && window.location.hostname === 'localhost';
 };
 
 const getProductionApiFallback = () => {

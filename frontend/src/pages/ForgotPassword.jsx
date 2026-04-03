@@ -8,9 +8,13 @@ import { BRAND } from '../constants/theme';
 
 const isNativePlatform = () => !!(
   typeof window !== 'undefined'
-  && window.Capacitor
-  && typeof window.Capacitor.isNativePlatform === 'function'
-  && window.Capacitor.isNativePlatform()
+  && (() => {
+    const cap = window.Capacitor;
+    if (!cap) return false;
+    if (typeof cap.isNativePlatform === 'function') return cap.isNativePlatform();
+    if (typeof cap.getPlatform === 'function') return cap.getPlatform() !== 'web';
+    return window.location.protocol === 'https:' && window.location.hostname === 'localhost';
+  })()
 );
 
 const OTP_BLOCK_SECONDS = 300;
@@ -97,6 +101,19 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
+      const precheck = await axios.get('/auth/phone-status', {
+        params: {
+          phone: formData.phone,
+          purpose: 'reset'
+        }
+      });
+
+      const canSendOtp = Boolean(precheck?.data?.data?.canSendOtp);
+      if (!canSendOtp) {
+        toast.error(precheck?.data?.message || 'No account found with this phone number');
+        return;
+      }
+
       const phoneWithCode = `+91${formData.phone}`;
       await sendPhoneOTP(phoneWithCode);
       toast.success('OTP sent to your phone number');
@@ -167,8 +184,21 @@ const ForgotPassword = () => {
     if (otpBlockRemaining > 0) return;
     setLoading(true);
     try {
+      const precheck = await axios.get('/auth/phone-status', {
+        params: {
+          phone: formData.phone,
+          purpose: 'reset'
+        }
+      });
+
+      const canSendOtp = Boolean(precheck?.data?.data?.canSendOtp);
+      if (!canSendOtp) {
+        toast.error(precheck?.data?.message || 'No account found with this phone number');
+        return;
+      }
+
       const phoneWithCode = `+91${formData.phone}`;
-      await sendPhoneOTP(phoneWithCode);
+      await sendPhoneOTP(phoneWithCode, { force: true });
       toast.success('OTP resent to your phone');
     } catch (error) {
       if (isTooManyRequestsError(error)) {
