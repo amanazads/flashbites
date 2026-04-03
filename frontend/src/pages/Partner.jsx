@@ -263,7 +263,7 @@ const Partner = () => {
                 <ul className="space-y-3 mb-6">
                   <li className="flex items-start">
                     <CheckCircleIcon className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
-                    <span className="text-sm text-gray-700">Earn ₹15,000 - ₹30,000/month</span>
+                    <span className="text-sm text-gray-700">Earn minimum ₹15,000 - ₹30,000/month</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircleIcon className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
@@ -273,10 +273,10 @@ const Partner = () => {
                     <CheckCircleIcon className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
                     <span className="text-sm text-gray-700">Weekly payments</span>
                   </li>
-                  <li className="flex items-start">
+                  {/* <li className="flex items-start">
                     <CheckCircleIcon className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
                     <span className="text-sm text-gray-700">Fuel & maintenance support</span>
-                  </li>
+                  </li> */}
                 </ul>
                 <button
                   onClick={() => setActiveSection('delivery')}
@@ -287,7 +287,7 @@ const Partner = () => {
               </div>
 
               {/* Career */}
-              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-shadow">
+              {/* <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-shadow">
                 <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-6 mx-auto">
                   <BriefcaseIcon className="h-8 w-8 text-primary-600" />
                 </div>
@@ -319,14 +319,14 @@ const Partner = () => {
                 >
                   Explore Jobs
                 </button>
-              </div>
+              </div> */}
             </div>
 
             {/* Stats */}
             <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl p-8 text-white">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
                 <div>
-                  <div className="text-4xl font-bold mb-2">500+</div>
+                  <div className="text-4xl font-bold mb-2">50+</div>
                   <div className="text-primary-100">Restaurant Partners</div>
                 </div>
                 <div>
@@ -334,11 +334,11 @@ const Partner = () => {
                   <div className="text-primary-100">Delivery Partners</div>
                 </div>
                 <div>
-                  <div className="text-4xl font-bold mb-2">10,000+</div>
+                  <div className="text-4xl font-bold mb-2">10,00+</div>
                   <div className="text-primary-100">Happy Customers</div>
                 </div>
                 <div>
-                  <div className="text-4xl font-bold mb-2">15+</div>
+                  <div className="text-4xl font-bold mb-2">5+</div>
                   <div className="text-primary-100">Cities</div>
                 </div>
               </div>
@@ -373,7 +373,7 @@ const Partner = () => {
                     <div className="flex items-start">
                       <CheckCircleIcon className="h-6 w-6 text-green-500 mr-3 mt-1 flex-shrink-0" />
                       <div>
-                        <h4 className="font-semibold text-gray-900">Zero Initial Costs</h4>
+                        <h4 className="font-semibold text-gray-900">Less Initial Costs</h4>
                         <p className="text-sm text-gray-600">No registration or setup fees. Get started for free.</p>
                       </div>
                     </div>
