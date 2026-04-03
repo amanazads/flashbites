@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { getSocketBaseUrl } from '../utils/apiBase';
 
 class SocketService {
   constructor() {
@@ -12,16 +13,7 @@ class SocketService {
     }
 
     // Determine the socket URL
-    let SOCKET_URL;
-    if (import.meta.env.DEV) {
-      // In development, derive from API URL when present, otherwise use backend default port
-      const devApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-      SOCKET_URL = devApiUrl.replace(/\/api\/?$/, '') || 'http://localhost:8080';
-    } else {
-      // In production, derive from the API URL by removing /api path
-      let backendUrl = import.meta.env.VITE_API_URL || '';
-      SOCKET_URL = backendUrl.replace(/\/api\/?$/, '') || window.location.origin;
-    }
+    const SOCKET_URL = getSocketBaseUrl();
     
     const socketIns = io(SOCKET_URL, {
       auth: { token },

@@ -5,8 +5,17 @@ import { reverseGeocodeCoordinates } from '../../api/locationApi';
 import toast from 'react-hot-toast';
 import AddressInput from '../location/AddressInput';
 import MapPicker from '../location/MapPicker';
+import { buildManualAddressSelection } from '../../utils/deliveryAddress';
 
-const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
+const AddAddressModal = ({
+  isOpen,
+  onClose,
+  onAddressAdded,
+  onAddressSelected,
+  saveToAccount = true,
+  title,
+  submitLabel,
+}) => {
   const [formData, setFormData] = useState({
     type: 'home',
     street: '',
@@ -101,17 +110,30 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
       return;
     }
 
+    const payload = {
+      ...formData,
+      street: formData.street || formData.fullAddress,
+      fullAddress: formData.fullAddress || getQueryText(),
+      coordinates,
+      lat: coordinates?.[1],
+      lng: coordinates?.[0]
+    };
+
+    if (!saveToAccount) {
+      const selection = buildManualAddressSelection(payload);
+      if (!selection) {
+        toast.error('Please choose a valid address with exact coordinates');
+        return;
+      }
+
+      onAddressSelected?.(selection);
+      toast.success('Delivery location selected');
+      onClose();
+      return;
+    }
+
     setLoading(true);
     try {
-      const payload = {
-        ...formData,
-        street: formData.street || formData.fullAddress,
-        fullAddress: formData.fullAddress || getQueryText(),
-        coordinates,
-        lat: coordinates?.[1],
-        lng: coordinates?.[0]
-      };
-
       const response = await addAddress(payload);
       const createdAddress = response?.data?.address || response?.address || null;
       if (!createdAddress?._id) {
@@ -209,11 +231,11 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+    <div className="fixed inset-0 z-[1800] flex items-center justify-center p-4 bg-black bg-opacity-50">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-bold text-gray-900">Add New Address</h2>
+          <h2 className="text-xl font-bold text-gray-900">{title || (saveToAccount ? 'Add New Address' : 'Select Delivery Address')}</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition"
@@ -387,7 +409,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
               disabled={loading}
               className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              {loading ? 'Adding...' : 'Add Address'}
+              {loading ? 'Saving...' : (submitLabel || (saveToAccount ? 'Add Address' : 'Use This Address'))}
             </button>
           </div>
         </form>

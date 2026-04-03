@@ -7,7 +7,8 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.REACT_APP_GOOGLE_KEY;
+const rawGoogleKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.REACT_APP_GOOGLE_KEY || '';
+const GOOGLE_KEY = rawGoogleKey && rawGoogleKey !== 'your_google_maps_api_key' ? rawGoogleKey : '';
 const MAP_LIBRARIES = ['places'];
 const MAP_OPTIONS = {
   streetViewControl: false,

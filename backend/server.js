@@ -41,6 +41,7 @@ const deliveryPartnerRoutes = require('./src/routes/deliveryPartnerRoutes');
 const contactRoutes = require('./src/routes/contactRoutes');
 const settingsRoutes = require('./src/routes/settingsRoutes');
 const locationRoutes = require('./src/routes/locationRoutes');
+const Restaurant = require('./src/models/Restaurant');
 
 // Import error handler
 const errorHandler = require('./src/middleware/errorHandler');
@@ -55,6 +56,33 @@ app.set('trust proxy', 1);
 // Bootstrap: connect DB first, then start server
 (async () => {
   await connectDB();
+
+try {
+  const [totalRestaurants, activeRestaurants, approvedRestaurants, sampleRestaurants] = await Promise.all([
+    Restaurant.countDocuments({}),
+    Restaurant.countDocuments({ isActive: true }),
+    Restaurant.countDocuments({ isApproved: true }),
+    Restaurant.find({})
+      .select('name isActive isApproved address.city')
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean()
+  ]);
+
+  console.log('🍽️ Restaurant debug snapshot:', JSON.stringify({
+    totalRestaurants,
+    activeRestaurants,
+    approvedRestaurants,
+    sampleRestaurants: sampleRestaurants.map((restaurant) => ({
+      name: restaurant.name,
+      city: restaurant.address?.city || '',
+      isActive: restaurant.isActive,
+      isApproved: restaurant.isApproved
+    }))
+  }, null, 2));
+} catch (debugError) {
+  console.warn('⚠️ Failed to load restaurant debug snapshot:', debugError.message);
+}
 
 // Security middleware
 app.use(helmet({

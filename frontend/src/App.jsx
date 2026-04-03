@@ -8,7 +8,9 @@ import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Preferences } from '@capacitor/preferences';
 import { getCurrentUser } from './redux/slices/authSlice';
+import { setSelectedDeliveryAddress } from './redux/slices/uiSlice';
 import { useNotifications } from './hooks/useNotifications';
+import { readPersistedDeliveryAddress, SELECTED_ADDRESS_KEY } from './utils/deliveryAddress';
 
 // Firebase initialization (analytics)
 import './firebase';
@@ -172,6 +174,7 @@ const NativeBackHandler = () => {
 function App() {
   const dispatch = useDispatch();
   const { isAuthenticated } = useSelector((state) => state.auth);
+  const selectedDeliveryAddress = useSelector((state) => state.ui.selectedDeliveryAddress);
   
   // Initialize notification system
   useNotifications();
@@ -225,6 +228,21 @@ function App() {
 
     restoreSession();
   }, [dispatch]);
+
+  useEffect(() => {
+    const persistedAddress = readPersistedDeliveryAddress();
+    if (persistedAddress) {
+      dispatch(setSelectedDeliveryAddress(persistedAddress));
+    }
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (selectedDeliveryAddress) {
+      localStorage.setItem(SELECTED_ADDRESS_KEY, JSON.stringify(selectedDeliveryAddress));
+    } else {
+      localStorage.removeItem(SELECTED_ADDRESS_KEY);
+    }
+  }, [selectedDeliveryAddress]);
 
   const AppShell = () => {
     const location = useLocation();

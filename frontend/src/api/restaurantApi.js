@@ -6,9 +6,9 @@ export const getRestaurants = async (params = {}) => {
   return response.data;
 };
 
-export const getNearbyRestaurants = async (lat, lng, maxDistance = 10000, limit = 50) => {
+export const getNearbyRestaurants = async (lat, lng, maxDistance = 10000, limit = 50, city, zipCode, state) => {
   const response = await axios.get('/restaurants/nearby', {
-    params: { lat, lng, maxDistance, limit }
+    params: { lat, lng, maxDistance, limit, city, zipCode, state }
   });
   return response.data;
 };
