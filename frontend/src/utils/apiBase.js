@@ -5,14 +5,39 @@ const isLocalHost = () => {
   return host === 'localhost' || host === '127.0.0.1';
 };
 
+const isNativePlatform = () => {
+  if (typeof window === 'undefined') return false;
+  return Boolean(window?.Capacitor?.isNativePlatform?.());
+};
+
+const getProductionApiFallback = () => {
+  // Keep production fallback deterministic so missing VITE_API_URL does not break web/app auth flows.
+  return 'https://flashbites-backend.onrender.com/api';
+};
+
 export const getApiBaseUrl = () => {
-  const configured = import.meta.env.VITE_API_URL;
+  const configured = String(import.meta.env.VITE_API_URL || '').trim();
+
+  if (configured) {
+    return configured;
+  }
 
   if (import.meta.env.DEV && isLocalHost()) {
     return '/api';
   }
 
-  return configured || 'http://localhost:8080/api';
+  if (isNativePlatform()) {
+    return getProductionApiFallback();
+  }
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host.endsWith('flashbites.in')) {
+      return getProductionApiFallback();
+    }
+  }
+
+  return 'http://localhost:8080/api';
 };
 
 export const getSocketBaseUrl = () => {

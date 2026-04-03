@@ -190,7 +190,7 @@ const Register = () => {
       return 'Please enter a password';
     }
     if (!validatePassword(formData.password)) {
-      return 'Password must be at least 6 characters, with one uppercase, one lowercase, and one special character';
+      return 'Password must be at least 8 characters, with one uppercase, one lowercase, and one special character';
     }
     if (formData.password !== formData.confirmPassword) {
       return 'Passwords do not match';
@@ -199,7 +199,7 @@ const Register = () => {
   };
 
   const passwordRules = {
-    minLength: (formData.password || '').length >= 6,
+    minLength: (formData.password || '').length >= 8,
     uppercase: /[A-Z]/.test(formData.password || ''),
     lowercase: /[a-z]/.test(formData.password || ''),
     special: /[!@#$%^&*(),.?":{}|<>]/.test(formData.password || '')
@@ -442,7 +442,7 @@ const Register = () => {
                       value={formData.password}
                       onChange={handleChange}
                       onFocus={() => setShowPasswordGuide(true)}
-                      placeholder="Min 6 characters"
+                      placeholder="Min 8 characters"
                       className="input-field pr-16"
                     />
                     <button
@@ -482,7 +482,7 @@ const Register = () => {
                   <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs space-y-1">
                     <p className="font-semibold text-gray-700">Password requirements</p>
                     <p className={passwordRules.minLength ? 'text-green-600' : 'text-gray-500'}>
-                      {passwordRules.minLength ? '✓' : '•'} At least 6 characters
+                      {passwordRules.minLength ? '✓' : '•'} At least 8 characters
                     </p>
                     <p className={passwordRules.uppercase ? 'text-green-600' : 'text-gray-500'}>
                       {passwordRules.uppercase ? '✓' : '•'} One uppercase letter
