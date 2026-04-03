@@ -10,6 +10,7 @@ import CancellationModal from '../components/common/CancellationModal';
 import LiveTracking from '../components/tracking/LiveTracking';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
+import html2pdf from 'html2pdf.js';
 import {
   MapPinIcon,
   PhoneIcon,
@@ -20,7 +21,10 @@ import {
   CreditCardIcon,
   ReceiptRefundIcon,
   BuildingStorefrontIcon,
-  StarIcon
+  StarIcon,
+  PrinterIcon,
+  ArrowDownTrayIcon,
+  DocumentDuplicateIcon
 } from '@heroicons/react/24/outline';
 
 const OrderDetail = () => {
@@ -33,6 +37,7 @@ const OrderDetail = () => {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showCancellationModal, setShowCancellationModal] = useState(false);
   const [showTracking, setShowTracking] = useState(false);
+  const [invoiceView, setInvoiceView] = useState('customer');
   const [socket, setSocket] = useState(null);
 
   // Initialize socket connection
@@ -116,6 +121,12 @@ const OrderDetail = () => {
     }
   };
 
+  useEffect(() => {
+    if (user?.role === 'restaurant_owner' || user?.role === 'admin') {
+      setInvoiceView('restaurant');
+    }
+  }, [user?.role]);
+
   const handleCancelOrder = async (reason) => {
     setCancelling(true);
     try {
@@ -156,6 +167,87 @@ const OrderDetail = () => {
   const canCancel = ['pending', 'confirmed'].includes(order.status);
   const isCancelled = order.status === 'cancelled';
   const isDelivered = order.status === 'delivered';
+  const isRestaurantViewer = ['restaurant_owner', 'admin'].includes(user?.role);
+  const feeVisibility = order.feeVisibilitySnapshot || {
+    customer: { deliveryFee: true, platformFee: true, tax: true },
+    restaurant: { deliveryFee: true, platformFee: true, tax: true }
+  };
+  const activeFeeVisibility = invoiceView === 'restaurant' ? feeVisibility.restaurant : feeVisibility.customer;
+  const invoiceTitle = invoiceView === 'restaurant' ? 'Restaurant Bill' : 'Customer Invoice';
+
+  const invoiceRows = [
+    { label: 'Subtotal', value: order.subtotal, visible: true },
+    { label: 'Delivery Fee', value: order.deliveryFee, visible: activeFeeVisibility.deliveryFee !== false },
+    { label: 'Platform Fee', value: order.platformFee, visible: activeFeeVisibility.platformFee !== false },
+    { label: `Tax (${Math.round((Number(order.tax || 0) / Math.max(Number(order.subtotal || 1) - Number(order.discount || 0), 1)) * 100) || Math.round((Number(order.tax || 0) > 0 ? 5 : 0))}%)`, value: order.tax, visible: activeFeeVisibility.tax !== false },
+    { label: order.discount > 0 ? `Discount${order.couponCode ? ` (${order.couponCode})` : ''}` : null, value: -Math.abs(Number(order.discount || 0)), visible: Number(order.discount || 0) > 0 }
+  ].filter((row) => row.visible && row.label);
+
+  const createInvoiceMarkup = (view) => {
+    const selectedVisibility = view === 'restaurant' ? feeVisibility.restaurant : feeVisibility.customer;
+    const taxRatePercent = Number.isFinite(Number(order.tax)) && Number(order.subtotal) > 0
+      ? Math.round((Number(order.tax) / Math.max(Number(order.subtotal) - Number(order.discount || 0), 1)) * 100)
+      : 0;
+    const rows = [
+      { label: 'Subtotal', value: order.subtotal, visible: true },
+      { label: 'Delivery Fee', value: order.deliveryFee, visible: selectedVisibility.deliveryFee !== false },
+      { label: 'Platform Fee', value: order.platformFee, visible: selectedVisibility.platformFee !== false },
+      { label: `Tax (${taxRatePercent}%)`, value: order.tax, visible: selectedVisibility.tax !== false },
+      { label: order.discount > 0 ? `Discount${order.couponCode ? ` (${order.couponCode})` : ''}` : null, value: -Math.abs(Number(order.discount || 0)), visible: Number(order.discount || 0) > 0 }
+    ].filter((row) => row.visible && row.label);
+
+    const lines = rows.map((row) => `<tr><td style="padding:8px 0;color:#4b5563;">${row.label}</td><td style="padding:8px 0;text-align:right;font-weight:600;">₹${Number(row.value || 0).toFixed(2)}</td></tr>`).join('');
+    const itemLines = order.items.map((item) => `<tr><td style="padding:8px 0;">${item.quantity}x ${item.name}</td><td style="padding:8px 0;text-align:right;">₹${Number(item.price || 0).toFixed(2)}</td></tr>`).join('');
+
+    return `<!doctype html><html><head><meta charset="utf-8"/><title>${invoiceTitle}</title><style>body{font-family:Arial,sans-serif;margin:0;padding:24px;background:#f8fafc;color:#111827} .card{max-width:900px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px} h1,h2,h3,p{margin:0} .muted{color:#6b7280} table{width:100%;border-collapse:collapse} .section{margin-top:24px} .total{font-size:20px;font-weight:700;color:#ea580c} .pill{display:inline-block;padding:4px 10px;border-radius:999px;background:#f3f4f6;font-size:12px;font-weight:700} .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px} @media print{body{background:#fff;padding:0}.card{border:none;border-radius:0;max-width:none}}</style></head><body><div class="card"><div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap"><div><h1 style="font-size:28px;margin-bottom:4px;">FlashBites ${invoiceTitle}</h1><p class="muted">Order #${order._id.slice(-8).toUpperCase()}</p><p class="muted">${new Date(order.createdAt).toLocaleString()}</p></div><div style="text-align:right"><div class="pill">${order.status.replace(/_/g, ' ').toUpperCase()}</div><p class="muted" style="margin-top:8px;">Payment: ${String(order.paymentMethod || '').toUpperCase()}</p></div></div><div class="section grid"><div><h3 style="font-size:16px;margin-bottom:8px;">Restaurant</h3><p>${order.restaurantId?.name || 'N/A'}</p><p class="muted">${order.restaurantId?.phone || ''}</p></div><div><h3 style="font-size:16px;margin-bottom:8px;">Customer</h3><p>${order.userId?.name || 'N/A'}</p><p class="muted">${order.userId?.phone || ''}</p></div></div><div class="section"><h3 style="font-size:16px;margin-bottom:8px;">Items</h3><table>${itemLines}</table></div><div class="section"><h3 style="font-size:16px;margin-bottom:8px;">Charges</h3><table>${lines}<tr><td style="padding:10px 0 0;font-size:18px;font-weight:700;">Total</td><td style="padding:10px 0 0;text-align:right;font-size:18px;font-weight:700;color:#ea580c;">₹${Number(order.total || order.totalAmount || 0).toFixed(2)}</td></tr></table></div></div></body></html>`;
+  };
+
+  const handleDownloadInvoice = (view) => {
+    const blob = new Blob([createInvoiceMarkup(view)], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `flashbites-${view}-invoice-${order._id.slice(-8)}.html`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePrintInvoice = (view) => {
+    const popup = window.open('', '_blank', 'width=980,height=800');
+    if (!popup) {
+      toast.error('Popup blocked. Please allow popups to print the invoice.');
+      return;
+    }
+    popup.document.open();
+    popup.document.write(createInvoiceMarkup(view));
+    popup.document.close();
+    popup.focus();
+    setTimeout(() => popup.print(), 500);
+  };
+
+  const handleDownloadPDF = (view) => {
+    try {
+      const element = document.createElement('div');
+      element.innerHTML = createInvoiceMarkup(view);
+      
+      const invoiceTitle = view === 'restaurant' ? 'Invoice' : 'Bill';
+      const opt = {
+        margin: 10,
+        filename: `flashbites-${view}-${invoiceTitle.toLowerCase()}-${order._id.slice(-8)}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+      };
+      
+      html2pdf().set(opt).from(element).save();
+      toast.success('PDF downloaded successfully');
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast.error('Failed to generate PDF. Please try again.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-6 sm:py-8 max-[388px]:py-4">
@@ -363,32 +455,68 @@ const OrderDetail = () => {
           <div className="space-y-6">
             {/* Payment & Bill Summary */}
             <div className="bg-white rounded-lg shadow p-4 sm:p-6 max-[388px]:p-4 md:sticky md:top-24">
-              <h2 className="text-xl max-[388px]:text-lg font-bold mb-4">Bill Details</h2>
-              
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                <h2 className="text-xl max-[388px]:text-lg font-bold">{invoiceTitle}</h2>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setInvoiceView('customer')}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold ${invoiceView === 'customer' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                  >
+                    Customer
+                  </button>
+                  {isRestaurantViewer && (
+                    <button
+                      onClick={() => setInvoiceView('restaurant')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold ${invoiceView === 'restaurant' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                    >
+                      Restaurant
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-3 mb-4 pb-4 border-b">
-                <div className="flex justify-between text-sm max-[388px]:text-xs">
-                  <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">{formatCurrency(order.subtotal)}</span>
-                </div>
-                <div className="flex justify-between text-sm max-[388px]:text-xs">
-                  <span className="text-gray-600">Delivery Fee</span>
-                  <span className="font-medium">{formatCurrency(order.deliveryFee)}</span>
-                </div>
-                <div className="flex justify-between text-sm max-[388px]:text-xs">
-                  <span className="text-gray-600">Tax (5%)</span>
-                  <span className="font-medium">{formatCurrency(order.tax)}</span>
-                </div>
-                {order.discount > 0 && (
-                  <div className="flex justify-between text-sm max-[388px]:text-xs text-green-600">
-                    <span>Discount {order.couponCode && `(${order.couponCode})`}</span>
-                    <span className="font-medium">-{formatCurrency(order.discount)}</span>
+                {invoiceRows.map((row) => (
+                  <div key={row.label} className={`flex justify-between text-sm max-[388px]:text-xs ${row.label.startsWith('Discount') ? 'text-green-600' : ''}`}>
+                    <span className="text-gray-600">{row.label}</span>
+                    <span className="font-medium">{row.label.startsWith('Discount') ? `-${formatCurrency(Math.abs(row.value))}` : formatCurrency(row.value)}</span>
                   </div>
-                )}
+                ))}
               </div>
 
               <div className="flex justify-between text-lg max-[388px]:text-base font-bold mb-4">
                 <span>Total Amount</span>
                 <span className="text-primary-600">{formatCurrency(order.total)}</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <button
+                  onClick={() => handleDownloadInvoice(invoiceView)}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-3 py-2 text-sm font-semibold text-white hover:bg-primary-700"
+                  title="Download as HTML"
+                >
+                  <ArrowDownTrayIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline">Download</span>
+                  <span className="sm:hidden">HTML</span>
+                </button>
+                <button
+                  onClick={() => handleDownloadPDF(invoiceView)}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-pink-600 px-3 py-2 text-sm font-semibold text-white hover:bg-pink-700"
+                  title="Download as PDF"
+                >
+                  <DocumentDuplicateIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline">PDF</span>
+                  <span className="sm:hidden">PDF</span>
+                </button>
+                <button
+                  onClick={() => handlePrintInvoice(invoiceView)}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  title="Print invoice"
+                >
+                  <PrinterIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline">Print</span>
+                  <span className="sm:hidden">Prnt</span>
+                </button>
               </div>
 
               {/* Payment Method */}

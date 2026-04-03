@@ -65,6 +65,11 @@ const notifyPhonesViaSms = async (phones = [], message = '') => {
   await Promise.allSettled(uniquePhones.map((phone) => sendSms(phone, message)));
 };
 
+const sendDirectSms = async (phone, message) => {
+  if (!phone || !message) return false;
+  return sendSms(phone, message);
+};
+
 const sendOrderStatusSms = async (order, status, orderRef) => {
   if (!SMS_ENABLED || !order) return;
 
@@ -663,6 +668,7 @@ const notifyDeliveryPartnerOrderCancelled = async (order, deliveryPartnerId) => 
 module.exports = {
   createNotification,
   sendPushNotification,
+  sendDirectSms,
   notifyUser,
   notifyMultipleUsers,
   notifyOrderStatus,

@@ -12,6 +12,28 @@ export const login = async (credentials) => {
   return response.data;
 };
 
+export const businessLogin = async (credentials) => {
+  const response = await axios.post('/auth/business-login', credentials);
+  return response.data;
+};
+
+export const registerRestaurant = async (payload) => {
+  const isFormData = typeof FormData !== 'undefined' && payload instanceof FormData;
+  const response = await axios.post('/auth/register-restaurant', payload, isFormData
+    ? {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    : undefined);
+  return response.data;
+};
+
+export const registerDeliveryPartner = async (payload) => {
+  const response = await axios.post('/auth/register-delivery', payload);
+  return response.data;
+};
+
 // Logout user
 export const logout = async () => {
   const response = await axios.post('/auth/logout');

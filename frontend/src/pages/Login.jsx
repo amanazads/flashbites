@@ -62,7 +62,7 @@ const Login = () => {
           <div className="flex flex-col gap-3 items-start">
             {[
               { icon: '⚡', t: '30-min delivery guaranteed' },
-              { icon: '🍽️', t: '500+ top restaurants' },
+              { icon: '🍽️', t: '50+ top restaurants' },
               { icon: '💯', t: 'Real-time order tracking' },
             ].map((f) => (
               <div key={f.t} className="flex items-center gap-3">

@@ -1,6 +1,30 @@
 const Partner = require('../models/Partner');
 const cloudinary = require('../config/cloudinary');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
+const { ensureAllowedFile } = require('../utils/fileValidation');
+
+const uploadPartnerFile = (file, folder) => new Promise((resolve, reject) => {
+  const uploadStream = cloudinary.uploader.upload_stream(
+    {
+      folder,
+      resource_type: 'auto'
+    },
+    (error, result) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve({
+        url: result.secure_url,
+        cloudinaryId: result.public_id,
+        fileName: file.originalname,
+        mimeType: file.mimetype
+      });
+    }
+  );
+
+  uploadStream.end(file.buffer);
+});
 
 // @desc    Submit partner application
 // @route   POST /api/partners/apply
@@ -37,40 +61,47 @@ exports.submitApplication = async (req, res) => {
 
     if (req.files) {
       if (req.files.photo) {
-        const photoResult = await cloudinary.uploader.upload(req.files.photo[0].path, {
-          folder: 'flashbites/partners/photos',
-        });
-        documents.photo = {
-          url: photoResult.secure_url,
-          cloudinaryId: photoResult.public_id,
-        };
+        const photoFile = req.files.photo[0];
+        ensureAllowedFile(photoFile, ['image/jpeg', 'image/png', 'image/webp'], 'photo');
+        documents.photo = await uploadPartnerFile(photoFile, 'flashbites/partners/photos');
       }
 
       if (req.files.drivingLicense) {
-        const licenseResult = await cloudinary.uploader.upload(req.files.drivingLicense[0].path, {
-          folder: 'flashbites/partners/licenses',
-        });
-        documents.drivingLicense = {
-          url: licenseResult.secure_url,
-          cloudinaryId: licenseResult.public_id,
-        };
+        const licenseFile = req.files.drivingLicense[0];
+        ensureAllowedFile(licenseFile, ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'], 'drivingLicense');
+        documents.drivingLicense = await uploadPartnerFile(licenseFile, 'flashbites/partners/licenses');
       }
 
       if (req.files.aadharCard) {
-        const aadharResult = await cloudinary.uploader.upload(req.files.aadharCard[0].path, {
-          folder: 'flashbites/partners/aadhar',
-        });
-        documents.aadharCard = {
-          url: aadharResult.secure_url,
-          cloudinaryId: aadharResult.public_id,
-        };
+        const aadharFile = req.files.aadharCard[0];
+        ensureAllowedFile(aadharFile, ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'], 'aadharCard');
+        documents.aadharCard = await uploadPartnerFile(aadharFile, 'flashbites/partners/aadhar');
       }
     }
 
     // Parse JSON strings
-    const parsedAddress = typeof address === 'string' ? JSON.parse(address) : address;
-    const parsedBankAccount = typeof bankAccount === 'string' ? JSON.parse(bankAccount) : bankAccount;
-    const parsedEmergencyContact = typeof emergencyContact === 'string' ? JSON.parse(emergencyContact) : emergencyContact;
+    let parsedAddress = address;
+    let parsedBankAccount = bankAccount;
+    let parsedEmergencyContact = emergencyContact;
+
+    try {
+      if (typeof address === 'string' && address) parsedAddress = JSON.parse(address);
+      if (typeof bankAccount === 'string' && bankAccount) parsedBankAccount = JSON.parse(bankAccount);
+      if (typeof emergencyContact === 'string' && emergencyContact) parsedEmergencyContact = JSON.parse(emergencyContact);
+    } catch (parseError) {
+      return errorResponse(res, 400, `Invalid JSON format in form data: ${parseError.message}`);
+    }
+
+    // Validate parsed objects
+    if (!parsedAddress || typeof parsedAddress !== 'object') {
+      return errorResponse(res, 400, 'Invalid address data');
+    }
+    if (!parsedBankAccount || typeof parsedBankAccount !== 'object') {
+      return errorResponse(res, 400, 'Invalid bank account data');
+    }
+    if (!parsedEmergencyContact || typeof parsedEmergencyContact !== 'object') {
+      return errorResponse(res, 400, 'Invalid emergency contact data');
+    }
 
     // Create partner application
     const partner = await Partner.create({

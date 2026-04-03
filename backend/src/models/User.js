@@ -58,6 +58,29 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isApproved: {
+    type: Boolean,
+    default: true
+  },
+  approvalStatus: {
+    type: String,
+    enum: ['approved', 'pending', 'rejected'],
+    default: 'approved'
+  },
+  approvalNote: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  approvalReviewedAt: {
+    type: Date,
+    default: null
+  },
+  approvalReviewedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
   isOnDuty: {
     type: Boolean,
     default: false

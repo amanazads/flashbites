@@ -215,6 +215,60 @@ const sendPasswordResetSuccessEmail = async (email, name) => {
   }
 };
 
+const sendRestaurantLoginInvite = async ({
+  email,
+  ownerName,
+  restaurantName,
+  loginPortal,
+  username,
+  tempPassword,
+  loginReferenceId
+}) => {
+  try {
+    const subject = `FlashBites Restaurant Login Credentials - ${restaurantName}`;
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 640px; margin: 0 auto;">
+        <div style="background-color: #2563eb; padding: 18px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0;">Restaurant Login Credentials</h1>
+        </div>
+        <div style="background-color: #f9fafb; padding: 24px; border-radius: 0 0 10px 10px; border: 1px solid #e5e7eb; border-top: none;">
+          <p style="color: #111827; font-size: 15px;">Hello ${ownerName || 'Partner'},</p>
+          <p style="color: #374151; font-size: 15px;">Your restaurant onboarding profile has been updated. Please use the temporary credentials below to login:</p>
+          <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 16px 0;">
+            <p style="margin: 6px 0;"><b>Restaurant:</b> ${restaurantName}</p>
+            <p style="margin: 6px 0;"><b>Login Portal:</b> ${loginPortal}</p>
+            <p style="margin: 6px 0;"><b>Username:</b> ${username}</p>
+            <p style="margin: 6px 0;"><b>Temporary Password:</b> ${tempPassword}</p>
+            <p style="margin: 6px 0;"><b>Reference ID:</b> ${loginReferenceId}</p>
+          </div>
+          <p style="color: #b91c1c; font-size: 13px;">For security, please change your password right after login.</p>
+        </div>
+      </div>
+    `;
+    const textContent = `Restaurant: ${restaurantName}\nPortal: ${loginPortal}\nUsername: ${username}\nTemp Password: ${tempPassword}\nReference ID: ${loginReferenceId}`;
+
+    if (process.env.MAILTRAP_API_TOKEN) {
+      await sendMailtrapAPI(email, subject, htmlContent, textContent);
+      return true;
+    }
+
+    if (!transporter) return false;
+
+    await transporter.sendMail({
+      from: process.env.MAILTRAP_FROM_EMAIL || 'FlashBites <noreply@flashbites.in>',
+      to: email,
+      subject,
+      html: htmlContent,
+      text: textContent
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Restaurant login invite email error:', error.message);
+    return false;
+  }
+};
+
 // Send order cancellation email with refund details
 const sendOrderCancelledEmail = async ({
   email,
@@ -337,6 +391,7 @@ module.exports = {
   sendOTPEmail,
   sendWelcomeEmail,
   sendPasswordResetSuccessEmail,
+  sendRestaurantLoginInvite,
   sendContactEmail,
   sendOrderCancelledEmail
 };

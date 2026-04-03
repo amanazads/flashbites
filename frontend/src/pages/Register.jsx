@@ -356,7 +356,7 @@ const Register = () => {
           <div className="flex flex-col gap-3 items-start">
             {[
               { icon: '📱', t: 'Quick phone verification' },
-              { icon: '🍽️', t: '500+ top restaurants' },
+              { icon: '🍽️', t: '50+ top restaurants' },
               { icon: '🚀', t: 'Fast & free delivery' },
             ].map((f) => (
               <div key={f.t} className="flex items-center gap-3">
