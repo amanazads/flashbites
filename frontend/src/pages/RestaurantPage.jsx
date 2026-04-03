@@ -15,6 +15,13 @@ import { setSelectedDeliveryAddress } from '../redux/slices/uiSlice';
 import { buildManualAddressSelection, mapSavedAddressToSelection } from '../utils/deliveryAddress';
 import toast from 'react-hot-toast';
 
+const isNativePlatform = () => !!(
+  typeof window !== 'undefined'
+  && window.Capacitor
+  && typeof window.Capacitor.isNativePlatform === 'function'
+  && window.Capacitor.isNativePlatform()
+);
+
 const CUISINE_TABS = [
   { id: 'All',       label: 'All',       image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80' },
   { id: 'Pizza',     label: 'Pizza',     image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=120&q=80' },
@@ -231,7 +238,7 @@ const RestaurantPage = () => {
     };
 
     try {
-      if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
+      if (isNativePlatform()) {
         const { Geolocation } = await import('@capacitor/geolocation');
         await Geolocation.requestPermissions();
         const position = await Geolocation.getCurrentPosition({

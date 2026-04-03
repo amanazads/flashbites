@@ -6,6 +6,13 @@ import { sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../f
 import { validatePassword, validatePhone } from '../utils/validators';
 import { BRAND } from '../constants/theme';
 
+const isNativePlatform = () => !!(
+  typeof window !== 'undefined'
+  && window.Capacitor
+  && typeof window.Capacitor.isNativePlatform === 'function'
+  && window.Capacitor.isNativePlatform()
+);
+
 const OTP_BLOCK_SECONDS = 300;
 const OTP_BLOCK_KEY = 'fb_otp_block_until';
 
@@ -22,7 +29,7 @@ const isTooManyRequestsError = (error) => {
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
-  const nativePlatform = Boolean(window?.Capacitor?.isNativePlatform?.());
+  const nativePlatform = isNativePlatform();
   const [step, setStep] = useState(1); // 1: phone, 2: otp, 3: new password
   const [loading, setLoading] = useState(false);
   const [otpBlockRemaining, setOtpBlockRemaining] = useState(0);

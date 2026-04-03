@@ -7,6 +7,13 @@ import AddressInput from '../location/AddressInput';
 import MapPicker from '../location/MapPicker';
 import { buildManualAddressSelection } from '../../utils/deliveryAddress';
 
+const isNativePlatform = () => !!(
+  typeof window !== 'undefined'
+  && window.Capacitor
+  && typeof window.Capacitor.isNativePlatform === 'function'
+  && window.Capacitor.isNativePlatform()
+);
+
 const AddAddressModal = ({
   isOpen,
   onClose,
@@ -198,7 +205,7 @@ const AddAddressModal = ({
     };
 
     // Use native permission flow in Capacitor apps.
-    if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
+    if (isNativePlatform()) {
       import('@capacitor/geolocation')
         .then(async ({ Geolocation }) => {
           await Geolocation.requestPermissions();

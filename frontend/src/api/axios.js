@@ -5,8 +5,13 @@ import { getApiBaseUrl } from '../utils/apiBase';
 const apiUrl = getApiBaseUrl();
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-// Detect if running in Capacitor
-const isCapacitor = window.Capacitor !== undefined;
+// Detect true native Capacitor runtime only (not plain web with capacitor scripts present)
+const isCapacitor = !!(
+  typeof window !== 'undefined'
+  && window.Capacitor
+  && typeof window.Capacitor.isNativePlatform === 'function'
+  && window.Capacitor.isNativePlatform()
+);
 
 const clearAuthStorage = async () => {
   if (isCapacitor) {
