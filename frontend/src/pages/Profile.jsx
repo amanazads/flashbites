@@ -145,6 +145,7 @@ const Profile = () => {
           <div className="px-6 pb-6 space-y-2">
             {[
               { label: 'Help & Support', to: '/help' },
+              { label: 'Business Accounts', to: '/accounts' },
               { label: 'Partner with Us', to: '/partner' },
               { label: 'About FlashBites', to: '/about' },
             ].map((link) => (
@@ -302,6 +303,7 @@ const Profile = () => {
       title: 'Support',
       rows: [
         { icon: QuestionMarkCircleIcon, label: 'Help Center', sublabel: 'FAQs & live support', to: '/help' },
+        { icon: UserCircleIcon, label: 'Business Accounts', sublabel: 'Restaurant & delivery login/register', to: '/accounts' },
         { icon: UserGroupIcon, label: 'Partner with Us', to: '/partner' },
         { icon: InformationCircleIcon, label: 'About FlashBites', to: '/about' },
         ...roleLinks,

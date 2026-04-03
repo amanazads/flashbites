@@ -178,7 +178,7 @@ const Partner = () => {
             Join us in revolutionizing food delivery in rural and semi-urban India. 
             Whether you're a restaurant owner, delivery partner, or looking for a career, we have opportunities for you.
           </p>
-          <div className="flex flex-wrap justify-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap justify-center gap-3 sm:gap-4 max-w-3xl mx-auto">
             <button
               onClick={() => setActiveSection('restaurant')}
               className="bg-white text-primary-600 px-6 py-3 rounded-lg font-semibold hover:bg-primary-50 transition-colors"
@@ -191,12 +191,12 @@ const Partner = () => {
             >
               Delivery Partner
             </button>
-            <button
+            {/* <button
               onClick={() => setActiveSection('career')}
               className="bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-800 transition-colors"
             >
               Careers
-            </button>
+            </button> */}
           </div>
         </div>
       </div>
@@ -215,7 +215,7 @@ const Partner = () => {
             </div>
 
             {/* Partnership Options Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-16">
               {/* Restaurant Partner */}
               <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-shadow">
                 <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-6 mx-auto">
@@ -334,7 +334,7 @@ const Partner = () => {
                   <div className="text-primary-100">Delivery Partners</div>
                 </div>
                 <div>
-                  <div className="text-4xl font-bold mb-2">10,00+</div>
+                  <div className="text-4xl font-bold mb-2">1000+</div>
                   <div className="text-primary-100">Happy Customers</div>
                 </div>
                 <div>
@@ -348,7 +348,7 @@ const Partner = () => {
 
         {/* Restaurant Partner Section */}
         {activeSection === 'restaurant' && (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <button
               onClick={() => setActiveSection('overview')}
               className="flex items-center text-primary-600 hover:text-primary-700 mb-6"
@@ -357,45 +357,74 @@ const Partner = () => {
               Back to Overview
             </button>
 
-            <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
+            <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-8">
               <div className="flex items-center mb-6">
                 <BuildingStorefrontIcon className="h-12 w-12 text-primary-600 mr-4" />
                 <div>
                   <h2 className="text-3xl font-bold text-gray-900">Partner Your Restaurant</h2>
-                  <p className="text-gray-600">Grow your business with FlashBites</p>
+                  <p className="text-gray-600">Grow Your Business with FlashBites</p>
                 </div>
               </div>
 
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Benefits</h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    Join FlashBites and take your restaurant online with a fast-growing food delivery platform built for urban,
+                    semi-urban, and rural markets. Reach more customers, increase daily orders, and grow your revenue with zero
+                    upfront setup cost and complete operational support.
+                  </p>
+                  <p className="text-gray-600 leading-relaxed mt-3">
+                    Whether you run a cafe, bakery, cloud kitchen, street food outlet, dhaba, or a full-service restaurant,
+                    FlashBites helps you get discovered and grow faster.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Why Partner with FlashBites</h3>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="flex items-start">
                       <CheckCircleIcon className="h-6 w-6 text-green-500 mr-3 mt-1 flex-shrink-0" />
                       <div>
-                        <h4 className="font-semibold text-gray-900">Less Initial Costs</h4>
-                        <p className="text-sm text-gray-600">No registration or setup fees. Get started for free.</p>
+                        <h4 className="font-semibold text-gray-900">Zero Initial Cost</h4>
+                        <p className="text-sm text-gray-600">Start with no registration fee and no setup charges. Listing is completely free.</p>
                       </div>
                     </div>
                     <div className="flex items-start">
                       <CheckCircleIcon className="h-6 w-6 text-green-500 mr-3 mt-1 flex-shrink-0" />
                       <div>
-                        <h4 className="font-semibold text-gray-900">Marketing Support</h4>
-                        <p className="text-sm text-gray-600">Professional food photography and promotional campaigns.</p>
+                        <h4 className="font-semibold text-gray-900">Increase Your Reach</h4>
+                        <p className="text-sm text-gray-600">Access customers across your city, town, and surrounding areas through our growing network.</p>
                       </div>
                     </div>
                     <div className="flex items-start">
                       <CheckCircleIcon className="h-6 w-6 text-green-500 mr-3 mt-1 flex-shrink-0" />
                       <div>
-                        <h4 className="font-semibold text-gray-900">Real-time Dashboard</h4>
-                        <p className="text-sm text-gray-600">Track orders, revenue, and analytics in real-time.</p>
+                        <h4 className="font-semibold text-gray-900">Marketing and Promotions</h4>
+                        <p className="text-sm text-gray-600">
+                          Improve visibility with featured listings, app promotions, festival campaigns, local offers, social media
+                          promotions, and professional food photography support.
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-start">
                       <CheckCircleIcon className="h-6 w-6 text-green-500 mr-3 mt-1 flex-shrink-0" />
                       <div>
-                        <h4 className="font-semibold text-gray-900">Dedicated Support</h4>
-                        <p className="text-sm text-gray-600">24/7 customer support for your business needs.</p>
+                        <h4 className="font-semibold text-gray-900">Real-Time Dashboard</h4>
+                        <p className="text-sm text-gray-600">Track live orders, revenue and payouts, analytics, order history, insights, and menu performance.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start">
+                      <CheckCircleIcon className="h-6 w-6 text-green-500 mr-3 mt-1 flex-shrink-0" />
+                      <div>
+                        <h4 className="font-semibold text-gray-900">Weekly Settlements</h4>
+                        <p className="text-sm text-gray-600">Receive transparent payouts with weekly settlement cycles and detailed statements.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start">
+                      <CheckCircleIcon className="h-6 w-6 text-green-500 mr-3 mt-1 flex-shrink-0" />
+                      <div>
+                        <h4 className="font-semibold text-gray-900">Dedicated Business Support</h4>
+                        <p className="text-sm text-gray-600">Get help with onboarding, menu upload, technical issues, payouts, marketing, and growth.</p>
                       </div>
                     </div>
                   </div>
@@ -408,61 +437,136 @@ const Partner = () => {
                       <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center mr-4 flex-shrink-0 font-bold">1</div>
                       <div>
                         <h4 className="font-semibold text-gray-900">Register Your Restaurant</h4>
-                        <p className="text-sm text-gray-600">Create an account and provide basic details about your restaurant.</p>
+                        <p className="text-sm text-gray-600">
+                          Fill in restaurant name, owner details, address, FSSAI details, bank information, and menu details.
+                          Our onboarding team can assist you during registration.
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-start">
                       <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center mr-4 flex-shrink-0 font-bold">2</div>
                       <div>
                         <h4 className="font-semibold text-gray-900">Menu Upload</h4>
-                        <p className="text-sm text-gray-600">Upload your menu with photos, descriptions, and prices.</p>
+                        <p className="text-sm text-gray-600">
+                          Upload item names, prices, food descriptions, category sections, and food images.
+                          Our team can help digitize your menu if needed.
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-start">
                       <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center mr-4 flex-shrink-0 font-bold">3</div>
                       <div>
-                        <h4 className="font-semibold text-gray-900">Admin Approval</h4>
-                        <p className="text-sm text-gray-600">Our team reviews and approves your restaurant within 24-48 hours.</p>
+                        <h4 className="font-semibold text-gray-900">Verification and Approval</h4>
+                        <p className="text-sm text-gray-600">
+                          Our team reviews FSSAI/compliance details, menu validation, location verification, and payout setup.
+                          Typical approval timeline: 24-48 hours.
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-start">
                       <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center mr-4 flex-shrink-0 font-bold">4</div>
                       <div>
-                        <h4 className="font-semibold text-gray-900">Start Receiving Orders</h4>
-                        <p className="text-sm text-gray-600">Your restaurant goes live and you start receiving orders!</p>
+                        <h4 className="font-semibold text-gray-900">Go Live and Start Receiving Orders</h4>
+                        <p className="text-sm text-gray-600">Once approved, your restaurant goes live and you can manage orders in real time from your dashboard.</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
+                <div className="bg-gray-50 rounded-lg p-6 space-y-4">
+                  <h3 className="text-xl font-semibold text-gray-900">Commercial Terms</h3>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-1">Transparent Commission Model</h4>
+                    <p className="text-sm text-gray-600">
+                      FlashBites charges a 20-25% commission per completed order depending on location, category,
+                      and support services. No hidden charges are applied.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-1">Optional Marketing Plans</h4>
+                    <p className="text-sm text-gray-600">
+                      Restaurants can opt for featured promotions and premium marketing plans starting from Rs 5,000-10,000 per month
+                      or an additional 15-18% promotional commission based on campaign type.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="bg-primary-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Who Can Join</h3>
+                    <ul className="text-sm text-gray-700 space-y-2 list-disc list-inside">
+                      <li>Veg restaurants</li>
+                      <li>Non-veg restaurants</li>
+                      <li>Bakeries and cafes</li>
+                      <li>Street food vendors</li>
+                      <li>Home kitchens and cloud kitchens</li>
+                      <li>Local dhabas</li>
+                    </ul>
+                  </div>
+                  <div className="bg-primary-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Required Documents</h3>
+                    <ul className="text-sm text-gray-700 space-y-2 list-disc list-inside">
+                      <li>Menu details (text + image/pdf support)</li>
+                      <li>PAN card</li>
+                      <li>FSSAI license</li>
+                      <li>
+                        Don&apos;t have a FSSAI license?{' '}
+                        <a href="https://foscos.fssai.gov.in" target="_blank" rel="noreferrer" className="text-primary-700 underline">
+                          Apply here
+                        </a>
+                      </li>
+                      <li>Bank account details</li>
+                      <li>GST number (if applicable)</li>
+                      <li>Menu and profile food image</li>
+                      <li>
+                        What is profile food image?{' '}
+                        <a href="/accounts/restaurant/register" className="text-primary-700 underline">
+                          Refer here
+                        </a>
+                      </li>
+                      <li>Admin can later edit restaurant details, images, menu items, and pricing after verification.</li>
+                    </ul>
+                  </div>
+                </div>
+
                 <div className="bg-primary-50 rounded-lg p-6">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Ready to Partner?</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Start Growing with FlashBites</h3>
                   <p className="text-gray-600 mb-4">
-                    Already have an account? Login and create your restaurant profile from the dashboard.
+                    Take your restaurant online and start reaching more customers with FlashBites. Partner with us today
+                    and grow your food business faster.
                   </p>
+                  <div className="mb-4 rounded-lg border border-primary-200 bg-white p-3 text-sm">
+                    <p className="font-semibold text-gray-900">Need Help with Restaurant Registration?</p>
+                    <p className="text-gray-600 mt-1">Our onboarding support team can assist with documents, menu setup, and compliance.</p>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                      <a href="tel:+917068247779" className="px-3 py-1.5 rounded-full bg-primary-50 text-primary-700 border border-primary-200">Call: +91 7068247779</a>
+                      <a href="mailto:info.flashbites@gmail.com?subject=Restaurant%20Onboarding%20Support" className="px-3 py-1.5 rounded-full bg-primary-50 text-primary-700 border border-primary-200">Email: info.flashbites@gmail.com</a>
+                      <a href="https://wa.me/917068247779?text=Hi%20FlashBites%20team%2C%20I%20need%20help%20with%20restaurant%20onboarding." target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-200">WhatsApp Support</a>
+                    </div>
+                  </div>
                   <div className="flex flex-wrap gap-4">
                     <button
-                      onClick={() => navigate('/register')}
+                      onClick={() => navigate('/accounts/restaurant/register')}
                       className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold"
                     >
-                      Register as Restaurant Owner
+                      Register Your Restaurant
                     </button>
                     <button
-                      onClick={() => navigate('/login')}
+                      onClick={() => setActiveSection('contact')}
                       className="bg-white text-primary-600 border-2 border-primary-600 px-6 py-3 rounded-lg hover:bg-primary-50 transition-colors font-semibold"
                     >
-                      Login to Dashboard
+                      Talk to Onboarding Team
                     </button>
                   </div>
                 </div>
-              </div>
+              </div> 
             </div>
           </div>
         )}
 
         {/* Delivery Partner Section */}
         {activeSection === 'delivery' && (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <button
               onClick={() => setActiveSection('overview')}
               className="flex items-center text-primary-600 hover:text-primary-700 mb-6"
@@ -484,12 +588,12 @@ const Partner = () => {
             </div>
 
             {/* Benefits Section */}
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+            <div className="bg-white rounded-lg shadow-sm p-5 sm:p-6 mb-8">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Why Join Us?</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center">
                   <div className="text-primary-600 font-bold text-2xl mb-1">₹15,000 - ₹30,000</div>
-                  <div className="text-sm text-gray-600">Monthly Earnings</div>
+                  <div className="text-sm text-gray-600">Monthly Earnings (Flexible)</div>
                 </div>
                 <div className="text-center">
                   <div className="text-primary-600 font-bold text-2xl mb-1">Flexible</div>
@@ -500,10 +604,19 @@ const Partner = () => {
                   <div className="text-sm text-gray-600">Payment Cycle</div>
                 </div>
               </div>
+              <div className="mt-5 rounded-lg border border-primary-200 bg-primary-50 p-4">
+                <p className="font-semibold text-gray-900">Need Help with Delivery Partner Registration?</p>
+                <p className="text-sm text-gray-700 mt-1">Our onboarding support team can help with documents, profile completion, and application steps.</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <a href="tel:+917068247779" className="px-3 py-1.5 rounded-full bg-white text-primary-700 border border-primary-200">Call: +91 7068247779</a>
+                  <a href="mailto:info.flashbites@gmail.com?subject=Delivery%20Partner%20Onboarding%20Support" className="px-3 py-1.5 rounded-full bg-white text-primary-700 border border-primary-200">Email: info.flashbites@gmail.com</a>
+                  <a href="https://wa.me/917068247779?text=Hi%20FlashBites%20team%2C%20I%20need%20help%20with%20delivery%20partner%20onboarding." target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-200">WhatsApp Support</a>
+                </div>
+              </div>
             </div>
 
             {/* Application Form */}
-            <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-6 space-y-8">
+            <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-5 sm:p-6 space-y-8">
           {/* Personal Information */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -582,7 +695,6 @@ const Partner = () => {
                   name="alternatePhone"
                   value={formData.alternatePhone}
                   onChange={handleChange}
-                  required
                   pattern="[0-9]{10}"
                   maxLength="10"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -905,7 +1017,6 @@ const Partner = () => {
                           accept="image/jpeg,image/jpg,image/png"
                           onChange={(e) => handleFileChange(e, 'photo')}
                           className="hidden"
-                          required
                         />
                       </label>
                     </>
@@ -945,7 +1056,6 @@ const Partner = () => {
                           accept="image/jpeg,image/jpg,image/png,application/pdf"
                           onChange={(e) => handleFileChange(e, 'drivingLicense')}
                           className="hidden"
-                          required
                         />
                       </label>
                     </>
@@ -985,7 +1095,6 @@ const Partner = () => {
                           accept="image/jpeg,image/jpg,image/png,application/pdf"
                           onChange={(e) => handleFileChange(e, 'aadharCard')}
                           className="hidden"
-                          required
                         />
                       </label>
                     </>
@@ -1018,7 +1127,7 @@ const Partner = () => {
 
         {/* Career & Contact Sections */}
         {activeSection === 'career' && (
-          <div className="max-w-4xl mx-auto mt-8">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
             <button
               onClick={() => setActiveSection('overview')}
               className="flex items-center text-primary-600 hover:text-primary-700 mb-6"
@@ -1204,7 +1313,7 @@ const Partner = () => {
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1">Email</h3>
                     <div className="space-y-1">
-                      <div>
+                      {/* <div>
                         <span className="text-sm text-gray-600">Restaurant Partnership: </span>
                         <a href="mailto:restaurants@flashbites.com" className="text-primary-600 hover:text-primary-700">
                           restaurants@flashbites.com
@@ -1221,11 +1330,11 @@ const Partner = () => {
                         <a href="mailto:careers@flashbites.com" className="text-primary-600 hover:text-primary-700">
                           careers@flashbites.com
                         </a>
-                      </div>
+                      </div> */}
                       <div>
                         <span className="text-sm text-gray-600">General: </span>
-                        <a href="mailto:flashbites@gmail.com" className="text-primary-600 hover:text-primary-700">
-                          flashbites@gmail.com
+                        <a href="mailto:info.flashbites@gmail.com" className="text-primary-600 hover:text-primary-700">
+                          info.flashbites@gmail.com
                         </a>
                       </div>
                     </div>
@@ -1239,7 +1348,7 @@ const Partner = () => {
                     <p className="text-gray-600">
                       FlashBites Headquarters<br />
                       Sitapur, Uttar Pradesh, India<br />
-                      PIN: 261001
+                      PIN: 261303
                     </p>
                   </div>
                 </div>

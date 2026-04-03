@@ -9,9 +9,13 @@ const Address = require('../models/Address');
 const Notification = require('../models/Notification');
 const AccountDeletionRequest = require('../models/AccountDeletionRequest');
 const PlatformSettings = require('../models/PlatformSettings');
+const FeeTemplate = require('../models/FeeTemplate');
 const { notifyCouponAvailable, notifyUser } = require('../utils/notificationService');
+const { sendRestaurantLoginInvite } = require('../utils/emailService');
+const { sendDirectSms } = require('../utils/notificationService');
 const { normalizeDeliveryZone } = require('../utils/deliveryGeo');
 const { cacheGet, cacheSet, cacheDelByPrefix } = require('../utils/memoryCache');
+const crypto = require('crypto');
 
 const ADMIN_CACHE_PREFIX = 'admin:';
 const ANALYTICS_CACHE_TTL_MS = 30000;
@@ -31,6 +35,35 @@ const normalizeDeliveryPartnerPayout = (payload = {}) => {
     bonusAmount: Number.isFinite(bonusAmount) && bonusAmount >= 0 ? bonusAmount : 850
   };
 };
+
+const normalizeTemplateTaxRate = (rawValue) => {
+  const rate = Number(rawValue);
+  if (!Number.isFinite(rate)) return 0.05;
+  if (rate < 0) return 0;
+  if (rate > 1) return Math.min(1, rate / 100);
+  return rate;
+};
+
+const normalizeTemplateCommissionPercent = (rawValue) => {
+  const percent = Number(rawValue);
+  if (!Number.isFinite(percent)) return 25;
+  if (percent < 0) return 0;
+  if (percent <= 1) return Math.min(90, percent * 100);
+  return Math.min(90, percent);
+};
+
+const normalizeBillingVisibility = (visibility = {}) => ({
+  customer: {
+    deliveryFee: visibility.customer?.deliveryFee !== false,
+    platformFee: visibility.customer?.platformFee !== false,
+    tax: visibility.customer?.tax !== false
+  },
+  restaurant: {
+    deliveryFee: visibility.restaurant?.deliveryFee !== false,
+    platformFee: visibility.restaurant?.platformFee !== false,
+    tax: visibility.restaurant?.tax !== false
+  }
+});
 
 const normalizeSettingsPayload = (payload = {}) => {
   const commissionPercent = Number(payload.commissionPercent);
@@ -68,6 +101,21 @@ const normalizeSettingsPayload = (payload = {}) => {
     ? normalizeDeliveryPartnerPayout(payload.deliveryPartnerPayout)
     : null;
 
+  const feeVisibility = payload.feeVisibility && typeof payload.feeVisibility === 'object'
+    ? {
+        customer: {
+          deliveryFee: payload.feeVisibility.customer?.deliveryFee !== false,
+          platformFee: payload.feeVisibility.customer?.platformFee !== false,
+          tax: payload.feeVisibility.customer?.tax !== false
+        },
+        restaurant: {
+          deliveryFee: payload.feeVisibility.restaurant?.deliveryFee !== false,
+          platformFee: payload.feeVisibility.restaurant?.platformFee !== false,
+          tax: payload.feeVisibility.restaurant?.tax !== false
+        }
+      }
+    : undefined;
+
   return {
     commissionPercent: Number.isFinite(commissionPercent)
       ? Math.min(90, Math.max(0, commissionPercent))
@@ -82,7 +130,8 @@ const normalizeSettingsPayload = (payload = {}) => {
       : undefined,
     deliveryChargeRules: deliveryChargeRules && deliveryChargeRules.length > 0 ? deliveryChargeRules : undefined,
     promoBanners: promoBanners ? promoBanners : undefined,
-    deliveryPartnerPayout: deliveryPartnerPayout || undefined
+    deliveryPartnerPayout: deliveryPartnerPayout || undefined,
+    feeVisibility
   };
 };
 
@@ -592,6 +641,93 @@ exports.getAllRestaurants = async (req, res) => {
   }
 };
 
+// @desc    Get onboarding detail for one restaurant
+// @route   GET /api/admin/restaurants/:id/onboarding
+// @access  Private (Admin)
+exports.getRestaurantOnboardingDetail = async (req, res) => {
+  try {
+    const restaurant = await Restaurant.findById(req.params.id)
+      .populate('ownerId', 'name email phone approvalStatus isApproved')
+      .populate('onboardingMeta.latestGeneratedCredentials.generatedBy', 'name email')
+      .lean();
+
+    if (!restaurant) {
+      return errorResponse(res, 404, 'Restaurant not found');
+    }
+
+    return successResponse(res, 200, 'Restaurant onboarding details fetched', { restaurant });
+  } catch (error) {
+    return errorResponse(res, 500, 'Failed to fetch restaurant onboarding details', error.message);
+  }
+};
+
+// @desc    Regenerate temporary login credentials and send invite
+// @route   POST /api/admin/restaurants/:id/regenerate-login
+// @access  Private (Admin)
+exports.regenerateRestaurantLoginCredentials = async (req, res) => {
+  try {
+    const restaurant = await Restaurant.findById(req.params.id).populate('ownerId', 'name email phone');
+    if (!restaurant) {
+      return errorResponse(res, 404, 'Restaurant not found');
+    }
+
+    const owner = await User.findById(restaurant.ownerId?._id).select('+password');
+    if (!owner) {
+      return errorResponse(res, 404, 'Restaurant owner account not found');
+    }
+
+    const random = crypto.randomBytes(6).toString('hex').slice(0, 6);
+    // Always satisfy password validator: lowercase + uppercase + special + min length
+    const tempPassword = `fb${random}A!`;
+
+    owner.password = tempPassword;
+    owner.isActive = true;
+    await owner.save();
+
+    const username = owner.email || owner.phone;
+    if (!restaurant.onboardingMeta) {
+      restaurant.onboardingMeta = {};
+    }
+    restaurant.onboardingMeta.onboardingStatus = 'verified';
+    restaurant.onboardingMeta.latestGeneratedCredentials = {
+      username,
+      tempPassword,
+      generatedAt: new Date(),
+      generatedBy: req.user._id
+    };
+    await restaurant.save();
+
+    const emailSent = owner.email
+      ? await sendRestaurantLoginInvite({
+          email: owner.email,
+          ownerName: owner.name,
+          restaurantName: restaurant.name,
+          loginPortal: restaurant.onboardingMeta?.loginPortal || '/accounts/restaurant/login',
+          username,
+          tempPassword,
+          loginReferenceId: restaurant.onboardingMeta?.loginReferenceId || ''
+        })
+      : false;
+
+    const smsBody = `FlashBites: Temp login for ${restaurant.name}. Portal: ${restaurant.onboardingMeta?.loginPortal || '/accounts/restaurant/login'} Username: ${username} Password: ${tempPassword} Ref: ${restaurant.onboardingMeta?.loginReferenceId || 'N/A'}`;
+    const smsSent = owner.phone ? await sendDirectSms(owner.phone, smsBody) : false;
+
+    return successResponse(res, 200, 'Temporary login credentials generated', {
+      restaurantId: restaurant._id,
+      ownerId: owner._id,
+      username,
+      tempPassword,
+      loginPortal: restaurant.onboardingMeta?.loginPortal || '/accounts/restaurant/login',
+      loginReferenceId: restaurant.onboardingMeta?.loginReferenceId || '',
+      emailSent,
+      smsSent
+    });
+  } catch (error) {
+    console.error('regenerateRestaurantLoginCredentials error:', error);
+    return errorResponse(res, 500, 'Failed to regenerate login credentials', error.message);
+  }
+};
+
 // @desc    Approve/reject restaurant
 // @route   PATCH /api/admin/restaurants/:id/approve
 // @access  Private (Admin)
@@ -608,6 +744,14 @@ exports.approveRestaurant = async (req, res) => {
     if (!restaurant) {
       return errorResponse(res, 404, 'Restaurant not found');
     }
+
+    await User.findByIdAndUpdate(restaurant.ownerId, {
+      isApproved: Boolean(isApproved),
+      approvalStatus: isApproved ? 'approved' : 'pending',
+      approvalNote: '',
+      approvalReviewedAt: new Date(),
+      approvalReviewedBy: req.user._id
+    });
 
     invalidateAdminCache();
     successResponse(res, 200, `Restaurant ${isApproved ? 'approved' : 'rejected'}`, { restaurant });
@@ -677,6 +821,52 @@ exports.updateUserRole = async (req, res) => {
     successResponse(res, 200, 'User role updated successfully', { user: targetUser });
   } catch (error) {
     errorResponse(res, 500, 'Failed to update user role', error.message);
+  }
+};
+
+// @desc    Approve/reject business user account
+// @route   PATCH /api/admin/users/:id/approval
+// @access  Private (Admin)
+exports.updateUserApproval = async (req, res) => {
+  try {
+    const { isApproved, status, reason } = req.body;
+
+    const resolvedStatus = status || (isApproved === true ? 'approved' : isApproved === false ? 'pending' : null);
+    const validStatuses = ['approved', 'pending', 'rejected'];
+
+    if (!validStatuses.includes(resolvedStatus)) {
+      return errorResponse(res, 400, 'status must be one of approved, pending, or rejected');
+    }
+
+    if (resolvedStatus === 'rejected' && !String(reason || '').trim()) {
+      return errorResponse(res, 400, 'Rejection reason is required');
+    }
+
+    const user = await User.findById(req.params.id).select('-password -refreshToken');
+
+    if (!user) {
+      return errorResponse(res, 404, 'User not found');
+    }
+
+    if (!['restaurant_owner', 'delivery_partner'].includes(user.role)) {
+      return errorResponse(res, 400, 'Only business accounts can be approved or rejected');
+    }
+
+    user.approvalStatus = resolvedStatus;
+    user.isApproved = resolvedStatus === 'approved';
+    user.approvalNote = resolvedStatus === 'approved' ? '' : String(reason || '').trim();
+    user.approvalReviewedAt = new Date();
+    user.approvalReviewedBy = req.user._id;
+    await user.save();
+
+    if (user.role === 'restaurant_owner') {
+      await Restaurant.updateMany({ ownerId: user._id }, { isApproved: resolvedStatus === 'approved' });
+    }
+
+    invalidateAdminCache();
+    successResponse(res, 200, `Business account marked as ${resolvedStatus}`, { user });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to update approval status', error.message);
   }
 };
 
@@ -1290,27 +1480,99 @@ exports.saveRestaurantDeliveryZone = async (req, res) => {
 // @access  Private (Admin)
 exports.updateRestaurantPayoutRate = async (req, res) => {
   try {
-    const { payoutRateOverride, resetToGlobal } = req.body || {};
+    const {
+      payoutRateOverride,
+      deliveryFeeOverride,
+      platformFeeOverride,
+      taxRateOverride,
+      commissionPercentOverride,
+      feeVisibilityOverride,
+      resetToGlobal
+    } = req.body || {};
 
-    const shouldReset = Boolean(resetToGlobal)
-      || payoutRateOverride === null
-      || payoutRateOverride === '';
+    const hasPayoutOverride = payoutRateOverride !== undefined && payoutRateOverride !== null && String(payoutRateOverride).trim() !== '';
+    const hasFeeOverride = [deliveryFeeOverride, platformFeeOverride, taxRateOverride, commissionPercentOverride]
+      .some((value) => value !== undefined && value !== null && String(value).trim() !== '');
+    const hasVisibilityOverride = feeVisibilityOverride && typeof feeVisibilityOverride === 'object'
+      && ['customer', 'restaurant'].some((scope) => {
+        const scopeValue = feeVisibilityOverride[scope];
+        return scopeValue && ['deliveryFee', 'platformFee', 'tax'].some((field) => Object.prototype.hasOwnProperty.call(scopeValue, field));
+      });
 
-    let nextOverride = null;
-    if (!shouldReset) {
+    const restaurantDoc = await Restaurant.findById(req.params.id).select('payoutRateOverride feeOverrides feeVisibilityOverrides');
+    if (!restaurantDoc) {
+      return errorResponse(res, 404, 'Restaurant not found');
+    }
+
+    let nextOverride = restaurantDoc.payoutRateOverride ?? null;
+    if (hasPayoutOverride) {
       const parsedRate = Number(payoutRateOverride);
       if (!Number.isFinite(parsedRate)) {
         return errorResponse(res, 400, 'payoutRateOverride must be a valid number between 0 and 1');
       }
       nextOverride = Math.min(1, Math.max(0, parsedRate));
+    } else if (Boolean(resetToGlobal) && !hasFeeOverride) {
+      nextOverride = null;
     }
+
+    const nextFeeOverrides = {
+      deliveryFee: deliveryFeeOverride === undefined || deliveryFeeOverride === null || deliveryFeeOverride === ''
+        ? restaurantDoc.feeOverrides?.deliveryFee ?? null
+        : Number(deliveryFeeOverride),
+      platformFee: platformFeeOverride === undefined || platformFeeOverride === null || platformFeeOverride === ''
+        ? restaurantDoc.feeOverrides?.platformFee ?? null
+        : Number(platformFeeOverride),
+      taxRate: taxRateOverride === undefined || taxRateOverride === null || taxRateOverride === ''
+        ? restaurantDoc.feeOverrides?.taxRate ?? null
+        : Number(taxRateOverride),
+      commissionPercent: commissionPercentOverride === undefined || commissionPercentOverride === null || commissionPercentOverride === ''
+        ? restaurantDoc.feeOverrides?.commissionPercent ?? null
+        : Number(commissionPercentOverride)
+    };
+
+    let nextFeeVisibilityOverrides = restaurantDoc.feeVisibilityOverrides ?? null;
+    if (hasVisibilityOverride) {
+      nextFeeVisibilityOverrides = normalizeBillingVisibility({
+        customer: {
+          ...(restaurantDoc.feeVisibilityOverrides?.customer || {}),
+          ...(feeVisibilityOverride.customer || {})
+        },
+        restaurant: {
+          ...(restaurantDoc.feeVisibilityOverrides?.restaurant || {}),
+          ...(feeVisibilityOverride.restaurant || {})
+        }
+      });
+    }
+
+    const shouldClearAll = Boolean(resetToGlobal) && !hasPayoutOverride && !hasFeeOverride && !hasVisibilityOverride;
+    if (shouldClearAll) {
+      nextOverride = null;
+      nextFeeOverrides.deliveryFee = null;
+      nextFeeOverrides.platformFee = null;
+      nextFeeOverrides.taxRate = null;
+      nextFeeOverrides.commissionPercent = null;
+      nextFeeVisibilityOverrides = null;
+    }
+
+    const feeOverrides = {
+      deliveryFee: Number.isFinite(Number(nextFeeOverrides.deliveryFee)) && Number(nextFeeOverrides.deliveryFee) >= 0 ? Number(nextFeeOverrides.deliveryFee) : null,
+      platformFee: Number.isFinite(Number(nextFeeOverrides.platformFee)) && Number(nextFeeOverrides.platformFee) >= 0 ? Number(nextFeeOverrides.platformFee) : null,
+      taxRate: Number.isFinite(Number(nextFeeOverrides.taxRate)) && Number(nextFeeOverrides.taxRate) >= 0 && Number(nextFeeOverrides.taxRate) <= 1 ? Number(nextFeeOverrides.taxRate) : null,
+      commissionPercent: Number.isFinite(Number(nextFeeOverrides.commissionPercent)) && Number(nextFeeOverrides.commissionPercent) >= 0 && Number(nextFeeOverrides.commissionPercent) <= 90 ? Number(nextFeeOverrides.commissionPercent) : null
+    };
 
     const restaurant = await Restaurant.findByIdAndUpdate(
       req.params.id,
-      { $set: { payoutRateOverride: nextOverride } },
+      {
+        $set: {
+          payoutRateOverride: nextOverride,
+          feeOverrides: feeOverrides,
+          feeVisibilityOverrides: nextFeeVisibilityOverrides
+        }
+      },
       { new: true, runValidators: true }
     )
-      .select('name payoutRateOverride')
+      .select('name payoutRateOverride feeOverrides feeVisibilityOverrides')
       .lean();
 
     if (!restaurant) {
@@ -1321,7 +1583,7 @@ exports.updateRestaurantPayoutRate = async (req, res) => {
     return successResponse(
       res,
       200,
-      shouldReset ? 'Restaurant payout reset to global' : 'Restaurant payout override updated',
+      shouldClearAll ? 'Restaurant payout and billing settings reset to global' : 'Restaurant payout and billing settings updated',
       {
         restaurant
       }
@@ -1398,5 +1660,189 @@ exports.getDeliveryTrackingDashboard = async (req, res) => {
     return successResponse(res, 200, 'Delivery tracking dashboard fetched successfully', payload);
   } catch (error) {
     return errorResponse(res, 500, 'Failed to fetch delivery tracking dashboard', error.message);
+  }
+};
+
+// @desc    Get all fee templates
+// @route   GET /api/admin/fee-templates
+// @access  Private (Admin)
+exports.getAllFeeTemplates = async (req, res) => {
+  try {
+    const templates = await FeeTemplate.find()
+      .populate('createdBy', 'name email')
+      .populate('restaurantIds', 'name')
+      .sort('-createdAt');
+
+    successResponse(res, 200, 'Fee templates retrieved successfully', { templates });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to get fee templates', error.message);
+  }
+};
+
+// @desc    Create fee template
+// @route   POST /api/admin/fee-templates
+// @access  Private (Admin)
+exports.createFeeTemplate = async (req, res) => {
+  try {
+    const { name, description, deliveryFee, platformFee, taxRate, commissionPercent } = req.body;
+
+    if (!name || !String(name).trim()) {
+      return errorResponse(res, 400, 'Template name is required');
+    }
+
+    const existing = await FeeTemplate.findOne({ name: name.trim().toLowerCase() });
+    if (existing) {
+      return errorResponse(res, 400, 'Template with this name already exists');
+    }
+
+    const template = await FeeTemplate.create({
+      name: name.trim(),
+      description: description ? String(description).trim() : '',
+      deliveryFee: Number.isFinite(Number(deliveryFee)) ? Number(deliveryFee) : 0,
+      platformFee: Number.isFinite(Number(platformFee)) ? Number(platformFee) : 0,
+      taxRate: normalizeTemplateTaxRate(taxRate),
+      commissionPercent: normalizeTemplateCommissionPercent(commissionPercent),
+      createdBy: req.user._id
+    });
+
+    invalidateAdminCache();
+    successResponse(res, 201, 'Fee template created successfully', { template });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to create fee template', error.message);
+  }
+};
+
+// @desc    Update fee template
+// @route   PUT /api/admin/fee-templates/:id
+// @access  Private (Admin)
+exports.updateFeeTemplate = async (req, res) => {
+  try {
+    const { name, description, deliveryFee, platformFee, taxRate, commissionPercent, isActive } = req.body;
+
+    const template = await FeeTemplate.findById(req.params.id);
+    if (!template) {
+      return errorResponse(res, 404, 'Fee template not found');
+    }
+
+    if (name && String(name).trim() && name.trim() !== template.name) {
+      const existing = await FeeTemplate.findOne({ name: name.trim().toLowerCase(), _id: { $ne: req.params.id } });
+      if (existing) {
+        return errorResponse(res, 400, 'Another template with this name already exists');
+      }
+      template.name = name.trim();
+    }
+
+    if (description !== undefined) template.description = String(description || '').trim();
+    if (Number.isFinite(Number(deliveryFee))) template.deliveryFee = Number(deliveryFee);
+    if (Number.isFinite(Number(platformFee))) template.platformFee = Number(platformFee);
+    if (taxRate !== undefined) template.taxRate = normalizeTemplateTaxRate(taxRate);
+    if (commissionPercent !== undefined) template.commissionPercent = normalizeTemplateCommissionPercent(commissionPercent);
+    if (isActive !== undefined) template.isActive = Boolean(isActive);
+
+    await template.save();
+
+    invalidateAdminCache();
+    successResponse(res, 200, 'Fee template updated successfully', { template });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to update fee template', error.message);
+  }
+};
+
+// @desc    Delete fee template
+// @route   DELETE /api/admin/fee-templates/:id
+// @access  Private (Admin)
+exports.deleteFeeTemplate = async (req, res) => {
+  try {
+    const template = await FeeTemplate.findByIdAndDelete(req.params.id);
+
+    if (!template) {
+      return errorResponse(res, 404, 'Fee template not found');
+    }
+
+    // Remove template from all restaurants using it
+    if (template.restaurantIds && template.restaurantIds.length > 0) {
+      await Restaurant.updateMany(
+        { _id: { $in: template.restaurantIds } },
+        { $unset: { feeTemplateId: 1 } }
+      );
+    }
+
+    invalidateAdminCache();
+    successResponse(res, 200, 'Fee template deleted successfully');
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to delete fee template', error.message);
+  }
+};
+
+// @desc    Assign restaurant to fee template
+// @route   PUT /api/admin/fee-templates/:id/assign-restaurant
+// @access  Private (Admin)
+exports.assignRestaurantToTemplate = async (req, res) => {
+  try {
+    const { restaurantId } = req.body;
+
+    if (!restaurantId) {
+      return errorResponse(res, 400, 'restaurantId is required');
+    }
+
+    const template = await FeeTemplate.findById(req.params.id);
+    if (!template) {
+      return errorResponse(res, 404, 'Fee template not found');
+    }
+
+    const restaurant = await Restaurant.findById(restaurantId);
+    if (!restaurant) {
+      return errorResponse(res, 404, 'Restaurant not found');
+    }
+
+    // Remove restaurant from other templates
+    await FeeTemplate.updateMany(
+      { _id: { $ne: req.params.id } },
+      { $pull: { restaurantIds: restaurantId } }
+    );
+
+    // Add to this template if not already there
+    if (!template.restaurantIds.includes(restaurantId)) {
+      template.restaurantIds.push(restaurantId);
+      await template.save();
+    }
+
+    // Update restaurant with template reference
+    await Restaurant.findByIdAndUpdate(restaurantId, { feeTemplateId: req.params.id });
+
+    invalidateAdminCache();
+    successResponse(res, 200, 'Restaurant assigned to template successfully', { template });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to assign restaurant to template', error.message);
+  }
+};
+
+// @desc    Remove restaurant from fee template
+// @route   PUT /api/admin/fee-templates/:id/remove-restaurant
+// @access  Private (Admin)
+exports.removeRestaurantFromTemplate = async (req, res) => {
+  try {
+    const { restaurantId } = req.body;
+
+    if (!restaurantId) {
+      return errorResponse(res, 400, 'restaurantId is required');
+    }
+
+    const template = await FeeTemplate.findByIdAndUpdate(
+      req.params.id,
+      { $pull: { restaurantIds: restaurantId } },
+      { new: true }
+    );
+
+    if (!template) {
+      return errorResponse(res, 404, 'Fee template not found');
+    }
+
+    await Restaurant.findByIdAndUpdate(restaurantId, { $unset: { feeTemplateId: 1 } });
+
+    invalidateAdminCache();
+    successResponse(res, 200, 'Restaurant removed from template successfully', { template });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to remove restaurant from template', error.message);
   }
 };

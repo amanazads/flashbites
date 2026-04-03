@@ -126,6 +126,114 @@ const restaurantSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  panNumber: {
+    type: String,
+    trim: true,
+    uppercase: true,
+    default: ''
+  },
+  gstNumber: {
+    type: String,
+    trim: true,
+    uppercase: true,
+    default: ''
+  },
+  onboardingDocuments: {
+    panCard: {
+      url: String,
+      cloudinaryId: String,
+      fileName: String,
+      mimeType: String
+    },
+    fssaiDocument: {
+      url: String,
+      cloudinaryId: String,
+      fileName: String,
+      mimeType: String
+    },
+    menuDocument: {
+      url: String,
+      cloudinaryId: String,
+      fileName: String,
+      mimeType: String
+    },
+    menuImage: {
+      url: String,
+      cloudinaryId: String,
+      fileName: String,
+      mimeType: String
+    },
+    profileFoodImage: {
+      url: String,
+      cloudinaryId: String,
+      fileName: String,
+      mimeType: String
+    }
+  },
+  onboardingMeta: {
+    menuDetailsText: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    hasGst: {
+      type: Boolean,
+      default: false
+    },
+    partnerContract: {
+      accepted: {
+        type: Boolean,
+        default: false
+      },
+      signerName: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      acceptedAt: {
+        type: Date,
+        default: null
+      },
+      contractVersion: {
+        type: String,
+        default: 'v1'
+      }
+    },
+    onboardingStatus: {
+      type: String,
+      enum: ['pending_documents', 'under_review', 'verified'],
+      default: 'pending_documents'
+    },
+    loginReferenceId: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    latestGeneratedCredentials: {
+      username: {
+        type: String,
+        trim: true,
+        default: ''
+      },
+      tempPassword: {
+        type: String,
+        default: ''
+      },
+      generatedAt: {
+        type: Date,
+        default: null
+      },
+      generatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+      }
+    },
+    loginPortal: {
+      type: String,
+      default: '/accounts/restaurant/login'
+    }
+  },
   documents: {
     fssai: String,
     gst: String,
@@ -141,6 +249,47 @@ const restaurantSchema = new mongoose.Schema({
     type: Number,
     min: 0,
     max: 1,
+    default: null
+  },
+  feeOverrides: {
+    deliveryFee: {
+      type: Number,
+      min: 0,
+      default: null
+    },
+    platformFee: {
+      type: Number,
+      min: 0,
+      default: null
+    },
+    taxRate: {
+      type: Number,
+      min: 0,
+      max: 1,
+      default: null
+    },
+    commissionPercent: {
+      type: Number,
+      min: 0,
+      max: 90,
+      default: null
+    }
+  },
+  feeVisibilityOverrides: {
+    customer: {
+      deliveryFee: { type: Boolean, default: true },
+      platformFee: { type: Boolean, default: true },
+      tax: { type: Boolean, default: true }
+    },
+    restaurant: {
+      deliveryFee: { type: Boolean, default: true },
+      platformFee: { type: Boolean, default: true },
+      tax: { type: Boolean, default: true }
+    }
+  },
+  feeTemplateId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'FeeTemplate',
     default: null
   }
 }, { 

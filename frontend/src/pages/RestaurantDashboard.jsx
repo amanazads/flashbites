@@ -1300,6 +1300,12 @@ const RestaurantDashboard = () => {
                             <p className="text-sm text-gray-600 mt-1">
                               Customer: {order.userId?.name || 'N/A'}
                             </p>
+                            <button
+                              onClick={() => navigate(`/orders/${order._id}`)}
+                              className="mt-3 inline-flex items-center rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-xs font-semibold text-primary-700 hover:bg-primary-100"
+                            >
+                              View Invoice
+                            </button>
                           </div>
                           <div className="text-right">
                             <p className="text-2xl font-bold text-primary-600">

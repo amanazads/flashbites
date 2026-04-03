@@ -3,6 +3,8 @@ const router = express.Router();
 const passport = require('../config/passport');
 const { 
   register, 
+  registerRestaurant,
+  registerDeliveryPartner,
   login, 
   logout, 
   refreshToken, 
@@ -14,10 +16,14 @@ const {
   // googleAuth // Commented out - not using Google OAuth for now
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
+const upload = require('../middleware/upload');
 const validateRequest = require('../middleware/validateRequest');
 const {
   registerValidator,
+  registerRestaurantValidator,
+  registerDeliveryValidator,
   loginValidator,
+  businessLoginValidator,
   refreshTokenValidator,
   updatePasswordValidator,
   resetPasswordValidator,
@@ -29,7 +35,22 @@ router.post('/verify-otp', verifyOTP);
 
 // Auth routes
 router.post('/register', registerValidator, validateRequest, register);
+router.post(
+  '/register-restaurant',
+  upload.fields([
+    { name: 'panCard', maxCount: 1 },
+    { name: 'fssaiDocument', maxCount: 1 },
+    { name: 'menuDocument', maxCount: 1 },
+    { name: 'menuImage', maxCount: 1 },
+    { name: 'profileFoodImage', maxCount: 1 }
+  ]),
+  registerRestaurantValidator,
+  validateRequest,
+  registerRestaurant
+);
+router.post('/register-delivery', registerDeliveryValidator, validateRequest, registerDeliveryPartner);
 router.post('/login', loginValidator, validateRequest, login);
+router.post('/business-login', businessLoginValidator, validateRequest, login);
 router.post('/logout', protect, logout);
 router.post('/refresh', refreshTokenValidator, validateRequest, refreshToken);
 router.get('/me', protect, getMe);

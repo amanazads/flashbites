@@ -232,9 +232,31 @@ const normalizeCommissionPercent = (rawPercent) => {
   const percent = Number(rawPercent);
   if (!Number.isFinite(percent)) return 25;
   if (percent < 0) return 0;
+  if (percent <= 1) return Math.min(90, percent * 100);
   if (percent > 90) return 90;
   return percent;
 };
+
+const normalizeTaxRate = (rawRate) => {
+  const rate = Number(rawRate);
+  if (!Number.isFinite(rate)) return 0.05;
+  if (rate < 0) return 0;
+  if (rate > 1) return Math.min(1, rate / 100);
+  return rate;
+};
+
+const mergeFeeVisibility = (baseVisibility, overrides) => ({
+  customer: {
+    deliveryFee: overrides?.customer?.deliveryFee ?? baseVisibility?.customer?.deliveryFee ?? true,
+    platformFee: overrides?.customer?.platformFee ?? baseVisibility?.customer?.platformFee ?? true,
+    tax: overrides?.customer?.tax ?? baseVisibility?.customer?.tax ?? true
+  },
+  restaurant: {
+    deliveryFee: overrides?.restaurant?.deliveryFee ?? baseVisibility?.restaurant?.deliveryFee ?? true,
+    platformFee: overrides?.restaurant?.platformFee ?? baseVisibility?.restaurant?.platformFee ?? true,
+    tax: overrides?.restaurant?.tax ?? baseVisibility?.restaurant?.tax ?? true
+  }
+});
 
 const calculateEarnings = (listedPrice, commissionPercent = 25) => {
   const safeListed = Number(listedPrice);
@@ -370,7 +392,7 @@ exports.createOrder = async (req, res) => {
 
     // Verify restaurant exists and is active
     const restaurant = await Restaurant.findById(restaurantId)
-      .select('name ownerId isActive isApproved acceptingOrders timing location deliveryTime deliveryRadiusKm address payoutRateOverride')
+      .select('name ownerId isActive isApproved acceptingOrders timing location deliveryTime deliveryRadiusKm address payoutRateOverride feeOverrides feeVisibilityOverrides feeTemplateId')
       .lean();
     
     if (!restaurant) {
@@ -399,12 +421,35 @@ exports.createOrder = async (req, res) => {
         platformFee: 25,
         taxRate: 0.05,
         restaurantPayoutRate: 0.75,
+        feeVisibility: {
+          customer: { deliveryFee: true, platformFee: true, tax: true },
+          restaurant: { deliveryFee: true, platformFee: true, tax: true }
+        },
         deliveryChargeRules: DEFAULT_DELIVERY_CHARGES,
         deliveryPartnerPayout: { perOrder: 40, bonusThreshold: 13, bonusAmount: 850 }
       };
     }
 
-    const commissionPercent = normalizeCommissionPercent(settings.commissionPercent);
+    // Load fee template if assigned to this restaurant
+    let feeTemplate = null;
+    if (restaurant.feeTemplateId) {
+      const FeeTemplate = require('../models/FeeTemplate');
+      try {
+        feeTemplate = await FeeTemplate.findById(restaurant.feeTemplateId).lean();
+      } catch (error) {
+        console.warn(`Failed to load fee template ${restaurant.feeTemplateId}:`, error);
+      }
+    }
+
+    const commissionPercent = normalizeCommissionPercent(
+      restaurant.payoutRateOverride != null
+        ? (1 - Number(restaurant.payoutRateOverride)) * 100
+        : feeTemplate?.commissionPercent ?? (restaurant.feeOverrides?.commissionPercent ?? settings.commissionPercent)
+    );
+    const deliveryFeeOverride = feeTemplate?.deliveryFee ?? restaurant.feeOverrides?.deliveryFee;
+    const platformFeeOverride = feeTemplate?.platformFee ?? restaurant.feeOverrides?.platformFee;
+    const taxRate = normalizeTaxRate(feeTemplate?.taxRate ?? restaurant.feeOverrides?.taxRate ?? settings.taxRate);
+    const feeVisibilitySnapshot = mergeFeeVisibility(settings.feeVisibility, restaurant.feeVisibilityOverrides);
 
     // Validate and calculate order totals
     let subtotal = 0;
@@ -642,15 +687,22 @@ exports.createOrder = async (req, res) => {
       }
     }
 
-    const configuredDeliveryFee = Number(settings.deliveryFee);
+    const configuredDeliveryFee = Number(
+      Number.isFinite(Number(deliveryFeeOverride)) && Number(deliveryFeeOverride) >= 0
+        ? deliveryFeeOverride
+        : settings.deliveryFee
+    );
     if (Number.isFinite(configuredDeliveryFee) && configuredDeliveryFee >= 0) {
       deliveryFee = configuredDeliveryFee;
     } else {
       deliveryFee = calculateDeliveryCharge(distance, settings.deliveryChargeRules);
     }
 
-    const platformFee = Number(settings.platformFee || 0);
-    const taxRate = Number(settings.taxRate || 0);
+    const platformFee = Number(
+      Number.isFinite(Number(platformFeeOverride)) && Number(platformFeeOverride) >= 0
+        ? platformFeeOverride
+        : settings.platformFee || 0
+    );
     const restaurantPayoutRate = roundToTwo((100 - commissionPercent) / 100);
     const initialDeliveryEarning = Number(settings?.deliveryPartnerPayout?.perOrder);
     const deliveryEarning = Number.isFinite(initialDeliveryEarning) && initialDeliveryEarning >= 0
@@ -703,6 +755,21 @@ exports.createOrder = async (req, res) => {
       platformFee,
       tax,
       discount,
+      feeVisibilitySnapshot,
+      feeOverrideSnapshot: {
+        deliveryFee: Number.isFinite(Number(deliveryFeeOverride)) ? Number(deliveryFeeOverride) : null,
+        platformFee: Number.isFinite(Number(platformFeeOverride)) ? Number(platformFeeOverride) : null,
+        taxRate: Number.isFinite(Number(taxRate)) ? Number(taxRate) : null,
+        commissionPercent: Number.isFinite(Number(restaurant.feeOverrides?.commissionPercent)) ? Number(restaurant.feeOverrides.commissionPercent) : null
+      },
+      feeTemplateSnapshot: feeTemplate ? {
+        templateId: feeTemplate._id,
+        templateName: feeTemplate.name,
+        deliveryFee: feeTemplate.deliveryFee,
+        platformFee: feeTemplate.platformFee,
+        taxRate: feeTemplate.taxRate,
+        commissionPercent: feeTemplate.commissionPercent
+      } : null,
       restaurantPayoutRateSnapshot: restaurantPayoutRate,
       restaurantEarning,
       platformProfit,
@@ -832,7 +899,7 @@ exports.getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
       .populate('userId', 'name phone email')
-      .populate('restaurantId', 'name phone address image')
+      .populate('restaurantId', 'name phone address image ownerId')
       .populate('addressId');
 
     if (!order) {
@@ -843,7 +910,7 @@ exports.getOrderById = async (req, res) => {
     if (
       order.userId._id.toString() !== req.user._id.toString() &&
       req.user.role !== 'admin' &&
-      req.user.role !== 'restaurant_owner'
+      !(req.user.role === 'restaurant_owner' && order.restaurantId?.ownerId?.toString() === req.user._id.toString())
     ) {
       return errorResponse(res, 403, 'Not authorized to view this order');
     }

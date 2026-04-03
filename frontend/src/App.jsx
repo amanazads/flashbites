@@ -27,6 +27,11 @@ import ScrollToTop from './components/common/ScrollToTop';
 const Home = React.lazy(() => import('./pages/Home'));
 const Login = React.lazy(() => import('./pages/Login'));
 const Register = React.lazy(() => import('./pages/Register'));
+const Accounts = React.lazy(() => import('./pages/Accounts'));
+const RestaurantLogin = React.lazy(() => import('./pages/RestaurantLogin'));
+const RestaurantRegister = React.lazy(() => import('./pages/RestaurantRegister'));
+const DeliveryLogin = React.lazy(() => import('./pages/DeliveryLogin'));
+const DeliveryRegister = React.lazy(() => import('./pages/DeliveryRegister'));
 const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
 const RestaurantPage = React.lazy(() => import('./pages/RestaurantPage'));
 const RestaurantDetail = React.lazy(() => import('./pages/RestaurantDetail'));
@@ -241,7 +246,7 @@ function App() {
 
   const AppShell = () => {
     const location = useLocation();
-    const authPaths = ['/login', '/register', '/forgot-password', '/auth/google/success'];
+    const authPaths = ['/login', '/register', '/forgot-password', '/auth/google/success', '/accounts'];
     const isAuthPage = authPaths.some((path) => location.pathname.startsWith(path));
     const isHomePage = location.pathname === '/';
 
@@ -255,6 +260,11 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/accounts" element={<Accounts />} />
+              <Route path="/accounts/restaurant/login" element={<RestaurantLogin />} />
+              <Route path="/accounts/restaurant/register" element={<RestaurantRegister />} />
+              <Route path="/accounts/delivery/login" element={<DeliveryLogin />} />
+              <Route path="/accounts/delivery/register" element={<DeliveryRegister />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
               <Route path="/restaurants" element={<RestaurantPage />} />
