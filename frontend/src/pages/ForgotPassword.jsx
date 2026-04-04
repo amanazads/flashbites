@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from '../api/axios';
+import { requestViaFetch, requestViaNativeHttp, shouldFallbackToNativeHttp } from '../api/nativeHttpFallback';
 import { sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../firebase';
 import { validatePassword, validatePhone } from '../utils/validators';
 import { BRAND } from '../constants/theme';
@@ -29,6 +30,17 @@ const isTooManyRequestsError = (error) => {
   const code = String(error?.code || '').toLowerCase();
   const message = String(error?.message || '').toLowerCase();
   return code.includes('too-many-requests') || message.includes('auth/too-many-requests');
+};
+
+const isBackendNetworkError = (error) => {
+  const code = String(error?.code || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+  return !error?.response && (
+    code.includes('err_network')
+    || code.includes('econnaborted')
+    || message.includes('network error')
+    || message.includes('timeout')
+  );
 };
 
 const ForgotPassword = () => {
@@ -101,17 +113,22 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      const precheck = await axios.get('/auth/phone-status', {
-        params: {
-          phone: formData.phone,
-          purpose: 'reset'
-        }
-      });
+      try {
+        const precheck = await axios.get('/auth/phone-status', {
+          params: {
+            phone: formData.phone,
+            purpose: 'reset'
+          }
+        });
 
-      const canSendOtp = Boolean(precheck?.data?.data?.canSendOtp);
-      if (!canSendOtp) {
-        toast.error(precheck?.data?.message || 'No account found with this phone number');
-        return;
+        const canSendOtp = Boolean(precheck?.data?.data?.canSendOtp);
+        if (!canSendOtp) {
+          toast.error(precheck?.data?.message || 'No account found with this phone number');
+          return;
+        }
+      } catch (precheckError) {
+        // Keep flow compatible with backend snapshots where /auth/phone-status may not exist.
+        // Continue with OTP send and let reset API validate account existence.
       }
 
       const phoneWithCode = `+91${formData.phone}`;
@@ -165,11 +182,36 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post('/auth/reset-password', {
+      const resetPayload = {
         phone: formData.phone,
         firebaseToken,
         newPassword: formData.newPassword
-      });
+      };
+
+      let response;
+      try {
+        response = await axios.post('/auth/reset-password', resetPayload);
+      } catch (resetError) {
+        if (!shouldFallbackToNativeHttp(resetError)) {
+          throw resetError;
+        }
+
+        try {
+          const data = await requestViaFetch({
+            method: 'POST',
+            path: '/auth/reset-password',
+            data: resetPayload,
+          });
+          response = { data };
+        } catch {
+          const data = await requestViaNativeHttp({
+            method: 'POST',
+            path: '/auth/reset-password',
+            data: resetPayload,
+          });
+          response = { data };
+        }
+      }
 
       toast.success(response.data.message || 'Password reset successful');
       setTimeout(() => navigate('/login'), 2000);
@@ -184,17 +226,22 @@ const ForgotPassword = () => {
     if (otpBlockRemaining > 0) return;
     setLoading(true);
     try {
-      const precheck = await axios.get('/auth/phone-status', {
-        params: {
-          phone: formData.phone,
-          purpose: 'reset'
-        }
-      });
+      try {
+        const precheck = await axios.get('/auth/phone-status', {
+          params: {
+            phone: formData.phone,
+            purpose: 'reset'
+          }
+        });
 
-      const canSendOtp = Boolean(precheck?.data?.data?.canSendOtp);
-      if (!canSendOtp) {
-        toast.error(precheck?.data?.message || 'No account found with this phone number');
-        return;
+        const canSendOtp = Boolean(precheck?.data?.data?.canSendOtp);
+        if (!canSendOtp) {
+          toast.error(precheck?.data?.message || 'No account found with this phone number');
+          return;
+        }
+      } catch (precheckError) {
+        // Keep flow compatible with backend snapshots where /auth/phone-status may not exist.
+        // Continue with OTP resend and rely on server validation in reset endpoint.
       }
 
       const phoneWithCode = `+91${formData.phone}`;

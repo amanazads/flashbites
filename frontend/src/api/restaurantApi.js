@@ -1,16 +1,55 @@
 import axios from './axios';
+import { requestViaFetch, requestViaNativeHttp, shouldFallbackToNativeHttp } from './nativeHttpFallback';
 
 // Get all restaurants
 export const getRestaurants = async (params = {}) => {
-  const response = await axios.get('/restaurants', { params });
-  return response.data;
+  try {
+    const response = await axios.get('/restaurants', { params });
+    return response.data;
+  } catch (error) {
+    if (shouldFallbackToNativeHttp(error)) {
+      try {
+        return await requestViaFetch({
+          method: 'GET',
+          path: '/restaurants',
+          params,
+        });
+      } catch {
+        return await requestViaNativeHttp({
+          method: 'GET',
+          path: '/restaurants',
+          params,
+        });
+      }
+    }
+    throw error;
+  }
 };
 
 export const getNearbyRestaurants = async (lat, lng, maxDistance = 10000, limit = 50, city, zipCode, state) => {
-  const response = await axios.get('/restaurants/nearby', {
-    params: { lat, lng, maxDistance, limit, city, zipCode, state }
-  });
-  return response.data;
+  const params = { lat, lng, maxDistance, limit, city, zipCode, state };
+
+  try {
+    const response = await axios.get('/restaurants/nearby', { params });
+    return response.data;
+  } catch (error) {
+    if (shouldFallbackToNativeHttp(error)) {
+      try {
+        return await requestViaFetch({
+          method: 'GET',
+          path: '/restaurants/nearby',
+          params,
+        });
+      } catch {
+        return await requestViaNativeHttp({
+          method: 'GET',
+          path: '/restaurants/nearby',
+          params,
+        });
+      }
+    }
+    throw error;
+  }
 };
 
 // Get restaurant by ID

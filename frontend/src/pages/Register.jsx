@@ -5,6 +5,7 @@ import { clearError, setAuthUser } from '../redux/slices/authSlice';
 import toast from 'react-hot-toast';
 import { validateEmail, validatePhone, validatePassword } from '../utils/validators';
 import axios from '../api/axios';
+import { requestViaFetch, requestViaNativeHttp, shouldFallbackToNativeHttp } from '../api/nativeHttpFallback';
 import { sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../firebase';
 import logo from '../assets/logo.png';
 import { BRAND } from '../constants/theme';
@@ -77,6 +78,17 @@ const isTooManyRequestsError = (error) => {
   const code = String(error?.code || '').toLowerCase();
   const message = String(error?.message || '').toLowerCase();
   return code.includes('too-many-requests') || message.includes('auth/too-many-requests');
+};
+
+const isBackendNetworkError = (error) => {
+  const code = String(error?.code || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+  return !error?.response && (
+    code.includes('err_network')
+    || code.includes('econnaborted')
+    || message.includes('network error')
+    || message.includes('timeout')
+  );
 };
 
 const getRemainingOtpBlockSeconds = async (phone) => {
@@ -233,18 +245,23 @@ const Register = () => {
 
     setLoading(true);
     try {
-      const precheck = await axios.get('/auth/phone-status', {
-        params: {
-          phone: formData.phone,
-          purpose: 'register'
-        }
-      });
+      try {
+        const precheck = await axios.get('/auth/phone-status', {
+          params: {
+            phone: formData.phone,
+            purpose: 'register'
+          }
+        });
 
-      const canSendOtp = Boolean(precheck?.data?.data?.canSendOtp);
-      if (!canSendOtp) {
-        toast.error(precheck?.data?.message || 'Phone number already registered. Please login.');
-        setTimeout(() => navigate('/login'), 1200);
-        return;
+        const canSendOtp = Boolean(precheck?.data?.data?.canSendOtp);
+        if (!canSendOtp) {
+          toast.error(precheck?.data?.message || 'Phone number already registered. Please login.');
+          setTimeout(() => navigate('/login'), 1200);
+          return;
+        }
+      } catch (precheckError) {
+        // Keep registration compatible with backend snapshots where /auth/phone-status does not exist.
+        // In that case, continue with OTP and let final register API validate duplicates.
       }
 
       const phoneWithCode = `+91${formData.phone}`;
@@ -284,13 +301,38 @@ const Register = () => {
       }
 
       // Register with backend using Firebase token
-      const response = await axios.post('/auth/register', {
+      const registerPayload = {
         name: formData.name.trim(),
         phone: formData.phone,
         password: formData.password,
         email: formData.email?.trim() || undefined,
         firebaseToken,
-      });
+      };
+
+      let response;
+      try {
+        response = await axios.post('/auth/register', registerPayload);
+      } catch (registerError) {
+        if (!shouldFallbackToNativeHttp(registerError)) {
+          throw registerError;
+        }
+
+        try {
+          const data = await requestViaFetch({
+            method: 'POST',
+            path: '/auth/register',
+            data: registerPayload,
+          });
+          response = { data };
+        } catch {
+          const data = await requestViaNativeHttp({
+            method: 'POST',
+            path: '/auth/register',
+            data: registerPayload,
+          });
+          response = { data };
+        }
+      }
 
       // Destructure tokens and user data from the response
       const { accessToken, refreshToken, user: userData } = response.data.data;
@@ -325,6 +367,10 @@ const Register = () => {
       const roleMap = { restaurant_owner: '/dashboard', delivery_partner: '/delivery-dashboard' };
       navigate(roleMap[userData.role] || '/');
     } catch (error) {
+      if (isBackendNetworkError(error)) {
+        toast.error('Server is not responding right now. Please try again in a moment.');
+        return;
+      }
       const backendMessage = error.response?.data?.message;
       const errorMessage = backendMessage || 'Could not create your account right now. Please try again.';
       toast.error(errorMessage);

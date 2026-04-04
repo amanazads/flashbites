@@ -13,89 +13,8 @@ const GEO_PRIMARY_SUCCESS_SAMPLE_RATE = 0.01;
 let lastNearbyGeoFallbackLogAt = 0;
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const ADMIN_AREA_SUFFIX_REGEX = /\b(tehsil|tahsil|district|division|mandal|taluk|taluka|subdivision|sub-division)\b/gi;
 
 const isFiniteNumber = (value) => Number.isFinite(Number(value));
-
-const normalizeCityFragment = (value = '') => (
-  String(value || '')
-    .replace(/\([^)]*\)/g, ' ')
-    .replace(ADMIN_AREA_SUFFIX_REGEX, ' ')
-    .replace(/[^a-zA-Z\s-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-);
-
-const buildCityMatchers = (value = '') => {
-  const raw = String(value || '').trim();
-  if (!raw) return [];
-
-  const fragments = raw
-    .split(',')
-    .map((part) => normalizeCityFragment(part))
-    .filter(Boolean);
-
-  const normalizedWhole = normalizeCityFragment(raw);
-  const tokens = normalizedWhole.split(' ').filter(Boolean);
-
-  const candidates = [
-    raw,
-    normalizedWhole,
-    fragments[0],
-    fragments[1],
-    tokens.slice(0, 2).join(' '),
-    tokens[0]
-  ]
-    .map((item) => String(item || '').trim())
-    .filter(Boolean);
-
-  return [...new Set(candidates)].map((item) => new RegExp(escapeRegex(item), 'i'));
-};
-
-const buildCityQuery = (city = '') => {
-  const regexes = buildCityMatchers(city);
-  if (regexes.length === 0) return null;
-  if (regexes.length === 1) return { 'address.city': { $regex: regexes[0] } };
-
-  return {
-    $or: regexes.map((regex) => ({
-      'address.city': { $regex: regex }
-    }))
-  };
-};
-
-const buildAreaFallbackQuery = ({ city = '', zipCode = '', state = '' } = {}) => {
-  const orConditions = [];
-  const cityQuery = buildCityQuery(city);
-
-  if (cityQuery?.$or) {
-    orConditions.push(...cityQuery.$or);
-  } else if (cityQuery) {
-    orConditions.push(cityQuery);
-  }
-
-  const zip = String(zipCode || '').trim();
-  if (zip) {
-    orConditions.push({ 'address.zipCode': zip });
-  }
-
-  const normalizedState = normalizeCityFragment(state);
-  if (normalizedState) {
-    orConditions.push({ 'address.state': { $regex: new RegExp(escapeRegex(normalizedState), 'i') } });
-  }
-
-  if (orConditions.length === 0) return null;
-  if (orConditions.length === 1) return orConditions[0];
-  return { $or: orConditions };
-};
-
-const fetchGeneralRestaurantFallback = async (limit) => (
-  Restaurant.find(buildPublicRestaurantQuery())
-    .select('-documents -bankDetails -__v')
-    .sort({ rating: -1, createdAt: -1 })
-    .limit(limit)
-    .lean()
-);
 
 const normalizeCoordPair = (first, second) => {
   const lng = Number(first);
@@ -233,28 +152,6 @@ const logNearbyGeoPrimarySuccess = ({ lat, lng, maxDistance, limit, candidateCou
   console.info(JSON.stringify(payload));
 };
 
-const setRestaurantCacheHeaders = (res, maxAgeSeconds = 30, staleSeconds = 60) => {
-  if (process.env.NODE_ENV !== 'production') {
-    res.set('Cache-Control', 'no-store');
-    return;
-  }
-
-  res.set('Cache-Control', `public, max-age=${maxAgeSeconds}, stale-while-revalidate=${staleSeconds}`);
-};
-
-const buildPublicRestaurantQuery = (extra = {}) => {
-  const query = {
-    isActive: true,
-    ...extra
-  };
-
-  if (process.env.NODE_ENV === 'production') {
-    query.isApproved = true;
-  }
-
-  return query;
-};
-
 // @desc    Create restaurant
 // @route   POST /api/restaurants
 // @access  Private (Restaurant Owner)
@@ -348,7 +245,7 @@ exports.getAllRestaurants = async (req, res) => {
       city
     } = req.query;
 
-    let query = buildPublicRestaurantQuery();
+    let query = { isActive: true, isApproved: true };
 
     // Filter by cuisine
     if (cuisine) {
@@ -360,9 +257,8 @@ exports.getAllRestaurants = async (req, res) => {
       query.name = { $regex: search, $options: 'i' };
     }
 
-    const cityQuery = buildCityQuery(city);
-    if (cityQuery) {
-      query = { ...query, ...cityQuery };
+    if (city) {
+      query['address.city'] = { $regex: city, $options: 'i' };
     }
 
     // Filter by rating
@@ -407,7 +303,7 @@ exports.getAllRestaurants = async (req, res) => {
           .select(projection)
           .lean();
 
-        setRestaurantCacheHeaders(res, 30, 60);
+        res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
         return successResponse(res, 200, 'Restaurants retrieved successfully', {
           page: safePage,
           limit: safeLimit,
@@ -491,8 +387,8 @@ exports.getAllRestaurants = async (req, res) => {
         .lean();
     }
 
-    // Cache public restaurant list in production only.
-    setRestaurantCacheHeaders(res, 30, 60);
+    // Cache public restaurant list for 30 seconds on CDN/browser
+    res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     successResponse(res, 200, 'Restaurants retrieved successfully', {
       page: safePage,
       limit: safeLimit,
@@ -511,9 +407,6 @@ exports.getNearbyRestaurants = async (req, res) => {
   try {
     const lat = Number(req.query.lat);
     const lng = Number(req.query.lng);
-    const city = String(req.query.city || '').trim();
-    const zipCode = String(req.query.zipCode || '').trim();
-    const state = String(req.query.state || '').trim();
     const maxDistanceRaw = Number(req.query.maxDistance || 10000);
     const maxDistance = Number.isFinite(maxDistanceRaw)
       ? Math.min(Math.max(maxDistanceRaw, 1000), 100000)
@@ -542,7 +435,8 @@ exports.getNearbyRestaurants = async (req, res) => {
             maxDistance,
             spherical: true,
             query: {
-              ...buildPublicRestaurantQuery(),
+              isActive: true,
+              isApproved: true,
               'location.type': 'Point',
               'location.coordinates.0': { $type: 'number' },
               'location.coordinates.1': { $type: 'number' }
@@ -588,7 +482,8 @@ exports.getNearbyRestaurants = async (req, res) => {
       });
 
       const fallbackRestaurants = await Restaurant.find({
-        ...buildPublicRestaurantQuery(),
+        isActive: true,
+        isApproved: true,
         'location.type': 'Point',
         'location.coordinates.0': { $type: 'number' },
         'location.coordinates.1': { $type: 'number' }
@@ -623,7 +518,7 @@ exports.getNearbyRestaurants = async (req, res) => {
       }
     }
 
-    let restaurants = candidates.filter((restaurant) => {
+    const restaurants = candidates.filter((restaurant) => {
       const coords = restaurant.location?.coordinates || [];
       const hasUsableZone = isUsableRestaurantDeliveryZone(restaurant.deliveryZone, coords);
 
@@ -635,15 +530,6 @@ exports.getNearbyRestaurants = async (req, res) => {
       const allowedKm = Number(restaurant.deliveryRadiusKm || 20);
       return Number.isFinite(distanceKm) && distanceKm <= allowedKm;
     }).slice(0, safeLimit);
-
-    if (restaurants.length === 0 && city) {
-      const areaFallbackQuery = buildAreaFallbackQuery({ city, zipCode, state });
-      restaurants = await Restaurant.find(buildPublicRestaurantQuery(areaFallbackQuery || {}))
-        .select('-documents -bankDetails -__v')
-        .sort({ rating: -1, createdAt: -1 })
-        .limit(safeLimit)
-        .lean();
-    }
 
     return successResponse(res, 200, 'Nearby restaurants retrieved successfully', {
       count: restaurants.length,
@@ -674,16 +560,16 @@ exports.searchRestaurantsAndItems = async (req, res) => {
     const regex = new RegExp(escapeRegex(term), 'i');
 
     const restaurantQuery = {
-      ...buildPublicRestaurantQuery(),
+      isActive: true,
+      isApproved: true,
       $or: [
         { name: { $regex: regex } },
         { cuisines: { $in: [regex] } }
       ]
     };
 
-    const cityQuery = buildCityQuery(city);
-    if (cityQuery) {
-      Object.assign(restaurantQuery, cityQuery);
+    if (city) {
+      restaurantQuery['address.city'] = { $regex: city, $options: 'i' };
     }
 
     const restaurants = await Restaurant.find(restaurantQuery)
@@ -716,14 +602,8 @@ exports.searchRestaurantsAndItems = async (req, res) => {
       {
         $match: {
           'restaurant.isActive': true,
-          ...(process.env.NODE_ENV === 'production' ? { 'restaurant.isApproved': true } : {}),
-          ...(cityQuery
-            ? {
-                $or: buildCityMatchers(city).map((regex) => ({
-                  'restaurant.address.city': { $regex: regex }
-                }))
-              }
-            : {})
+          'restaurant.isApproved': true,
+          ...(city ? { 'restaurant.address.city': { $regex: city, $options: 'i' } } : {})
         }
       },
       {
@@ -766,12 +646,12 @@ exports.getRestaurantById = async (req, res) => {
       return errorResponse(res, 404, 'Restaurant not found');
     }
 
-    if (!restaurant.isActive || (process.env.NODE_ENV === 'production' && !restaurant.isApproved)) {
+    if (!restaurant.isActive || !restaurant.isApproved) {
       return errorResponse(res, 403, 'Restaurant is not available');
     }
 
-    // Cache individual restaurant page in production only.
-    setRestaurantCacheHeaders(res, 60, 120);
+    // Cache individual restaurant page for 60 seconds
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
     successResponse(res, 200, 'Restaurant retrieved successfully', { restaurant });
   } catch (error) {
     errorResponse(res, 500, 'Failed to get restaurant', error.message);

@@ -1,15 +1,54 @@
 import axios from './axios';
+import { requestViaFetch, requestViaNativeHttp, shouldFallbackToNativeHttp } from './nativeHttpFallback';
 
 // Register user
 export const register = async (userData) => {
-  const response = await axios.post('/auth/register', userData);
-  return response.data;
+  try {
+    const response = await axios.post('/auth/register', userData);
+    return response.data;
+  } catch (error) {
+    if (shouldFallbackToNativeHttp(error)) {
+      try {
+        return await requestViaFetch({
+          method: 'POST',
+          path: '/auth/register',
+          data: userData,
+        });
+      } catch {
+        return await requestViaNativeHttp({
+          method: 'POST',
+          path: '/auth/register',
+          data: userData,
+        });
+      }
+    }
+    throw error;
+  }
 };
 
 // Login user
 export const login = async (credentials) => {
-  const response = await axios.post('/auth/login', credentials);
-  return response.data;
+  try {
+    const response = await axios.post('/auth/login', credentials);
+    return response.data;
+  } catch (error) {
+    if (shouldFallbackToNativeHttp(error)) {
+      try {
+        return await requestViaFetch({
+          method: 'POST',
+          path: '/auth/login',
+          data: credentials,
+        });
+      } catch {
+        return await requestViaNativeHttp({
+          method: 'POST',
+          path: '/auth/login',
+          data: credentials,
+        });
+      }
+    }
+    throw error;
+  }
 };
 
 export const businessLogin = async (credentials) => {

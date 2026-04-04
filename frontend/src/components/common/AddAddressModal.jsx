@@ -9,9 +9,12 @@ import { buildManualAddressSelection } from '../../utils/deliveryAddress';
 
 const isNativePlatform = () => !!(
   typeof window !== 'undefined'
-  && window.Capacitor
-  && typeof window.Capacitor.isNativePlatform === 'function'
-  && window.Capacitor.isNativePlatform()
+  && (() => {
+    const cap = window.Capacitor;
+    if (cap && typeof cap.isNativePlatform === 'function') return cap.isNativePlatform();
+    if (cap && typeof cap.getPlatform === 'function') return cap.getPlatform() !== 'web';
+    return window.location.protocol === 'https:' && window.location.hostname === 'localhost';
+  })()
 );
 
 const AddAddressModal = ({
@@ -238,31 +241,38 @@ const AddAddressModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[1800] flex items-center justify-center p-4 bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-[1800] bg-slate-950/60 backdrop-blur-sm flex items-end sm:items-center justify-center overflow-y-auto px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
+      <div className="w-full max-w-2xl max-h-[92dvh] sm:max-h-[88vh] overflow-hidden rounded-[24px] sm:rounded-[28px] border border-white/50 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.28)] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-bold text-gray-900">{title || (saveToAccount ? 'Add New Address' : 'Select Delivery Address')}</h2>
+        <div className="flex items-start justify-between gap-3 px-4 py-5 sm:px-6 sm:py-6 border-b border-orange-100"
+          style={{ background: 'linear-gradient(135deg, #FFF7ED 0%, #FFFFFF 70%)' }}>
+          <div>
+            <p className="text-[11px] font-bold tracking-[0.2em] text-orange-500 uppercase">Delivery Address</p>
+            <h2 className="mt-2 text-xl sm:text-2xl font-black text-slate-900" style={{ letterSpacing: '-0.03em' }}>
+              {title || (saveToAccount ? 'Add New Address' : 'Select Delivery Address')}
+            </h2>
+          </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition"
+            className="flex h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-orange-100 bg-white text-slate-500 hover:bg-orange-50 transition"
+            aria-label="Close add address modal"
           >
-            <XMarkIcon className="w-6 h-6" />
+            <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="p-6">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto">
           {/* Address Type */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Address Type *
             </label>
-            <div className="flex gap-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {['home', 'work', 'other'].map((type) => (
                 <label
                   key={type}
-                  className={`flex-1 p-3 border rounded-lg cursor-pointer text-center transition ${
+                  className={`p-2.5 sm:p-3 border rounded-lg cursor-pointer text-center transition ${
                     formData.type === type
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
                       : 'border-gray-300 hover:border-primary-300'
@@ -300,7 +310,7 @@ const AddAddressModal = ({
               onChange={(value) => setFormData({ ...formData, fullAddress: value, coordinates: null })}
               onSelect={handleGoogleAddressSelect}
               placeholder="Search delivery address"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
             <p className="mt-1 text-xs text-gray-500">Select from suggestions, then optionally fine-tune the pin on map.</p>
           </div>
@@ -315,7 +325,7 @@ const AddAddressModal = ({
                 lng: Number(formData.coordinates?.[0]) || 75.91
               }}
               onSelect={handleMapSelect}
-              mapHeight={220}
+              mapHeight={200}
             />
             {Array.isArray(formData.coordinates) && formData.coordinates.length >= 2 && (
               <p className="mt-2 text-xs text-green-700">
@@ -356,7 +366,7 @@ const AddAddressModal = ({
           </div>
 
           {/* City & State */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 City
@@ -402,11 +412,11 @@ const AddAddressModal = ({
           </div>
 
           {/* Buttons */}
-          <div className="flex gap-3">
+          <div className="flex flex-col-reverse sm:flex-row gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+              className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
               disabled={loading}
             >
               Cancel
@@ -414,7 +424,7 @@ const AddAddressModal = ({
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2.5 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               {loading ? 'Saving...' : (submitLabel || (saveToAccount ? 'Add Address' : 'Use This Address'))}
             </button>

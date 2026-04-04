@@ -6,14 +6,7 @@ const User = require('../models/User');
 const { admin } = require('../config/firebaseAdmin');
 const { cacheGet, cacheSet } = require('./memoryCache');
 
-const hasConfiguredValue = (value = '') => {
-  const normalized = String(value || '').trim();
-  if (!normalized) return false;
-  if (/^(your_|replace_|example|test|undefined|null)/i.test(normalized)) return false;
-  return true;
-};
-
-let WEB_PUSH_ENABLED = hasConfiguredValue(process.env.VAPID_PUBLIC_KEY) && hasConfiguredValue(process.env.VAPID_PRIVATE_KEY);
+const WEB_PUSH_ENABLED = Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
 const SMS_ENABLED = Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER);
 const NOTIFICATION_DEDUPE_TTL_MS = 15000;
 
@@ -72,11 +65,6 @@ const notifyPhonesViaSms = async (phones = [], message = '') => {
   await Promise.allSettled(uniquePhones.map((phone) => sendSms(phone, message)));
 };
 
-const sendDirectSms = async (phone, message) => {
-  if (!phone || !message) return false;
-  return sendSms(phone, message);
-};
-
 const sendOrderStatusSms = async (order, status, orderRef) => {
   if (!SMS_ENABLED || !order) return;
 
@@ -124,16 +112,11 @@ const sendOrderStatusSms = async (order, status, orderRef) => {
 
 // Configure web-push with VAPID keys
 if (WEB_PUSH_ENABLED) {
-  try {
-    webpush.setVapidDetails(
-      `mailto:${process.env.EMAIL_USER || 'noreply@flashbites.com'}`,
-      String(process.env.VAPID_PUBLIC_KEY || '').trim(),
-      String(process.env.VAPID_PRIVATE_KEY || '').trim()
-    );
-  } catch (error) {
-    WEB_PUSH_ENABLED = false;
-    console.warn(`⚠️  Invalid VAPID keys. Web push notifications disabled. ${error.message}`);
-  }
+  webpush.setVapidDetails(
+    `mailto:${process.env.EMAIL_USER || 'noreply@flashbites.com'}`,
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
 } else {
   console.warn('⚠️  VAPID keys not configured. Push notifications will not work.');
 }
@@ -680,7 +663,6 @@ const notifyDeliveryPartnerOrderCancelled = async (order, deliveryPartnerId) => 
 module.exports = {
   createNotification,
   sendPushNotification,
-  sendDirectSms,
   notifyUser,
   notifyMultipleUsers,
   notifyOrderStatus,

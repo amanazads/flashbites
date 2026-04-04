@@ -1,9 +1,8 @@
-const ContactSubmission = require('../models/ContactSubmission');
 const { sendContactEmail } = require('../utils/emailService');
 
 exports.submitContactForm = async (req, res) => {
   try {
-    const { name, email, phone, subject, message, source } = req.body;
+    const { name, email, phone, subject, message } = req.body;
 
     if (!name || !email || !subject || !message) {
       return res.status(400).json({
@@ -12,39 +11,19 @@ exports.submitContactForm = async (req, res) => {
       });
     }
 
-    const submission = await ContactSubmission.create({
-      name,
-      email,
-      phone,
-      subject,
-      message,
-      source: source || 'contact-form',
-      status: 'received',
-      emailSent: false,
-    });
+    // Send email
+    const emailSent = await sendContactEmail({ name, email, phone, subject, message });
 
-    let emailSent = false;
-    try {
-      emailSent = await sendContactEmail({ name, email, phone, subject, message });
-    } catch (emailError) {
-      console.error('Contact email dispatch error:', emailError);
-    }
-
-    if (emailSent) {
-      submission.emailSent = true;
-      submission.status = 'emailed';
-      await submission.save();
+    if (!emailSent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send contact message. Please try again later.'
+      });
     }
 
     res.status(200).json({
       success: true,
-      message: emailSent
-        ? 'Contact form submitted successfully!'
-        : 'Request received successfully. Our team will review it shortly.',
-      data: {
-        submissionId: submission._id,
-        emailSent,
-      }
+      message: 'Contact form submitted successfully!'
     });
 
   } catch (error) {

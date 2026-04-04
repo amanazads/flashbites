@@ -2,14 +2,22 @@ import axios from 'axios';
 import { Preferences } from '@capacitor/preferences';
 import { getApiBaseUrl } from '../utils/apiBase';
 
-const apiUrl = getApiBaseUrl();
+const getResolvedApiUrl = () => getApiBaseUrl();
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 const isNativePlatform = () => {
   if (typeof window === 'undefined') return false;
 
+  const hasNativeLocalhostOrigin = () => {
+    const host = window.location.hostname;
+    const protocol = window.location.protocol;
+    return (host === 'localhost' || host === '127.0.0.1') && protocol === 'https:';
+  };
+
   const cap = window.Capacitor;
-  if (!cap) return false;
+  if (!cap) {
+    return hasNativeLocalhostOrigin() || window.location.protocol === 'capacitor:';
+  }
 
   if (typeof cap.isNativePlatform === 'function') {
     return cap.isNativePlatform();
@@ -19,7 +27,7 @@ const isNativePlatform = () => {
     return cap.getPlatform() !== 'web';
   }
 
-  return window.location.protocol === 'https:' && window.location.hostname === 'localhost';
+  return hasNativeLocalhostOrigin() || window.location.protocol === 'capacitor:';
 };
 
 // Detect true native Capacitor runtime only (not plain web with capacitor scripts present)
@@ -73,7 +81,7 @@ const protectedPagePrefixes = ['/checkout', '/orders', '/payment', '/profile', '
 const isOnProtectedPage = () => protectedPagePrefixes.some((prefix) => window.location.pathname.startsWith(prefix));
 
 const instance = axios.create({
-  baseURL: apiUrl,
+  baseURL: getResolvedApiUrl(),
   timeout: isCapacitor ? 60000 : 30000, // 60s on mobile (Render cold start), 30s on web
   headers: {
     'Content-Type': 'application/json',
@@ -84,6 +92,8 @@ const instance = axios.create({
 // Request interceptor for adding auth token
 instance.interceptors.request.use(
   async (config) => {
+    config.baseURL = getResolvedApiUrl();
+
     let token;
     
     if (isCapacitor) {
@@ -159,7 +169,7 @@ instance.interceptors.response.use(
         try {
           if (!refreshPromise) {
             refreshPromise = axios.post(
-              `${apiUrl}/auth/refresh`,
+              `${getResolvedApiUrl()}/auth/refresh`,
               { refreshToken },
               {
                 headers: { 'Content-Type': 'application/json' },

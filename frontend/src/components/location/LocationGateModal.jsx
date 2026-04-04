@@ -28,26 +28,26 @@ const LocationGateModal = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[1600] bg-slate-950/60 backdrop-blur-sm p-4 flex items-end sm:items-center justify-center"
+          className="fixed inset-0 z-[1600] bg-slate-950/60 backdrop-blur-sm flex items-end sm:items-center justify-center overflow-y-auto px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4"
         >
           <motion.div
             initial={{ opacity: 0, y: 28, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 18, scale: 0.98 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="w-full max-w-xl overflow-hidden rounded-[28px] border border-white/50 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.28)]"
+            className="w-full max-w-xl max-h-[92dvh] sm:max-h-[88vh] overflow-hidden rounded-[24px] sm:rounded-[28px] border border-white/50 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.28)] flex flex-col"
           >
             <div
-              className="px-6 py-6 border-b border-orange-100"
+              className="px-4 py-5 sm:px-6 sm:py-6 border-b border-orange-100"
               style={{ background: 'linear-gradient(135deg, #FFF7ED 0%, #FFFFFF 70%)' }}
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-[11px] font-bold tracking-[0.2em] text-orange-500 uppercase">Choose Location</p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-900" style={{ letterSpacing: '-0.03em' }}>
+                  <h2 className="mt-2 text-xl sm:text-2xl font-black text-slate-900" style={{ letterSpacing: '-0.03em' }}>
                     Where should we deliver?
                   </h2>
-                  <p className="mt-2 text-sm text-slate-500">
+                  <p className="mt-2 text-xs sm:text-sm text-slate-500">
                     Select your current location or enter a delivery address to see restaurants available for that area.
                   </p>
                 </div>
@@ -55,7 +55,7 @@ const LocationGateModal = ({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-orange-100 bg-white text-slate-500 hover:bg-orange-50"
+                    className="flex h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-orange-100 bg-white text-slate-500 hover:bg-orange-50"
                     aria-label="Close location selector"
                   >
                     <XMarkIcon className="h-5 w-5" />
@@ -64,15 +64,15 @@ const LocationGateModal = ({
               </div>
             </div>
 
-            <div className="p-4 sm:p-5 space-y-3">
+            <div className="p-3 sm:p-5 space-y-3 overflow-y-auto">
               <button
                 type="button"
                 onClick={onUseCurrentLocation}
                 disabled={detectingLocation}
-                className="w-full rounded-2xl border border-orange-200 bg-orange-50 px-4 py-4 text-left transition hover:bg-orange-100 disabled:opacity-60"
+                className="w-full rounded-2xl border border-orange-200 bg-orange-50 px-3.5 sm:px-4 py-3.5 sm:py-4 text-left transition hover:bg-orange-100 disabled:opacity-60"
               >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-2xl bg-white">
                     <MapPinIcon className="h-5 w-5 text-orange-600" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -81,17 +81,17 @@ const LocationGateModal = ({
                     </p>
                     <p className="text-xs text-slate-500">Use GPS to show restaurants delivering near you right now.</p>
                   </div>
-                  <ChevronRightIcon className="h-5 w-5 text-orange-500" />
+                  <ChevronRightIcon className="h-5 w-5 text-orange-500 self-center" />
                 </div>
               </button>
 
               <button
                 type="button"
                 onClick={onOpenManualAddress}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left transition hover:border-orange-200 hover:bg-orange-50/40"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-3.5 sm:px-4 py-3.5 sm:py-4 text-left transition hover:border-orange-200 hover:bg-orange-50/40"
               >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-2xl bg-slate-100">
                     <PlusIcon className="h-5 w-5 text-slate-700" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -100,7 +100,7 @@ const LocationGateModal = ({
                     </p>
                     <p className="text-xs text-slate-500">Search an address, fine-tune the pin on map, and browse that area.</p>
                   </div>
-                  <ChevronRightIcon className="h-5 w-5 text-slate-400" />
+                  <ChevronRightIcon className="h-5 w-5 text-slate-400 self-center" />
                 </div>
               </button>
 
@@ -109,7 +109,7 @@ const LocationGateModal = ({
                   <div className="px-4 py-3 border-b border-slate-200">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Saved Addresses</p>
                   </div>
-                  <div className="max-h-64 overflow-y-auto">
+                  <div className="max-h-[min(36vh,16rem)] sm:max-h-64 overflow-y-auto">
                     {savedAddresses.map((addr) => (
                       <button
                         key={addr._id}

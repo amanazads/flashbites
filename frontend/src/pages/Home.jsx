@@ -898,7 +898,11 @@ const Home = () => {
               </svg>
             </div>
             <h3 className="text-[17px] font-bold text-gray-900 mb-1">Couldn't load restaurants</h3>
-            <p className="text-[13px] text-gray-500 mb-5">The server may be waking up. Please try again.</p>
+            <p className="text-[13px] text-gray-500 mb-5">
+              {typeof restaurantError === 'string' && restaurantError.trim()
+                ? restaurantError
+                : 'The server may be waking up. Please try again.'}
+            </p>
             <button
               onClick={() => {
                 const lat = Number(selectedAddress?.latitude || 0);
