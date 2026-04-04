@@ -29,6 +29,7 @@ import {
   updateDeliveryPartnerEarningsConfig,
   resetAllDeliveryPartnerEarningsOverrides,
   updateRestaurantPayoutRate,
+  updateRestaurantFeeControls,
   updateUserRole,
   getPlatformSettings,
   updatePlatformSettings,
@@ -90,6 +91,94 @@ const ORDER_STATUS_OPTIONS = [
   'cancelled'
 ];
 
+const toDateTimeLocalValue = (value) => {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const offsetMs = parsed.getTimezoneOffset() * 60000;
+  return new Date(parsed.getTime() - offsetMs).toISOString().slice(0, 16);
+};
+
+const defaultFeeControls = () => ({
+  deliveryFee: { enabled: true, effectiveFrom: '' },
+  platformFee: { enabled: true, effectiveFrom: '' },
+  tax: { enabled: true, effectiveFrom: '' },
+});
+
+const mapFeeControlsFromSettings = (controls = {}) => ({
+  deliveryFee: {
+    enabled: controls?.deliveryFee?.enabled !== false,
+    effectiveFrom: toDateTimeLocalValue(controls?.deliveryFee?.effectiveFrom),
+  },
+  platformFee: {
+    enabled: controls?.platformFee?.enabled !== false,
+    effectiveFrom: toDateTimeLocalValue(controls?.platformFee?.effectiveFrom),
+  },
+  tax: {
+    enabled: controls?.tax?.enabled !== false,
+    effectiveFrom: toDateTimeLocalValue(controls?.tax?.effectiveFrom),
+  },
+});
+
+const mapFeeControlToPayload = (control = {}) => {
+  const effectiveFrom = control?.effectiveFrom ? new Date(control.effectiveFrom) : null;
+  return {
+    enabled: control?.enabled !== false,
+    effectiveFrom: effectiveFrom && !Number.isNaN(effectiveFrom.getTime()) ? effectiveFrom.toISOString() : null,
+  };
+};
+
+const defaultRestaurantFeeControls = () => ({
+  deliveryFee: { useGlobal: true, enabled: true, effectiveFrom: '' },
+  platformFee: { useGlobal: true, enabled: true, effectiveFrom: '' },
+  tax: { useGlobal: true, enabled: true, effectiveFrom: '' },
+});
+
+const mapRestaurantFeeControlsFromRestaurant = (controls = {}) => ({
+  deliveryFee: {
+    useGlobal: controls?.deliveryFee?.useGlobal !== false,
+    enabled: controls?.deliveryFee?.enabled !== false,
+    effectiveFrom: toDateTimeLocalValue(controls?.deliveryFee?.effectiveFrom),
+  },
+  platformFee: {
+    useGlobal: controls?.platformFee?.useGlobal !== false,
+    enabled: controls?.platformFee?.enabled !== false,
+    effectiveFrom: toDateTimeLocalValue(controls?.platformFee?.effectiveFrom),
+  },
+  tax: {
+    useGlobal: controls?.tax?.useGlobal !== false,
+    enabled: controls?.tax?.enabled !== false,
+    effectiveFrom: toDateTimeLocalValue(controls?.tax?.effectiveFrom),
+  },
+});
+
+const mapRestaurantFeeControlToPayload = (control = {}) => {
+  const effectiveFrom = control?.effectiveFrom ? new Date(control.effectiveFrom) : null;
+  return {
+    useGlobal: control?.useGlobal !== false,
+    enabled: control?.enabled !== false,
+    effectiveFrom: effectiveFrom && !Number.isNaN(effectiveFrom.getTime()) ? effectiveFrom.toISOString() : null,
+  };
+};
+
+const hasLocalFeeOverride = (controls = {}) => {
+  return ['deliveryFee', 'platformFee', 'tax'].some((key) => controls?.[key]?.useGlobal === false);
+};
+
+const getLocalFeeOverrideSummary = (controls = {}) => {
+  const labels = {
+    deliveryFee: 'Delivery',
+    platformFee: 'Platform',
+    tax: 'Tax',
+  };
+
+  const overridden = ['deliveryFee', 'platformFee', 'tax']
+    .filter((key) => controls?.[key]?.useGlobal === false)
+    .map((key) => labels[key]);
+
+  return overridden.length > 0 ? overridden.join(', ') : '';
+};
+
 const AdminPanel = () => {
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
@@ -135,6 +224,7 @@ const AdminPanel = () => {
     platformFee: 25,
     taxRate: 5,
     restaurantPayoutRate: 75,
+    feeControls: defaultFeeControls(),
     deliveryChargeRules: [
       { minDistance: 0, maxDistance: 5, charge: 0 },
       { minDistance: 5, maxDistance: 15, charge: 25 },
@@ -375,6 +465,7 @@ const AdminPanel = () => {
           platformFee: settings.platformFee ?? 25,
           taxRate: (settings.taxRate ?? 0.05) * 100,
           restaurantPayoutRate: (settings.restaurantPayoutRate ?? 0.75) * 100,
+          feeControls: mapFeeControlsFromSettings(settings.feeControls),
           deliveryChargeRules: settings.deliveryChargeRules || [
             { minDistance: 0, maxDistance: 5, charge: 0 },
             { minDistance: 5, maxDistance: 15, charge: 25 },
@@ -626,6 +717,19 @@ const AdminPanel = () => {
     }));
   };
 
+  const handleFeeControlChange = (feeType, field, value) => {
+    setSettingsForm((prev) => ({
+      ...prev,
+      feeControls: {
+        ...(prev.feeControls || defaultFeeControls()),
+        [feeType]: {
+          ...((prev.feeControls || defaultFeeControls())[feeType] || {}),
+          [field]: value,
+        },
+      },
+    }));
+  };
+
   const handleDeliveryRuleChange = (index, field, value) => {
     setSettingsForm((prev) => {
       const rules = [...prev.deliveryChargeRules];
@@ -643,6 +747,11 @@ const AdminPanel = () => {
         platformFee: Number(settingsForm.platformFee),
         taxRate: Number(settingsForm.taxRate) / 100,
         restaurantPayoutRate: Number(settingsForm.restaurantPayoutRate) / 100,
+        feeControls: {
+          deliveryFee: mapFeeControlToPayload(settingsForm?.feeControls?.deliveryFee),
+          platformFee: mapFeeControlToPayload(settingsForm?.feeControls?.platformFee),
+          tax: mapFeeControlToPayload(settingsForm?.feeControls?.tax)
+        },
         deliveryChargeRules: settingsForm.deliveryChargeRules.map((rule) => ({
           minDistance: Number(rule.minDistance),
           maxDistance: Number(rule.maxDistance),
@@ -917,6 +1026,77 @@ const AdminPanel = () => {
       toast.error(error?.response?.data?.message || 'Failed to reset restaurant payout rate');
     } finally {
       setRestaurantPayoutSavingId(null);
+    }
+  };
+
+  const handleEditRestaurantFeeControls = async (restaurant) => {
+    const current = {
+      ...defaultRestaurantFeeControls(),
+      ...mapRestaurantFeeControlsFromRestaurant(restaurant?.feeControls || {}),
+    };
+
+    const feeRows = [
+      { key: 'deliveryFee', label: 'Delivery Fee' },
+      { key: 'platformFee', label: 'Platform Fee' },
+      { key: 'tax', label: 'Tax' },
+    ];
+
+    const html = feeRows
+      .map((fee) => {
+        const value = current[fee.key];
+        const enabledChecked = value.enabled ? 'checked' : '';
+        const useGlobalChecked = value.useGlobal ? 'checked' : '';
+        const effectiveFrom = value.effectiveFrom || '';
+        return `
+          <div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-bottom:10px;text-align:left;">
+            <div style="font-weight:600;color:#111827;margin-bottom:8px;">${fee.label}</div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px;">
+              <input id="swal-${fee.key}-useGlobal" type="checkbox" ${useGlobalChecked} /> Use global setting
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px;">
+              <input id="swal-${fee.key}-enabled" type="checkbox" ${enabledChecked} /> Enable fee for this restaurant
+            </label>
+            <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px;">Effective From (optional)</label>
+            <input id="swal-${fee.key}-effectiveFrom" type="datetime-local" value="${effectiveFrom}" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:8px;" />
+          </div>
+        `;
+      })
+      .join('');
+
+    const result = await Swal.fire({
+      title: `Fee Controls - ${restaurant.name}`,
+      html,
+      width: 700,
+      showCancelButton: true,
+      confirmButtonText: 'Save Fee Controls',
+      preConfirm: () => {
+        const feeControls = {};
+        for (const fee of feeRows) {
+          feeControls[fee.key] = {
+            useGlobal: document.getElementById(`swal-${fee.key}-useGlobal`)?.checked !== false,
+            enabled: document.getElementById(`swal-${fee.key}-enabled`)?.checked !== false,
+            effectiveFrom: document.getElementById(`swal-${fee.key}-effectiveFrom`)?.value || '',
+          };
+        }
+
+        return {
+          feeControls: {
+            deliveryFee: mapRestaurantFeeControlToPayload(feeControls.deliveryFee),
+            platformFee: mapRestaurantFeeControlToPayload(feeControls.platformFee),
+            tax: mapRestaurantFeeControlToPayload(feeControls.tax),
+          },
+        };
+      },
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await updateRestaurantFeeControls(restaurant._id, result.value);
+      toast.success('Restaurant fee controls updated');
+      fetchData();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to update restaurant fee controls');
     }
   };
 
@@ -1424,6 +1604,40 @@ const AdminPanel = () => {
                   </div>
 
                   <div className="mt-6">
+                    <h3 className="text-sm font-bold text-gray-800 mb-3">Fee Visibility and Billing Control</h3>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Admin can globally enable/disable each fee and schedule when it should start appearing in user bills.
+                    </p>
+                    <div className="space-y-3">
+                      {[
+                        { key: 'deliveryFee', label: 'Delivery Fee' },
+                        { key: 'platformFee', label: 'Platform Fee' },
+                        { key: 'tax', label: 'Tax' }
+                      ].map((fee) => (
+                        <div key={fee.key} className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-lg border border-gray-200 p-3 bg-white">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={settingsForm?.feeControls?.[fee.key]?.enabled !== false}
+                              onChange={(e) => handleFeeControlChange(fee.key, 'enabled', e.target.checked)}
+                            />
+                            <label className="text-sm font-semibold text-gray-700">Enable {fee.label}</label>
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-gray-500 mb-1">Effective From (optional)</label>
+                            <input
+                              type="datetime-local"
+                              value={settingsForm?.feeControls?.[fee.key]?.effectiveFrom || ''}
+                              onChange={(e) => handleFeeControlChange(fee.key, 'effectiveFrom', e.target.value)}
+                              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
                     <h3 className="text-sm font-bold text-gray-800 mb-3">Delivery Charge Rules</h3>
                     <div className="space-y-3">
                       {settingsForm.deliveryChargeRules.map((rule, index) => (
@@ -1726,6 +1940,11 @@ const AdminPanel = () => {
                               }`}>
                                 {restaurant.isActive ? 'Active' : 'Inactive'}
                               </span>
+                              {hasLocalFeeOverride(restaurant.feeControls) && (
+                                <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-700" title={`Local overrides: ${getLocalFeeOverrideSummary(restaurant.feeControls)}`}>
+                                  Fees: {getLocalFeeOverrideSummary(restaurant.feeControls)}
+                                </span>
+                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                               {!restaurant.isApproved ? (
@@ -1755,6 +1974,12 @@ const AdminPanel = () => {
                                   >
                                     <PencilSquareIcon className="h-4 w-4 mr-1" />
                                     Edit Location
+                                  </button>
+                                  <button
+                                    onClick={() => handleEditRestaurantFeeControls(restaurant)}
+                                    className="inline-flex items-center px-3 py-1 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                                  >
+                                    Fees
                                   </button>
                                   <button
                                     onClick={async () => {

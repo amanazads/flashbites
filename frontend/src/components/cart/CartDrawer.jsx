@@ -7,6 +7,7 @@ import { removeFromCart, updateQuantity, clearCart } from '../../redux/slices/ca
 import { formatCurrency } from '../../utils/formatters';
 import { calculateCartTotal } from '../../utils/helpers';
 import { BRAND } from '../../constants/theme';
+import { getPlatformSettings } from '../../api/settingsApi';
 import Swal from 'sweetalert2';
 
 const CartDrawer = () => {
@@ -14,14 +15,92 @@ const CartDrawer = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [expandedItems, setExpandedItems] = useState(new Set());
+  const [platformSettings, setPlatformSettings] = useState(null);
   const { cartOpen } = useSelector((state) => state.ui);
   const { items, restaurant } = useSelector((state) => state.cart);
   const { isAuthenticated } = useSelector((state) => state.auth);
 
+  const isFeeEnabledNow = (control) => {
+    if (control?.enabled === false) return false;
+    if (!control?.effectiveFrom) return true;
+    const effectiveFrom = new Date(control.effectiveFrom);
+    if (Number.isNaN(effectiveFrom.getTime())) return true;
+    return effectiveFrom.getTime() <= Date.now();
+  };
+
+  const resolveEffectiveFeeControl = (globalControl, restaurantControl) => {
+    if (restaurantControl?.useGlobal === false) {
+      return {
+        enabled: restaurantControl?.enabled !== false,
+        effectiveFrom: restaurantControl?.effectiveFrom || null,
+      };
+    }
+
+    return {
+      enabled: globalControl?.enabled !== false,
+      effectiveFrom: globalControl?.effectiveFrom || null,
+    };
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchPlatformSettings = async () => {
+      try {
+        const response = await getPlatformSettings();
+        if (isMounted) {
+          setPlatformSettings(response?.data?.settings || null);
+        }
+      } catch {
+        if (isMounted) {
+          setPlatformSettings(null);
+        }
+      }
+    };
+
+    fetchPlatformSettings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const subtotal = calculateCartTotal(items);
-  const deliveryFee = restaurant?.deliveryFee || 0;
-  const tax = subtotal * 0.05;
-  const total = subtotal + deliveryFee + tax;
+  const globalFeeControls = platformSettings?.feeControls || {};
+  const restaurantFeeControls = restaurant?.feeControls || {};
+
+  const effectiveDeliveryControl = resolveEffectiveFeeControl(
+    globalFeeControls.deliveryFee,
+    restaurantFeeControls.deliveryFee
+  );
+  const effectivePlatformControl = resolveEffectiveFeeControl(
+    globalFeeControls.platformFee,
+    restaurantFeeControls.platformFee
+  );
+  const effectiveTaxControl = resolveEffectiveFeeControl(
+    globalFeeControls.tax,
+    restaurantFeeControls.tax
+  );
+
+  const isDeliveryFeeEnabled = isFeeEnabledNow(effectiveDeliveryControl);
+  const isPlatformFeeEnabled = isFeeEnabledNow(effectivePlatformControl);
+  const isTaxEnabled = isFeeEnabledNow(effectiveTaxControl);
+
+  const configuredDeliveryFee = Number(platformSettings?.deliveryFee);
+  const fallbackRestaurantDeliveryFee = Number(restaurant?.deliveryFee || 0);
+  const baseDeliveryFee = Number.isFinite(configuredDeliveryFee) && configuredDeliveryFee >= 0
+    ? configuredDeliveryFee
+    : (Number.isFinite(fallbackRestaurantDeliveryFee) ? fallbackRestaurantDeliveryFee : 0);
+  const deliveryFee = isDeliveryFeeEnabled ? baseDeliveryFee : 0;
+
+  const basePlatformFee = Number(platformSettings?.platformFee || 0);
+  const platformFee = isPlatformFeeEnabled ? basePlatformFee : 0;
+
+  const baseTaxRate = Number(platformSettings?.taxRate || 0.05);
+  const taxRate = isTaxEnabled ? baseTaxRate : 0;
+  const tax = subtotal * taxRate;
+
+  const total = subtotal + deliveryFee + platformFee + tax;
 
   useEffect(() => {
     dispatch(closeCart());
@@ -223,14 +302,24 @@ const CartDrawer = () => {
                 <span>Subtotal</span>
                 <span className="font-medium text-gray-700">{formatCurrency(subtotal)}</span>
               </div>
-              <div className="flex justify-between text-gray-500">
-                <span>Delivery</span>
-                <span className="font-medium text-gray-700">{formatCurrency(deliveryFee)}</span>
-              </div>
-              <div className="flex justify-between text-gray-500">
-                <span>Tax (5%)</span>
-                <span className="font-medium text-gray-700">{formatCurrency(tax)}</span>
-              </div>
+              {isDeliveryFeeEnabled && (
+                <div className="flex justify-between text-gray-500">
+                  <span>Delivery</span>
+                  <span className="font-medium text-gray-700">{formatCurrency(deliveryFee)}</span>
+                </div>
+              )}
+              {isPlatformFeeEnabled && (
+                <div className="flex justify-between text-gray-500">
+                  <span>Platform Fee</span>
+                  <span className="font-medium text-gray-700">{formatCurrency(platformFee)}</span>
+                </div>
+              )}
+              {isTaxEnabled && (
+                <div className="flex justify-between text-gray-500">
+                  <span>Tax ({Math.round((taxRate || 0) * 100)}%)</span>
+                  <span className="font-medium text-gray-700">{formatCurrency(tax)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-[15px] max-[388px]:text-[14px] font-bold pt-2 border-t border-gray-200">
                 <span>Total</span>
                 <span style={{ color: BRAND }}>{formatCurrency(total)}</span>

@@ -12,6 +12,7 @@ import {
   ShoppingBagIcon,
   CheckCircleIcon,
   XCircleIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
@@ -35,6 +36,7 @@ import socketService from '../services/socketService';
 import { playNotificationSound } from '../utils/notificationSound';
 import AddressInput from '../components/location/AddressInput';
 import MapPicker from '../components/location/MapPicker';
+import OrderInvoiceModal from '../components/common/OrderInvoiceModal';
 
 const MENU_CATEGORY_OPTIONS = [
   'Starters',
@@ -128,6 +130,7 @@ const RestaurantDashboard = () => {
   const [autoRefreshOrders, setAutoRefreshOrders] = useState(false);
   const [showRestaurantForm, setShowRestaurantForm] = useState(false);
   const [showMenuForm, setShowMenuForm] = useState(false);
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [restaurantImageFile, setRestaurantImageFile] = useState(null);
   const [restaurantImagePreview, setRestaurantImagePreview] = useState(null);
@@ -1401,6 +1404,17 @@ const RestaurantDashboard = () => {
                         </div>
 
                         {/* Order Status Actions */}
+                        <div className="flex gap-2 flex-wrap mb-3">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedInvoiceOrder(order)}
+                            className="btn-outline text-sm px-4 py-2 flex items-center gap-1"
+                          >
+                            <DocumentTextIcon className="h-4 w-4" />
+                            View/Print Invoice
+                          </button>
+                        </div>
+
                         {order.status !== 'delivered' && order.status !== 'cancelled' && (
                           <div className="flex gap-2 flex-wrap">
                             {order.status === 'pending' && (
@@ -2278,6 +2292,13 @@ const RestaurantDashboard = () => {
             </div>
           </div>
         )}
+
+        <OrderInvoiceModal
+          isOpen={Boolean(selectedInvoiceOrder)}
+          onClose={() => setSelectedInvoiceOrder(null)}
+          order={selectedInvoiceOrder}
+          viewer="restaurant"
+        />
       </div>
     </div>
   );

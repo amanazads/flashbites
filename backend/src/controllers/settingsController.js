@@ -1,5 +1,6 @@
 const PlatformSettings = require('../models/PlatformSettings');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
+const { normalizeFeeControls } = require('../utils/feeControl');
 
 // @desc    Get public platform settings
 // @route   GET /api/settings
@@ -11,6 +12,11 @@ exports.getPlatformSettings = async (req, res) => {
       settings = await PlatformSettings.create({});
       settings = settings.toObject();
     }
+
+    settings = {
+      ...settings,
+      feeControls: normalizeFeeControls(settings.feeControls),
+    };
 
     successResponse(res, 200, 'Platform settings retrieved', { settings });
   } catch (error) {

@@ -2,6 +2,27 @@ const Partner = require('../models/Partner');
 const cloudinary = require('../config/cloudinary');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 
+const uploadDocToCloudinary = (file, folder) => {
+  return new Promise((resolve, reject) => {
+    if (!file?.buffer) {
+      return reject(new Error('Missing file buffer for upload'));
+    }
+
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: 'auto',
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+
+    stream.end(file.buffer);
+  });
+};
+
 // @desc    Submit partner application
 // @route   POST /api/partners/apply
 // @access  Public
@@ -23,6 +44,8 @@ exports.submitApplication = async (req, res) => {
       emergencyContact,
     } = req.body;
 
+    const normalizedAlternatePhone = String(alternatePhone || '').trim() || null;
+
     // Check if partner already exists with this phone or email
     const existingPartner = await Partner.findOne({
       $or: [{ phone }, { email }],
@@ -37,9 +60,10 @@ exports.submitApplication = async (req, res) => {
 
     if (req.files) {
       if (req.files.photo) {
-        const photoResult = await cloudinary.uploader.upload(req.files.photo[0].path, {
-          folder: 'flashbites/partners/photos',
-        });
+        const photoResult = await uploadDocToCloudinary(
+          req.files.photo[0],
+          'flashbites/partners/photos'
+        );
         documents.photo = {
           url: photoResult.secure_url,
           cloudinaryId: photoResult.public_id,
@@ -47,9 +71,10 @@ exports.submitApplication = async (req, res) => {
       }
 
       if (req.files.drivingLicense) {
-        const licenseResult = await cloudinary.uploader.upload(req.files.drivingLicense[0].path, {
-          folder: 'flashbites/partners/licenses',
-        });
+        const licenseResult = await uploadDocToCloudinary(
+          req.files.drivingLicense[0],
+          'flashbites/partners/licenses'
+        );
         documents.drivingLicense = {
           url: licenseResult.secure_url,
           cloudinaryId: licenseResult.public_id,
@@ -57,9 +82,10 @@ exports.submitApplication = async (req, res) => {
       }
 
       if (req.files.aadharCard) {
-        const aadharResult = await cloudinary.uploader.upload(req.files.aadharCard[0].path, {
-          folder: 'flashbites/partners/aadhar',
-        });
+        const aadharResult = await uploadDocToCloudinary(
+          req.files.aadharCard[0],
+          'flashbites/partners/aadhar'
+        );
         documents.aadharCard = {
           url: aadharResult.secure_url,
           cloudinaryId: aadharResult.public_id,
@@ -68,16 +94,24 @@ exports.submitApplication = async (req, res) => {
     }
 
     // Parse JSON strings
-    const parsedAddress = typeof address === 'string' ? JSON.parse(address) : address;
-    const parsedBankAccount = typeof bankAccount === 'string' ? JSON.parse(bankAccount) : bankAccount;
-    const parsedEmergencyContact = typeof emergencyContact === 'string' ? JSON.parse(emergencyContact) : emergencyContact;
+    let parsedAddress;
+    let parsedBankAccount;
+    let parsedEmergencyContact;
+
+    try {
+      parsedAddress = typeof address === 'string' ? JSON.parse(address) : address;
+      parsedBankAccount = typeof bankAccount === 'string' ? JSON.parse(bankAccount) : bankAccount;
+      parsedEmergencyContact = typeof emergencyContact === 'string' ? JSON.parse(emergencyContact) : emergencyContact;
+    } catch (parseError) {
+      return errorResponse(res, 400, 'Invalid form data payload', parseError.message);
+    }
 
     // Create partner application
     const partner = await Partner.create({
       fullName,
       email,
       phone,
-      alternatePhone,
+      alternatePhone: normalizedAlternatePhone,
       dateOfBirth,
       address: parsedAddress,
       vehicleType,
@@ -94,7 +128,11 @@ exports.submitApplication = async (req, res) => {
     successResponse(res, 201, 'Application submitted successfully', { partner });
   } catch (error) {
     console.error('Submit application error:', error);
-    errorResponse(res, 500, 'Failed to submit application', error.message);
+    if (error?.name === 'ValidationError') {
+      return errorResponse(res, 400, 'Invalid application data', error.message);
+    }
+
+    return errorResponse(res, 500, 'Failed to submit application', error.message);
   }
 };
 

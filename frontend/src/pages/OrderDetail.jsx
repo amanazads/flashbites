@@ -8,6 +8,7 @@ import { getSocketBaseUrl } from '../utils/apiBase';
 import { Loader } from '../components/common/Loader';
 import ReviewModal from '../components/common/ReviewModal';
 import CancellationModal from '../components/common/CancellationModal';
+import OrderInvoiceModal from '../components/common/OrderInvoiceModal';
 import LiveTracking from '../components/tracking/LiveTracking';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
@@ -19,7 +20,7 @@ import {
   XCircleIcon,
   TruckIcon,
   CreditCardIcon,
-  ReceiptRefundIcon,
+  DocumentTextIcon,
   BuildingStorefrontIcon,
   StarIcon
 } from '@heroicons/react/24/outline';
@@ -34,6 +35,7 @@ const OrderDetail = () => {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showCancellationModal, setShowCancellationModal] = useState(false);
   const [showTracking, setShowTracking] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [socket, setSocket] = useState(null);
 
   // Initialize socket connection
@@ -440,6 +442,14 @@ const OrderDetail = () => {
               </div>
 
               {/* Actions */}
+              <button
+                onClick={() => setShowInvoiceModal(true)}
+                className="w-full btn-outline mb-3 flex items-center justify-center gap-2"
+              >
+                <DocumentTextIcon className="w-5 h-5" />
+                View Invoice
+              </button>
+
               {canCancel && !isCancelled && (
                 <button
                   onClick={() => setShowCancellationModal(true)}
@@ -572,6 +582,13 @@ const OrderDetail = () => {
         onConfirm={handleCancelOrder}
         order={order}
         loading={cancelling}
+      />
+
+      <OrderInvoiceModal
+        isOpen={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        order={order}
+        viewer="customer"
       />
     </div>
   );

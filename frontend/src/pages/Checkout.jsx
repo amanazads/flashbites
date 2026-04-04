@@ -154,6 +154,28 @@ const Checkout = () => {
     return percent;
   };
 
+  const isFeeEnabledNow = (control) => {
+    if (control?.enabled === false) return false;
+    if (!control?.effectiveFrom) return true;
+    const effectiveFrom = new Date(control.effectiveFrom);
+    if (Number.isNaN(effectiveFrom.getTime())) return true;
+    return effectiveFrom.getTime() <= Date.now();
+  };
+
+  const resolveEffectiveFeeControl = (globalControl, restaurantControl) => {
+    if (restaurantControl?.useGlobal === false) {
+      return {
+        enabled: restaurantControl?.enabled !== false,
+        effectiveFrom: restaurantControl?.effectiveFrom || null,
+      };
+    }
+
+    return {
+      enabled: globalControl?.enabled !== false,
+      effectiveFrom: globalControl?.effectiveFrom || null,
+    };
+  };
+
   // Calculate distance when address or restaurant changes
   useEffect(() => {
     if (selectedAddress && restaurant?.location?.coordinates) {
@@ -176,14 +198,37 @@ const Checkout = () => {
     return sum + (sellingPrice * quantity);
   }, 0);
   const discount = appliedCoupon?.discount || 0;
-  const platformFee = Number(platformSettings?.platformFee || 25);
-  const taxRate = Number(platformSettings?.taxRate || 0.05);
+  const globalFeeControls = platformSettings?.feeControls || {};
+  const restaurantFeeControls = restaurant?.feeControls || {};
+
+  const effectiveDeliveryControl = resolveEffectiveFeeControl(
+    globalFeeControls.deliveryFee,
+    restaurantFeeControls.deliveryFee
+  );
+  const effectivePlatformControl = resolveEffectiveFeeControl(
+    globalFeeControls.platformFee,
+    restaurantFeeControls.platformFee
+  );
+  const effectiveTaxControl = resolveEffectiveFeeControl(
+    globalFeeControls.tax,
+    restaurantFeeControls.tax
+  );
+
+  const isDeliveryFeeEnabled = isFeeEnabledNow(effectiveDeliveryControl);
+  const isPlatformFeeEnabled = isFeeEnabledNow(effectivePlatformControl);
+  const isTaxEnabled = isFeeEnabledNow(effectiveTaxControl);
+
+  const basePlatformFee = Number(platformSettings?.platformFee || 25);
+  const platformFee = isPlatformFeeEnabled ? basePlatformFee : 0;
+  const baseTaxRate = Number(platformSettings?.taxRate || 0.05);
+  const taxRate = isTaxEnabled ? baseTaxRate : 0;
   const configuredDeliveryFee = Number(platformSettings?.deliveryFee);
-  const deliveryFee = Number.isFinite(configuredDeliveryFee) && configuredDeliveryFee >= 0
+  const resolvedDeliveryFee = Number.isFinite(configuredDeliveryFee) && configuredDeliveryFee >= 0
     ? configuredDeliveryFee
     : (deliveryDistance > 0
         ? calculateDeliveryFee(deliveryDistance, platformSettings?.deliveryChargeRules)
         : 0);
+  const deliveryFee = isDeliveryFeeEnabled ? resolvedDeliveryFee : 0;
   const tax = Math.max(subtotal - discount, 0) * taxRate;
   const total = subtotal + deliveryFee + platformFee + tax - discount;
   const restaurantAvailability = isRestaurantOpen(restaurant?.timing, restaurant?.acceptingOrders !== false);
@@ -606,24 +651,30 @@ const Checkout = () => {
                     <span className="font-medium">{formatCurrency(listedSubtotal)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-gray-500">
-                  <span>Delivery Fee</span>
-                  <span className="font-medium text-gray-700">{formatCurrency(deliveryFee)}</span>
-                </div>
-                <div className="flex justify-between text-gray-500">
-                  <span>Platform Fee</span>
-                  <span className="font-medium text-gray-700">{formatCurrency(platformFee)}</span>
-                </div>
+                {isDeliveryFeeEnabled && (
+                  <div className="flex justify-between text-gray-500">
+                    <span>Delivery Fee</span>
+                    <span className="font-medium text-gray-700">{formatCurrency(deliveryFee)}</span>
+                  </div>
+                )}
+                {isPlatformFeeEnabled && (
+                  <div className="flex justify-between text-gray-500">
+                    <span>Platform Fee</span>
+                    <span className="font-medium text-gray-700">{formatCurrency(platformFee)}</span>
+                  </div>
+                )}
                 {appliedCoupon && (
                   <div className="flex justify-between text-green-600 font-semibold">
                     <span>Discount ({appliedCoupon.code})</span>
                     <span>-{formatCurrency(discount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-gray-500">
-                  <span>Tax ({Math.round((taxRate || 0) * 100)}%)</span>
-                  <span className="font-medium text-gray-700">{formatCurrency(tax)}</span>
-                </div>
+                {isTaxEnabled && (
+                  <div className="flex justify-between text-gray-500">
+                    <span>Tax ({Math.round((taxRate || 0) * 100)}%)</span>
+                    <span className="font-medium text-gray-700">{formatCurrency(tax)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-[15px] max-[320px]:text-[14px] font-bold pt-2 border-t border-gray-200">
                   <span>Total</span>
                   <span style={{ color: '#EA580C' }}>{formatCurrency(total)}</span>

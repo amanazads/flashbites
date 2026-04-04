@@ -251,10 +251,12 @@ const Payment = () => {
                   <span>Subtotal</span>
                   <span>{formatCurrency(summary?.subtotal || 0)}</span>
                 </div>
-                <div className="flex justify-between text-gray-500">
-                  <span>Tax</span>
-                  <span>{formatCurrency(summary?.tax || 0)}</span>
-                </div>
+                {(summary?.tax || 0) > 0 && (
+                  <div className="flex justify-between text-gray-500">
+                    <span>Tax</span>
+                    <span>{formatCurrency(summary?.tax || 0)}</span>
+                  </div>
+                )}
                 {summary?.discount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount</span>

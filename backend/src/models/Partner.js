@@ -20,8 +20,12 @@ const partnerSchema = new mongoose.Schema({
   },
   alternatePhone: {
     type: String,
-    required: [true, 'Alternate phone is required'],
-    match: [/^[0-9]{10}$/, 'Please enter a valid 10-digit phone number'],
+    trim: true,
+    default: null,
+    validate: {
+      validator: (value) => !value || /^[0-9]{10}$/.test(value),
+      message: 'Please enter a valid 10-digit phone number',
+    },
   },
   dateOfBirth: {
     type: Date,

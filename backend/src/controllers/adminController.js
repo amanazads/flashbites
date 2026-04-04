@@ -9,6 +9,7 @@ const Address = require('../models/Address');
 const Notification = require('../models/Notification');
 const AccountDeletionRequest = require('../models/AccountDeletionRequest');
 const PlatformSettings = require('../models/PlatformSettings');
+const { normalizeFeeControls, normalizeRestaurantFeeControls } = require('../utils/feeControl');
 const { notifyCouponAvailable, notifyUser } = require('../utils/notificationService');
 const { normalizeDeliveryZone } = require('../utils/deliveryGeo');
 const { cacheGet, cacheSet, cacheDelByPrefix } = require('../utils/memoryCache');
@@ -68,6 +69,10 @@ const normalizeSettingsPayload = (payload = {}) => {
     ? normalizeDeliveryPartnerPayout(payload.deliveryPartnerPayout)
     : null;
 
+  const feeControls = payload.feeControls
+    ? normalizeFeeControls(payload.feeControls)
+    : null;
+
   return {
     commissionPercent: Number.isFinite(commissionPercent)
       ? Math.min(90, Math.max(0, commissionPercent))
@@ -82,9 +87,20 @@ const normalizeSettingsPayload = (payload = {}) => {
       : undefined,
     deliveryChargeRules: deliveryChargeRules && deliveryChargeRules.length > 0 ? deliveryChargeRules : undefined,
     promoBanners: promoBanners ? promoBanners : undefined,
-    deliveryPartnerPayout: deliveryPartnerPayout || undefined
+    deliveryPartnerPayout: deliveryPartnerPayout || undefined,
+    feeControls: feeControls || undefined
   };
 };
+
+const attachFeeControls = (settings = {}) => ({
+  ...settings,
+  feeControls: normalizeFeeControls(settings.feeControls),
+});
+
+const attachRestaurantFeeControls = (restaurant = {}) => ({
+  ...restaurant,
+  feeControls: normalizeRestaurantFeeControls(restaurant?.feeControls),
+});
 
 // @desc    Get admin dashboard statistics
 // @route   GET /api/admin/dashboard
@@ -542,6 +558,8 @@ exports.getPlatformSettings = async (req, res) => {
       settings = settings.toObject();
     }
 
+    settings = attachFeeControls(settings);
+
     successResponse(res, 200, 'Platform settings retrieved', { settings });
   } catch (error) {
     errorResponse(res, 500, 'Failed to get platform settings', error.message);
@@ -555,11 +573,13 @@ exports.updatePlatformSettings = async (req, res) => {
   try {
     const updates = normalizeSettingsPayload(req.body);
 
-    const settings = await PlatformSettings.findOneAndUpdate(
+    let settings = await PlatformSettings.findOneAndUpdate(
       {},
       { $set: updates },
       { new: true, upsert: true, runValidators: true }
     ).lean();
+
+    settings = attachFeeControls(settings);
 
     invalidateAdminCache();
     successResponse(res, 200, 'Platform settings updated', { settings });
@@ -583,9 +603,13 @@ exports.getAllRestaurants = async (req, res) => {
       .populate('ownerId', 'name email phone')
       .sort('-createdAt');
 
+    const normalizedRestaurants = restaurants.map((restaurant) =>
+      attachRestaurantFeeControls(restaurant.toObject())
+    );
+
     successResponse(res, 200, 'Restaurants retrieved successfully', {
-      count: restaurants.length,
-      restaurants
+      count: normalizedRestaurants.length,
+      restaurants: normalizedRestaurants
     });
   } catch (error) {
     errorResponse(res, 500, 'Failed to get restaurants', error.message);
@@ -1328,6 +1352,34 @@ exports.updateRestaurantPayoutRate = async (req, res) => {
     );
   } catch (error) {
     return errorResponse(res, 500, 'Failed to update restaurant payout rate', error.message);
+  }
+};
+
+// @desc    Update restaurant fee controls override
+// @route   PATCH /api/admin/restaurants/:id/fee-controls
+// @access  Private (Admin)
+exports.updateRestaurantFeeControls = async (req, res) => {
+  try {
+    const parsedFeeControls = normalizeRestaurantFeeControls(req.body?.feeControls || {});
+
+    const restaurant = await Restaurant.findByIdAndUpdate(
+      req.params.id,
+      { $set: { feeControls: parsedFeeControls } },
+      { new: true, runValidators: true }
+    )
+      .select('name feeControls')
+      .lean();
+
+    if (!restaurant) {
+      return errorResponse(res, 404, 'Restaurant not found');
+    }
+
+    invalidateAdminCache();
+    return successResponse(res, 200, 'Restaurant fee controls updated', {
+      restaurant: attachRestaurantFeeControls(restaurant),
+    });
+  } catch (error) {
+    return errorResponse(res, 500, 'Failed to update restaurant fee controls', error.message);
   }
 };
 
