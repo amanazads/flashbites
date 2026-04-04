@@ -2,21 +2,9 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from '../api/axios';
-import { requestViaFetch, requestViaNativeHttp, shouldFallbackToNativeHttp } from '../api/nativeHttpFallback';
 import { sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../firebase';
 import { validatePassword, validatePhone } from '../utils/validators';
 import { BRAND } from '../constants/theme';
-
-const isNativePlatform = () => !!(
-  typeof window !== 'undefined'
-  && (() => {
-    const cap = window.Capacitor;
-    if (!cap) return false;
-    if (typeof cap.isNativePlatform === 'function') return cap.isNativePlatform();
-    if (typeof cap.getPlatform === 'function') return cap.getPlatform() !== 'web';
-    return window.location.protocol === 'https:' && window.location.hostname === 'localhost';
-  })()
-);
 
 const OTP_BLOCK_SECONDS = 300;
 const OTP_BLOCK_KEY = 'fb_otp_block_until';
@@ -32,20 +20,9 @@ const isTooManyRequestsError = (error) => {
   return code.includes('too-many-requests') || message.includes('auth/too-many-requests');
 };
 
-const isBackendNetworkError = (error) => {
-  const code = String(error?.code || '').toLowerCase();
-  const message = String(error?.message || '').toLowerCase();
-  return !error?.response && (
-    code.includes('err_network')
-    || code.includes('econnaborted')
-    || message.includes('network error')
-    || message.includes('timeout')
-  );
-};
-
 const ForgotPassword = () => {
   const navigate = useNavigate();
-  const nativePlatform = isNativePlatform();
+  const nativePlatform = Boolean(window?.Capacitor?.isNativePlatform?.());
   const [step, setStep] = useState(1); // 1: phone, 2: otp, 3: new password
   const [loading, setLoading] = useState(false);
   const [otpBlockRemaining, setOtpBlockRemaining] = useState(0);
@@ -113,24 +90,6 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      try {
-        const precheck = await axios.get('/auth/phone-status', {
-          params: {
-            phone: formData.phone,
-            purpose: 'reset'
-          }
-        });
-
-        const canSendOtp = Boolean(precheck?.data?.data?.canSendOtp);
-        if (!canSendOtp) {
-          toast.error(precheck?.data?.message || 'No account found with this phone number');
-          return;
-        }
-      } catch (precheckError) {
-        // Keep flow compatible with backend snapshots where /auth/phone-status may not exist.
-        // Continue with OTP send and let reset API validate account existence.
-      }
-
       const phoneWithCode = `+91${formData.phone}`;
       await sendPhoneOTP(phoneWithCode);
       toast.success('OTP sent to your phone number');
@@ -171,7 +130,7 @@ const ForgotPassword = () => {
     e.preventDefault();
 
     if (!validatePassword(formData.newPassword)) {
-      toast.error('Password must be at least 8 characters, with one uppercase, one lowercase, and one special character');
+      toast.error('Password must be at least 6 characters, with one uppercase, one lowercase, and one special character');
       return;
     }
 
@@ -182,36 +141,11 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      const resetPayload = {
+      const response = await axios.post('/auth/reset-password', {
         phone: formData.phone,
         firebaseToken,
         newPassword: formData.newPassword
-      };
-
-      let response;
-      try {
-        response = await axios.post('/auth/reset-password', resetPayload);
-      } catch (resetError) {
-        if (!shouldFallbackToNativeHttp(resetError)) {
-          throw resetError;
-        }
-
-        try {
-          const data = await requestViaFetch({
-            method: 'POST',
-            path: '/auth/reset-password',
-            data: resetPayload,
-          });
-          response = { data };
-        } catch {
-          const data = await requestViaNativeHttp({
-            method: 'POST',
-            path: '/auth/reset-password',
-            data: resetPayload,
-          });
-          response = { data };
-        }
-      }
+      });
 
       toast.success(response.data.message || 'Password reset successful');
       setTimeout(() => navigate('/login'), 2000);
@@ -226,26 +160,8 @@ const ForgotPassword = () => {
     if (otpBlockRemaining > 0) return;
     setLoading(true);
     try {
-      try {
-        const precheck = await axios.get('/auth/phone-status', {
-          params: {
-            phone: formData.phone,
-            purpose: 'reset'
-          }
-        });
-
-        const canSendOtp = Boolean(precheck?.data?.data?.canSendOtp);
-        if (!canSendOtp) {
-          toast.error(precheck?.data?.message || 'No account found with this phone number');
-          return;
-        }
-      } catch (precheckError) {
-        // Keep flow compatible with backend snapshots where /auth/phone-status may not exist.
-        // Continue with OTP resend and rely on server validation in reset endpoint.
-      }
-
       const phoneWithCode = `+91${formData.phone}`;
-      await sendPhoneOTP(phoneWithCode, { force: true });
+      await sendPhoneOTP(phoneWithCode);
       toast.success('OTP resent to your phone');
     } catch (error) {
       if (isTooManyRequestsError(error)) {
@@ -363,7 +279,7 @@ const ForgotPassword = () => {
                   id="newPassword" name="newPassword" type="password" required
                   value={formData.newPassword} onChange={handleChange}
                   className="input-field"
-                  placeholder="Min 8 characters"
+                  placeholder="Min 6 characters"
                 />
               </div>
 

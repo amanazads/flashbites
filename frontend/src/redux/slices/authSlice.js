@@ -22,20 +22,7 @@ export const login = createAsyncThunk(
       // Return the nested data object which contains user, accessToken, refreshToken
       return apiResponse.data;
     } catch (error) {
-      const status = error?.response?.status;
-      const code = String(error?.code || '').toLowerCase();
-      const message = String(error?.message || '').toLowerCase();
-      const isNetworkFailure = !status && (
-        code.includes('err_network')
-        || code.includes('econnaborted')
-        || message.includes('network error')
-        || message.includes('timeout')
-      );
-
-      return rejectWithValue(
-        error.response?.data?.message
-          || (isNetworkFailure ? 'Unable to connect to server. Please check internet and try again.' : 'Login failed')
-      );
+      return rejectWithValue(error.response?.data?.message || 'Login failed');
     }
   }
 );

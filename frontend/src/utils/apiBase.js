@@ -17,7 +17,6 @@ const isNativePlatform = () => {
 
   const cap = window.Capacitor;
   if (!cap) {
-    // Capacitor bridge can initialize after module eval; preserve native routing in that case.
     return hasNativeLocalhostOrigin() || window.location.protocol === 'capacitor:';
   }
 
@@ -37,10 +36,31 @@ const getProductionApiFallback = () => {
   return 'https://flashbites-backend.onrender.com/api';
 };
 
+const isLocalApiUrl = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return false;
+
+  if (raw.startsWith('/')) {
+    return true;
+  }
+
+  try {
+    const parsed = new URL(raw, 'http://localhost');
+    const host = String(parsed.hostname || '').toLowerCase();
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  } catch {
+    return false;
+  }
+};
+
 export const getApiBaseUrl = () => {
   const configured = String(import.meta.env.VITE_API_URL || '').trim();
+  const allowLocalApiInProd = String(import.meta.env.VITE_ALLOW_LOCAL_API_IN_PROD || '').toLowerCase() === 'true';
 
   if (configured) {
+    if (!import.meta.env.DEV && !allowLocalApiInProd && isLocalApiUrl(configured)) {
+      return getProductionApiFallback();
+    }
     return configured;
   }
 

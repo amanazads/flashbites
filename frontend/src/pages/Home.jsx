@@ -3,30 +3,49 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
 import { fetchRestaurants } from '../redux/slices/restaurantSlice';
-import { openCart, setSelectedDeliveryAddress } from '../redux/slices/uiSlice';
+import { clearSelectedDeliveryAddress, openCart, setSelectedDeliveryAddress } from '../redux/slices/uiSlice';
 import { getAddresses } from '../api/userApi';
 import { getPlatformSettings } from '../api/settingsApi';
 import { getRestaurantMenuItems, searchRestaurantsAndItems } from '../api/restaurantApi';
-import { submitContactForm } from '../api/contactApi';
 import AddAddressModal from '../components/common/AddAddressModal';
 import RestaurantCard from '../components/restaurant/RestaurantCard';
-import LocationGateModal from '../components/location/LocationGateModal';
 import { Loader } from '../components/common/Loader';
 import { calculateCartTotal, calculateDistance } from '../utils/helpers';
 import { formatCurrency } from '../utils/formatters';
+import { getApiBaseUrl } from '../utils/apiBase';
 import { BRAND } from '../constants/theme';
 import SEO from '../components/common/SEO';
-import { getApiBaseUrl } from '../utils/apiBase';
-import { buildManualAddressSelection, mapSavedAddressToSelection } from '../utils/deliveryAddress';
 import toast from 'react-hot-toast';
 import {
   MagnifyingGlassIcon,
   MapPinIcon,
   ChevronDownIcon,
   XMarkIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline';
 
 const ALL_CATEGORY_IMAGE = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80';
+const SEARCH_IMAGE = 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=120&q=80';
+const SELECTED_ADDRESS_KEY = 'fb_selected_address';
+
+const mapSavedAddressToSelection = (addr) => {
+  const addrLng = Number(addr?.coordinates?.[0] ?? addr?.lng);
+  const addrLat = Number(addr?.coordinates?.[1] ?? addr?.lat);
+  const hasStoredCoords = Number.isFinite(addrLat) && Number.isFinite(addrLng) && (addrLat !== 0 || addrLng !== 0);
+  if (!hasStoredCoords) return null;
+
+  const typeLabel = addr.type === 'home' ? 'Home' : addr.type === 'work' ? 'Work' : 'Other';
+  return {
+    id: addr._id,
+    type: addr.type || 'other',
+    typeLabel,
+    city: addr.city || '',
+    fullAddress: addr.fullAddress || [addr.street, addr.landmark, addr.city, addr.state, addr.zipCode].filter(Boolean).join(', '),
+    latitude: addrLat,
+    longitude: addrLng,
+  };
+};
+
 /* ───── Category definitions with real food photos ───── */
 const CATEGORIES = [
   { id: 'Pizza', label: 'Pizza', image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=120&q=80' },
@@ -100,43 +119,20 @@ const hasRealCoords = (r) => {
   return Array.isArray(coords) && coords.length === 2 && (coords[0] !== 0 || coords[1] !== 0);
 };
 
-const buildRestaurantRequestKey = (filters = {}) => {
-  const normalized = {
-    lat: Number.isFinite(Number(filters?.lat)) ? Number(filters.lat) : null,
-    lng: Number.isFinite(Number(filters?.lng)) ? Number(filters.lng) : null,
-    radius: Number.isFinite(Number(filters?.radius)) ? Number(filters.radius) : null,
-    city: String(filters?.city || '').trim().toLowerCase(),
-    zipCode: String(filters?.zipCode || '').trim().toLowerCase(),
-    state: String(filters?.state || '').trim().toLowerCase(),
-    cuisine: String(filters?.cuisine || '').trim().toLowerCase(),
-    search: String(filters?.search || '').trim().toLowerCase(),
-  };
-
-  return JSON.stringify(normalized);
-};
-
-const isNativePlatform = () => !!(
-  typeof window !== 'undefined'
-  && window.Capacitor
-  && typeof window.Capacitor.isNativePlatform === 'function'
-  && window.Capacitor.isNativePlatform()
-);
-
 const Home = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { restaurants, loading, error: restaurantError, lastResolvedRequestKey, activeRequestKey } = useSelector((s) => s.restaurant);
+  const { restaurants, loading, error: restaurantError } = useSelector((s) => s.restaurant);
   const { isAuthenticated, user } = useSelector((s) => s.auth);
   const selectedAddress = useSelector((s) => s.ui.selectedDeliveryAddress);
   const { items: cartItems } = useSelector((s) => s.cart);
 
   /* ── Delivery address state ── */
   const [savedAddresses, setSavedAddresses] = useState([]);
-  const [showLocationGate, setShowLocationGate] = useState(false);
+  const [showAddressPicker, setShowAddressPicker] = useState(false);
   const [showAddAddressModal, setShowAddAddressModal] = useState(false);
-  const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [detectingLocation, setDetectingLocation] = useState(false);
-  const [addressesLoaded, setAddressesLoaded] = useState(false);
+  const pickerRef = useRef(null);
   const promoRowRef = useRef(null);
   const promoAutoTimerRef = useRef(null);
   const promoResetTimerRef = useRef(null);
@@ -145,12 +141,6 @@ const Home = () => {
   /* ── Filtered restaurants ── */
   const [noServiceArea, setNoServiceArea] = useState(false);
   const [promoBanners, setPromoBanners] = useState([]);
-  const [notifySubmitting, setNotifySubmitting] = useState(false);
-  const [notifyForm, setNotifyForm] = useState({
-    name: '',
-    email: '',
-    phone: ''
-  });
 
   /* ── Category + search ── */
   const [activeCat, setActiveCat] = useState('all');
@@ -165,7 +155,6 @@ const Home = () => {
   const loadSavedAddresses = useCallback(async () => {
     if (!isAuthenticated) {
       setSavedAddresses([]);
-      setAddressesLoaded(true);
       return;
     }
 
@@ -183,8 +172,6 @@ const Home = () => {
       }
     } catch {
       setSavedAddresses([]);
-    } finally {
-      setAddressesLoaded(true);
     }
   }, [isAuthenticated, selectedAddress, dispatch]);
 
@@ -192,7 +179,7 @@ const Home = () => {
   // On mobile (Capacitor) wait for health ping before fetching to avoid cold-start race
   useEffect(() => {
     const apiBase = getApiBaseUrl().replace(/\/api\/?$/, '');
-    const isCapacitor = isNativePlatform();
+    const isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform());
 
     const boot = async () => {
       try {
@@ -200,13 +187,10 @@ const Home = () => {
       } catch (_) { /* backend might be sleeping, that's fine */ }
       // Give it a moment to fully wake if it was sleeping
       if (isCapacitor) await new Promise(r => setTimeout(r, 1500));
-      if (!selectedAddress) {
-        dispatch(fetchRestaurants({}));
-      }
     };
 
     boot();
-  }, [dispatch, selectedAddress]);
+  }, [dispatch]);
 
   useEffect(() => {
     const loadPromos = async () => {
@@ -231,17 +215,37 @@ const Home = () => {
     loadSavedAddresses();
   }, [loadSavedAddresses]);
 
+  // Restore selected address across page navigation
   useEffect(() => {
-    setNotifyForm({
-      name: user?.name || '',
-      email: user?.email || '',
-      phone: user?.phone || ''
-    });
-  }, [user]);
+    try {
+      const savedAddress = localStorage.getItem(SELECTED_ADDRESS_KEY);
+      if (!selectedAddress && savedAddress) {
+        const parsed = JSON.parse(savedAddress);
+        if (parsed && typeof parsed === 'object') {
+          dispatch(setSelectedDeliveryAddress(parsed));
+        }
+      }
+    } catch {
+      // ignore invalid persisted state
+    }
+  }, [selectedAddress, dispatch]);
+
+  // Persist selected address so returning to Home doesn't ask location again
+  useEffect(() => {
+    if (selectedAddress) {
+      localStorage.setItem(SELECTED_ADDRESS_KEY, JSON.stringify(selectedAddress));
+    } else {
+      localStorage.removeItem(SELECTED_ADDRESS_KEY);
+    }
+  }, [selectedAddress]);
 
   // Close picker on outside click
   useEffect(() => {
     const handler = (e) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target)) {
+        setShowAddressPicker(false);
+      }
+
       if (searchRef.current && !searchRef.current.contains(e.target)) {
         setShowSuggestions(false);
       }
@@ -249,11 +253,6 @@ const Home = () => {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  useEffect(() => {
-    if (!addressesLoaded) return;
-    setShowLocationGate(!selectedAddress);
-  }, [addressesLoaded, selectedAddress]);
 
   useEffect(() => {
     const query = searchQ.trim();
@@ -268,11 +267,7 @@ const Home = () => {
     const timer = setTimeout(async () => {
       setSuggestionsLoading(true);
       try {
-        const response = await searchRestaurantsAndItems({
-          q: query,
-          limit: 6,
-          city: selectedAddress?.city || undefined,
-        });
+        const response = await searchRestaurantsAndItems({ q: query, limit: 6 });
         const payload = response?.data || {};
         if (cancelled) return;
 
@@ -354,27 +349,31 @@ const Home = () => {
   useEffect(() => {
     if (!selectedAddress) {
       setNoServiceArea(false);
-      dispatch(fetchRestaurants({}));
       return;
     }
 
     const lat = Number(selectedAddress.latitude || 0);
     const lng = Number(selectedAddress.longitude || 0);
     const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
-    const city = String(selectedAddress.city || '').trim();
-    const zipCode = String(selectedAddress.zipCode || '').trim();
-    const state = String(selectedAddress.state || '').trim();
 
     if (!hasCoords) {
       toast.error('Please select a valid address from suggestions');
       return;
     }
 
-    dispatch(fetchRestaurants({ lat, lng, radius: 50000, city, zipCode, state }));
+    dispatch(fetchRestaurants({ lat, lng, radius: 50000 }));
   }, [selectedAddress, dispatch]);
+
+  useEffect(() => {
+    if (selectedAddress) {
+      setNoServiceArea(restaurants.length === 0 && !loading);
+    }
+  }, [selectedAddress, restaurants, loading]);
 
   /* ── Select a saved address ── */
   const handleSelectSavedAddress = (addr) => {
+    setShowAddressPicker(false);
+
     const mapped = mapSavedAddressToSelection(addr);
     if (!mapped) {
       toast.error('This address is missing coordinates. Please re-add it from suggestions.');
@@ -382,68 +381,54 @@ const Home = () => {
     }
 
     dispatch(setSelectedDeliveryAddress(mapped));
-    setShowLocationGate(false);
   };
 
-  const handleUseCurrentLocation = async () => {
-    setDetectingLocation(true);
-
-    const applyPosition = (position) => {
-      const latitude = Number(position?.coords?.latitude || 0);
-      const longitude = Number(position?.coords?.longitude || 0);
-
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || (latitude === 0 && longitude === 0)) {
-        throw new Error('Invalid location coordinates');
-      }
-
-      const selection = buildManualAddressSelection({
-        id: 'current-location',
-        type: 'current',
-        city: 'Current Area',
-        fullAddress: `Current location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
-        latitude,
-        longitude,
-      });
-
-      dispatch(setSelectedDeliveryAddress(selection));
-      setNoServiceArea(false);
-      setShowLocationGate(false);
-      toast.success('Current location selected');
-    };
-
-    try {
-      if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) {
-        const { Geolocation } = await import('@capacitor/geolocation');
-        await Geolocation.requestPermissions();
-        const position = await Geolocation.getCurrentPosition({
-          enableHighAccuracy: true,
-          timeout: 12000,
-          maximumAge: 180000,
-        });
-        applyPosition(position);
-        return;
-      }
-
-      if (!navigator.geolocation) {
-        throw new Error('Location services are not supported on this device.');
-      }
-
-      await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 12000,
-          maximumAge: 180000,
-        });
-      }).then(applyPosition);
-    } catch {
-      toast.error('Unable to access your location. Please allow location permission or select an address manually.');
-    } finally {
-      setDetectingLocation(false);
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Location services are not supported on this device.');
+      return;
     }
+
+    setDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const latitude = Number(position?.coords?.latitude || 0);
+        const longitude = Number(position?.coords?.longitude || 0);
+
+        setDetectingLocation(false);
+
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || (latitude === 0 && longitude === 0)) {
+          toast.error('Could not detect your current location. Please try again.');
+          return;
+        }
+
+        dispatch(setSelectedDeliveryAddress({
+          id: 'current-location',
+          type: 'current',
+          typeLabel: 'Current',
+          city: 'Current Area',
+          fullAddress: `Current location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+          latitude,
+          longitude,
+        }));
+
+        setNoServiceArea(false);
+        setShowAddressPicker(false);
+      },
+      () => {
+        setDetectingLocation(false);
+        toast.error('Unable to access your location. Please allow location permission.');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 180000,
+      }
+    );
   };
 
   const handleOpenAddAddress = () => {
-    setShowLocationGate(false);
+    setShowAddressPicker(false);
     setTimeout(() => setShowAddAddressModal(true), 120);
   };
 
@@ -463,60 +448,16 @@ const Home = () => {
     if (mapped) {
       dispatch(setSelectedDeliveryAddress(mapped));
       setNoServiceArea(false);
-      setShowLocationGate(false);
+      setShowAddressPicker(false);
       return;
     }
 
     toast.error('Address added without valid coordinates. Please re-add from map suggestions.');
   };
 
-  const openAddressSelector = () => {
-    setShowLocationGate(true);
-  };
-
-  const handleManualAddressSelected = (selection) => {
-    dispatch(setSelectedDeliveryAddress(selection));
+  const clearAddress = () => {
+    dispatch(clearSelectedDeliveryAddress());
     setNoServiceArea(false);
-    setShowLocationGate(false);
-  };
-
-  const handleNotifyInterest = async () => {
-    if (!selectedAddress) {
-      toast.error('Select a delivery location first');
-      return;
-    }
-
-    if (!notifyForm.name.trim() || !notifyForm.email.trim()) {
-      toast.error('Name and email are required');
-      return;
-    }
-
-    setNotifySubmitting(true);
-    try {
-      const locationLabel = selectedAddress?.fullAddress || selectedAddress?.city || 'selected area';
-      await submitContactForm({
-        name: notifyForm.name.trim(),
-        email: notifyForm.email.trim(),
-        phone: notifyForm.phone.trim(),
-        source: 'service-availability-request',
-        subject: 'Service Availability Request',
-        message: [
-          'A user asked to be notified when FlashBites becomes available in this area.',
-          '',
-          `Requested location: ${locationLabel}`,
-          `City: ${selectedAddress?.city || 'N/A'}`,
-          `State: ${selectedAddress?.state || 'N/A'}`,
-          `Zip Code: ${selectedAddress?.zipCode || 'N/A'}`,
-          `Coordinates: ${selectedAddress?.latitude || 'N/A'}, ${selectedAddress?.longitude || 'N/A'}`
-        ].join('\n')
-      });
-      toast.success("You're on the list. We'll notify you when we launch there.");
-      setShowNotifyModal(false);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to register your request. Please try again.');
-    } finally {
-      setNotifySubmitting(false);
-    }
   };
 
   const handleSearch = (e) => {
@@ -527,38 +468,7 @@ const Home = () => {
     }
   };
 
-  const selectedLat = Number(selectedAddress?.latitude || 0);
-  const selectedLng = Number(selectedAddress?.longitude || 0);
-  const hasSelectedCoords =
-    Number.isFinite(selectedLat) &&
-    Number.isFinite(selectedLng) &&
-    (selectedLat !== 0 || selectedLng !== 0);
-
-  const selectedAddressRequestKey = selectedAddress && hasSelectedCoords
-    ? buildRestaurantRequestKey({
-        lat: selectedLat,
-        lng: selectedLng,
-        radius: 50000,
-        city: selectedAddress?.city || '',
-        zipCode: selectedAddress?.zipCode || '',
-        state: selectedAddress?.state || '',
-      })
-    : buildRestaurantRequestKey({});
-
-  const isShowingResolvedRestaurants = !selectedAddress || lastResolvedRequestKey === selectedAddressRequestKey;
-  const isResolvingSelectedAddress =
-    !!selectedAddress &&
-    activeRequestKey === selectedAddressRequestKey &&
-    lastResolvedRequestKey !== selectedAddressRequestKey;
-  const visibleRestaurants = isShowingResolvedRestaurants ? restaurants : [];
-  const showComingSoonState =
-    !!selectedAddress &&
-    isShowingResolvedRestaurants &&
-    !loading &&
-    !restaurantError &&
-    visibleRestaurants.length === 0;
-
-  const baseList = visibleRestaurants;
+  const baseList = restaurants;
   const allFiltered = activeCat === 'all'
     ? baseList
     : baseList.filter((r) => Array.isArray(categoryMatchesByRestaurant[r._id]) && categoryMatchesByRestaurant[r._id].length > 0);
@@ -569,12 +479,6 @@ const Home = () => {
   const [cartExpanded, setCartExpanded] = useState(false);
   const greeting = new Date().getHours() >= 17 ? 'Good Evening' : 'Hello';
   const displayName = isAuthenticated ? (user?.name?.split(' ')[0] || 'Friend') : 'Guest';
-
-  useEffect(() => {
-    if (selectedAddress) {
-      setNoServiceArea(isShowingResolvedRestaurants && restaurants.length === 0 && !loading);
-    }
-  }, [selectedAddress, restaurants, loading, isShowingResolvedRestaurants]);
 
   useEffect(() => {
     if (activeCat === 'all') {
@@ -799,11 +703,11 @@ const Home = () => {
                 )}
               </form>
 
-              <div className="relative z-[140] mt-4">
+              <div ref={pickerRef} className="relative z-[140] mt-4">
                 <div className="flex items-center gap-2 min-w-0">
                   <button
                     type="button"
-                    onClick={() => setShowLocationGate(true)}
+                    onClick={() => setShowAddressPicker(!showAddressPicker)}
                     className="min-w-0 flex-1 flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3.5 bg-white hover:border-orange-200 transition-colors overflow-hidden"
                   >
                     <div className="h-9 w-9 rounded-xl flex items-center justify-center bg-orange-50">
@@ -821,14 +725,80 @@ const Home = () => {
                   {selectedAddress && (
                     <button
                       type="button"
-                      onClick={openAddressSelector}
+                      onClick={clearAddress}
                       className="h-10 w-10 rounded-xl border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 flex items-center justify-center"
-                      aria-label="Change selected address"
+                      aria-label="Clear selected address"
                     >
                       <XMarkIcon className="h-4 w-4" />
                     </button>
                   )}
                 </div>
+
+                <AnimatePresence>
+                  {showAddressPicker && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                      transition={{ duration: 0.18, ease: 'easeOut' }}
+                      className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl z-[160] max-h-[65vh] flex flex-col overflow-hidden"
+                    >
+                      <div className="p-2 border-b border-gray-100 bg-[#FFFBF7]">
+                        <button
+                          type="button"
+                          onClick={handleUseCurrentLocation}
+                          disabled={detectingLocation}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-orange-50 disabled:opacity-60"
+                        >
+                          <div className="h-8 w-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                            <MapPinIcon className="h-4 w-4 text-[#EA580C]" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-semibold text-gray-900">
+                              {detectingLocation ? 'Detecting current location...' : 'Use Current Location'}
+                            </p>
+                            <p className="text-[11px] text-gray-500">Fetch nearby restaurants from your live GPS</p>
+                          </div>
+                        </button>
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto overscroll-contain py-1">
+                        {savedAddresses.length > 0 ? savedAddresses.map((addr) => (
+                          <button
+                            key={addr._id}
+                            onClick={() => handleSelectSavedAddress(addr)}
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50"
+                          >
+                            <MapPinIcon className="h-4 w-4 text-[#FB923C]" />
+                            <div className="flex-1 text-left min-w-0">
+                              <p className="text-[13px] text-gray-900 font-semibold truncate">{addr.fullAddress || addr.street}</p>
+                              <p className="text-[11px] text-gray-500 capitalize">{addr.type}</p>
+                            </div>
+                            <CheckIcon className="h-4 w-4 text-[#F97316]" style={{ opacity: selectedAddress?.id === addr._id ? 1 : 0 }} />
+                          </button>
+                        )) : (
+                          <p className="px-4 py-3 text-[12px] text-gray-500">No saved addresses yet.</p>
+                        )}
+                      </div>
+
+                      <div className="px-4 py-3 border-t border-gray-100 bg-white sticky bottom-0">
+                        {isAuthenticated ? (
+                          <button
+                            type="button"
+                            onClick={handleOpenAddAddress}
+                            className="w-full text-left text-sm font-semibold text-[#FB923C]"
+                          >
+                            + Add New Address
+                          </button>
+                        ) : (
+                          <p className="text-[12px] text-gray-500">
+                            <Link to="/login" className="text-[#FB923C] font-semibold">Sign in</Link> to use your saved addresses
+                          </p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </motion.section>
@@ -864,13 +834,13 @@ const Home = () => {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-gray-900 text-lg font-semibold">
                 {selectedAddress
-                  ? `${visibleRestaurants.length > 0 ? `${visibleRestaurants.length} Restaurants near ` : 'Restaurants near '}${selectedAddress.city || 'selected address'}`
+                  ? `${restaurants.length > 0 ? `${restaurants.length} Restaurants near ` : 'Restaurants near '}${selectedAddress.city || 'selected address'}`
                   : 'All Restaurants'}
               </h2>
               <Link to="/restaurants" className="text-[#FB923C] text-sm">View all</Link>
             </div>
 
-        {(loading || isResolvingSelectedAddress || (activeCat !== 'all' && categoryFilterLoading)) ? (
+        {(loading || (activeCat !== 'all' && categoryFilterLoading)) ? (
           <div className="flex flex-col items-center justify-center py-16 gap-4">
             <svg className="animate-spin w-10 h-10" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke={BRAND} strokeWidth="4" />
@@ -898,11 +868,7 @@ const Home = () => {
               </svg>
             </div>
             <h3 className="text-[17px] font-bold text-gray-900 mb-1">Couldn't load restaurants</h3>
-            <p className="text-[13px] text-gray-500 mb-5">
-              {typeof restaurantError === 'string' && restaurantError.trim()
-                ? restaurantError
-                : 'The server may be waking up. Please try again.'}
-            </p>
+            <p className="text-[13px] text-gray-500 mb-5">The server may be waking up. Please try again.</p>
             <button
               onClick={() => {
                 const lat = Number(selectedAddress?.latitude || 0);
@@ -912,12 +878,7 @@ const Home = () => {
                   toast.error('Select a valid delivery address first');
                   return;
                 }
-                dispatch(fetchRestaurants({
-                  lat,
-                  lng,
-                  radius: 50000,
-                  city: selectedAddress?.city || undefined,
-                }));
+                dispatch(fetchRestaurants({ lat, lng, radius: 50000 }));
               }}
               className="px-6 py-2.5 rounded-xl text-white font-semibold text-[14px]"
               style={{ background: BRAND }}
@@ -925,7 +886,18 @@ const Home = () => {
               Retry
             </button>
           </div>
-        ) : showComingSoonState ? (
+        ) : allFiltered.length ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 xs:gap-4 sm:gap-5 lg:gap-6">
+            {allFiltered.slice(0, 12).map((r) => (
+              <RestaurantCard
+                key={r._id}
+                restaurant={r}
+                selectedCategory={activeCat === 'all' ? null : activeCat}
+                matchedItems={categoryMatchesByRestaurant[r._id] || []}
+              />
+            ))}
+          </div>
+        ) : noServiceArea ? (
           /* ── Coming soon to this location ── */
           <div
             className="text-center py-10 px-6 rounded-2xl"
@@ -953,33 +925,22 @@ const Home = () => {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
                 onClick={() => {
-                  openAddressSelector();
+                  clearAddress();
+                  setShowAddressPicker(true);
                 }}
                 className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-[14px] font-bold text-white"
                 style={{ background: BRAND, boxShadow: 'none' }}
               >
                 Select Another Address
               </button>
-              <button
-                type="button"
-                onClick={() => setShowNotifyModal(true)}
+              <a
+                href="mailto:info.flashbites@gmail.com"
                 className="text-[13px] font-semibold"
                 style={{ color: BRAND }}
               >
                 Notify me when available →
-              </button>
+              </a>
             </div>
-          </div>
-        ) : allFiltered.length ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 xs:gap-4 sm:gap-5 lg:gap-6">
-            {allFiltered.slice(0, 12).map((r) => (
-              <RestaurantCard
-                key={r._id}
-                restaurant={r}
-                selectedCategory={activeCat === 'all' ? null : activeCat}
-                matchedItems={categoryMatchesByRestaurant[r._id] || []}
-              />
-            ))}
           </div>
         ) : (
           <div className="text-center py-16">
@@ -1039,100 +1000,7 @@ const Home = () => {
         isOpen={showAddAddressModal}
         onClose={() => setShowAddAddressModal(false)}
         onAddressAdded={handleAddressAdded}
-        onAddressSelected={handleManualAddressSelected}
-        saveToAccount={isAuthenticated}
-        title={isAuthenticated ? 'Add Delivery Address' : 'Select Delivery Address'}
-        submitLabel={isAuthenticated ? 'Save Address' : 'Use This Address'}
       />
-      <LocationGateModal
-        isOpen={showLocationGate}
-        selectedAddress={selectedAddress}
-        savedAddresses={savedAddresses}
-        isAuthenticated={isAuthenticated}
-        detectingLocation={detectingLocation}
-        onUseCurrentLocation={handleUseCurrentLocation}
-        onSelectSavedAddress={handleSelectSavedAddress}
-        onOpenManualAddress={handleOpenAddAddress}
-        onClose={() => setShowLocationGate(false)}
-      />
-      {showNotifyModal && (
-        <div className="fixed inset-0 z-[1900] flex items-center justify-center p-4 bg-black/50">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200 p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">Notify Me</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  We&apos;ll save your request for <strong>{selectedAddress?.city || 'this area'}</strong>.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowNotifyModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-                aria-label="Close notify me dialog"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <input
-                  type="text"
-                  value={notifyForm.name}
-                  onChange={(e) => setNotifyForm((prev) => ({ ...prev, name: e.target.value }))}
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="Your name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={notifyForm.email}
-                  onChange={(e) => setNotifyForm((prev) => ({ ...prev, email: e.target.value }))}
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="you@example.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input
-                  type="tel"
-                  value={notifyForm.phone}
-                  onChange={(e) => setNotifyForm((prev) => ({ ...prev, phone: e.target.value }))}
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="+91..."
-                />
-              </div>
-
-              <div className="rounded-xl border border-orange-100 bg-orange-50 px-4 py-3 text-sm text-gray-700">
-                Location: {selectedAddress?.fullAddress || selectedAddress?.city || 'Selected area'}
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowNotifyModal(false)}
-                  className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleNotifyInterest}
-                  disabled={notifySubmitting}
-                  className="flex-1 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-70"
-                  style={{ background: BRAND }}
-                >
-                  {notifySubmitting ? 'Submitting...' : 'Notify Me'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };
