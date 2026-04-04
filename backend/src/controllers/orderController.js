@@ -33,6 +33,7 @@ const {
   emitOrderFinancialUpdate
 } = require('../services/socketService');
 const { calculateDistance, calculateDeliveryCharge, DEFAULT_DELIVERY_CHARGES } = require('../utils/calculateDistance');
+const { normalizeFeeControls, resolveEffectiveFeeControls, isFeeEnabledAt } = require('../utils/feeControl');
 const { assignDeliveryPartner } = require('../services/deliveryAssignmentService');
 const { calculateEtaMinutes, isPointInDeliveryZone } = require('../utils/deliveryGeo');
 
@@ -370,7 +371,7 @@ exports.createOrder = async (req, res) => {
 
     // Verify restaurant exists and is active
     const restaurant = await Restaurant.findById(restaurantId)
-      .select('name ownerId isActive isApproved acceptingOrders timing location deliveryTime deliveryRadiusKm address payoutRateOverride')
+      .select('name ownerId isActive isApproved acceptingOrders timing location deliveryTime deliveryRadiusKm address payoutRateOverride feeControls')
       .lean();
     
     if (!restaurant) {
@@ -400,9 +401,20 @@ exports.createOrder = async (req, res) => {
         taxRate: 0.05,
         restaurantPayoutRate: 0.75,
         deliveryChargeRules: DEFAULT_DELIVERY_CHARGES,
-        deliveryPartnerPayout: { perOrder: 40, bonusThreshold: 13, bonusAmount: 850 }
+        deliveryPartnerPayout: { perOrder: 40, bonusThreshold: 13, bonusAmount: 850 },
+        feeControls: {
+          deliveryFee: { enabled: true, effectiveFrom: null },
+          platformFee: { enabled: true, effectiveFrom: null },
+          tax: { enabled: true, effectiveFrom: null }
+        }
       };
     }
+
+    const feeControls = resolveEffectiveFeeControls(
+      normalizeFeeControls(settings.feeControls),
+      restaurant.feeControls
+    );
+    const now = new Date();
 
     const commissionPercent = normalizeCommissionPercent(settings.commissionPercent);
 
@@ -471,7 +483,7 @@ exports.createOrder = async (req, res) => {
 
 
     // Calculate distance-based delivery fee (platform-controlled)
-    let deliveryFee = 0;
+    let calculatedDeliveryFee = 0;
     let restaurantCoords = getAddressCoordinates(restaurant.location ? { coordinates: restaurant.location.coordinates } : null);
 
     if (!restaurantCoords || !isInIndia(restaurantCoords[1], restaurantCoords[0])) {
@@ -644,13 +656,16 @@ exports.createOrder = async (req, res) => {
 
     const configuredDeliveryFee = Number(settings.deliveryFee);
     if (Number.isFinite(configuredDeliveryFee) && configuredDeliveryFee >= 0) {
-      deliveryFee = configuredDeliveryFee;
+      calculatedDeliveryFee = configuredDeliveryFee;
     } else {
-      deliveryFee = calculateDeliveryCharge(distance, settings.deliveryChargeRules);
+      calculatedDeliveryFee = calculateDeliveryCharge(distance, settings.deliveryChargeRules);
     }
 
-    const platformFee = Number(settings.platformFee || 0);
-    const taxRate = Number(settings.taxRate || 0);
+    const deliveryFee = isFeeEnabledAt(feeControls.deliveryFee, now) ? calculatedDeliveryFee : 0;
+    const basePlatformFee = Number(settings.platformFee || 0);
+    const platformFee = isFeeEnabledAt(feeControls.platformFee, now) ? basePlatformFee : 0;
+    const baseTaxRate = Number(settings.taxRate || 0);
+    const taxRate = isFeeEnabledAt(feeControls.tax, now) ? baseTaxRate : 0;
     const restaurantPayoutRate = roundToTwo((100 - commissionPercent) / 100);
     const initialDeliveryEarning = Number(settings?.deliveryPartnerPayout?.perOrder);
     const deliveryEarning = Number.isFinite(initialDeliveryEarning) && initialDeliveryEarning >= 0

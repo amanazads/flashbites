@@ -32,6 +32,32 @@ const deliveryPartnerPayoutSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const feeControlSchema = new mongoose.Schema(
+  {
+    enabled: { type: Boolean, default: true },
+    effectiveFrom: { type: Date, default: null }
+  },
+  { _id: false }
+);
+
+const feeControlsSchema = new mongoose.Schema(
+  {
+    deliveryFee: {
+      type: feeControlSchema,
+      default: () => ({ enabled: true, effectiveFrom: null })
+    },
+    platformFee: {
+      type: feeControlSchema,
+      default: () => ({ enabled: true, effectiveFrom: null })
+    },
+    tax: {
+      type: feeControlSchema,
+      default: () => ({ enabled: true, effectiveFrom: null })
+    }
+  },
+  { _id: false }
+);
+
 const platformSettingsSchema = new mongoose.Schema(
   {
     commissionPercent: { type: Number, default: 25, min: 0, max: 90 },
@@ -58,6 +84,10 @@ const platformSettingsSchema = new mongoose.Schema(
         bonusThreshold: 13,
         bonusAmount: 850
       }
+    },
+    feeControls: {
+      type: feeControlsSchema,
+      default: () => ({})
     }
   },
   { timestamps: true }

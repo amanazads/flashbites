@@ -1,5 +1,41 @@
 const mongoose = require('mongoose');
 
+const restaurantFeeControlSchema = new mongoose.Schema(
+  {
+    useGlobal: {
+      type: Boolean,
+      default: true
+    },
+    enabled: {
+      type: Boolean,
+      default: true
+    },
+    effectiveFrom: {
+      type: Date,
+      default: null
+    }
+  },
+  { _id: false }
+);
+
+const restaurantFeeControlsSchema = new mongoose.Schema(
+  {
+    deliveryFee: {
+      type: restaurantFeeControlSchema,
+      default: () => ({ useGlobal: true, enabled: true, effectiveFrom: null })
+    },
+    platformFee: {
+      type: restaurantFeeControlSchema,
+      default: () => ({ useGlobal: true, enabled: true, effectiveFrom: null })
+    },
+    tax: {
+      type: restaurantFeeControlSchema,
+      default: () => ({ useGlobal: true, enabled: true, effectiveFrom: null })
+    }
+  },
+  { _id: false }
+);
+
 const restaurantSchema = new mongoose.Schema({
   ownerId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -142,6 +178,10 @@ const restaurantSchema = new mongoose.Schema({
     min: 0,
     max: 1,
     default: null
+  },
+  feeControls: {
+    type: restaurantFeeControlsSchema,
+    default: () => ({})
   }
 }, { 
   timestamps: true 
