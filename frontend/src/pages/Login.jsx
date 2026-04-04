@@ -31,16 +31,8 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const normalizedPhone = String(formData.phone || '').replace(/\D/g, '').slice(-10);
-    if (!normalizedPhone || !formData.password) {
-      toast.error('Please fill in all fields');
-      return;
-    }
-    if (normalizedPhone.length !== 10) {
-      toast.error('Please enter a valid 10-digit phone number');
-      return;
-    }
-    await dispatch(login({ phone: normalizedPhone, password: formData.password }));
+    if (!formData.phone || !formData.password) { toast.error('Please fill in all fields'); return; }
+    await dispatch(login(formData));
   };
 
   return (
@@ -70,7 +62,7 @@ const Login = () => {
           <div className="flex flex-col gap-3 items-start">
             {[
               { icon: '⚡', t: '30-min delivery guaranteed' },
-              { icon: '🍽️', t: '50+ top restaurants' },
+              { icon: '🍽️', t: '500+ top restaurants' },
               { icon: '💯', t: 'Real-time order tracking' },
             ].map((f) => (
               <div key={f.t} className="flex items-center gap-3">
@@ -110,7 +102,7 @@ const Login = () => {
                   </span>
                   <input
                     id="phone" name="phone" type="tel" autoComplete="tel" required maxLength="10"
-                    value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                    value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="10-digit mobile number" className="input-field rounded-l-none flex-1"
                   />
                 </div>

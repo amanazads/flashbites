@@ -7,12 +7,7 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { getFCMToken, onForegroundMessage } from '../firebase';
 import axiosInstance from '../api/axios';
 
-const isNativePlatform = () => !!(
-  typeof window !== 'undefined'
-  && window.Capacitor
-  && typeof window.Capacitor.isNativePlatform === 'function'
-  && window.Capacitor.isNativePlatform()
-);
+const isNativePlatform = () => !!(window.Capacitor && window.Capacitor.isNativePlatform());
 
 let notifIdCounter = Math.floor(Math.random() * 100000);
 const nextNotifId = () => ++notifIdCounter;
@@ -93,11 +88,6 @@ export const useNotifications = () => {
   });
   const authAxiosRef = useRef(null);
   const recentNotificationKeysRef = useRef(new Map());
-  const soundEnabledRef = useRef(soundEnabled);
-
-  useEffect(() => {
-    soundEnabledRef.current = soundEnabled;
-  }, [soundEnabled]);
 
   useEffect(() => {
     const syncSoundFromStorage = () => {
@@ -179,7 +169,7 @@ export const useNotifications = () => {
           const fcmKey = `fcm:${orderId}:${status}:${title || ''}:${body || ''}`;
 
           if (title && shouldNotifyForKey(fcmKey)) {
-            if (soundEnabledRef.current) notificationSound.playNotification('new-order');
+            if (soundEnabled) notificationSound.playNotification('new-order');
             toast(
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-[#FFF0ED] flex items-center justify-center text-xl">🔔</div>
@@ -235,7 +225,7 @@ export const useNotifications = () => {
         document.removeEventListener('touchstart', initAudio);
       };
     }
-  }, [token, user, shouldNotifyForKey]);
+  }, [token, user, shouldNotifyForKey, soundEnabled]);
 
   // ─── Toast helper ─────────────────
   const showToast = useCallback((emoji, title, subtitle, borderColor = '#444') => {
@@ -267,7 +257,7 @@ export const useNotifications = () => {
     const key = `socket:new-order:${data?.order?._id || ''}`;
     if (!shouldNotifyForKey(key)) return;
 
-    if (soundEnabledRef.current && data.sound !== false) notificationSound.playNotification('new-order');
+    if (soundEnabled && data.sound !== false) notificationSound.playNotification('new-order');
 
     showToast(
       '🎉',
@@ -280,13 +270,13 @@ export const useNotifications = () => {
       `Order #${data.order._id?.slice(-6)} – Total: ₹${data.order.total || 0}`,
       { tag: 'new-order', url: '/dashboard' }
     );
-  }, [showToast, shouldNotifyForKey]);
+  }, [soundEnabled, showToast, shouldNotifyForKey]);
 
   const handleOrderUpdate = useCallback((data) => {
     const key = `socket:order-update:${data?.order?._id || ''}:${data?.order?.status || ''}`;
     if (!shouldNotifyForKey(key)) return;
 
-    if (soundEnabledRef.current && data.sound !== false) notificationSound.playNotification('order-update');
+    if (soundEnabled && data.sound !== false) notificationSound.playNotification('order-update');
 
     const statusMessages = {
       confirmed:        { msg: 'Order confirmed! 🎉',              emoji: '✅' },
@@ -313,13 +303,13 @@ export const useNotifications = () => {
         priority: s.priority || 'medium'
       }
     );
-  }, [showToast, shouldNotifyForKey]);
+  }, [soundEnabled, showToast, shouldNotifyForKey]);
 
   const handleDeliveryUpdate = useCallback((data) => {
     const key = `socket:delivery-update:${data?.delivery?.orderId || ''}:${data?.delivery?.status || ''}:${data?.delivery?.message || ''}`;
     if (!shouldNotifyForKey(key)) return;
 
-    if (soundEnabledRef.current && data.sound !== false) notificationSound.playNotification('order-update');
+    if (soundEnabled && data.sound !== false) notificationSound.playNotification('order-update');
 
     showToast('🚚', 'Delivery Update', data.delivery?.message);
     sendSystemNotification(
@@ -327,7 +317,7 @@ export const useNotifications = () => {
       data.delivery?.message || 'Your delivery is on the way',
       { tag: 'delivery-update', url: '/orders' }
     );
-  }, [showToast, shouldNotifyForKey]);
+  }, [soundEnabled, showToast, shouldNotifyForKey]);
 
   // ─── Socket listeners ──────────────
   useEffect(() => {
@@ -338,7 +328,7 @@ export const useNotifications = () => {
       const key = `socket:new-order-available:${data?.order?._id || ''}`;
       if (!shouldNotifyForKey(key)) return;
 
-      if (soundEnabledRef.current && data.sound !== false) notificationSound.playNotification('new-order');
+      if (soundEnabled && data.sound !== false) notificationSound.playNotification('new-order');
       showToast('🆕', 'New Order Available!', `Order #${data.order?._id?.slice(-6)} · ₹${data.order?.deliveryFee || 0} fee`, '#f59e0b');
       sendSystemNotification(
         '🆕 New Order Available!',
@@ -351,7 +341,7 @@ export const useNotifications = () => {
       const key = `socket:order-assigned:${data?.order?._id || ''}`;
       if (!shouldNotifyForKey(key)) return;
 
-      if (soundEnabledRef.current && data.sound !== false) notificationSound.playNotification('order-update');
+      if (soundEnabled && data.sound !== false) notificationSound.playNotification('order-update');
       showToast('✅', 'Order Assigned!', `Order #${data.order?._id?.slice(-6)}`, '#22c55e');
       sendSystemNotification(
         '✅ Order Assigned!',
@@ -364,7 +354,7 @@ export const useNotifications = () => {
       const key = `socket:order-cancelled:${data?.order?._id || ''}`;
       if (!shouldNotifyForKey(key)) return;
 
-      if (soundEnabledRef.current) notificationSound.playError();
+      if (soundEnabled) notificationSound.playError();
       showToast('❌', 'Order Cancelled', `Order #${data.order?._id?.slice(-6)}`, '#ef4444');
       sendSystemNotification(
         '❌ Order Cancelled',
@@ -397,7 +387,7 @@ export const useNotifications = () => {
       socketService.off('order-assigned');
       socketService.off('order-cancelled');
     };
-  }, [connected, user, handleNewOrder, handleOrderUpdate, handleDeliveryUpdate, showToast, shouldNotifyForKey]);
+  }, [connected, user, handleNewOrder, handleOrderUpdate, handleDeliveryUpdate, soundEnabled, showToast, shouldNotifyForKey]);
 
   const toggleSound = useCallback(() => {
     const newValue = !soundEnabled;

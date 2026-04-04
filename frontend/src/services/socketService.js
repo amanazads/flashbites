@@ -12,7 +12,6 @@ class SocketService {
       return;
     }
 
-    // Determine the socket URL
     const SOCKET_URL = getSocketBaseUrl();
     
     const socketIns = io(SOCKET_URL, {

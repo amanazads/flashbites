@@ -5,7 +5,6 @@ import { clearError, setAuthUser } from '../redux/slices/authSlice';
 import toast from 'react-hot-toast';
 import { validateEmail, validatePhone, validatePassword } from '../utils/validators';
 import axios from '../api/axios';
-import { requestViaFetch, requestViaNativeHttp, shouldFallbackToNativeHttp } from '../api/nativeHttpFallback';
 import { sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../firebase';
 import logo from '../assets/logo.png';
 import { BRAND } from '../constants/theme';
@@ -24,19 +23,8 @@ const getSecondsUntil = (untilTs) => {
   return diff > 0 ? diff : 0;
 };
 
-const isNativePlatform = () => !!(
-  typeof window !== 'undefined'
-  && (() => {
-    const cap = window.Capacitor;
-    if (!cap) return false;
-    if (typeof cap.isNativePlatform === 'function') return cap.isNativePlatform();
-    if (typeof cap.getPlatform === 'function') return cap.getPlatform() !== 'web';
-    return window.location.protocol === 'https:' && window.location.hostname === 'localhost';
-  })()
-);
-
 const storageSet = async (key, value) => {
-  if (isNativePlatform()) {
+  if (window.Capacitor) {
     try {
       const { Preferences } = await import('@capacitor/preferences');
       await Preferences.set({ key, value: String(value) });
@@ -49,7 +37,7 @@ const storageSet = async (key, value) => {
 };
 
 const storageGet = async (key) => {
-  if (isNativePlatform()) {
+  if (window.Capacitor) {
     try {
       const { Preferences } = await import('@capacitor/preferences');
       const { value } = await Preferences.get({ key });
@@ -62,7 +50,7 @@ const storageGet = async (key) => {
 };
 
 const storageRemove = async (key) => {
-  if (isNativePlatform()) {
+  if (window.Capacitor) {
     try {
       const { Preferences } = await import('@capacitor/preferences');
       await Preferences.remove({ key });
@@ -78,17 +66,6 @@ const isTooManyRequestsError = (error) => {
   const code = String(error?.code || '').toLowerCase();
   const message = String(error?.message || '').toLowerCase();
   return code.includes('too-many-requests') || message.includes('auth/too-many-requests');
-};
-
-const isBackendNetworkError = (error) => {
-  const code = String(error?.code || '').toLowerCase();
-  const message = String(error?.message || '').toLowerCase();
-  return !error?.response && (
-    code.includes('err_network')
-    || code.includes('econnaborted')
-    || message.includes('network error')
-    || message.includes('timeout')
-  );
 };
 
 const getRemainingOtpBlockSeconds = async (phone) => {
@@ -111,7 +88,7 @@ const Register = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { error, isAuthenticated, user } = useSelector((state) => state.auth);
-  const nativePlatform = isNativePlatform();
+  const nativePlatform = Boolean(window?.Capacitor?.isNativePlatform?.());
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -206,7 +183,7 @@ const Register = () => {
       return 'Please enter a password';
     }
     if (!validatePassword(formData.password)) {
-      return 'Password must be at least 8 characters, with one uppercase, one lowercase, and one special character';
+      return 'Password must be at least 6 characters, with one uppercase, one lowercase, and one special character';
     }
     if (formData.password !== formData.confirmPassword) {
       return 'Passwords do not match';
@@ -215,7 +192,7 @@ const Register = () => {
   };
 
   const passwordRules = {
-    minLength: (formData.password || '').length >= 8,
+    minLength: (formData.password || '').length >= 6,
     uppercase: /[A-Z]/.test(formData.password || ''),
     lowercase: /[a-z]/.test(formData.password || ''),
     special: /[!@#$%^&*(),.?":{}|<>]/.test(formData.password || '')
@@ -245,25 +222,6 @@ const Register = () => {
 
     setLoading(true);
     try {
-      try {
-        const precheck = await axios.get('/auth/phone-status', {
-          params: {
-            phone: formData.phone,
-            purpose: 'register'
-          }
-        });
-
-        const canSendOtp = Boolean(precheck?.data?.data?.canSendOtp);
-        if (!canSendOtp) {
-          toast.error(precheck?.data?.message || 'Phone number already registered. Please login.');
-          setTimeout(() => navigate('/login'), 1200);
-          return;
-        }
-      } catch (precheckError) {
-        // Keep registration compatible with backend snapshots where /auth/phone-status does not exist.
-        // In that case, continue with OTP and let final register API validate duplicates.
-      }
-
       const phoneWithCode = `+91${formData.phone}`;
       await sendPhoneOTP(phoneWithCode);
       toast.success('OTP sent to your phone number');
@@ -301,38 +259,13 @@ const Register = () => {
       }
 
       // Register with backend using Firebase token
-      const registerPayload = {
+      const response = await axios.post('/auth/register', {
         name: formData.name.trim(),
         phone: formData.phone,
         password: formData.password,
         email: formData.email?.trim() || undefined,
         firebaseToken,
-      };
-
-      let response;
-      try {
-        response = await axios.post('/auth/register', registerPayload);
-      } catch (registerError) {
-        if (!shouldFallbackToNativeHttp(registerError)) {
-          throw registerError;
-        }
-
-        try {
-          const data = await requestViaFetch({
-            method: 'POST',
-            path: '/auth/register',
-            data: registerPayload,
-          });
-          response = { data };
-        } catch {
-          const data = await requestViaNativeHttp({
-            method: 'POST',
-            path: '/auth/register',
-            data: registerPayload,
-          });
-          response = { data };
-        }
-      }
+      });
 
       // Destructure tokens and user data from the response
       const { accessToken, refreshToken, user: userData } = response.data.data;
@@ -345,7 +278,7 @@ const Register = () => {
       localStorage.setItem('sessionStartedAt', sessionStartedAt);
 
       // Also store in Capacitor Preferences so native app sessions persist
-      if (isNativePlatform()) {
+      if (window.Capacitor) {
         try {
           const { Preferences: P } = await import('@capacitor/preferences');
           await P.set({ key: 'token', value: accessToken });
@@ -367,10 +300,6 @@ const Register = () => {
       const roleMap = { restaurant_owner: '/dashboard', delivery_partner: '/delivery-dashboard' };
       navigate(roleMap[userData.role] || '/');
     } catch (error) {
-      if (isBackendNetworkError(error)) {
-        toast.error('Server is not responding right now. Please try again in a moment.');
-        return;
-      }
       const backendMessage = error.response?.data?.message;
       const errorMessage = backendMessage || 'Could not create your account right now. Please try again.';
       toast.error(errorMessage);
@@ -388,7 +317,7 @@ const Register = () => {
     setLoading(true);
     try {
       const phoneWithCode = `+91${formData.phone}`;
-      await sendPhoneOTP(phoneWithCode, { force: true });
+      await sendPhoneOTP(phoneWithCode);
       toast.success('OTP resent to your phone');
       setResendCountdown(30);
     } catch (error) {
@@ -427,7 +356,7 @@ const Register = () => {
           <div className="flex flex-col gap-3 items-start">
             {[
               { icon: '📱', t: 'Quick phone verification' },
-              { icon: '🍽️', t: '50+ top restaurants' },
+              { icon: '🍽️', t: '500+ top restaurants' },
               { icon: '🚀', t: 'Fast & free delivery' },
             ].map((f) => (
               <div key={f.t} className="flex items-center gap-3">
@@ -506,7 +435,7 @@ const Register = () => {
                       value={formData.password}
                       onChange={handleChange}
                       onFocus={() => setShowPasswordGuide(true)}
-                      placeholder="Min 8 characters"
+                      placeholder="Min 6 characters"
                       className="input-field pr-16"
                     />
                     <button
@@ -546,7 +475,7 @@ const Register = () => {
                   <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs space-y-1">
                     <p className="font-semibold text-gray-700">Password requirements</p>
                     <p className={passwordRules.minLength ? 'text-green-600' : 'text-gray-500'}>
-                      {passwordRules.minLength ? '✓' : '•'} At least 8 characters
+                      {passwordRules.minLength ? '✓' : '•'} At least 6 characters
                     </p>
                     <p className={passwordRules.uppercase ? 'text-green-600' : 'text-gray-500'}>
                       {passwordRules.uppercase ? '✓' : '•'} One uppercase letter

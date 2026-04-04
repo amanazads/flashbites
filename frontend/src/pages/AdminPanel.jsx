@@ -15,8 +15,6 @@ import {
   ChartBarIcon,
   PencilSquareIcon,
   TrashIcon,
-  EyeIcon,
-  KeyIcon,
 } from '@heroicons/react/24/outline';
 import { getRestaurants, updateRestaurant } from '../api/restaurantApi';
 import { getAllPartnerApplications, approvePartner, rejectPartner } from '../api/partnerApi';
@@ -32,22 +30,13 @@ import {
   resetAllDeliveryPartnerEarningsOverrides,
   updateRestaurantPayoutRate,
   updateUserRole,
-  updateUserApproval,
   getPlatformSettings,
   updatePlatformSettings,
   blockUser,
   getCoupons,
   createCoupon,
   updateCoupon,
-  deleteCoupon,
-  getAllFeeTemplates,
-  createFeeTemplate,
-  updateFeeTemplate,
-  deleteFeeTemplate,
-  assignRestaurantToTemplate,
-  removeRestaurantFromTemplate,
-  getRestaurantOnboardingDetail,
-  regenerateRestaurantLoginCredentials
+  deleteCoupon
 } from '../api/adminApi';
 import { updateOrderStatus, cancelOrder } from '../api/orderApi';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
@@ -101,36 +90,6 @@ const ORDER_STATUS_OPTIONS = [
   'cancelled'
 ];
 
-const DEFAULT_BILLING_VISIBILITY = {
-  customer: { deliveryFee: true, platformFee: true, tax: true },
-  restaurant: { deliveryFee: true, platformFee: true, tax: true }
-};
-
-const normalizeTemplatePercentForDisplay = (value) => {
-  const numericValue = Number(value);
-  if (!Number.isFinite(numericValue)) return '';
-  return numericValue > 1 ? numericValue : numericValue * 100;
-};
-
-const normalizeTemplateTaxForDisplay = (value) => {
-  const numericValue = Number(value);
-  if (!Number.isFinite(numericValue)) return '';
-  return numericValue > 1 ? numericValue : numericValue * 100;
-};
-
-const mergeBillingVisibility = (baseVisibility, draftVisibility) => ({
-  customer: {
-    deliveryFee: draftVisibility?.customer?.deliveryFee ?? baseVisibility?.customer?.deliveryFee ?? true,
-    platformFee: draftVisibility?.customer?.platformFee ?? baseVisibility?.customer?.platformFee ?? true,
-    tax: draftVisibility?.customer?.tax ?? baseVisibility?.customer?.tax ?? true
-  },
-  restaurant: {
-    deliveryFee: draftVisibility?.restaurant?.deliveryFee ?? baseVisibility?.restaurant?.deliveryFee ?? true,
-    platformFee: draftVisibility?.restaurant?.platformFee ?? baseVisibility?.restaurant?.platformFee ?? true,
-    tax: draftVisibility?.restaurant?.tax ?? baseVisibility?.restaurant?.tax ?? true
-  }
-});
-
 const AdminPanel = () => {
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
@@ -176,10 +135,6 @@ const AdminPanel = () => {
     platformFee: 25,
     taxRate: 5,
     restaurantPayoutRate: 75,
-    feeVisibility: {
-      customer: { deliveryFee: true, platformFee: true, tax: true },
-      restaurant: { deliveryFee: true, platformFee: true, tax: true }
-    },
     deliveryChargeRules: [
       { minDistance: 0, maxDistance: 5, charge: 0 },
       { minDistance: 5, maxDistance: 15, charge: 25 },
@@ -188,34 +143,12 @@ const AdminPanel = () => {
     promoBanners: []
   });
   const [restaurantPayoutDrafts, setRestaurantPayoutDrafts] = useState({});
-  const [restaurantFeeDrafts, setRestaurantFeeDrafts] = useState({});
-  const [restaurantBillingVisibilityDrafts, setRestaurantBillingVisibilityDrafts] = useState({});
   const [restaurantPayoutSavingId, setRestaurantPayoutSavingId] = useState(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [coupons, setCoupons] = useState([]);
   const [couponsLoading, setCouponsLoading] = useState(false);
-  const [feeTemplates, setFeeTemplates] = useState([]);
-  const [feeTemplatesLoading, setFeeTemplatesLoading] = useState(false);
-  const [templateForm, setTemplateForm] = useState({
-    name: '',
-    description: '',
-    deliveryFee: 40,
-    platformFee: 25,
-    taxRate: 5,
-    commissionPercent: 25,
-    isActive: true
-  });
-  const [editingTemplateId, setEditingTemplateId] = useState(null);
-  const [templateFormOpen, setTemplateFormOpen] = useState(false);
-  const [templateSaving, setTemplateSaving] = useState(false);
-  const [assigningTemplate, setAssigningTemplate] = useState(null);
-  const [selectedRestaurantsForTemplate, setSelectedRestaurantsForTemplate] = useState([]);
-  const [assignRestaurantDialogOpen, setAssignRestaurantDialogOpen] = useState(false);
   const [editingRestaurant, setEditingRestaurant] = useState(null);
   const [savingRestaurant, setSavingRestaurant] = useState(false);
-  const [onboardingDrawerOpen, setOnboardingDrawerOpen] = useState(false);
-  const [onboardingLoading, setOnboardingLoading] = useState(false);
-  const [selectedRestaurantOnboarding, setSelectedRestaurantOnboarding] = useState(null);
   const [stats, setStats] = useState({
     totalRestaurants: 0,
     totalUsers: 0,
@@ -311,12 +244,6 @@ const AdminPanel = () => {
   useEffect(() => {
     if (activeTab === 'coupons') {
       fetchCoupons();
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (activeTab === 'fee-templates') {
-      fetchFeeTemplates();
     }
   }, [activeTab]);
 
@@ -448,10 +375,6 @@ const AdminPanel = () => {
           platformFee: settings.platformFee ?? 25,
           taxRate: (settings.taxRate ?? 0.05) * 100,
           restaurantPayoutRate: (settings.restaurantPayoutRate ?? 0.75) * 100,
-          feeVisibility: settings.feeVisibility || {
-            customer: { deliveryFee: true, platformFee: true, tax: true },
-            restaurant: { deliveryFee: true, platformFee: true, tax: true }
-          },
           deliveryChargeRules: settings.deliveryChargeRules || [
             { minDistance: 0, maxDistance: 5, charge: 0 },
             { minDistance: 5, maxDistance: 15, charge: 25 },
@@ -475,19 +398,6 @@ const AdminPanel = () => {
       toast.error('Failed to load coupons');
     } finally {
       setCouponsLoading(false);
-    }
-  };
-
-  const fetchFeeTemplates = async () => {
-    try {
-      setFeeTemplatesLoading(true);
-      const response = await getAllFeeTemplates();
-      const templates = response?.data?.data?.templates || response?.data?.templates || [];
-      setFeeTemplates(templates);
-    } catch (error) {
-      toast.error('Failed to load fee templates');
-    } finally {
-      setFeeTemplatesLoading(false);
     }
   };
 
@@ -709,113 +619,6 @@ const AdminPanel = () => {
     }
   };
 
-  // Fee Template Handlers
-  const handleEditTemplate = (template) => {
-    setTemplateForm({
-      name: template.name,
-      description: template.description,
-      deliveryFee: template.deliveryFee,
-      platformFee: template.platformFee,
-      taxRate: normalizeTemplateTaxForDisplay(template.taxRate),
-      commissionPercent: normalizeTemplatePercentForDisplay(template.commissionPercent),
-      isActive: template.isActive
-    });
-    setEditingTemplateId(template._id);
-    setTemplateFormOpen(true);
-  };
-
-  const handleSaveTemplate = async () => {
-    if (!templateForm.name.trim()) {
-      toast.error('Template name is required');
-      return;
-    }
-
-    try {
-      setTemplateSaving(true);
-      const payload = {
-        name: templateForm.name,
-        description: templateForm.description,
-        deliveryFee: Number(templateForm.deliveryFee),
-        platformFee: Number(templateForm.platformFee),
-        taxRate: Number(templateForm.taxRate) / 100,
-        commissionPercent: Number(templateForm.commissionPercent),
-        isActive: templateForm.isActive
-      };
-
-      if (editingTemplateId) {
-        await updateFeeTemplate(editingTemplateId, payload);
-        toast.success('Template updated');
-      } else {
-        await createFeeTemplate(payload);
-        toast.success('Template created');
-      }
-
-      fetchFeeTemplates();
-      setTemplateFormOpen(false);
-      setEditingTemplateId(null);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to save template');
-    } finally {
-      setTemplateSaving(false);
-    }
-  };
-
-  const handleDeleteTemplate = async (template) => {
-    const result = await Swal.fire({
-      title: 'Delete this template?',
-      text: template.name,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      confirmButtonText: 'Delete'
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      await deleteFeeTemplate(template._id);
-      toast.success('Template deleted');
-      fetchFeeTemplates();
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to delete template');
-    }
-  };
-
-  const handleSaveTemplateAssignment = async () => {
-    if (!assigningTemplate) return;
-
-    try {
-      setTemplateSaving(true);
-      
-      // Get previous restaurant IDs
-      const previousIds = assigningTemplate.restaurantIds || [];
-      
-      // Find restaurants to add and remove
-      const restaurantsToAdd = selectedRestaurantsForTemplate.filter(id => !previousIds.includes(id));
-      const restaurantsToRemove = previousIds.filter(id => !selectedRestaurantsForTemplate.includes(id));
-
-      // Add new restaurants
-      for (const restaurantId of restaurantsToAdd) {
-        await assignRestaurantToTemplate(assigningTemplate._id, restaurantId);
-      }
-
-      // Remove restaurants
-      for (const restaurantId of restaurantsToRemove) {
-        await removeRestaurantFromTemplate(assigningTemplate._id, restaurantId);
-      }
-
-      toast.success('Template assignment updated');
-      fetchFeeTemplates();
-      setAssignRestaurantDialogOpen(false);
-      setAssigningTemplate(null);
-      setSelectedRestaurantsForTemplate([]);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to save assignment');
-    } finally {
-      setTemplateSaving(false);
-    }
-  };
-
   const handleSettingsChange = (field, value) => {
     setSettingsForm((prev) => ({
       ...prev,
@@ -831,19 +634,6 @@ const AdminPanel = () => {
     });
   };
 
-  const handleFeeVisibilityChange = (scope, field, checked) => {
-    setSettingsForm((prev) => ({
-      ...prev,
-      feeVisibility: {
-        ...(prev.feeVisibility || {}),
-        [scope]: {
-          ...((prev.feeVisibility || {})[scope] || {}),
-          [field]: checked
-        }
-      }
-    }));
-  };
-
   const savePlatformSettings = async () => {
     try {
       setSettingsSaving(true);
@@ -853,7 +643,6 @@ const AdminPanel = () => {
         platformFee: Number(settingsForm.platformFee),
         taxRate: Number(settingsForm.taxRate) / 100,
         restaurantPayoutRate: Number(settingsForm.restaurantPayoutRate) / 100,
-        feeVisibility: settingsForm.feeVisibility,
         deliveryChargeRules: settingsForm.deliveryChargeRules.map((rule) => ({
           minDistance: Number(rule.minDistance),
           maxDistance: Number(rule.maxDistance),
@@ -928,49 +717,6 @@ const AdminPanel = () => {
     } catch (error) {
       toast.error('Failed to reject restaurant');
       console.error(error);
-    }
-  };
-
-  const handleViewRestaurantOnboarding = async (restaurantId) => {
-    try {
-      setOnboardingLoading(true);
-      const response = await getRestaurantOnboardingDetail(restaurantId);
-      const restaurant = response?.data?.data?.restaurant;
-      setSelectedRestaurantOnboarding(restaurant || null);
-      setOnboardingDrawerOpen(true);
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to load onboarding details');
-    } finally {
-      setOnboardingLoading(false);
-    }
-  };
-
-  const handleRegenerateLoginCredentials = async (restaurantId) => {
-    const result = await Swal.fire({
-      title: 'Generate new temporary credentials?',
-      text: 'This will reset the owner password and send a fresh login invite.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#2563eb',
-      confirmButtonText: 'Generate Credentials'
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      const response = await regenerateRestaurantLoginCredentials(restaurantId);
-      const data = response?.data?.data || {};
-
-      const deliveryChannels = [
-        data.emailSent ? 'email' : null,
-        data.smsSent ? 'SMS' : null
-      ].filter(Boolean);
-      toast.success(`Temporary credentials generated${deliveryChannels.length ? ` and sent via ${deliveryChannels.join(' + ')}` : ''}`);
-
-      await handleViewRestaurantOnboarding(restaurantId);
-      await fetchData();
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to generate credentials');
     }
   };
 
@@ -1130,54 +876,23 @@ const AdminPanel = () => {
     try {
       setRestaurantPayoutSavingId(restaurantId);
       const draftPercent = restaurantPayoutDrafts[restaurantId];
-      const feeDraft = restaurantFeeDrafts[restaurantId] || {};
-      const visibilityDraft = restaurantBillingVisibilityDrafts[restaurantId] || {};
-      const hasPayoutValue = draftPercent !== undefined && String(draftPercent).trim() !== '';
-      const hasFeeValue = ['deliveryFee', 'platformFee', 'taxRate', 'commissionPercent']
-        .some((field) => feeDraft[field] !== undefined && String(feeDraft[field]).trim() !== '');
-      const hasVisibilityValue = ['customer', 'restaurant'].some((scope) => (
-        ['deliveryFee', 'platformFee', 'tax'].some((field) => visibilityDraft?.[scope]?.[field] !== undefined)
-      ));
+      const hasExplicitValue = draftPercent !== undefined && String(draftPercent).trim() !== '';
 
-      if (!hasPayoutValue && !hasFeeValue && !hasVisibilityValue) {
+      if (!hasExplicitValue) {
         await updateRestaurantPayoutRate(restaurantId, { resetToGlobal: true });
       } else {
-        const payload = {};
-
-        if (hasPayoutValue) {
-          const percentage = Number(draftPercent);
-          if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
-            toast.error('Payout rate must be between 0 and 100%');
-            return;
-          }
-          payload.payoutRateOverride = percentage / 100;
+        const percentage = Number(draftPercent);
+        if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
+          toast.error('Payout rate must be between 0 and 100%');
+          return;
         }
 
-        if (feeDraft.deliveryFee !== undefined && String(feeDraft.deliveryFee).trim() !== '') {
-          payload.deliveryFeeOverride = Number(feeDraft.deliveryFee);
-        }
-        if (feeDraft.platformFee !== undefined && String(feeDraft.platformFee).trim() !== '') {
-          payload.platformFeeOverride = Number(feeDraft.platformFee);
-        }
-        if (feeDraft.taxRate !== undefined && String(feeDraft.taxRate).trim() !== '') {
-          payload.taxRateOverride = Number(feeDraft.taxRate) / 100;
-        }
-        if (feeDraft.commissionPercent !== undefined && String(feeDraft.commissionPercent).trim() !== '') {
-          payload.commissionPercentOverride = Number(feeDraft.commissionPercent);
-        }
-
-        if (hasVisibilityValue) {
-          const restaurant = restaurants.find((entry) => entry._id === restaurantId);
-          payload.feeVisibilityOverride = mergeBillingVisibility(
-            restaurant?.feeVisibilityOverrides || DEFAULT_BILLING_VISIBILITY,
-            visibilityDraft
-          );
-        }
-
-        await updateRestaurantPayoutRate(restaurantId, payload);
+        await updateRestaurantPayoutRate(restaurantId, {
+          payoutRateOverride: percentage / 100
+        });
       }
 
-      toast.success('Restaurant billing settings updated');
+      toast.success('Restaurant payout rate updated');
       fetchData();
       fetchPlatformSettings();
     } catch (error) {
@@ -1195,15 +910,7 @@ const AdminPanel = () => {
         ...prev,
         [restaurantId]: ''
       }));
-      setRestaurantFeeDrafts((prev) => ({
-        ...prev,
-        [restaurantId]: { deliveryFee: '', platformFee: '', taxRate: '', commissionPercent: '' }
-      }));
-      setRestaurantBillingVisibilityDrafts((prev) => ({
-        ...prev,
-        [restaurantId]: {}
-      }));
-      toast.success('Restaurant payout and billing reset to global');
+      toast.success('Restaurant payout reset to global');
       fetchData();
       fetchPlatformSettings();
     } catch (error) {
@@ -1220,42 +927,6 @@ const AdminPanel = () => {
       fetchData();
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Failed to update user status');
-    }
-  };
-
-  const handleUserApproval = async (userId, status) => {
-    let reason = '';
-
-    if (status === 'rejected' || status === 'pending') {
-      const result = await Swal.fire({
-        title: status === 'rejected' ? 'Reject business account?' : 'Mark account as pending?',
-        input: 'textarea',
-        inputLabel: status === 'rejected' ? 'Rejection reason' : 'Optional note for pending status',
-        inputPlaceholder: status === 'rejected' ? 'Enter rejection reason' : 'Add note (optional)',
-        showCancelButton: true,
-        confirmButtonColor: status === 'rejected' ? '#ef4444' : '#f59e0b',
-        confirmButtonText: status === 'rejected' ? 'Reject' : 'Mark Pending',
-        inputValidator: (value) => {
-          if (status === 'rejected' && !String(value || '').trim()) {
-            return 'Rejection reason is required';
-          }
-          return null;
-        }
-      });
-
-      if (!result.isConfirmed) {
-        return;
-      }
-
-      reason = String(result.value || '').trim();
-    }
-
-    try {
-      await updateUserApproval(userId, { status, reason });
-      toast.success(`Business account marked as ${status}`);
-      fetchData();
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to update approval status');
     }
   };
 
@@ -1578,16 +1249,6 @@ const AdminPanel = () => {
                 Coupons ({coupons.length})
               </button>
               <button
-                onClick={() => setActiveTab('fee-templates')}
-                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
-                  activeTab === 'fee-templates'
-                    ? 'border-b-2 border-primary-500 text-primary-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Fee Templates ({feeTemplates.length})
-              </button>
-              <button
                 onClick={() => setActiveTab('users')}
                 className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
                   activeTab === 'users'
@@ -1759,30 +1420,6 @@ const AdminPanel = () => {
                         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                       />
                       <p className="mt-1 text-xs text-gray-500">Used when a restaurant has no custom override.</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4">
-                    <h3 className="text-sm font-bold text-gray-800 mb-3">Fee Visibility</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {['customer', 'restaurant'].map((scope) => (
-                        <div key={scope} className="rounded-lg bg-gray-50 p-4">
-                          <p className="text-sm font-semibold text-gray-800 capitalize mb-3">{scope} invoice</p>
-                          <div className="space-y-2 text-sm text-gray-700">
-                            {['deliveryFee', 'platformFee', 'tax'].map((field) => (
-                              <label key={field} className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={Boolean(settingsForm.feeVisibility?.[scope]?.[field])}
-                                  onChange={(e) => handleFeeVisibilityChange(scope, field, e.target.checked)}
-                                  className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                                />
-                                <span className="capitalize">Show {field.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase())}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
                     </div>
                   </div>
 
@@ -2024,99 +1661,6 @@ const AdminPanel = () => {
               </div>
             )}
 
-            {activeTab === 'fee-templates' && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold">Fee Templates</h2>
-                  <button
-                    onClick={() => {
-                      setTemplateForm({
-                        name: '',
-                        description: '',
-                        deliveryFee: 40,
-                        platformFee: 25,
-                        taxRate: 5,
-                        commissionPercent: 25,
-                        isActive: true
-                      });
-                      setEditingTemplateId(null);
-                      setTemplateFormOpen(true);
-                    }}
-                    className="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold"
-                  >
-                    Create Template
-                  </button>
-                </div>
-                {feeTemplatesLoading ? (
-                  <div className="text-center py-6 text-gray-500">Loading templates...</div>
-                ) : feeTemplates.length === 0 ? (
-                  <div className="text-center py-6 text-gray-500">No fee templates created yet.</div>
-                ) : (
-                  <div className="space-y-4">
-                    {feeTemplates.map((template) => (
-                      <div key={template._id} className="bg-white rounded-lg border border-gray-200 p-4">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
-                            {template.description && <p className="text-sm text-gray-600">{template.description}</p>}
-                            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                              <div className="text-sm">
-                                <p className="text-gray-500">Delivery Fee</p>
-                                <p className="font-semibold">₹{template.deliveryFee}</p>
-                              </div>
-                              <div className="text-sm">
-                                <p className="text-gray-500">Platform Fee</p>
-                                <p className="font-semibold">₹{template.platformFee}</p>
-                              </div>
-                              <div className="text-sm">
-                                <p className="text-gray-500">Tax Rate</p>
-                                <p className="font-semibold">{normalizeTemplateTaxForDisplay(template.taxRate)}%</p>
-                              </div>
-                              <div className="text-sm">
-                                <p className="text-gray-500">Commission</p>
-                                <p className="font-semibold">{normalizeTemplatePercentForDisplay(template.commissionPercent)}%</p>
-                              </div>
-                            </div>
-                            {template.restaurantIds && template.restaurantIds.length > 0 && (
-                              <div className="mt-3 text-sm">
-                                <p className="text-gray-500">Assigned to {template.restaurantIds.length} restaurant(s)</p>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex gap-2 ml-4">
-                            <button
-                              onClick={() => handleEditTemplate(template)}
-                              className="inline-flex items-center px-3 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 text-sm"
-                            >
-                              <PencilSquareIcon className="h-4 w-4 mr-1" />
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => {
-                                setAssigningTemplate(template);
-                                setSelectedRestaurantsForTemplate(template.restaurantIds || []);
-                                setAssignRestaurantDialogOpen(true);
-                              }}
-                              className="inline-flex items-center px-3 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200 text-sm"
-                            >
-                              Assign
-                            </button>
-                            <button
-                              onClick={() => handleDeleteTemplate(template)}
-                              className="inline-flex items-center px-3 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 text-sm"
-                            >
-                              <TrashIcon className="h-4 w-4 mr-1" />
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
             {activeTab === 'restaurants' && (
               <div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center mb-4">
@@ -2159,11 +1703,6 @@ const AdminPanel = () => {
                                 <div>
                                   <div className="text-sm font-medium text-gray-900">{restaurant.name}</div>
                                   <div className="text-sm text-gray-500">{restaurant.cuisines?.join(', ')}</div>
-                                  {restaurant.onboardingMeta?.loginReferenceId && (
-                                    <div className="text-xs text-primary-700">
-                                      Login Ref: {restaurant.onboardingMeta.loginReferenceId}
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                             </td>
@@ -2187,11 +1726,6 @@ const AdminPanel = () => {
                               }`}>
                                 {restaurant.isActive ? 'Active' : 'Inactive'}
                               </span>
-                              {restaurant.onboardingMeta?.onboardingStatus && (
-                                <div className="mt-1 text-xs text-gray-500">
-                                  Onboarding: {restaurant.onboardingMeta.onboardingStatus.replace('_', ' ')}
-                                </div>
-                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                               {!restaurant.isApproved ? (
@@ -2212,30 +1746,9 @@ const AdminPanel = () => {
                                     <XCircleIcon className="h-4 w-4 mr-1" />
                                     Reject
                                   </button>
-                                  <button
-                                    onClick={() => handleViewRestaurantOnboarding(restaurant._id)}
-                                    className="inline-flex items-center px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors"
-                                  >
-                                    <EyeIcon className="h-4 w-4 mr-1" />
-                                    Onboarding
-                                  </button>
                                 </div>
                               ) : (
                                 <div className="flex flex-wrap gap-2">
-                                  <button
-                                    onClick={() => handleViewRestaurantOnboarding(restaurant._id)}
-                                    className="inline-flex items-center px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors"
-                                  >
-                                    <EyeIcon className="h-4 w-4 mr-1" />
-                                    Onboarding
-                                  </button>
-                                  <button
-                                    onClick={() => handleRegenerateLoginCredentials(restaurant._id)}
-                                    className="inline-flex items-center px-3 py-1 bg-amber-100 text-amber-800 rounded-md hover:bg-amber-200 transition-colors"
-                                  >
-                                    <KeyIcon className="h-4 w-4 mr-1" />
-                                    Generate Login
-                                  </button>
                                   <button
                                     onClick={() => setEditingRestaurant(restaurant)}
                                     className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
@@ -2306,21 +1819,6 @@ const AdminPanel = () => {
                               }`}>
                                 {user.isActive ? 'Active' : 'Inactive'}
                               </span>
-                              {['restaurant_owner', 'delivery_partner'].includes(user.role) && (
-                                <span className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  user.approvalStatus === 'rejected'
-                                    ? 'bg-red-100 text-red-800'
-                                    : user.approvalStatus === 'pending' || user.isApproved === false
-                                      ? 'bg-yellow-100 text-yellow-800'
-                                      : 'bg-blue-100 text-blue-800'
-                                }`}>
-                                  {user.approvalStatus === 'rejected'
-                                    ? 'Rejected'
-                                    : user.approvalStatus === 'pending' || user.isApproved === false
-                                      ? 'Approval Pending'
-                                      : 'Approved'}
-                                </span>
-                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                               <select
@@ -2338,28 +1836,6 @@ const AdminPanel = () => {
                               >
                                 {user.isActive ? 'Block' : 'Unblock'}
                               </button>
-                              {['restaurant_owner', 'delivery_partner'].includes(user.role) && (
-                                <>
-                                  <button
-                                    onClick={() => handleUserApproval(user._id, 'approved')}
-                                    className="ml-2 inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-semibold bg-blue-100 text-blue-700"
-                                  >
-                                    Approve
-                                  </button>
-                                  <button
-                                    onClick={() => handleUserApproval(user._id, 'pending')}
-                                    className="ml-2 inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-semibold bg-yellow-100 text-yellow-700"
-                                  >
-                                    Pending
-                                  </button>
-                                  <button
-                                    onClick={() => handleUserApproval(user._id, 'rejected')}
-                                    className="ml-2 inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-semibold bg-red-100 text-red-700"
-                                  >
-                                    Reject
-                                  </button>
-                                </>
-                              )}
                             </td>
                           </tr>
                         ))}
@@ -2968,25 +2444,18 @@ const AdminPanel = () => {
                     <div className="space-y-3">
                       {restaurants.map((restaurant) => {
                         const draftPercent = restaurantPayoutDrafts[restaurant._id] ?? '';
-                        const feeDraft = restaurantFeeDrafts[restaurant._id] || {};
-                        const visibilityDraft = restaurantBillingVisibilityDrafts[restaurant._id] || {};
                         const effectiveOverride = Number(restaurant.payoutRateOverride);
                         const hasOverride = Number.isFinite(effectiveOverride);
-                        const feeOverrides = restaurant.feeOverrides || {};
-                        const billingVisibility = mergeBillingVisibility(
-                          restaurant.feeVisibilityOverrides || DEFAULT_BILLING_VISIBILITY,
-                          visibilityDraft
-                        );
 
                         return (
-                          <div key={restaurant._id} className="rounded-lg border border-gray-100 p-3 space-y-3">
-                            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                          <div key={restaurant._id} className="rounded-lg border border-gray-100 p-3">
+                            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                               <div>
                                 <p className="text-sm font-bold text-gray-900">{restaurant.name}</p>
                                 <p className="text-xs text-gray-500">
                                   {hasOverride
-                                    ? `Payout override: ${(effectiveOverride * 100).toFixed(2)}%`
-                                    : `Using global payout: ${Number(settingsForm.restaurantPayoutRate || 0).toFixed(1)}%`}
+                                    ? `Override: ${(effectiveOverride * 100).toFixed(2)}%`
+                                    : `Using global: ${Number(settingsForm.restaurantPayoutRate || 0).toFixed(1)}%`}
                                 </p>
                               </div>
                               <div className="flex flex-wrap items-center gap-2">
@@ -3001,7 +2470,7 @@ const AdminPanel = () => {
                                     [restaurant._id]: e.target.value
                                   }))}
                                   className="w-36 rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                                  placeholder="Payout %"
+                                  placeholder="Override %"
                                 />
                                 <button
                                   onClick={() => handleSaveRestaurantPayoutRate(restaurant._id)}
@@ -3017,118 +2486,6 @@ const AdminPanel = () => {
                                 >
                                   Reset
                                 </button>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-500 mb-1">Delivery Fee</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={feeDraft.deliveryFee ?? (feeOverrides.deliveryFee ?? '')}
-                                  onChange={(e) => setRestaurantFeeDrafts((prev) => ({
-                                    ...prev,
-                                    [restaurant._id]: {
-                                      ...(prev[restaurant._id] || {}),
-                                      deliveryFee: e.target.value
-                                    }
-                                  }))}
-                                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                                  placeholder="Global default"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-500 mb-1">Platform Fee</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={feeDraft.platformFee ?? (feeOverrides.platformFee ?? '')}
-                                  onChange={(e) => setRestaurantFeeDrafts((prev) => ({
-                                    ...prev,
-                                    [restaurant._id]: {
-                                      ...(prev[restaurant._id] || {}),
-                                      platformFee: e.target.value
-                                    }
-                                  }))}
-                                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                                  placeholder="Global default"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-500 mb-1">Tax Rate %</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.1"
-                                  value={feeDraft.taxRate ?? (Number.isFinite(Number(feeOverrides.taxRate)) ? Number(feeOverrides.taxRate) * 100 : '')}
-                                  onChange={(e) => setRestaurantFeeDrafts((prev) => ({
-                                    ...prev,
-                                    [restaurant._id]: {
-                                      ...(prev[restaurant._id] || {}),
-                                      taxRate: e.target.value
-                                    }
-                                  }))}
-                                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                                  placeholder="Global default"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-500 mb-1">Commission %</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="90"
-                                  step="0.1"
-                                  value={feeDraft.commissionPercent ?? (Number.isFinite(Number(feeOverrides.commissionPercent)) ? feeOverrides.commissionPercent : '')}
-                                  onChange={(e) => setRestaurantFeeDrafts((prev) => ({
-                                    ...prev,
-                                    [restaurant._id]: {
-                                      ...(prev[restaurant._id] || {}),
-                                      commissionPercent: e.target.value
-                                    }
-                                  }))}
-                                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                                  placeholder="Global default"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 space-y-3">
-                              <div>
-                                <p className="text-sm font-semibold text-gray-900">Billing Visibility</p>
-                                <p className="text-xs text-gray-500">Control which charges appear in billing for this restaurant.</p>
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {['customer', 'restaurant'].map((scope) => (
-                                  <div key={scope} className="rounded-lg bg-white border border-gray-200 p-3">
-                                    <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
-                                      {scope === 'customer' ? 'Customer Invoice' : 'Restaurant Bill'}
-                                    </p>
-                                    {['deliveryFee', 'platformFee', 'tax'].map((field) => (
-                                      <label key={field} className="flex items-center justify-between gap-3 text-sm py-1.5">
-                                        <span className="text-gray-600">
-                                          {field === 'deliveryFee' ? 'Delivery Fee' : field === 'platformFee' ? 'Platform Fee' : 'Tax'}
-                                        </span>
-                                        <input
-                                          type="checkbox"
-                                          checked={Boolean(billingVisibility?.[scope]?.[field])}
-                                          onChange={(e) => setRestaurantBillingVisibilityDrafts((prev) => ({
-                                            ...prev,
-                                            [restaurant._id]: {
-                                              ...(prev[restaurant._id] || {}),
-                                              [scope]: {
-                                                ...((prev[restaurant._id] || {})[scope] || {}),
-                                                [field]: e.target.checked
-                                              }
-                                            }
-                                          }))}
-                                          className="h-4 w-4 rounded border-gray-300"
-                                        />
-                                      </label>
-                                    ))}
-                                  </div>
-                                ))}
                               </div>
                             </div>
                           </div>
@@ -3658,272 +3015,6 @@ const AdminPanel = () => {
           onClose={() => setEditingRestaurant(null)}
           onSave={handleSaveRestaurantLocation}
         />
-      )}
-
-      {/* Fee Template Form Modal */}
-      {templateFormOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 sm:p-6 flex items-center justify-between">
-              <h3 className="text-lg font-bold">{editingTemplateId ? 'Edit Template' : 'Create Template'}</h3>
-              <button
-                onClick={() => setTemplateFormOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-4 sm:p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Template Name *</label>
-                <input
-                  type="text"
-                  value={templateForm.name}
-                  onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  placeholder="e.g., Standard, Premium"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
-                <input
-                  type="text"
-                  value={templateForm.description}
-                  onChange={(e) => setTemplateForm({ ...templateForm, description: e.target.value })}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  placeholder="Optional description"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Delivery Fee (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={templateForm.deliveryFee}
-                    onChange={(e) => setTemplateForm({ ...templateForm, deliveryFee: e.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Platform Fee (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={templateForm.platformFee}
-                    onChange={(e) => setTemplateForm({ ...templateForm, platformFee: e.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Tax Rate (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={templateForm.taxRate}
-                    onChange={(e) => setTemplateForm({ ...templateForm, taxRate: e.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Commission (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={templateForm.commissionPercent}
-                    onChange={(e) => setTemplateForm({ ...templateForm, commissionPercent: e.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={templateForm.isActive}
-                  onChange={(e) => setTemplateForm({ ...templateForm, isActive: e.target.checked })}
-                  className="h-4 w-4 rounded border-gray-300"
-                />
-                <span className="text-sm text-gray-700">Active</span>
-              </label>
-            </div>
-            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-4 sm:p-6 flex justify-end gap-2">
-              <button
-                onClick={() => setTemplateFormOpen(false)}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 text-sm font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveTemplate}
-                disabled={templateSaving}
-                className="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold disabled:opacity-60"
-              >
-                {templateSaving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Assign Restaurants Modal */}
-      {assignRestaurantDialogOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 sm:p-6 flex items-center justify-between">
-              <h3 className="text-lg font-bold">Assign to Restaurants</h3>
-              <button
-                onClick={() => setAssignRestaurantDialogOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-4 sm:p-6">
-              <div className="space-y-2 max-h-[50vh] overflow-y-auto">
-                {restaurants.map((restaurant) => (
-                  <label key={restaurant._id} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedRestaurantsForTemplate.includes(restaurant._id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedRestaurantsForTemplate([...selectedRestaurantsForTemplate, restaurant._id]);
-                        } else {
-                          setSelectedRestaurantsForTemplate(
-                            selectedRestaurantsForTemplate.filter(id => id !== restaurant._id)
-                          );
-                        }
-                      }}
-                      className="h-4 w-4 rounded border-gray-300"
-                    />
-                    <span className="text-sm text-gray-800">{restaurant.name}</span>
-                  </label>
-                ))}
-              </div>
-              {restaurants.length === 0 && (
-                <div className="text-sm text-gray-500 text-center py-4">No restaurants available</div>
-              )}
-            </div>
-            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-4 sm:p-6 flex justify-end gap-2">
-              <button
-                onClick={() => setAssignRestaurantDialogOpen(false)}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 text-sm font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveTemplateAssignment}
-                disabled={templateSaving}
-                className="px-4 py-2 rounded-lg bg-primary-500 text-white text-sm font-semibold disabled:opacity-60"
-              >
-                {templateSaving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {onboardingDrawerOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end">
-          <div className="h-full w-full max-w-xl bg-white shadow-xl overflow-y-auto">
-            <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-5 py-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold">Restaurant Onboarding Details</h3>
-              <button
-                onClick={() => setOnboardingDrawerOpen(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                Close
-              </button>
-            </div>
-
-            {onboardingLoading ? (
-              <div className="p-6 text-sm text-gray-600">Loading onboarding data...</div>
-            ) : !selectedRestaurantOnboarding ? (
-              <div className="p-6 text-sm text-gray-600">No onboarding data found.</div>
-            ) : (
-              <div className="p-6 space-y-5 text-sm">
-                <div>
-                  <p className="font-semibold text-gray-900">{selectedRestaurantOnboarding.name}</p>
-                  <p className="text-gray-600">Owner: {selectedRestaurantOnboarding.ownerId?.name || 'N/A'}</p>
-                  <p className="text-gray-600">Email: {selectedRestaurantOnboarding.ownerId?.email || selectedRestaurantOnboarding.email || 'N/A'}</p>
-                  <p className="text-gray-600">Phone: {selectedRestaurantOnboarding.ownerId?.phone || selectedRestaurantOnboarding.phone || 'N/A'}</p>
-                </div>
-
-                <div className="rounded-lg border border-gray-200 p-4">
-                  <p className="font-semibold text-gray-800 mb-2">Compliance & Banking</p>
-                  <p>PAN: {selectedRestaurantOnboarding.panNumber || 'N/A'}</p>
-                  <p>FSSAI: {selectedRestaurantOnboarding.fssaiLicense || 'N/A'}</p>
-                  <p>GST: {selectedRestaurantOnboarding.gstNumber || 'Not applicable'}</p>
-                  <p>Bank: {selectedRestaurantOnboarding.bankDetails?.bankName || 'N/A'}</p>
-                  <p>A/C: {selectedRestaurantOnboarding.bankDetails?.accountNumber || 'N/A'}</p>
-                  <p>IFSC: {selectedRestaurantOnboarding.bankDetails?.ifscCode || 'N/A'}</p>
-                </div>
-
-                <div className="rounded-lg border border-gray-200 p-4">
-                  <p className="font-semibold text-gray-800 mb-2">Menu & Location</p>
-                  <p className="text-gray-700 whitespace-pre-wrap">{selectedRestaurantOnboarding.onboardingMeta?.menuDetailsText || 'No menu details submitted'}</p>
-                  <p className="mt-2 text-gray-600">
-                    Location: {selectedRestaurantOnboarding.location?.coordinates?.[1] || 0}, {selectedRestaurantOnboarding.location?.coordinates?.[0] || 0}
-                  </p>
-                </div>
-
-                <div className="rounded-lg border border-gray-200 p-4">
-                  <p className="font-semibold text-gray-800 mb-2">Uploaded Documents</p>
-                  {['panCard', 'fssaiDocument', 'menuDocument', 'menuImage', 'profileFoodImage'].map((docKey) => {
-                    const doc = selectedRestaurantOnboarding.onboardingDocuments?.[docKey];
-                    return (
-                      <div key={docKey} className="flex items-center justify-between py-1">
-                        <span className="text-gray-700">{docKey}</span>
-                        {doc?.url ? (
-                          <a href={doc.url} target="_blank" rel="noreferrer" className="text-primary-600 hover:underline">
-                            View
-                          </a>
-                        ) : (
-                          <span className="text-gray-400">Not uploaded</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="rounded-lg border border-gray-200 p-4">
-                  <p className="font-semibold text-gray-800 mb-2">Login Credentials</p>
-                  <p>Portal: {selectedRestaurantOnboarding.onboardingMeta?.loginPortal || '/accounts/restaurant/login'}</p>
-                  <p>Reference ID: {selectedRestaurantOnboarding.onboardingMeta?.loginReferenceId || 'N/A'}</p>
-                  <p>Username: {selectedRestaurantOnboarding.onboardingMeta?.latestGeneratedCredentials?.username || selectedRestaurantOnboarding.ownerId?.email || selectedRestaurantOnboarding.ownerId?.phone || 'N/A'}</p>
-                  <p>Temp Password: {selectedRestaurantOnboarding.onboardingMeta?.latestGeneratedCredentials?.tempPassword || 'Not generated yet'}</p>
-                  <p className="text-gray-500 text-xs mt-1">
-                    Generated: {selectedRestaurantOnboarding.onboardingMeta?.latestGeneratedCredentials?.generatedAt ? formatDateTime(selectedRestaurantOnboarding.onboardingMeta.latestGeneratedCredentials.generatedAt) : 'Never'}
-                  </p>
-                </div>
-
-                <div className="rounded-lg border border-gray-200 p-4">
-                  <p className="font-semibold text-gray-800 mb-2">Partner Contract Audit</p>
-                  <p>Accepted: {selectedRestaurantOnboarding.onboardingMeta?.partnerContract?.accepted ? 'Yes' : 'No'}</p>
-                  <p>Signer: {selectedRestaurantOnboarding.onboardingMeta?.partnerContract?.signerName || 'N/A'}</p>
-                  <p>Accepted At: {selectedRestaurantOnboarding.onboardingMeta?.partnerContract?.acceptedAt ? formatDateTime(selectedRestaurantOnboarding.onboardingMeta.partnerContract.acceptedAt) : 'N/A'}</p>
-                  <p>Contract Version: {selectedRestaurantOnboarding.onboardingMeta?.partnerContract?.contractVersion || 'v1'}</p>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => handleRegenerateLoginCredentials(selectedRestaurantOnboarding._id)}
-                    className="inline-flex items-center px-4 py-2 bg-amber-100 text-amber-800 rounded-md hover:bg-amber-200"
-                  >
-                    <KeyIcon className="h-4 w-4 mr-2" />
-                    Regenerate & Send Invite
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
       )}
     </div>
   );

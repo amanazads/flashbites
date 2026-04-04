@@ -4,23 +4,11 @@ import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 import { fetchRestaurants, setFilters } from '../redux/slices/restaurantSlice';
 import { searchRestaurantsAndItems } from '../api/restaurantApi';
-import { getAddresses } from '../api/userApi';
 import RestaurantCard from '../components/restaurant/RestaurantCard';
 import { Loader } from '../components/common/Loader';
-import AddAddressModal from '../components/common/AddAddressModal';
-import LocationGateModal from '../components/location/LocationGateModal';
+import { CUISINES } from '../utils/constants';
 import { AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import { BRAND } from '../constants/theme';
-import { setSelectedDeliveryAddress } from '../redux/slices/uiSlice';
-import { buildManualAddressSelection, mapSavedAddressToSelection } from '../utils/deliveryAddress';
-import toast from 'react-hot-toast';
-
-const isNativePlatform = () => !!(
-  typeof window !== 'undefined'
-  && window.Capacitor
-  && typeof window.Capacitor.isNativePlatform === 'function'
-  && window.Capacitor.isNativePlatform()
-);
 
 const CUISINE_TABS = [
   { id: 'All',       label: 'All',       image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80' },
@@ -42,59 +30,17 @@ const SORT_OPTIONS = ['Ratings 4.0+', 'New to you', 'Fastest delivery', 'Free de
 const RestaurantPage = () => {
   const dispatch = useDispatch();
   const { restaurants, loading, filters } = useSelector((s) => s.restaurant);
-  const { isAuthenticated } = useSelector((s) => s.auth);
-  const selectedAddress = useSelector((s) => s.ui.selectedDeliveryAddress);
   const [selectedCuisine, setSelectedCuisine] = useState('All');
   const [activeSort, setActiveSort] = useState(null);
   const [searchResultRestaurants, setSearchResultRestaurants] = useState([]);
   const [searchResultItems, setSearchResultItems] = useState([]);
   const [searchMatchedItemsByRestaurant, setSearchMatchedItemsByRestaurant] = useState({});
   const [searchLoading, setSearchLoading] = useState(false);
-  const [savedAddresses, setSavedAddresses] = useState([]);
-  const [addressesLoaded, setAddressesLoaded] = useState(false);
-  const [showLocationGate, setShowLocationGate] = useState(false);
-  const [showAddAddressModal, setShowAddAddressModal] = useState(false);
-  const [detectingLocation, setDetectingLocation] = useState(false);
   const routerLocation = useLocation();
   const params = new URLSearchParams(routerLocation.search);
   const searchQuery = params.get('search')?.trim() || '';
   const cuisineQuery = params.get('cuisine')?.trim() || '';
   const inSearchMode = searchQuery.length > 0;
-
-  useEffect(() => {
-    const loadSavedAddresses = async () => {
-      if (!isAuthenticated) {
-        setSavedAddresses([]);
-        setAddressesLoaded(true);
-        return;
-      }
-
-      try {
-        const res = await getAddresses();
-        const addrs = res?.data?.addresses || [];
-        setSavedAddresses(addrs);
-
-        if (!selectedAddress && addrs.length > 0) {
-          const preferred = addrs.find((a) => a.isDefault) || addrs[0];
-          const mapped = mapSavedAddressToSelection(preferred);
-          if (mapped) {
-            dispatch(setSelectedDeliveryAddress(mapped));
-          }
-        }
-      } catch {
-        setSavedAddresses([]);
-      } finally {
-        setAddressesLoaded(true);
-      }
-    };
-
-    loadSavedAddresses();
-  }, [dispatch, isAuthenticated, selectedAddress]);
-
-  useEffect(() => {
-    if (!addressesLoaded) return;
-    setShowLocationGate(!selectedAddress);
-  }, [addressesLoaded, selectedAddress]);
 
   useEffect(() => {
     if (!inSearchMode) {
@@ -114,11 +60,7 @@ const RestaurantPage = () => {
     const runSearch = async () => {
       setSearchLoading(true);
       try {
-        const response = await searchRestaurantsAndItems({
-          q: searchQuery,
-          limit: 30,
-          city: selectedAddress?.city || undefined,
-        });
+        const response = await searchRestaurantsAndItems({ q: searchQuery, limit: 30 });
         const payload = response?.data || {};
         if (cancelled) return;
 
@@ -163,7 +105,7 @@ const RestaurantPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [dispatch, inSearchMode, searchQuery, filters.search, selectedAddress?.city]);
+  }, [dispatch, inSearchMode, searchQuery, filters.search]);
 
   useEffect(() => {
     if (inSearchMode) return;
@@ -175,21 +117,8 @@ const RestaurantPage = () => {
 
   useEffect(() => {
     if (inSearchMode) return;
-    if (!selectedAddress?.latitude || !selectedAddress?.longitude) {
-      dispatch(fetchRestaurants(filters));
-      return;
-    }
-
-    dispatch(fetchRestaurants({
-      ...filters,
-      lat: Number(selectedAddress.latitude),
-      lng: Number(selectedAddress.longitude),
-      radius: 50000,
-      city: selectedAddress.city || undefined,
-      zipCode: selectedAddress.zipCode || undefined,
-      state: selectedAddress.state || undefined,
-    }));
-  }, [dispatch, filters, inSearchMode, selectedAddress]);
+    dispatch(fetchRestaurants(filters));
+  }, [dispatch, filters, inSearchMode]);
 
   const sourceRestaurants = inSearchMode ? searchResultRestaurants : restaurants;
   const displayedRestaurants = selectedCuisine === 'All'
@@ -199,94 +128,6 @@ const RestaurantPage = () => {
   const handleCuisine = (label) => {
     setSelectedCuisine(label);
     dispatch(setFilters({ cuisine: label === 'All' ? null : label }));
-  };
-
-  const handleSelectSavedAddress = (addr) => {
-    const mapped = mapSavedAddressToSelection(addr);
-    if (!mapped) {
-      toast.error('This address is missing coordinates. Please re-add it from suggestions.');
-      return;
-    }
-
-    dispatch(setSelectedDeliveryAddress(mapped));
-    setShowLocationGate(false);
-  };
-
-  const handleUseCurrentLocation = async () => {
-    setDetectingLocation(true);
-
-    const applyPosition = (position) => {
-      const latitude = Number(position?.coords?.latitude || 0);
-      const longitude = Number(position?.coords?.longitude || 0);
-
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || (latitude === 0 && longitude === 0)) {
-        throw new Error('Invalid location coordinates');
-      }
-
-      const selection = buildManualAddressSelection({
-        id: 'current-location',
-        type: 'current',
-        city: 'Current Area',
-        fullAddress: `Current location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
-        latitude,
-        longitude,
-      });
-
-      dispatch(setSelectedDeliveryAddress(selection));
-      setShowLocationGate(false);
-      toast.success('Current location selected');
-    };
-
-    try {
-      if (isNativePlatform()) {
-        const { Geolocation } = await import('@capacitor/geolocation');
-        await Geolocation.requestPermissions();
-        const position = await Geolocation.getCurrentPosition({
-          enableHighAccuracy: true,
-          timeout: 12000,
-          maximumAge: 180000,
-        });
-        applyPosition(position);
-        return;
-      }
-
-      if (!navigator.geolocation) {
-        throw new Error('Location services are not supported on this device.');
-      }
-
-      await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 12000,
-          maximumAge: 180000,
-        });
-      }).then(applyPosition);
-    } catch {
-      toast.error('Unable to access your location. Please allow location permission or select an address manually.');
-    } finally {
-      setDetectingLocation(false);
-    }
-  };
-
-  const handleAddressAdded = (newAddress) => {
-    setSavedAddresses((prev) => {
-      const filtered = prev.filter((addr) => addr._id !== newAddress._id);
-      return [newAddress, ...filtered];
-    });
-
-    const mapped = mapSavedAddressToSelection(newAddress);
-    if (!mapped) {
-      toast.error('Address added without valid coordinates. Please re-add it from suggestions.');
-      return;
-    }
-
-    dispatch(setSelectedDeliveryAddress(mapped));
-    setShowLocationGate(false);
-  };
-
-  const handleManualAddressSelected = (selection) => {
-    dispatch(setSelectedDeliveryAddress(selection));
-    setShowLocationGate(false);
   };
 
   return (
@@ -365,7 +206,6 @@ const RestaurantPage = () => {
               {displayedRestaurants.length} restaurants
               {inSearchMode ? ` · ${searchResultItems.length} items` : ''}
               {selectedCuisine !== 'All' ? ` · ${selectedCuisine}` : ''}
-              {selectedAddress?.city ? ` · ${selectedAddress.city}` : ''}
             </p>
           )}
         </div>
@@ -425,30 +265,6 @@ const RestaurantPage = () => {
           </>
         )}
       </div>
-
-      <AddAddressModal
-        isOpen={showAddAddressModal}
-        onClose={() => setShowAddAddressModal(false)}
-        onAddressAdded={handleAddressAdded}
-        onAddressSelected={handleManualAddressSelected}
-        saveToAccount={isAuthenticated}
-        title={isAuthenticated ? 'Add Delivery Address' : 'Select Delivery Address'}
-        submitLabel={isAuthenticated ? 'Save Address' : 'Use This Address'}
-      />
-      <LocationGateModal
-        isOpen={showLocationGate}
-        selectedAddress={selectedAddress}
-        savedAddresses={savedAddresses}
-        isAuthenticated={isAuthenticated}
-        detectingLocation={detectingLocation}
-        onUseCurrentLocation={handleUseCurrentLocation}
-        onSelectSavedAddress={handleSelectSavedAddress}
-        onOpenManualAddress={() => {
-          setShowLocationGate(false);
-          setTimeout(() => setShowAddAddressModal(true), 120);
-        }}
-        onClose={() => setShowLocationGate(false)}
-      />
     </div>
   );
 };

@@ -40,14 +40,6 @@ export const saveRestaurantDeliveryZone = (id, coordinates) => {
   return axios.put(`/admin/restaurants/${id}/delivery-zone`, { coordinates });
 };
 
-export const getRestaurantOnboardingDetail = (id) => {
-  return axios.get(`/admin/restaurants/${id}/onboarding`);
-};
-
-export const regenerateRestaurantLoginCredentials = (id) => {
-  return axios.post(`/admin/restaurants/${id}/regenerate-login`);
-};
-
 export const getDeliveryTrackingDashboard = () => {
   return axios.get('/admin/delivery-tracking');
 };
@@ -66,10 +58,6 @@ export const blockUser = (id, isActive) => {
 
 export const updateUserRole = (id, role) => {
   return axios.patch(`/admin/users/${id}/role`, { role });
-};
-
-export const updateUserApproval = (id, payload) => {
-  return axios.patch(`/admin/users/${id}/approval`, payload);
 };
 
 export const getComprehensiveAnalytics = (params) => {
@@ -106,29 +94,4 @@ export const updateCoupon = (id, payload) => {
 
 export const deleteCoupon = (id) => {
   return axios.delete(`/admin/coupons/${id}`);
-};
-
-// Fee Template APIs
-export const getAllFeeTemplates = () => {
-  return axios.get('/admin/fee-templates');
-};
-
-export const createFeeTemplate = (payload) => {
-  return axios.post('/admin/fee-templates', payload);
-};
-
-export const updateFeeTemplate = (id, payload) => {
-  return axios.put(`/admin/fee-templates/${id}`, payload);
-};
-
-export const deleteFeeTemplate = (id) => {
-  return axios.delete(`/admin/fee-templates/${id}`);
-};
-
-export const assignRestaurantToTemplate = (templateId, restaurantId) => {
-  return axios.post(`/admin/fee-templates/${templateId}/assign`, { restaurantId });
-};
-
-export const removeRestaurantFromTemplate = (templateId, restaurantId) => {
-  return axios.delete(`/admin/fee-templates/${templateId}/restaurants/${restaurantId}`);
 };

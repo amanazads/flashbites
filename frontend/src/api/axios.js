@@ -8,15 +8,11 @@ const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const isNativePlatform = () => {
   if (typeof window === 'undefined') return false;
 
-  const hasNativeLocalhostOrigin = () => {
-    const host = window.location.hostname;
-    const protocol = window.location.protocol;
-    return (host === 'localhost' || host === '127.0.0.1') && protocol === 'https:';
-  };
-
   const cap = window.Capacitor;
   if (!cap) {
-    return hasNativeLocalhostOrigin() || window.location.protocol === 'capacitor:';
+    const host = window.location.hostname;
+    const protocol = window.location.protocol;
+    return ((host === 'localhost' || host === '127.0.0.1') && protocol === 'https:') || protocol === 'capacitor:';
   }
 
   if (typeof cap.isNativePlatform === 'function') {
@@ -27,10 +23,10 @@ const isNativePlatform = () => {
     return cap.getPlatform() !== 'web';
   }
 
-  return hasNativeLocalhostOrigin() || window.location.protocol === 'capacitor:';
+  return false;
 };
 
-// Detect true native Capacitor runtime only (not plain web with capacitor scripts present)
+// Detect if running in native Capacitor runtime
 const isCapacitor = isNativePlatform();
 
 const clearAuthStorage = async () => {
