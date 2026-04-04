@@ -85,32 +85,6 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  feeVisibilitySnapshot: {
-    customer: {
-      deliveryFee: { type: Boolean, default: true },
-      platformFee: { type: Boolean, default: true },
-      tax: { type: Boolean, default: true }
-    },
-    restaurant: {
-      deliveryFee: { type: Boolean, default: true },
-      platformFee: { type: Boolean, default: true },
-      tax: { type: Boolean, default: true }
-    }
-  },
-  feeOverrideSnapshot: {
-    deliveryFee: { type: Number, default: null },
-    platformFee: { type: Number, default: null },
-    taxRate: { type: Number, default: null },
-    commissionPercent: { type: Number, default: null }
-  },
-  feeTemplateSnapshot: {
-    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'FeeTemplate', default: null },
-    templateName: { type: String, default: null },
-    deliveryFee: { type: Number, default: null },
-    platformFee: { type: Number, default: null },
-    taxRate: { type: Number, default: null },
-    commissionPercent: { type: Number, default: null }
-  },
   deliveryPartnerPayoutSnapshot: {
     perOrder: {
       type: Number,

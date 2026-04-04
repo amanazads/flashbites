@@ -25,8 +25,17 @@ let projectMigrationPromise = null;
 const isNativePlatform = () => {
   if (typeof window === 'undefined') return false;
 
+  const hasNativeLocalhostOrigin = () => {
+    const host = window.location.hostname;
+    const protocol = window.location.protocol;
+    return (host === 'localhost' || host === '127.0.0.1') && protocol === 'https:';
+  };
+
   const cap = window.Capacitor;
-  if (!cap) return false;
+  if (!cap) {
+    // Capacitor bridge may initialize slightly after module load in native WebView.
+    return hasNativeLocalhostOrigin() || window.location.protocol === 'capacitor:';
+  }
 
   if (typeof cap.isNativePlatform === 'function') {
     return cap.isNativePlatform();
@@ -37,7 +46,7 @@ const isNativePlatform = () => {
   }
 
   // Fallback for older runtime shims where platform helpers are unavailable.
-  return window.location.protocol === 'https:' && window.location.hostname === 'localhost';
+  return hasNativeLocalhostOrigin() || window.location.protocol === 'capacitor:';
 };
 
 const getCurrentProjectMarker = () => {

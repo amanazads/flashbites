@@ -41,19 +41,33 @@ export const fetchRestaurants = createAsyncThunk(
       let response;
 
       if (hasCoords) {
-        response = await withRetry(
-          () => restaurantApi.getNearbyRestaurants(
-            Number(filters.lat),
-            Number(filters.lng),
-            Number(filters.radius || 10000),
-            Number(filters.limit || 50),
-            filters?.city,
-            filters?.zipCode,
-            filters?.state
-          ),
-          3,
-          4000
-        );
+        try {
+          response = await withRetry(
+            () => restaurantApi.getNearbyRestaurants(
+              Number(filters.lat),
+              Number(filters.lng),
+              Number(filters.radius || 10000),
+              Number(filters.limit || 50),
+              filters?.city,
+              filters?.zipCode,
+              filters?.state
+            ),
+            3,
+            4000
+          );
+        } catch (nearbyError) {
+          // Fallback to a broader public listing instead of hard-failing the screen.
+          response = await withRetry(
+            () => restaurantApi.getRestaurants({
+              ...filters,
+              lat: undefined,
+              lng: undefined,
+              radius: undefined,
+            }),
+            3,
+            3000
+          );
+        }
 
         const nearbyRestaurants = response?.data?.restaurants || [];
         const city = String(filters?.city || '').trim();

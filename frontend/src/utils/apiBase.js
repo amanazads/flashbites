@@ -5,11 +5,21 @@ const isLocalHost = () => {
   return host === 'localhost' || host === '127.0.0.1';
 };
 
+const hasNativeLocalhostOrigin = () => {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  const protocol = window.location.protocol;
+  return (host === 'localhost' || host === '127.0.0.1') && protocol === 'https:';
+};
+
 const isNativePlatform = () => {
   if (typeof window === 'undefined') return false;
 
   const cap = window.Capacitor;
-  if (!cap) return false;
+  if (!cap) {
+    // Capacitor bridge can initialize after module eval; preserve native routing in that case.
+    return hasNativeLocalhostOrigin() || window.location.protocol === 'capacitor:';
+  }
 
   if (typeof cap.isNativePlatform === 'function') {
     return cap.isNativePlatform();
@@ -19,7 +29,7 @@ const isNativePlatform = () => {
     return cap.getPlatform() !== 'web';
   }
 
-  return window.location.protocol === 'https:' && window.location.hostname === 'localhost';
+  return hasNativeLocalhostOrigin() || window.location.protocol === 'capacitor:';
 };
 
 const getProductionApiFallback = () => {
@@ -32,6 +42,12 @@ export const getApiBaseUrl = () => {
 
   if (configured) {
     return configured;
+  }
+
+  // In production builds (web or native), always prefer the stable remote backend fallback.
+  // This avoids startup races where native bridge detection may lag and accidentally lock API to localhost.
+  if (!import.meta.env.DEV) {
+    return getProductionApiFallback();
   }
 
   if (import.meta.env.DEV && isLocalHost()) {

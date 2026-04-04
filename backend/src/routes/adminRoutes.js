@@ -18,9 +18,6 @@ const {
   getAllRestaurants,
   updateRestaurantPayoutRate,
   saveRestaurantDeliveryZone,
-  getRestaurantOnboardingDetail,
-  regenerateRestaurantLoginCredentials,
-  updateUserApproval,
   createCoupon,
   getAllCoupons,
   updateCoupon,
@@ -30,13 +27,7 @@ const {
   reviewAccountDeletionRequest,
   getPlatformSettings,
   updatePlatformSettings,
-  getDeliveryTrackingDashboard,
-  getAllFeeTemplates,
-  createFeeTemplate,
-  updateFeeTemplate,
-  deleteFeeTemplate,
-  assignRestaurantToTemplate,
-  removeRestaurantFromTemplate
+  getDeliveryTrackingDashboard
 } = require('../controllers/adminController');
 
 router.use(protect, restrictTo('admin')); // All admin routes
@@ -52,14 +43,11 @@ router.put('/delivery-partners/:id/earnings-control', updateDeliveryPartnerEarni
 router.get('/delivery-tracking', getDeliveryTrackingDashboard);
 router.get('/orders', getAllOrders);
 router.get('/restaurants', getAllRestaurants);
-router.get('/restaurants/:id/onboarding', getRestaurantOnboardingDetail);
 router.patch('/restaurants/:id/approve', approveRestaurant);
 router.patch('/restaurants/:id/payout-rate', updateRestaurantPayoutRate);
-router.post('/restaurants/:id/regenerate-login', regenerateRestaurantLoginCredentials);
 router.put('/restaurants/:id/delivery-zone', saveRestaurantDeliveryZone);
 router.patch('/users/:id/block', blockUser);
 router.patch('/users/:id/role', updateUserRole);
-router.patch('/users/:id/approval', updateUserApproval);
 router.get('/account-deletion-requests', getAccountDeletionRequests);
 router.patch('/account-deletion-requests/:id/review', reviewAccountDeletionRequest);
 
@@ -74,17 +62,5 @@ router.route('/coupons')
 router.route('/coupons/:id')
   .put(updateCoupon)
   .delete(deleteCoupon);
-
-// Fee template management routes
-router.route('/fee-templates')
-  .get(getAllFeeTemplates)
-  .post(createFeeTemplate);
-
-router.route('/fee-templates/:id')
-  .put(updateFeeTemplate)
-  .delete(deleteFeeTemplate);
-
-router.post('/fee-templates/:id/assign', assignRestaurantToTemplate);
-router.delete('/fee-templates/:id/restaurants/:restaurantId', removeRestaurantFromTemplate);
 
 module.exports = router;
