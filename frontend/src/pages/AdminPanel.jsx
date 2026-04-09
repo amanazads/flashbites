@@ -179,6 +179,13 @@ const getLocalFeeOverrideSummary = (controls = {}) => {
   return overridden.length > 0 ? overridden.join(', ') : '';
 };
 
+const escapeHtml = (value) => String(value || '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
 const AdminPanel = () => {
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
@@ -794,15 +801,99 @@ const AdminPanel = () => {
 
   const handleApproveRestaurant = async (restaurantId) => {
     try {
-      await axios.patch(`/admin/restaurants/${restaurantId}/approve`, {
+      const response = await axios.patch(`/admin/restaurants/${restaurantId}/approve`, {
         isApproved: true
       });
-      toast.success('Restaurant approved');
+      const credentials = response?.data?.data?.credentials;
+
+      if (credentials?.password) {
+        await Swal.fire({
+          title: 'Restaurant Approved',
+          icon: 'success',
+          html: `
+            <div style="text-align:left;font-size:14px;line-height:1.6;">
+              <p><strong>Login credentials generated:</strong></p>
+              <p>Phone: ${credentials.phone || 'N/A'}</p>
+              <p>Email: ${credentials.email || 'N/A'}</p>
+              <p>Password: <strong>${credentials.password}</strong></p>
+              <p style="margin-top:10px;color:#b45309;">Share these credentials with the restaurant owner now.</p>
+            </div>
+          `,
+          confirmButtonText: 'Done'
+        });
+      } else {
+        toast.success('Restaurant approved');
+      }
+
       fetchData(); // Auto-refresh
     } catch (error) {
       toast.error('Failed to approve restaurant');
       console.error(error);
     }
+  };
+
+  const handleReviewRestaurantApplication = async (restaurant) => {
+    const ownerName = restaurant?.ownerId?.name || 'N/A';
+    const ownerEmail = restaurant?.ownerId?.email || restaurant?.email || 'N/A';
+    const ownerPhone = restaurant?.phone || restaurant?.ownerId?.phone || 'N/A';
+
+    const address = [
+      restaurant?.address?.street,
+      restaurant?.address?.landmark,
+      restaurant?.address?.city,
+      restaurant?.address?.state,
+      restaurant?.address?.zipCode
+    ].filter(Boolean).join(', ') || 'N/A';
+
+    const coords = restaurant?.location?.coordinates || [];
+    const lng = Number(coords?.[0]);
+    const lat = Number(coords?.[1]);
+    const hasCoordinates = Number.isFinite(lat) && Number.isFinite(lng);
+    const mapLink = hasCoordinates
+      ? `https://www.google.com/maps?q=${lat},${lng}`
+      : '';
+
+    const docs = restaurant?.documents || {};
+    const fssaiDoc = docs?.fssai || '';
+    const ownerIdDoc = docs?.ownerIdProof || '';
+    const menuDoc = docs?.menuDocument || '';
+    const chequeDoc = docs?.cancelledCheque || '';
+
+    await Swal.fire({
+      title: 'Restaurant Application Review',
+      width: 900,
+      confirmButtonText: 'Close',
+      html: `
+        <div style="text-align:left;font-size:14px;line-height:1.65;max-height:65vh;overflow:auto;padding-right:4px;">
+          <h4 style="margin:0 0 8px;font-size:16px;color:#111827;">Basic Details</h4>
+          <p style="margin:2px 0;"><strong>Restaurant Name:</strong> ${escapeHtml(restaurant?.name || 'N/A')}</p>
+          <p style="margin:2px 0;"><strong>Owner Name:</strong> ${escapeHtml(ownerName)}</p>
+          <p style="margin:2px 0;"><strong>Email:</strong> ${escapeHtml(ownerEmail)}</p>
+          <p style="margin:2px 0;"><strong>Phone:</strong> ${escapeHtml(ownerPhone)}</p>
+          <p style="margin:2px 0;"><strong>Cuisines:</strong> ${escapeHtml((restaurant?.cuisines || []).join(', ') || 'N/A')}</p>
+          <p style="margin:2px 0;"><strong>FSSAI Number:</strong> ${escapeHtml(restaurant?.fssaiLicense || 'N/A')}</p>
+          <p style="margin:2px 0;"><strong>Address:</strong> ${escapeHtml(address)}</p>
+          <p style="margin:2px 0;"><strong>Coordinates:</strong> ${hasCoordinates ? `${lat}, ${lng}` : 'N/A'}</p>
+          ${mapLink ? `<p style="margin:2px 0;"><a href="${mapLink}" target="_blank" rel="noopener noreferrer">Open coordinates in Google Maps</a></p>` : ''}
+
+          <h4 style="margin:16px 0 8px;font-size:16px;color:#111827;">Bank Details</h4>
+          <p style="margin:2px 0;"><strong>Account Holder:</strong> ${escapeHtml(restaurant?.bankDetails?.accountHolderName || 'N/A')}</p>
+          <p style="margin:2px 0;"><strong>Account Number:</strong> ${escapeHtml(restaurant?.bankDetails?.accountNumber || 'N/A')}</p>
+          <p style="margin:2px 0;"><strong>IFSC:</strong> ${escapeHtml(restaurant?.bankDetails?.ifscCode || 'N/A')}</p>
+
+          <h4 style="margin:16px 0 8px;font-size:16px;color:#111827;">Documents</h4>
+          <p style="margin:2px 0;">FSSAI License: ${fssaiDoc ? `<a href="${fssaiDoc}" target="_blank" rel="noopener noreferrer">View</a>` : 'Not uploaded'}</p>
+          <p style="margin:2px 0;">Owner ID Proof: ${ownerIdDoc ? `<a href="${ownerIdDoc}" target="_blank" rel="noopener noreferrer">View</a>` : 'Not uploaded'}</p>
+          <p style="margin:2px 0;">Menu Document: ${menuDoc ? `<a href="${menuDoc}" target="_blank" rel="noopener noreferrer">View</a>` : 'Not uploaded'}</p>
+          <p style="margin:2px 0;">Cancelled Cheque: ${chequeDoc ? `<a href="${chequeDoc}" target="_blank" rel="noopener noreferrer">View</a>` : 'Not uploaded'}</p>
+
+          <h4 style="margin:16px 0 8px;font-size:16px;color:#111827;">Status</h4>
+          <p style="margin:2px 0;"><strong>Approval:</strong> ${restaurant?.isApproved ? 'Approved' : 'Pending'}</p>
+          <p style="margin:2px 0;"><strong>Restaurant Active:</strong> ${restaurant?.isActive ? 'Yes' : 'No'}</p>
+          <p style="margin:2px 0;"><strong>Submitted At:</strong> ${escapeHtml(formatDateTime(restaurant?.createdAt))}</p>
+        </div>
+      `,
+    });
   };
 
   const handleRejectRestaurant = async (restaurantId) => {
@@ -831,8 +922,28 @@ const AdminPanel = () => {
 
   const handleApprovePartner = async (partnerId) => {
     try {
-      await approvePartner(partnerId);
-      toast.success('Partner application approved');
+      const response = await approvePartner(partnerId);
+      const credentials = response?.data?.credentials;
+
+      if (credentials?.password) {
+        await Swal.fire({
+          title: 'Delivery Partner Approved',
+          icon: 'success',
+          html: `
+            <div style="text-align:left;font-size:14px;line-height:1.6;">
+              <p><strong>Login credentials generated:</strong></p>
+              <p>Phone: ${credentials.phone || 'N/A'}</p>
+              <p>Email: ${credentials.email || 'N/A'}</p>
+              <p>Password: <strong>${credentials.password}</strong></p>
+              <p style="margin-top:10px;color:#b45309;">Share these credentials with the delivery partner now.</p>
+            </div>
+          `,
+          confirmButtonText: 'Done'
+        });
+      } else {
+        toast.success('Partner application approved');
+      }
+
       fetchData();
     } catch (error) {
       toast.error('Failed to approve partner');
@@ -1294,26 +1405,26 @@ const AdminPanel = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-8 max-[388px]:py-4">
+    <div className="min-h-screen bg-gray-50 py-3 sm:py-6 lg:py-8">
       <div className="max-w-7xl mx-auto container-px">
         {/* Header */}
-        <div className="mb-6 sm:mb-8 max-[388px]:mb-5 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
+        <div className="mb-5 sm:mb-8 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
           <div>
-            <h1 className="text-2xl sm:text-3xl max-[388px]:text-xl font-bold text-gray-900">Admin Panel</h1>
-            <p className="mt-2 text-sm sm:text-base max-[388px]:text-xs text-gray-600">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Admin Panel</h1>
+            <p className="mt-2 text-sm sm:text-base text-gray-600">
               Manage restaurants, users, and platform settings
             </p>
           </div>
-          <div className="w-full sm:w-auto flex gap-2">
+          <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-2">
             <button
               onClick={() => setAutoRefreshEnabled((prev) => !prev)}
-              className={`w-full sm:w-auto px-4 py-2 max-[388px]:px-3 max-[388px]:py-2 max-[388px]:text-xs rounded-lg text-white ${autoRefreshEnabled ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
+              className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm text-white ${autoRefreshEnabled ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
             >
               {autoRefreshEnabled ? 'Stop Auto Refresh' : 'Start Auto Refresh'}
             </button>
             <button
               onClick={fetchData}
-              className="w-full sm:w-auto px-4 py-2 max-[388px]:px-3 max-[388px]:py-2 max-[388px]:text-xs bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+              className="w-full sm:w-auto px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600"
             >
               Refresh Now
             </button>
@@ -1321,15 +1432,15 @@ const AdminPanel = () => {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-[388px]:gap-4 mb-8 max-[388px]:mb-6">
-          <div className="bg-white rounded-lg shadow p-6 max-[388px]:p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5 mb-6 sm:mb-8">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <BuildingStorefrontIcon className="h-8 w-8 text-primary-500" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Restaurants</p>
-                <p className="text-2xl max-[388px]:text-xl font-bold text-gray-900">{stats.totalRestaurants}</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalRestaurants}</p>
                 {stats.pendingApprovals > 0 && (
                   <p className="text-xs text-primary-600">{stats.pendingApprovals} pending approval</p>
                 )}
@@ -1337,38 +1448,38 @@ const AdminPanel = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 max-[388px]:p-4">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <UserGroupIcon className="h-8 w-8 text-blue-500" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-2xl max-[388px]:text-xl font-bold text-gray-900">{stats.totalUsers}</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 max-[388px]:p-4">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <ShoppingBagIcon className="h-8 w-8 text-green-500" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Orders</p>
-                <p className="text-2xl max-[388px]:text-xl font-bold text-gray-900">{stats.totalOrders}</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 max-[388px]:p-4">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <BanknotesIcon className="h-8 w-8 text-purple-500" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Revenue</p>
-                <p className="text-2xl max-[388px]:text-xl font-bold text-gray-900">₹{stats.totalRevenue.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-900">₹{stats.totalRevenue.toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -1377,10 +1488,10 @@ const AdminPanel = () => {
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="border-b border-gray-200">
-            <nav className="flex -mb-px overflow-x-auto whitespace-nowrap scrollbar-hide">
+            <nav className="flex -mb-px overflow-x-auto whitespace-nowrap scrollbar-hide px-1 sm:px-2">
               <button
                 onClick={() => setActiveTab('overview')}
-                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
+                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
                   activeTab === 'overview'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1390,7 +1501,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('fees')}
-                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
+                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
                   activeTab === 'fees'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1400,7 +1511,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('content')}
-                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
+                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
                   activeTab === 'content'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1410,7 +1521,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('restaurants')}
-                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
+                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
                   activeTab === 'restaurants'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1420,7 +1531,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('coupons')}
-                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
+                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
                   activeTab === 'coupons'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1430,7 +1541,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('users')}
-                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
+                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
                   activeTab === 'users'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1440,7 +1551,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('menu-items')}
-                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
+                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
                   activeTab === 'menu-items'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1450,7 +1561,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('orders')}
-                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
+                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
                   activeTab === 'orders'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1460,7 +1571,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('tracking')}
-                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
+                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
                   activeTab === 'tracking'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1470,7 +1581,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('partners')}
-                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
+                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
                   activeTab === 'partners'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1480,7 +1591,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('earnings')}
-                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
+                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
                   activeTab === 'earnings'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1493,7 +1604,7 @@ const AdminPanel = () => {
                   setActiveTab('analytics');
                   fetchAnalytics();
                 }}
-                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
+                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
                   activeTab === 'analytics'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1503,7 +1614,7 @@ const AdminPanel = () => {
               </button>
               <button
                 onClick={() => setActiveTab('deletionRequests')}
-                className={`px-4 sm:px-6 max-[388px]:px-3 py-3 max-[388px]:py-2 text-xs sm:text-sm max-[388px]:text-[11px] font-medium ${
+                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
                   activeTab === 'deletionRequests'
                     ? 'border-b-2 border-primary-500 text-primary-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -1514,7 +1625,7 @@ const AdminPanel = () => {
             </nav>
           </div>
 
-          <div className="p-4 sm:p-6 max-[388px]:p-3">
+          <div className="p-3 sm:p-5 lg:p-6">
             {activeTab === 'overview' && (
               <div>
                 <h2 className="text-xl font-bold mb-4">Platform Overview</h2>
@@ -1687,12 +1798,59 @@ const AdminPanel = () => {
                     </button>
                   </div>
                 </div>
+
+                <div className="mt-6 bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-800">Restaurant Fee Visibility Overrides</h3>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Configure Delivery Fee, Platform Fee and Tax per restaurant. This lets you hide or show fees for specific restaurants while others continue using global settings.
+                      </p>
+                    </div>
+                    <span className="text-[11px] px-2 py-1 rounded-full bg-gray-100 text-gray-600 font-semibold whitespace-nowrap">
+                      {restaurants.length} restaurants
+                    </span>
+                  </div>
+
+                  {restaurants.length === 0 ? (
+                    <p className="text-sm text-gray-500">No restaurants found.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                      {restaurants.map((restaurant) => {
+                        const feeSummary = getLocalFeeOverrideSummary(restaurant.feeControls);
+                        const hasOverride = hasLocalFeeOverride(restaurant.feeControls);
+
+                        return (
+                          <div
+                            key={restaurant._id}
+                            className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-gray-900 truncate">{restaurant.name}</p>
+                              <p className="text-xs text-gray-500 truncate">
+                                {hasOverride ? `Overrides active: ${feeSummary}` : 'Using global fee settings'}
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleEditRestaurantFeeControls(restaurant)}
+                              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-primary-200 text-primary-700 bg-primary-50 hover:bg-primary-100"
+                            >
+                              Configure Fees
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
             {activeTab === 'content' && (
               <div>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                   <h2 className="text-xl font-bold">Homepage Banners</h2>
                   <button
                     onClick={handleAddBanner}
@@ -1806,7 +1964,7 @@ const AdminPanel = () => {
 
             {activeTab === 'coupons' && (
               <div>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                   <h2 className="text-xl font-bold">Coupon Management</h2>
                   <button
                     onClick={handleCreateCoupon}
@@ -1820,8 +1978,8 @@ const AdminPanel = () => {
                 ) : coupons.length === 0 ? (
                   <div className="text-center py-6 text-gray-500">No coupons created yet.</div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
+                  <div className="overflow-x-auto rounded-lg border border-gray-100">
+                    <table className="min-w-[720px] w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
@@ -1891,8 +2049,8 @@ const AdminPanel = () => {
                     No restaurants registered yet
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
+                  <div className="overflow-x-auto rounded-lg border border-gray-100">
+                    <table className="min-w-[860px] w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Restaurant</th>
@@ -1949,6 +2107,13 @@ const AdminPanel = () => {
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                               {!restaurant.isApproved ? (
                                 <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => handleReviewRestaurantApplication(restaurant)}
+                                    className="inline-flex items-center px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors"
+                                    title="Review application details and documents"
+                                  >
+                                    Review
+                                  </button>
                                   <button
                                     onClick={() => handleApproveRestaurant(restaurant._id)}
                                     className="inline-flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
@@ -2015,8 +2180,8 @@ const AdminPanel = () => {
                     User management endpoint not yet implemented
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
+                  <div className="overflow-x-auto rounded-lg border border-gray-100">
+                    <table className="min-w-[760px] w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
@@ -2093,7 +2258,7 @@ const AdminPanel = () => {
                 ) : (
                   <div className="space-y-4">
                     {orders.map((order) => (
-                      <div key={order._id} className="border rounded-lg p-6 hover:shadow-lg transition bg-white">
+                      <div key={order._id} className="border rounded-lg p-4 sm:p-6 hover:shadow-lg transition bg-white">
                         <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start mb-4">
                           <div>
                             <div className="flex items-center gap-3 mb-2">
@@ -2173,7 +2338,7 @@ const AdminPanel = () => {
               <div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
                   <h2 className="text-xl font-bold">Menu Item Management</h2>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                     <label className="text-sm text-gray-600">Restaurant</label>
                     <select
                       value={selectedRestaurantId}
@@ -2192,8 +2357,8 @@ const AdminPanel = () => {
                 ) : menuItems.length === 0 ? (
                   <div className="text-center py-10 text-gray-500">No menu items found for this restaurant.</div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 bg-white rounded-lg">
+                  <div className="overflow-x-auto rounded-lg border border-gray-100">
+                    <table className="min-w-[760px] w-full divide-y divide-gray-200 bg-white rounded-lg">
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
@@ -2477,7 +2642,7 @@ const AdminPanel = () => {
                 ) : (
                   <div className="space-y-4">
                     {partners.map((partner) => (
-                      <div key={partner._id} className="border rounded-lg p-6 bg-white hover:shadow-lg transition">
+                      <div key={partner._id} className="border rounded-lg p-4 sm:p-6 bg-white hover:shadow-lg transition">
                         <div className="flex flex-col lg:flex-row gap-4 lg:justify-between lg:items-start">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-3">
@@ -2657,9 +2822,9 @@ const AdminPanel = () => {
                 <h2 className="text-xl font-bold mb-4">Payout & Earnings Control</h2>
                 <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4">
                   <div className="flex flex-col gap-1 mb-4">
-                    <h3 className="text-base font-bold text-gray-900">Restaurant Payout Controls</h3>
+                    <h3 className="text-base font-bold text-gray-900">Restaurant Commission & Payout Controls</h3>
                     <p className="text-xs text-gray-500">
-                      Global default: {Number(settingsForm.restaurantPayoutRate || 0).toFixed(1)}%. Keep override empty to use global.
+                      Global payout default: {Number(settingsForm.restaurantPayoutRate || 0).toFixed(1)}%. Set per-restaurant override to control commission/payout individually.
                     </p>
                   </div>
 
@@ -2682,8 +2847,11 @@ const AdminPanel = () => {
                                     ? `Override: ${(effectiveOverride * 100).toFixed(2)}%`
                                     : `Using global: ${Number(settingsForm.restaurantPayoutRate || 0).toFixed(1)}%`}
                                 </p>
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  Effective commission: {(100 - ((hasOverride ? effectiveOverride : Number(settingsForm.restaurantPayoutRate || 0) / 100) * 100)).toFixed(2)}%
+                                </p>
                               </div>
-                              <div className="flex flex-wrap items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                                 <input
                                   type="number"
                                   min="0"
@@ -2694,8 +2862,8 @@ const AdminPanel = () => {
                                     ...prev,
                                     [restaurant._id]: e.target.value
                                   }))}
-                                  className="w-36 rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                                  placeholder="Override %"
+                                  className="w-full sm:w-36 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                                  placeholder="Payout %"
                                 />
                                 <button
                                   onClick={() => handleSaveRestaurantPayoutRate(restaurant._id)}
@@ -2877,7 +3045,7 @@ const AdminPanel = () => {
                 ) : (
                   <div className="space-y-4">
                     {deletionRequests.map((request) => (
-                      <div key={request._id} className="border rounded-lg p-5 bg-white">
+                      <div key={request._id} className="border rounded-lg p-4 sm:p-5 bg-white">
                         <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">

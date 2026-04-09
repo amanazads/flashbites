@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const User = require('../models/User');
 const Order = require('../models/Order');
@@ -20,6 +21,11 @@ const TRACKING_CACHE_TTL_MS = 15000;
 
 const makeCacheKey = (scope, payload = {}) => `${ADMIN_CACHE_PREFIX}${scope}:${JSON.stringify(payload)}`;
 const invalidateAdminCache = () => cacheDelByPrefix(ADMIN_CACHE_PREFIX);
+
+const generateTemporaryPassword = () => {
+  const randomChunk = crypto.randomBytes(4).toString('hex');
+  return `Fb@${randomChunk}A1`;
+};
 
 const normalizeDeliveryPartnerPayout = (payload = {}) => {
   const perOrder = Number(payload.perOrder);
@@ -623,18 +629,42 @@ exports.approveRestaurant = async (req, res) => {
   try {
     const { isApproved } = req.body;
 
-    const restaurant = await Restaurant.findByIdAndUpdate(
-      req.params.id,
-      { isApproved },
-      { new: true }
-    );
+    const restaurant = await Restaurant.findById(req.params.id);
 
     if (!restaurant) {
       return errorResponse(res, 404, 'Restaurant not found');
     }
 
+    restaurant.isApproved = Boolean(isApproved);
+    restaurant.isActive = Boolean(isApproved);
+
+    let credentials = null;
+
+    if (restaurant.isApproved && restaurant.ownerId) {
+      const owner = await User.findById(restaurant.ownerId).select('+password');
+      if (owner) {
+        owner.role = 'restaurant_owner';
+
+        if (!owner.isActive) {
+          const temporaryPassword = generateTemporaryPassword();
+          owner.password = temporaryPassword;
+          credentials = {
+            phone: owner.phone,
+            email: owner.email || '',
+            password: temporaryPassword
+          };
+        }
+
+        owner.isActive = true;
+        owner.isPhoneVerified = true;
+        await owner.save();
+      }
+    }
+
+    await restaurant.save();
+
     invalidateAdminCache();
-    successResponse(res, 200, `Restaurant ${isApproved ? 'approved' : 'rejected'}`, { restaurant });
+    successResponse(res, 200, `Restaurant ${isApproved ? 'approved' : 'rejected'}`, { restaurant, credentials });
   } catch (error) {
     errorResponse(res, 500, 'Failed to update restaurant status', error.message);
   }

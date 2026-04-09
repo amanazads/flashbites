@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   submitApplication,
+  submitRestaurantApplication,
   getAllPartnerApplications,
   getPartnerById,
   approvePartner,
@@ -22,6 +23,17 @@ router.post(
     { name: 'aadharCard', maxCount: 1 },
   ]),
   submitApplication
+);
+
+router.post(
+  '/restaurant-apply',
+  uploadPartnerDocs.fields([
+    { name: 'fssaiLicense', maxCount: 1 },
+    { name: 'menuDocument', maxCount: 1 },
+    { name: 'ownerIdProof', maxCount: 1 },
+    { name: 'cancelledCheque', maxCount: 1 },
+  ]),
+  submitRestaurantApplication
 );
 
 // Admin routes - all require authentication and admin role

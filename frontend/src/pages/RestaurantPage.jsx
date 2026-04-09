@@ -9,7 +9,6 @@ import RestaurantCard from '../components/restaurant/RestaurantCard';
 import { Loader } from '../components/common/Loader';
 import { CUISINES } from '../utils/constants';
 import {
-  AdjustmentsHorizontalIcon,
   HomeIcon,
   MagnifyingGlassIcon,
   MapPinIcon,
@@ -34,8 +33,6 @@ const CUISINE_TABS = [
   { id: 'Coffee',    label: 'Drinks',    image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=120&q=80' },
 ];
 
-const SORT_OPTIONS = ['Ratings 4.0+', 'New to you', 'Fastest delivery', 'Free delivery'];
-
 const RestaurantPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -43,7 +40,6 @@ const RestaurantPage = () => {
   const selectedAddress = useSelector((s) => s.ui.selectedDeliveryAddress);
   const { items: cartItems } = useSelector((s) => s.cart);
   const [selectedCuisine, setSelectedCuisine] = useState('All');
-  const [activeSort, setActiveSort] = useState(null);
   const [searchResultRestaurants, setSearchResultRestaurants] = useState([]);
   const [searchResultItems, setSearchResultItems] = useState([]);
   const [searchMatchedItemsByRestaurant, setSearchMatchedItemsByRestaurant] = useState({});
@@ -222,7 +218,6 @@ const RestaurantPage = () => {
           </button>
 
           <div className="flex items-center gap-3">
-            <img src={logo} alt="FlashBites" className="h-4 w-4 object-contain" />
             <button
               type="button"
               onClick={() => searchInputRef.current?.focus()}
@@ -293,27 +288,6 @@ const RestaurantPage = () => {
           </div>
         </div>
 
-        {/* Sort pills */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 max-[388px]:px-3 pb-3 max-[388px]:pb-2">
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-            <button className="flex-shrink-0 flex items-center gap-1 bg-white border border-gray-200 text-gray-600 text-xs max-[388px]:text-[11px] font-semibold px-3 py-1.5 max-[388px]:px-2.5 max-[388px]:py-1 rounded-xl shadow-sm hover:border-gray-300 transition-all">
-              <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" />
-              Filters
-            </button>
-            {SORT_OPTIONS.map((s) => (
-              <button
-                key={s}
-                onClick={() => setActiveSort(activeSort === s ? null : s)}
-                className="flex-shrink-0 text-xs max-[388px]:text-[11px] font-semibold px-3 py-1.5 max-[388px]:px-2.5 max-[388px]:py-1 rounded-xl border transition-all whitespace-nowrap"
-                style={activeSort === s
-                  ? { background: BRAND, color: 'white', borderColor: 'transparent' }
-                  : { background: 'white', color: '#6B7280', borderColor: '#E5E7EB' }}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* ── Content ── */}

@@ -36,7 +36,7 @@
   --bottom-nav-h:   72px;
   --safe-area-inset-top: env(safe-area-inset-top);
   --safe-area-inset-bottom: env(safe-area-inset-bottom);
-  --mobile-notch-offset: max(env(safe-area-inset-top), 30px);
+  --mobile-notch-offset: max(env(safe-area-inset-top), 0px);
 
   /* Shadows */
   --shadow-xs:   0 1px 4px rgba(0,0,0,0.05);
@@ -75,7 +75,6 @@ html, body {
     right: 0;
     height: var(--mobile-notch-offset);
     background: #F5F3F1;
-    border-bottom: 1px solid #E6E2DE;
     z-index: 1300;
     pointer-events: none;
   }

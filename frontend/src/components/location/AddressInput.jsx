@@ -5,6 +5,7 @@ import { autocompleteAddress, geocodeAddressQuery } from '../../api/locationApi'
 const PLACES_LIBRARIES = ['places'];
 
 const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.REACT_APP_GOOGLE_KEY;
+const ALLOW_GOOGLE_MAPS_ON_LOCALHOST = String(import.meta.env.VITE_ALLOW_GOOGLE_MAPS_ON_LOCALHOST || '').toLowerCase() === 'true';
 
 const parseAddressComponents = (components = []) => {
   const getByType = (type) => components.find((item) => item.types?.includes(type))?.long_name || '';
@@ -27,12 +28,31 @@ export default function AddressInput({ value = '', onChange, onSelect, placehold
   const [fallbackSuggestions, setFallbackSuggestions] = useState([]);
   const [fallbackLoading, setFallbackLoading] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
+  const [googleAuthFailed, setGoogleAuthFailed] = useState(false);
+  const isLocalHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const shouldUseGoogleMaps = Boolean(GOOGLE_KEY) && (!isLocalHost || ALLOW_GOOGLE_MAPS_ON_LOCALHOST);
   const libraries = useMemo(() => PLACES_LIBRARIES, []);
   const { isLoaded } = useJsApiLoader({
     id: 'flashbites-google-map-picker',
-    googleMapsApiKey: GOOGLE_KEY || '',
+    googleMapsApiKey: shouldUseGoogleMaps ? GOOGLE_KEY : '',
     libraries
   });
+
+  useEffect(() => {
+    if (!shouldUseGoogleMaps || typeof window === 'undefined') return;
+
+    const previousHandler = window.gm_authFailure;
+    window.gm_authFailure = () => {
+      setGoogleAuthFailed(true);
+      if (typeof previousHandler === 'function') {
+        previousHandler();
+      }
+    };
+
+    return () => {
+      window.gm_authFailure = previousHandler;
+    };
+  }, [shouldUseGoogleMaps]);
 
   useEffect(() => {
     setInputValue(value || '');
@@ -197,7 +217,7 @@ export default function AddressInput({ value = '', onChange, onSelect, placehold
     </div>
   );
 
-  if (!GOOGLE_KEY) {
+  if (!shouldUseGoogleMaps || googleAuthFailed) {
     return (
       <div className="relative" ref={fallbackContainerRef}>
         <input
