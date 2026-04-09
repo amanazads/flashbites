@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
+  ArrowLeftIcon,
   ChevronDownIcon,
   EnvelopeIcon,
+  HomeIcon,
+  MagnifyingGlassIcon,
   PhoneIcon,
   MapPinIcon,
   ClockIcon,
   BuildingOffice2Icon,
+  ShoppingBagIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline';
 import { BRAND } from '../constants/theme';
+import logo from '../assets/logo.png';
 
 const faqs = [
   {
@@ -17,7 +23,7 @@ const faqs = [
   },
   {
     q: 'How do I cancel my order?',
-    a: "If your order hasn't been accepted by the restaurant yet, you can cancel it directly from the My Orders page. Once the restaurant starts preparing, cancellation may not be possible.",
+    a: "You can cancel eligible orders directly from the My Orders page. If cancellation is not available, please contact FlashBites support for assistance.",
   },
   {
     q: 'Do you offer contactless delivery?',
@@ -84,9 +90,54 @@ const FaqItem = ({ faq, index }) => {
 };
 
 const HelpPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isActiveRoute = (key) => {
+    if (key === 'home') return location.pathname === '/';
+    if (key === 'search') return location.pathname === '/restaurants' || location.pathname.startsWith('/restaurant/');
+    if (key === 'orders') return location.pathname.startsWith('/orders');
+    if (key === 'profile') return location.pathname.startsWith('/profile');
+    return false;
+  };
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <div className="max-w-2xl mx-auto px-4 pt-6 pb-24">
+      <div className="max-w-2xl mx-auto px-4 pt-0 pb-24">
+
+        <div className="px-4 pt-[max(env(safe-area-inset-top),10px)] -mx-6 max-[388px]:-mx-4 mb-4" style={{ backgroundColor: 'rgb(245, 243, 241)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="h-8 w-8 rounded-full flex items-center justify-center text-white shadow-[0_8px_18px_rgba(234,88,12,0.32)]"
+                aria-label="Go back"
+                style={{ background: 'linear-gradient(rgb(255, 122, 69) 0%, rgb(234, 88, 12) 100%)' }}
+              >
+                <ArrowLeftIcon className="h-4 w-4" />
+              </button>
+
+              <button type="button" className="flex items-center gap-2 text-left">
+                <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
+                <div>
+                  <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
+                  <p className="text-[12px] leading-none font-semibold text-gray-900">Current Area</p>
+                </div>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <img src={logo} alt="FlashBites" className="h-4 w-4 object-contain" />
+              <button type="button" onClick={() => navigate('/restaurants')}>
+                <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
+              </button>
+              <button type="button" onClick={() => navigate('/profile')} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
+                <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* Header */}
         <div className="text-center mb-8">
@@ -195,6 +246,46 @@ const HelpPage = () => {
         <div className="text-center mt-6">
           <Link to="/" className="text-[13px] font-semibold" style={{ color: BRAND }}>
             ← Back to Home
+          </Link>
+        </div>
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t border-[#E6E2DE] bg-[#F5F3F1]" style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom))' }}>
+        <div className="max-w-md mx-auto px-6 pt-2 flex items-center justify-between text-[#B0ACA8]">
+          <Link
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            to="/"
+            style={isActiveRoute('home') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
+          >
+            <HomeIcon className="h-5 w-5" />
+            <span className="text-[8px]">Home</span>
+          </Link>
+
+          <Link
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            to="/restaurants"
+            style={isActiveRoute('search') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
+          >
+            <MagnifyingGlassIcon className="h-5 w-5" />
+            <span className="text-[8px]">Search</span>
+          </Link>
+
+          <Link
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            to="/orders"
+            style={isActiveRoute('orders') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
+          >
+            <ShoppingBagIcon className="h-5 w-5" />
+            <span className="text-[8px]">Orders</span>
+          </Link>
+
+          <Link
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            to="/profile"
+            style={isActiveRoute('profile') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
+          >
+            <UserIcon className="h-5 w-5" />
+            <span className="text-[8px]">Profile</span>
           </Link>
         </div>
       </div>

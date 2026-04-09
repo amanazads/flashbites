@@ -55,7 +55,6 @@ const buildPrintableInvoice = ({ order, viewer }) => {
   const customerName = order?.userId?.name || order?.customerName || 'Customer';
   const customerPhone = order?.userId?.phone || 'N/A';
   const restaurantName = order?.restaurantId?.name || order?.restaurantName || 'Restaurant';
-  const restaurantPhone = order?.restaurantId?.phone || 'N/A';
   const addressText = getAddressText(order);
 
   const rowHtml = rows.map((row, index) => (
@@ -113,7 +112,6 @@ const buildPrintableInvoice = ({ order, viewer }) => {
       <p><strong>Customer:</strong> ${escapeHtml(customerName)}</p>
       <p><strong>Customer Phone:</strong> ${escapeHtml(customerPhone)}</p>
       <p><strong>Restaurant:</strong> ${escapeHtml(restaurantName)}</p>
-      <p><strong>Restaurant Phone:</strong> ${escapeHtml(restaurantPhone)}</p>
       <p><strong>Delivery Address:</strong> ${escapeHtml(addressText)}</p>
     </div>
 
@@ -162,7 +160,6 @@ export default function OrderInvoiceModal({ isOpen, onClose, order, viewer = 'cu
   const customerName = order?.userId?.name || order?.customerName || 'Customer';
   const customerPhone = order?.userId?.phone || 'N/A';
   const restaurantName = order?.restaurantId?.name || order?.restaurantName || 'Restaurant';
-  const restaurantPhone = order?.restaurantId?.phone || 'N/A';
 
   const handlePrint = () => {
     const popup = window.open('', '_blank', 'width=980,height=720');
@@ -230,8 +227,6 @@ export default function OrderInvoiceModal({ isOpen, onClose, order, viewer = 'cu
             <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
               <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">Restaurant</p>
               <p className="font-semibold text-gray-900">{restaurantName}</p>
-              <p className="text-gray-700">Phone: {restaurantPhone}</p>
-              {order?.restaurantId?.email && <p className="text-gray-700">Email: {order.restaurantId.email}</p>}
             </div>
           </div>
 

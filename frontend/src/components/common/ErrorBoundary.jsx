@@ -39,6 +39,9 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      const isDev = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV;
+      const rawError = this.state.error;
+      const errorMessage = rawError?.message || String(rawError || 'Unknown runtime error');
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="text-center px-6">
@@ -46,6 +49,12 @@ class ErrorBoundary extends React.Component {
             <h1 className="text-3xl font-bold text-gray-900 mb-3">Something went wrong</h1>
             <p className="text-gray-500 mb-2">This might be caused by a recent update.</p>
             <p className="text-sm text-gray-400 mb-8">A page reload usually fixes it.</p>
+            {isDev && (
+              <div className="mb-6 max-w-xl rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-left text-xs text-red-700">
+                <p className="font-semibold mb-1">Runtime error (dev only):</p>
+                <p className="break-words">{errorMessage}</p>
+              </div>
+            )}
             <button
               onClick={() => {
                 sessionStorage.removeItem(RELOAD_KEY);

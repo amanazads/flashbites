@@ -42,10 +42,10 @@ const Contact = () => {
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen pt-20 pb-16">
+    <div className="app-page-shell bg-gray-50 min-h-screen pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-14">
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight sm:text-5xl">
             Get in touch
           </h1>

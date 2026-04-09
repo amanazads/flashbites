@@ -274,9 +274,6 @@ const DeliveryPartnerDashboard = () => {
         <p className="text-sm text-gray-600">
           {order.restaurantId?.address?.city}, {order.restaurantId?.address?.state}
         </p>
-        <p className="text-sm text-primary-600 font-medium mt-1">
-          📞 {order.restaurantId?.phone}
-        </p>
       </div>
 
       {/* Delivery Info */}

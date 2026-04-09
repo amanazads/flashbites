@@ -204,7 +204,7 @@ const PromosPage = () => {
 
       <div className="max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto min-h-screen">
         <div
-          className="sticky top-0 z-20 px-4 pt-5 pb-4 bg-white"
+          className="sticky top-0 z-20 px-4 pt-3 pb-4 bg-white"
           style={{ borderBottom: '1px solid #F0F2F5', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}
         >
           <div className="flex items-center gap-3">

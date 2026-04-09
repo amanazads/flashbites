@@ -1,5 +1,10 @@
 import { createSlice } from '@reduxjs/toolkit';
 
+const getId = (value) => {
+  if (!value) return null;
+  return value._id || value.id || null;
+};
+
 const loadCartFromStorage = () => {
   try {
     const cart = localStorage.getItem('cart');
@@ -15,28 +20,26 @@ const cartSlice = createSlice({
   reducers: {
     addToCart: (state, action) => {
       const { item, restaurant } = action.payload;
+      const nextRestaurantId = getId(restaurant);
+      const nextItemId = getId(item);
       
       // If cart is empty or same restaurant, add item
-      if (!state.restaurant || state.restaurant._id === restaurant._id) {
+      if (!state.restaurant || getId(state.restaurant) === nextRestaurantId) {
         state.restaurant = restaurant;
-        const existingItem = state.items.find(i => i._id === item._id);
+        const existingItem = state.items.find((i) => getId(i) === nextItemId);
         
         if (existingItem) {
           existingItem.quantity += 1;
         } else {
           state.items.push({ ...item, quantity: 1 });
         }
-      } else {
-        // Different restaurant - clear cart and add new item
-        state.items = [{ ...item, quantity: 1 }];
-        state.restaurant = restaurant;
       }
       
       localStorage.setItem('cart', JSON.stringify(state));
     },
     
     removeFromCart: (state, action) => {
-      state.items = state.items.filter(item => item._id !== action.payload);
+      state.items = state.items.filter((item) => getId(item) !== action.payload);
       
       if (state.items.length === 0) {
         state.restaurant = null;
@@ -47,13 +50,13 @@ const cartSlice = createSlice({
     
     updateQuantity: (state, action) => {
       const { itemId, quantity } = action.payload;
-      const item = state.items.find(i => i._id === itemId);
+      const item = state.items.find((i) => getId(i) === itemId);
       
       if (item) {
         if (quantity > 0) {
           item.quantity = quantity;
         } else {
-          state.items = state.items.filter(i => i._id !== itemId);
+          state.items = state.items.filter((i) => getId(i) !== itemId);
         }
       }
       
@@ -71,11 +74,18 @@ const cartSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    builder.addCase('auth/logout', (state) => {
+    const resetCartState = (state) => {
       state.items = [];
       state.restaurant = null;
       localStorage.removeItem('cart');
-    });
+    };
+
+    builder
+      .addCase('auth/logout', resetCartState)
+      // Freshly authenticated sessions should not inherit stale local cart from previous users.
+      .addCase('auth/login/fulfilled', resetCartState)
+      .addCase('auth/register/fulfilled', resetCartState)
+      .addCase('auth/setAuthUser', resetCartState);
   },
 });
 

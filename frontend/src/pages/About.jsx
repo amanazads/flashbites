@@ -1,26 +1,66 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import SEO from '../components/common/SEO';
 import {
+  ArrowLeftIcon,
   BuildingStorefrontIcon,
   TruckIcon,
   UserGroupIcon,
   HeartIcon,
+  MagnifyingGlassIcon,
   MapPinIcon,
   SparklesIcon,
   ShieldCheckIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
+import logo from '../assets/logo.png';
 
 const About = () => {
+  const navigate = useNavigate();
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="about-home-theme min-h-screen" style={{ background: 'var(--bg-app)' }}>
       <SEO
         title="About Us – FlashBites Food Delivery"
         description="Learn about FlashBites – India's fastest growing food delivery app. Founded in Sitapur, UP, we connect rural and semi-urban India with their favourite local restaurants."
         url="/about"
         keywords="about FlashBites, food delivery India, rural food delivery, Sitapur food delivery, FlashBites story"
       />
+
+      <div className="px-4 pt-[max(env(safe-area-inset-top),10px)] -mx-6 max-[388px]:-mx-4 mb-4" style={{ backgroundColor: 'rgb(245, 243, 241)' }}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="h-8 w-8 rounded-full flex items-center justify-center text-white shadow-[0_8px_18px_rgba(234,88,12,0.32)]"
+              aria-label="Go back"
+              style={{ background: 'linear-gradient(rgb(255, 122, 69) 0%, rgb(234, 88, 12) 100%)' }}
+            >
+              <ArrowLeftIcon className="h-4 w-4" />
+            </button>
+
+            <button type="button" className="flex items-center gap-2 text-left">
+              <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
+              <div>
+                <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
+                <p className="text-[12px] leading-none font-semibold text-gray-900">Current Area</p>
+              </div>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <img src={logo} alt="FlashBites" className="h-4 w-4 object-contain" />
+            <button type="button" onClick={() => navigate('/restaurants')}>
+              <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
+            </button>
+            <button type="button" onClick={() => navigate('/profile')} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
+              <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-primary-500 to-primary-600 text-white py-12 sm:py-16 lg:py-20">
         <div className="max-w-7xl mx-auto container-px">

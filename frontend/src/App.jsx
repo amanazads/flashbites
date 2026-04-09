@@ -8,18 +8,17 @@ import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Preferences } from '@capacitor/preferences';
 import { getCurrentUser } from './redux/slices/authSlice';
-import { useNotifications } from './hooks/useNotifications';
 
 // Firebase initialization (analytics)
-import './firebase';
-
-// Layout Components (always needed — keep eagerly loaded)
-import Navbar from './components/common/Navbar';
-import Footer from './components/common/Footer';
-import CartDrawer from './components/cart/CartDrawer';
+// Layout Components
+const Navbar = React.lazy(() => import('./components/common/Navbar'));
+const Footer = React.lazy(() => import('./components/common/Footer'));
+const CartDrawer = React.lazy(() => import('./components/cart/CartDrawer'));
+const NotificationsBootstrap = React.lazy(() => import('./components/common/NotificationsBootstrap'));
 import ProtectedRoute from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ScrollToTop from './components/common/ScrollToTop';
+import { FullPageLoader } from './components/common/Loader';
 
 // Pages — lazy loaded for code splitting (reduces initial bundle ~80%)
 const Home = React.lazy(() => import('./pages/Home'));
@@ -48,17 +47,7 @@ const Contact = React.lazy(() => import('./pages/Contact'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
 
 // Page loading fallback
-const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-[60vh]">
-    <div className="flex flex-col items-center gap-3">
-      <svg className="animate-spin w-10 h-10" fill="none" viewBox="0 0 24 24">
-        <circle className="opacity-20" cx="12" cy="12" r="10" stroke="#EA580C" strokeWidth="4" />
-        <path className="opacity-80" fill="#EA580C" d="M4 12a8 8 0 018-8v8z" />
-      </svg>
-      <p className="text-sm text-gray-400 font-medium">Loading…</p>
-    </div>
-  </div>
-);
+const PageLoader = () => <FullPageLoader />;
 
 // Google OAuth Success Handler
 const GoogleAuthSuccess = () => {
@@ -167,9 +156,6 @@ const NativeBackHandler = () => {
 function App() {
   const dispatch = useDispatch();
   const { isAuthenticated } = useSelector((state) => state.auth);
-  
-  // Initialize notification system
-  useNotifications();
 
   // Check platform
   const isNative = Capacitor.getPlatform() !== 'web';
@@ -226,11 +212,32 @@ function App() {
     const authPaths = ['/login', '/register', '/forgot-password', '/auth/google/success'];
     const isAuthPage = authPaths.some((path) => location.pathname.startsWith(path));
     const isHomePage = location.pathname === '/';
+    const isRestaurantsPage = location.pathname === '/restaurants';
+    const isRestaurantDetailPage = location.pathname.startsWith('/restaurant/');
+    const isCheckoutPage = location.pathname.startsWith('/checkout');
+    const isOrdersPage = location.pathname.startsWith('/orders');
+    const isProfilePage = location.pathname.startsWith('/profile');
+    const isPromosPage = location.pathname.startsWith('/promos');
+    const isHelpPage = location.pathname.startsWith('/help');
+    const isNotificationsPage = location.pathname.startsWith('/notifications');
+    const isPartnerPage = location.pathname.startsWith('/partner');
+    const isAboutPage = location.pathname.startsWith('/about');
+    const isAccountDeletePage = location.pathname.startsWith('/account-delete');
+    const hasMobileBottomNav = isHomePage || isRestaurantsPage || isRestaurantDetailPage || isCheckoutPage || isOrdersPage || isProfilePage || isPromosPage || isHelpPage || isNotificationsPage || isPartnerPage || isAboutPage || isAccountDeletePage;
+    const mainPaddingClass = isAuthPage
+      ? ''
+      : hasMobileBottomNav
+        ? 'pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-0'
+        : 'pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:pb-0';
 
     return (
       <div className="min-h-screen">
-        {!isAuthPage && <Navbar />}
-        <main className={`w-full relative z-0 ${isHomePage ? 'bg-[#F8FAFC]' : 'bg-white lg:bg-[var(--bg-app)]'} ${isAuthPage ? '' : isHomePage ? 'pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-0' : 'content-mobile-safe'}`}>
+        {!isAuthPage && (
+          <React.Suspense fallback={null}>
+            <Navbar />
+          </React.Suspense>
+        )}
+        <main className={`w-full relative z-0 ${isHomePage ? 'bg-[#F8FAFC]' : 'bg-white lg:bg-[var(--bg-app)]'} ${mainPaddingClass}`}>
             <React.Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public Routes */}
@@ -337,11 +344,15 @@ function App() {
             </React.Suspense>
 
             {!isAuthPage && (
-              <footer className="hidden lg:block">
-                <Footer />
-              </footer>
+              <React.Suspense fallback={null}>
+                <footer className="hidden lg:block">
+                  <Footer />
+                </footer>
+              </React.Suspense>
             )}
-            <CartDrawer />
+            <React.Suspense fallback={null}>
+              <CartDrawer />
+            </React.Suspense>
         </main>
       </div>
     );
@@ -355,6 +366,11 @@ function App() {
         {/* Global default title – overridden per-page by <SEO> components */}
         <Helmet defaultTitle="FlashBites" titleTemplate="%s | FlashBites" />
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          {isAuthenticated && (
+            <React.Suspense fallback={null}>
+              <NotificationsBootstrap />
+            </React.Suspense>
+          )}
           <NativeBackHandler />
           <RoleRedirector />
           <ScrollToTop />

@@ -8,7 +8,7 @@ import {
   BuildingStorefrontIcon,
   ChartBarIcon,
   ClockIcon,
-  CurrencyDollarIcon,
+  BanknotesIcon,
   ShoppingBagIcon,
   CheckCircleIcon,
   XCircleIcon,
@@ -1554,7 +1554,7 @@ const RestaurantDashboard = () => {
 
                       <div className="bg-white rounded-lg shadow-md p-6">
                         <div className="flex items-center">
-                          <CurrencyDollarIcon className="h-10 w-10 text-green-500 flex-shrink-0" />
+                          <BanknotesIcon className="h-10 w-10 text-green-500 flex-shrink-0" />
                           <div className="ml-4">
                             <p className="text-sm text-gray-600">Total Revenue</p>
                             <p className="text-2xl font-bold">{formatCurrency(analytics.overview.totalRevenue)}</p>

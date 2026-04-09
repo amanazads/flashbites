@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 
 const TermsAndConditions = () => {
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-8">
+    <div className="legal-doc-page min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-8">
+      <div className="legal-doc-card max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Terms and Conditions</h1>
         <p className="text-sm text-gray-600 mb-8">Last Updated: March 25, 2026</p>
 

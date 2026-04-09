@@ -1,198 +1,151 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { updateProfile, getAddresses, addAddress, deleteAddress } from '../api/userApi';
+import { updateProfile, getAddresses, deleteAddress } from '../api/userApi';
+import { getUserOrders } from '../api/orderApi';
 import { logout } from '../redux/slices/authSlice';
 import * as authApi from '../api/authApi';
 import {
-  PencilIcon,
-  TrashIcon,
-  PlusIcon,
-  ChevronRightIcon,
+  ArrowLeftIcon,
   ArrowRightOnRectangleIcon,
-  ShoppingBagIcon,
-  MapPinIcon,
-  TagIcon,
-  QuestionMarkCircleIcon,
-  InformationCircleIcon,
-  UserGroupIcon,
-  ShieldCheckIcon,
-  XMarkIcon,
   CheckIcon,
+  ChevronRightIcon,
+  Cog6ToothIcon,
+  InformationCircleIcon,
+  MagnifyingGlassIcon,
+  MapPinIcon,
+  NoSymbolIcon,
+  PencilIcon,
+  PlusIcon,
+  QuestionMarkCircleIcon,
+  ShoppingBagIcon,
+  ShieldCheckIcon,
+  TagIcon,
+  TrashIcon,
   UserCircleIcon,
+  UserGroupIcon,
+  XMarkIcon,
+  HomeIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import { BRAND } from '../constants/theme';
+import logo from '../assets/logo.png';
+import AddAddressModal from '../components/common/AddAddressModal';
 
-const BRAND_BG = '#FFF7ED';
+const PAGE_BG = '#F5F1EF';
+const CARD_BG = '#FFFFFF';
 
-/* ─────────────────────────
-   SVG Icon helpers
-───────────────────────── */
-const LinkedInIcon = () => (
-  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M19 0h-14C2.239 0 0 2.239 0 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5V5c0-2.761-2.238-5-5-5zM8 19H5V8h3v11zM6.5 6.732c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zM20 19h-3v-5.604c0-3.368-4-3.113-4 0V19h-3V8h3v1.765c1.396-2.586 7-2.777 7 2.476V19z"/>
-  </svg>
-);
-const InstagramIcon = () => (
-  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-  </svg>
-);
-
-/* ─────────────────────────
-   Row item component
-───────────────────────── */
-const MenuRow = ({ icon: Icon, label, sublabel, badge, onClick, to, danger }) => {
-  const content = (
-    <div
-      className="flex items-center gap-3.5 max-[388px]:gap-3 px-4 py-3.5 w-full transition-colors active:bg-gray-50"
-      style={{ cursor: 'pointer' }}
-    >
-      <div
-        className="w-9 h-9 max-[388px]:w-8 max-[388px]:h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-        style={{ background: danger ? '#FFF0F0' : BRAND_BG }}
-      >
-        <Icon className="w-[18px] h-[18px]" style={{ color: danger ? '#EA580C' : BRAND }} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className={`text-[14.5px] max-[388px]:text-[13px] font-semibold leading-tight ${danger ? 'text-red-500' : 'text-gray-800'}`}>{label}</p>
-        {sublabel && <p className="text-[12px] max-[388px]:text-[11px] text-gray-400 mt-0.5">{sublabel}</p>}
-      </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {badge && (
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: BRAND }}>
-            {badge}
-          </span>
-        )}
-        <ChevronRightIcon className="w-4 h-4 text-gray-300" />
-      </div>
-    </div>
-  );
-
-  if (to) return <Link to={to}>{content}</Link>;
-  return <button onClick={onClick} className="w-full text-left">{content}</button>;
-};
-
-/* ─────────────────────────
-   Address type config
-───────────────────────── */
 const ADDRESS_TYPES = {
-  home:  { label: 'Home',  color: '#EA580C', bg: '#FFF7ED' },
-  work:  { label: 'Work',  color: '#2563EB', bg: '#EFF6FF' },
+  home: { label: 'Home', color: '#EA580C', bg: '#FFF7ED' },
+  work: { label: 'Work', color: '#2563EB', bg: '#EFF6FF' },
   other: { label: 'Other', color: '#7C3AED', bg: '#F5F3FF' },
 };
 
-/* ─────────────────────────
-   Main Component
-───────────────────────── */
+const InstagramIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
+    <defs>
+      <linearGradient id="igGrad" x1="3" y1="21" x2="21" y2="3" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stopColor="#FEDA75" />
+        <stop offset="0.35" stopColor="#FA7E1E" />
+        <stop offset="0.6" stopColor="#D62976" />
+        <stop offset="0.8" stopColor="#962FBF" />
+        <stop offset="1" stopColor="#4F5BD5" />
+      </linearGradient>
+    </defs>
+    <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#igGrad)" />
+    <circle cx="12" cy="12" r="4.2" fill="none" stroke="#fff" strokeWidth="1.8" />
+    <circle cx="17.1" cy="6.9" r="1.2" fill="#fff" />
+  </svg>
+);
+
+const LinkedInIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
+    <rect x="2" y="2" width="20" height="20" rx="4" fill="#0A66C2" />
+    <circle cx="7.2" cy="8.1" r="1.45" fill="#fff" />
+    <rect x="5.9" y="10" width="2.6" height="7.7" fill="#fff" />
+    <path d="M10.4 10h2.5v1.05h.04c.35-.66 1.13-1.35 2.34-1.35 2.5 0 2.98 1.64 2.98 3.8v4.2h-2.62v-3.3c0-.8-.02-1.88-1.14-1.88-1.12 0-1.3.87-1.3 1.82v3.36H10.4V10Z" fill="#fff" />
+  </svg>
+);
+
+const ProfileRow = ({ icon: Icon, label, badge, to, onClick }) => {
+  const content = (
+    <div className="flex items-center gap-3 px-0.5 py-4">
+      <div className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: '#EEE3DF' }}>
+        <Icon className="w-5 h-5" style={{ color: BRAND }} />
+      </div>
+      <p className="flex-1 min-w-0 text-[16px] max-[388px]:text-[15px] font-semibold text-[#1E1513] truncate">{label}</p>
+      {badge ? (
+        <span
+          className="text-[10px] font-extrabold text-white px-2.5 py-1 rounded-full leading-none"
+          style={{ background: 'linear-gradient(90deg, #EA580C 0%, #F97316 100%)' }}
+        >
+          {badge}
+        </span>
+      ) : null}
+      <ChevronRightIcon className="w-4 h-4 text-[#CFB7AF]" />
+    </div>
+  );
+
+  if (to) {
+    return <Link to={to}>{content}</Link>;
+  }
+
+  return (
+    <button type="button" onClick={onClick} className="w-full text-left">
+      {content}
+    </button>
+  );
+};
+
 const Profile = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated, loading: authLoading } = useSelector((s) => s.auth);
 
-  /* ── Not logged in / loading guard ── */
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-app)' }}>
-        <svg className="animate-spin w-8 h-8" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="#EA580C" strokeWidth="4" />
-          <path className="opacity-75" fill="#EA580C" d="M4 12a8 8 0 018-8v8z" />
-        </svg>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated || !user) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 max-[388px]:px-4" style={{ background: 'var(--bg-app)' }}>
-        <div
-          className="w-full max-w-sm bg-white rounded-3xl overflow-hidden text-center"
-          style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.10)' }}
-        >
-          {/* Header strip */}
-          <div
-            className="px-6 pt-10 pb-8 max-[388px]:px-4 max-[388px]:pt-8 max-[388px]:pb-6"
-            style={{ background: 'linear-gradient(135deg, #1C1C1C 0%, #3D1A1A 100%)' }}
-          >
-            <div
-              className="w-20 h-20 max-[388px]:w-16 max-[388px]:h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-              style={{ background: 'rgba(234,88,12,0.25)' }}
-            >
-              <UserCircleIcon className="w-10 h-10 text-white" />
-            </div>
-            <p className="text-white text-[20px] max-[388px]:text-[18px] font-black" style={{ letterSpacing: '-0.02em' }}>Your Profile</p>
-            <p className="text-white/50 text-[13px] max-[388px]:text-[12px] mt-1">Sign in to manage your account</p>
-          </div>
-
-          <div className="p-6 space-y-3">
-            <Link
-              to="/login"
-              className="block w-full py-3.5 max-[388px]:py-3 rounded-2xl text-[15px] max-[388px]:text-[14px] font-bold text-white text-center"
-              style={{ background: BRAND, boxShadow: 'none' }}
-            >
-              Sign In
-            </Link>
-            <Link
-              to="/register"
-              className="block w-full py-3.5 max-[388px]:py-3 rounded-2xl text-[15px] max-[388px]:text-[14px] font-bold text-gray-700 text-center bg-gray-100"
-            >
-              Create Account
-            </Link>
-          </div>
-
-          <div className="px-6 pb-6 space-y-2">
-            {[
-              { label: 'Help & Support', to: '/help' },
-              { label: 'Partner with Us', to: '/partner' },
-              { label: 'About FlashBites', to: '/about' },
-            ].map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className="flex items-center justify-between px-4 py-3 max-[388px]:px-3 max-[388px]:py-2.5 rounded-xl bg-gray-50 text-[13px] max-[388px]:text-[12px] font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
-              >
-                {link.label}
-                <ChevronRightIcon className="w-4 h-4 text-gray-400" />
-              </Link>
-            ))}
-          </div>
-        </div>
-        <p className="text-center text-[11px] max-[388px]:text-[10px] text-gray-300 mt-6">
-          © {new Date().getFullYear()} FlashBites · All rights reserved
-        </p>
-      </div>
-    );
-  }
-
-  const [activeTab, setActiveTab] = useState('profile');
   const [addresses, setAddresses] = useState([]);
+  const [showAddressSheet, setShowAddressSheet] = useState(false);
+  const [showAddAddressModal, setShowAddAddressModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [showAddressForm, setShowAddressForm] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [ordersCount, setOrdersCount] = useState(0);
 
-  const [profileData, setProfileData] = useState({
-    name: user?.name || '',
-    phone: user?.phone || '',
-  });
-  const [addressData, setAddressData] = useState({
-    type: 'home', street: '', city: '', state: '', zipCode: '', landmark: '',
-  });
+  const [profileData, setProfileData] = useState({ name: user?.name || '', phone: user?.phone || '' });
 
   useEffect(() => {
     if (user) {
-      setProfileData({ name: user.name || '', phone: user.phone || '' });
+      setProfileData({ name: user?.name || '', phone: user?.phone || '' });
     }
   }, [user]);
 
-  useEffect(() => { fetchAddresses(); }, []);
+  useEffect(() => {
+    fetchAddresses();
+    fetchOrdersCount();
+  }, []);
+
+  const fetchOrdersCount = async () => {
+    try {
+      const res = await getUserOrders({ page: 1, limit: 1 });
+      const count =
+        Number(res?.pagination?.total) ||
+        Number(res?.data?.pagination?.total) ||
+        Number(res?.total) ||
+        (Array.isArray(res?.orders) ? res.orders.length : 0);
+      setOrdersCount(count);
+    } catch {
+      setOrdersCount(0);
+    }
+  };
 
   const fetchAddresses = async () => {
     try {
       const res = await getAddresses();
-      setAddresses(res.data.addresses || []);
-    } catch { /* silent */ }
+      setAddresses(res?.data?.addresses || []);
+    } catch {
+      setAddresses([]);
+    }
   };
 
   const handleProfileUpdate = async (e) => {
@@ -209,43 +162,6 @@ const Profile = () => {
     }
   };
 
-  const handleAddAddress = async (e) => {
-    e.preventDefault();
-    try {
-      await addAddress(addressData);
-      toast.success('Address saved');
-      setShowAddressForm(false);
-      setAddressData({ type: 'home', street: '', city: '', state: '', zipCode: '', landmark: '' });
-      fetchAddresses();
-    } catch { toast.error('Failed to save address'); }
-  };
-
-  const handlePincodeChange = async (e) => {
-    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-    setAddressData(prev => ({ ...prev, zipCode: value }));
-
-    if (value.length === 6) {
-      try {
-        const response = await fetch(`https://api.postalpincode.in/pincode/${value}`);
-        const data = await response.json();
-        
-        if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
-          const postOffice = data[0].PostOffice[0];
-          setAddressData(prev => ({
-            ...prev,
-            city: postOffice.District,
-            state: postOffice.State
-          }));
-          toast.success("City and State auto-detected");
-        } else {
-          toast.error("Invalid PIN code entered");
-        }
-      } catch (error) {
-        console.error("Failed to fetch pincode details", error);
-      }
-    }
-  };
-
   const handleDeleteAddress = async (id) => {
     const result = await Swal.fire({
       title: 'Remove this address?',
@@ -257,489 +173,404 @@ const Profile = () => {
       confirmButtonText: 'Yes, remove it',
       borderRadius: '1rem',
     });
-    if (!result.isConfirmed) return;
-    
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
     try {
       await deleteAddress(id);
       toast.success('Address removed');
       fetchAddresses();
-    } catch { toast.error('Could not remove address'); }
+    } catch {
+      toast.error('Could not remove address');
+    }
   };
 
   const handleLogout = async () => {
     try {
       await authApi.logout();
-    } catch (error) {
+    } catch {
       // Continue local logout even if server logout fails.
     }
     dispatch(logout());
-    toast.success('You\'ve been signed out');
+    toast.success("You've been signed out");
     navigate('/');
   };
 
-  const avatarLetter = user?.name?.[0]?.toUpperCase() || 'U';
+  const openExternal = (url) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
-  /* ─── Role-based links ─── */
-  const roleLinks = [
-    ...(user?.role === 'admin'
-      ? [{ icon: ShieldCheckIcon, label: 'Admin Dashboard', to: '/admin' }] : []),
-    ...(user?.role === 'restaurant_owner'
-      ? [{ icon: ShieldCheckIcon, label: 'Restaurant Dashboard', to: '/dashboard' }] : []),
-    ...(user?.role === 'delivery_partner'
-      ? [{ icon: ShieldCheckIcon, label: 'Delivery Dashboard', to: '/delivery-dashboard' }] : []),
-  ];
+  const roleRows = useMemo(
+    () => [
+      ...(user?.role === 'admin' ? [{ icon: ShieldCheckIcon, label: 'Admin Dashboard', to: '/admin' }] : []),
+      ...(user?.role === 'restaurant_owner' ? [{ icon: ShieldCheckIcon, label: 'Restaurant Dashboard', to: '/dashboard' }] : []),
+      ...(user?.role === 'delivery_partner' ? [{ icon: ShieldCheckIcon, label: 'Delivery Dashboard', to: '/delivery-dashboard' }] : []),
+    ],
+    [user?.role]
+  );
 
-  const menuSections = [
-    {
-      title: 'Orders & Payments',
-      rows: [
-        { icon: ShoppingBagIcon, label: 'My Orders', sublabel: 'Track your food orders', to: '/orders' },
-        { icon: TagIcon, label: 'Coupons & Offers', badge: 'NEW', to: '/promos' },
-        { icon: MapPinIcon, label: 'Saved Addresses', sublabel: `${addresses.length} saved`, onClick: () => setActiveTab('addresses') },
-      ],
-    },
-    {
-      title: 'Support',
-      rows: [
-        { icon: QuestionMarkCircleIcon, label: 'Help Center', sublabel: 'FAQs & live support', to: '/help' },
-        { icon: UserGroupIcon, label: 'Partner with Us', to: '/partner' },
-        { icon: InformationCircleIcon, label: 'About FlashBites', to: '/about' },
-        ...roleLinks,
-      ],
-    },
-  ];
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: PAGE_BG }}>
+        <svg className="animate-spin w-8 h-8" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="#EA580C" strokeWidth="4" />
+          <path className="opacity-75" fill="#EA580C" d="M4 12a8 8 0 018-8v8z" />
+        </svg>
+      </div>
+    );
+  }
 
-  return (
-    <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
-
-      {/* ── Hero Header ── */}
-      <div
-        className="relative overflow-hidden"
-        style={{
-          background: 'linear-gradient(135deg, #1C1C1C 0%, #2D1515 60%, #3D1A1A 100%)',
-          paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
-          paddingBottom: '56px',
-        }}
-      >
-        {/* Decorative circles */}
-        <div
-          className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-10"
-          style={{ background: BRAND, transform: 'translate(30%, -30%)' }}
-        />
-        <div
-          className="absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-10"
-          style={{ background: BRAND, transform: 'translate(-30%, 30%)' }}
-        />
-
-        <div className="relative px-5 max-[388px]:px-4 max-w-md sm:max-w-lg mx-auto">
-          {/* Avatar + name */}
-          <div className="flex items-end gap-4">
-            {/* Avatar */}
-            <div
-              className="w-[72px] h-[72px] max-[388px]:w-[60px] max-[388px]:h-[60px] rounded-2xl flex items-center justify-center text-white text-[28px] max-[388px]:text-[22px] font-bold flex-shrink-0"
-              style={{
-                background: BRAND,
-                boxShadow: 'none',
-              }}
-            >
-              {avatarLetter}
-            </div>
-
-            <div className="flex-1 min-w-0 pb-1">
-              <h1
-                className="text-white text-[22px] max-[388px]:text-[18px] font-bold leading-tight truncate"
-                style={{ letterSpacing: '-0.02em' }}
-              >
-                {user?.name || 'User'}
-              </h1>
-              <p className="text-white/50 text-[13px] max-[388px]:text-[12px] mt-0.5 truncate">{user?.email}</p>
-              {user?.phone && (
-                <p className="text-white/40 text-[12px] max-[388px]:text-[11px] mt-0.5">{user.phone}</p>
-              )}
-            </div>
-
-            {/* Edit button */}
-            <button
-              onClick={() => { setActiveTab('profile'); setIsEditing(true); }}
-              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 max-[388px]:px-2.5 max-[388px]:py-1 rounded-xl text-[12px] max-[388px]:text-[11px] font-semibold text-white transition-colors mb-1"
-              style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(4px)' }}
-            >
-              <PencilIcon className="w-3.5 h-3.5" />
-              Edit
-            </button>
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: PAGE_BG }}>
+        <div className="w-full max-w-sm bg-white rounded-3xl p-6 text-center">
+          <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: '#FFF7ED' }}>
+            <UserCircleIcon className="w-10 h-10" style={{ color: BRAND }} />
+          </div>
+          <h1 className="text-2xl font-black text-gray-900">Your Profile</h1>
+          <p className="text-sm text-gray-500 mt-1">Sign in to manage your account</p>
+          <div className="mt-6 space-y-3">
+            <Link to="/login" className="block w-full py-3.5 rounded-2xl text-[15px] font-bold text-white" style={{ background: BRAND }}>
+              Sign In
+            </Link>
+            <Link to="/register" className="block w-full py-3.5 rounded-2xl text-[15px] font-bold bg-gray-100 text-gray-700">
+              Create Account
+            </Link>
           </div>
         </div>
       </div>
+    );
+  }
 
-      {/* ── Tab pills (overlapping hero) ── */}
-      <div className="sticky top-0 z-30 px-5 max-[388px]:px-4 max-w-md sm:max-w-lg mx-auto -mt-[20px]">
-        <div
-          className="flex rounded-2xl overflow-hidden border"
-          style={{
-            background: 'white',
-            borderColor: '#F0F2F5',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.10)',
-          }}
-        >
-          {[
-            { id: 'profile', label: 'Profile' },
-            { id: 'addresses', label: 'Addresses' },
-          ].map((tab) => (
+  const primaryRows = [
+    { icon: ShoppingBagIcon, label: 'Orders History', to: '/orders' },
+    { icon: MapPinIcon, label: 'Saved Addresses', onClick: () => setShowAddressSheet(true) },
+    { icon: TagIcon, label: 'Coupons & Offers', to: '/promos' },
+    { icon: QuestionMarkCircleIcon, label: 'Help & Support', to: '/help' },
+    { icon: Cog6ToothIcon, label: 'Settings', to: '/notifications' },
+    { icon: UserGroupIcon, label: 'Partner with Us', to: '/partner' },
+    { icon: InformationCircleIcon, label: 'About FlashBites', to: '/about' },
+    ...roleRows,
+  ];
+
+  const isActiveRoute = (key) => {
+    if (key === 'home') return location.pathname === '/';
+    if (key === 'search') return location.pathname === '/restaurants' || location.pathname.startsWith('/restaurant/');
+    if (key === 'orders') return location.pathname.startsWith('/orders');
+    if (key === 'profile') return location.pathname.startsWith('/profile');
+    return false;
+  };
+
+  return (
+    <div className="min-h-screen" style={{ background: PAGE_BG }}>
+      <div className="max-w-md mx-auto px-6 max-[388px]:px-4 pt-0 pb-[calc(84px+env(safe-area-inset-bottom,0px))]">
+        <div className="px-4 pt-[max(env(safe-area-inset-top),10px)] -mx-6 max-[388px]:-mx-4 mb-4" style={{ backgroundColor: 'rgb(245, 243, 241)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="h-8 w-8 rounded-full flex items-center justify-center text-white shadow-[0_8px_18px_rgba(234,88,12,0.32)]"
+                aria-label="Go back"
+                style={{ background: 'linear-gradient(rgb(255, 122, 69) 0%, rgb(234, 88, 12) 100%)' }}
+              >
+                <ArrowLeftIcon className="h-4 w-4" />
+              </button>
+
+              <button type="button" onClick={() => setShowAddressSheet(true)} className="flex items-center gap-2 text-left">
+                <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
+                <div>
+                  <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
+                  <p className="text-[12px] leading-none font-semibold text-gray-900">Current Area</p>
+                </div>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <img src={logo} alt="FlashBites" className="h-4 w-4 object-contain" />
+              <button type="button" onClick={() => navigate('/restaurants')}>
+                <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
+              </button>
+              <button type="button" onClick={() => setIsEditing(true)} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
+                <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <section className="rounded-[32px] px-5 py-5" style={{ background: CARD_BG, boxShadow: '0 6px 16px rgba(60,30,20,0.06)' }}>
+          <div className="relative w-[124px] h-[124px] mx-auto">
+            <div className="absolute inset-0 rounded-full border border-[#EAD7D0]" style={{ background: '#FFF6F2' }} />
+            <div className="absolute inset-[6px] rounded-full overflow-hidden" style={{ background: '#FFF6F2' }}>
+              <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+            </div>
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className="flex-1 py-3 max-[388px]:py-2.5 text-[14px] max-[388px]:text-[13px] font-semibold transition-all"
-              style={
-                activeTab === tab.id
-                  ? { color: BRAND, borderBottom: `2px solid ${BRAND}`, background: BRAND_BG }
-                  : { color: '#9CA3AF', borderBottom: '2px solid transparent' }
-              }
+              type="button"
+              onClick={() => setIsEditing(true)}
+              className="absolute right-0 bottom-[6px] w-10 h-10 rounded-full border-2 border-white flex items-center justify-center"
+              style={{ background: BRAND }}
+              aria-label="Edit profile"
             >
-              {tab.label}
+              <PencilIcon className="w-4 h-4 text-white" />
             </button>
-          ))}
+          </div>
+
+          <h2 className="text-center mt-4 text-[29px] max-[388px]:text-[27px] leading-tight font-black text-[#1A100E]">{user?.name || 'User'}</h2>
+          <p className="text-center mt-1 text-[#3D3532] text-[23px] max-[388px]:text-[15px] truncate">{user?.email}</p>
+
+          <div className="mt-3 flex items-center justify-center gap-2">
+            <span className="px-2.5 py-1 rounded-full text-[13px] max-[388px]:text-[11px] font-black tracking-wide" style={{ background: '#F4DDD3', color: '#EA580C' }}>
+              GOLD MEMBER
+            </span>
+            <span className="px-2.5 py-1 rounded-full text-[13px] max-[388px]:text-[11px] font-black tracking-wide text-[#3A2722]" style={{ background: '#F4DDD3' }}>
+              4.9 *
+            </span>
+          </div>
+        </section>
+
+        <section className="mt-9 flex justify-center">
+          <div className="text-center">
+            <p className="text-[42px] max-[388px]:text-[34px] leading-none font-black text-[#1A1514]">{ordersCount}</p>
+            <p className="text-[12px] mt-2 uppercase tracking-[0.18em] text-[#2E2724]">Total Orders</p>
+          </div>
+        </section>
+
+        <section className="mt-9">
+          <p className="text-[18px] max-[388px]:text-[15px] font-black tracking-[0.2em] text-[#3A2A26] mb-3">ACCOUNT SETTINGS</p>
+
+          <div className="divide-y divide-[#E5D7D0]">
+            {primaryRows.map((row, idx) => (
+              <div
+                key={`${row.label}-${idx}`}
+                className={row.label === 'Coupons & Offers' || row.label === 'Partner with Us' ? 'pt-2 mt-1 border-t border-[#E9DBD4]' : ''}
+              >
+                <ProfileRow {...row} />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-7 flex items-center justify-center gap-7 text-[#5D403A]">
+          <button type="button" onClick={() => openExternal('https://www.instagram.com/flashbites.in/')} aria-label="Open Instagram">
+            <InstagramIcon />
+          </button>
+          <button type="button" onClick={() => openExternal('https://www.linkedin.com/company/flash-bites/')} aria-label="Open LinkedIn">
+            <LinkedInIcon />
+          </button>
+        </section>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="mt-7 w-full py-4 rounded-full text-[21px] max-[388px]:text-[17px] font-black"
+          style={{ background: '#FAEFEC', color: '#CB1B1B' }}
+        >
+          <span className="inline-flex items-center justify-center gap-2">
+            <ArrowRightOnRectangleIcon className="w-5 h-5" />
+            Log Out
+          </span>
+        </button>
+
+        {user?.role === 'user' ? (
+          <Link to="/account-delete" className="mt-4 flex items-center justify-center gap-2 text-[14px] max-[388px]:text-[12px] text-gray-500 font-medium">
+            <NoSymbolIcon className="w-4 h-4" />
+            Request Account Deletion
+          </Link>
+        ) : null}
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t border-[#E6E2DE] bg-[#F5F3F1]" style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom))' }}>
+        <div className="max-w-md mx-auto px-6 pt-2 flex items-center justify-between text-[#B0ACA8]">
+          <Link
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            to="/"
+            style={isActiveRoute('home') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
+          >
+            <HomeIcon className="h-5 w-5" />
+            <span className="text-[8px]">Home</span>
+          </Link>
+
+          <Link
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            to="/restaurants"
+            style={isActiveRoute('search') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
+          >
+            <MagnifyingGlassIcon className="h-5 w-5" />
+            <span className="text-[8px]">Search</span>
+          </Link>
+
+          <Link
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            to="/orders"
+            style={isActiveRoute('orders') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
+          >
+            <ShoppingBagIcon className="h-5 w-5" />
+            <span className="text-[8px]">Orders</span>
+          </Link>
+
+          <Link
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            to="/profile"
+            style={isActiveRoute('profile') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
+          >
+            <UserIcon className="h-5 w-5" />
+            <span className="text-[8px]">Profile</span>
+          </Link>
         </div>
       </div>
 
-      {/* ── Content ── */}
-      <div className="px-4 pt-4 pb-28 max-[388px]:px-3 max-[388px]:pb-24 max-w-md sm:max-w-lg mx-auto space-y-4">
-
-        {/* ═══════╗
-            PROFILE TAB
-            ╚═══════ */}
-        {activeTab === 'profile' && (
-          <>
-            {/* Edit form */}
-            {isEditing ? (
-              <div
-                className="bg-white rounded-2xl overflow-hidden animate-slide-up"
-                style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
-              >
-                <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100">
-                  <h2 className="text-[15px] max-[388px]:text-[14px] font-bold text-gray-900">Edit Profile</h2>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
-                  >
-                    <XMarkIcon className="w-4 h-4" />
-                  </button>
-                </div>
-                <form onSubmit={handleProfileUpdate} className="p-4 space-y-4">
-                  {[
-                    { label: 'Full Name', key: 'name', type: 'text', placeholder: 'Your name' },
-                    { label: 'Phone', key: 'phone', type: 'tel', placeholder: '+91 XXXXX XXXXX' },
-                  ].map((f) => (
-                    <div key={f.key}>
-                      <label className="block text-[11px] max-[388px]:text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
-                        {f.label}
-                      </label>
-                      <input
-                        type={f.type}
-                        value={profileData[f.key] || ''}
-                        placeholder={f.placeholder}
-                        onChange={(e) => setProfileData({ ...profileData, [f.key]: e.target.value })}
-                        className="input-field"
-                      />
-                    </div>
-                  ))}
-                  <div>
-                    <label className="block text-[11px] max-[388px]:text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={user?.email || ''}
-                      disabled
-                      className="input-field"
-                      style={{ opacity: 0.5, cursor: 'not-allowed' }}
-                    />
-                    <p className="text-[11px] max-[388px]:text-[10px] text-gray-400 mt-1">Email cannot be changed</p>
-                  </div>
-                  <div className="flex gap-3 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setIsEditing(false)}
-                      className="flex-1 py-3 max-[388px]:py-2.5 rounded-xl text-[14px] max-[388px]:text-[13px] font-semibold text-gray-600 bg-gray-100 transition-colors hover:bg-gray-200"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={savingProfile}
-                      className="flex-1 py-3 max-[388px]:py-2.5 rounded-xl text-[14px] max-[388px]:text-[13px] font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-60"
-                      style={{ background: BRAND, boxShadow: 'none' }}
-                    >
-                      {savingProfile ? (
-                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                        </svg>
-                      ) : (
-                        <CheckIcon className="w-4 h-4" />
-                      )}
-                      {savingProfile ? 'Saving...' : 'Save Changes'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              /* ── Read-only info card ── */
-              <div
-                className="bg-white rounded-2xl overflow-hidden"
-                style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
-              >
-                <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100">
-                  <p className="text-[11px] max-[388px]:text-[10px] font-bold uppercase tracking-widest text-gray-400">Personal Info</p>
-                </div>
-                {[
-                  { label: 'Name', value: user?.name || '—' },
-                  { label: 'Email', value: user?.email || '—' },
-                  { label: 'Phone', value: user?.phone || 'Not added' },
-                ].map((row, i, arr) => (
-                  <div
-                    key={row.label}
-                    className="flex items-center justify-between px-4 py-3.5"
-                    style={{ borderBottom: i < arr.length - 1 ? '1px solid #F5F5F5' : 'none' }}
-                  >
-                    <p className="text-[13px] max-[388px]:text-[12px] text-gray-400 font-medium">{row.label}</p>
-                    <p className="text-[14px] max-[388px]:text-[13px] font-semibold text-gray-800 text-right max-w-[200px] truncate">
-                      {row.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* ── Menu sections ── */}
-            {menuSections.map((section) => (
-              <div key={section.title}>
-                <p className="text-[11px] max-[388px]:text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">
-                  {section.title}
-                </p>
-                <div
-                  className="bg-white rounded-2xl overflow-hidden divide-y"
-                  style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)', divideColor: '#F5F5F5' }}
-                >
-                  {section.rows.map((row, i) => (
-                    <MenuRow key={i} {...row} />
-                  ))}
-                </div>
-              </div>
-            ))}
-
-            {/* ── Social links ── */}
-            <div>
-              <p className="text-[11px] max-[388px]:text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2 px-1">
-                Follow Us
-              </p>
-              <div
-                className="bg-white rounded-2xl p-4 max-[388px]:p-3 flex items-center gap-3"
-                style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
-              >
-                {[
-                  { label: 'LinkedIn', href: 'https://www.linkedin.com/company/flash-bites/', Icon: LinkedInIcon, color: '#0A66C2' },
-                  { label: 'Instagram', href: 'https://www.instagram.com/flashbites.in/', Icon: InstagramIcon, color: '#E1306C' },
-                ].map((s) => (
-                  <a
-                    key={s.label}
-                    href={s.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 max-[388px]:py-2 rounded-xl font-semibold text-[13px] max-[388px]:text-[12px] transition-colors hover:opacity-80"
-                    style={{ background: '#F5F7FA', color: s.color }}
-                  >
-                    <s.Icon />
-                    {s.label}
-                  </a>
-                ))}
-              </div>
+      {isEditing ? (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-3xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-[16px] font-bold text-gray-900">Edit Profile</h2>
+              <button type="button" onClick={() => setIsEditing(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                <XMarkIcon className="w-5 h-5 text-gray-600" />
+              </button>
             </div>
 
-            {/* ── Sign out ── */}
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 py-3.5 max-[388px]:py-3 rounded-2xl text-[14.5px] max-[388px]:text-[13px] font-bold transition-colors"
-              style={{ background: '#FFF0F0', color: BRAND }}
-            >
-              <ArrowRightOnRectangleIcon className="w-5 h-5" />
-              Sign Out
-            </button>
-
-            {user?.role === 'user' && (
-              <Link
-                to="/account-delete"
-                className="w-full flex items-center justify-center gap-2 py-3.5 max-[388px]:py-3 rounded-2xl text-[14.5px] max-[388px]:text-[13px] font-bold transition-colors"
-                style={{ background: '#FFE4E6', color: '#DC2626' }}
-              >
-                <TrashIcon className="w-5 h-5" />
-                Account Deletion Request
-              </Link>
-            )}
-
-            <p className="text-center text-[11px] max-[388px]:text-[10px] text-gray-300 pb-2">
-              © {new Date().getFullYear()} FlashBites · All rights reserved
-            </p>
-          </>
-        )}
-
-        {/* ═══════╗
-            ADDRESSES TAB
-            ╚═══════ */}
-        {activeTab === 'addresses' && (
-          <>
-            {/* Add button */}
-            <button
-              onClick={() => setShowAddressForm(!showAddressForm)}
-              className="w-full flex items-center justify-center gap-2 py-3.5 max-[388px]:py-3 rounded-2xl text-[14px] max-[388px]:text-[13px] font-bold text-white transition-all"
-              style={{
-                background: showAddressForm
-                  ? '#6B7280'
-                  : BRAND,
-                boxShadow: 'none',
-              }}
-            >
-              {showAddressForm ? (
-                <><XMarkIcon className="w-5 h-5" /> Cancel</>
-              ) : (
-                <><PlusIcon className="w-5 h-5" /> Add New Address</>
-              )}
-            </button>
-
-            {/* Add form */}
-            {showAddressForm && (
-              <form
-                onSubmit={handleAddAddress}
-                className="bg-white rounded-2xl overflow-hidden animate-slide-up"
-                style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
-              >
-                <div className="px-4 pt-4 pb-3 border-b border-gray-100">
-                  <p className="text-[11px] max-[388px]:text-[10px] font-bold uppercase tracking-widest text-gray-400">New Address</p>
-                </div>
-                <div className="p-4 space-y-3">
-                  {/* Type selector */}
-                  <div className="flex gap-2">
-                    {['home', 'work', 'other'].map((t) => {
-                      const cfg = ADDRESS_TYPES[t];
-                      const active = addressData.type === t;
-                      return (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setAddressData({ ...addressData, type: t })}
-                          className="flex-1 py-2 rounded-xl text-[13px] max-[388px]:text-[12px] font-semibold capitalize transition-all"
-                          style={
-                            active
-                              ? { background: cfg.bg, color: cfg.color, border: `1.5px solid ${cfg.color}` }
-                              : { background: '#F5F7FA', color: '#9CA3AF', border: '1.5px solid transparent' }
-                          }
-                        >
-                          {cfg.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Fields */}
-                  {[
-                    { placeholder: 'Street address *', key: 'street', required: true },
-                    { placeholder: 'City *', key: 'city', required: true },
-                    { placeholder: 'State *', key: 'state', required: true },
-                    { placeholder: 'PIN Code *', key: 'zipCode', required: true, isPincode: true },
-                    { placeholder: 'Landmark (optional)', key: 'landmark', required: false },
-                  ].map((f) => (
-                    <input
-                      key={f.key}
-                      type="text"
-                      placeholder={f.placeholder}
-                      required={f.required}
-                      maxLength={f.isPincode ? 6 : undefined}
-                      pattern={f.isPincode ? "[0-9]{6}" : undefined}
-                      value={addressData[f.key]}
-                      onChange={(e) => f.isPincode ? handlePincodeChange(e) : setAddressData({ ...addressData, [f.key]: e.target.value })}
-                      className="input-field"
-                    />
-                  ))}
-
-                  <button
-                    type="submit"
-                    className="w-full py-3 max-[388px]:py-2.5 rounded-xl text-[14px] max-[388px]:text-[13px] font-bold text-white"
-                    style={{ background: BRAND, boxShadow: 'none' }}
-                  >
-                    Save Address
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* Address list */}
-            {addresses.length === 0 ? (
-              <div
-                className="bg-white rounded-2xl p-10 max-[388px]:p-8 text-center"
-                style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
-              >
-                <div
-                  className="w-16 h-16 max-[388px]:w-14 max-[388px]:h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-                  style={{ background: BRAND_BG }}
-                >
-                  <MapPinIcon className="w-8 h-8" style={{ color: BRAND }} />
-                </div>
-                <p className="font-bold text-gray-800 text-[16px] max-[388px]:text-[14px]">No saved addresses</p>
-                <p className="text-[13px] max-[388px]:text-[12px] text-gray-400 mt-1">Add your home or work address for faster checkout</p>
+            <form onSubmit={handleProfileUpdate} className="p-4 space-y-3">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400 mb-1.5">Full Name</label>
+                <input
+                  type="text"
+                  value={profileData.name}
+                  onChange={(e) => setProfileData((prev) => ({ ...prev, name: e.target.value }))}
+                  className="input-field"
+                  placeholder="Your name"
+                />
               </div>
-            ) : (
-              <div className="space-y-3">
-                {addresses.map((a) => {
-                  const cfg = ADDRESS_TYPES[a.type] || ADDRESS_TYPES.other;
-                  return (
-                    <div
-                      key={a._id}
-                      className="bg-white rounded-2xl overflow-hidden"
-                      style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
-                    >
-                      <div className="flex items-start gap-3 p-4 max-[388px]:p-3">
-                        {/* Icon */}
-                        <div
-                          className="w-10 h-10 max-[388px]:w-9 max-[388px]:h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                          style={{ background: cfg.bg }}
-                        >
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400 mb-1.5">Phone</label>
+                <input
+                  type="tel"
+                  value={profileData.phone}
+                  onChange={(e) => setProfileData((prev) => ({ ...prev, phone: e.target.value }))}
+                  className="input-field"
+                  placeholder="+91 XXXXX XXXXX"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400 mb-1.5">Email</label>
+                <input type="email" disabled value={user?.email || ''} className="input-field" style={{ opacity: 0.6 }} />
+              </div>
+
+              <div className="pt-1 flex gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingProfile}
+                  className="flex-1 py-3 rounded-xl text-white font-bold inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                  style={{ background: BRAND }}
+                >
+                  {savingProfile ? (
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                  ) : (
+                    <CheckIcon className="w-4 h-4" />
+                  )}
+                  {savingProfile ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {showAddressSheet ? (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4">
+          <div className="w-full max-w-md max-h-[86vh] bg-white rounded-3xl overflow-hidden flex flex-col">
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-[16px] font-bold text-gray-900">Saved Addresses</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddressSheet(false);
+                }}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
+              >
+                <XMarkIcon className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddressSheet(false);
+                  setShowAddAddressModal(true);
+                }}
+                className="w-full py-3 rounded-xl text-white font-bold inline-flex items-center justify-center gap-2"
+                style={{ background: BRAND }}
+              >
+                <PlusIcon className="w-5 h-5" />
+                Add New Address
+              </button>
+
+              {addresses.length === 0 ? (
+                <div className="rounded-2xl border border-gray-100 p-5 text-center">
+                  <p className="font-semibold text-gray-800">No saved addresses yet</p>
+                  <p className="text-sm text-gray-500 mt-1">Add your home or work address for faster checkout.</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {addresses.map((address) => {
+                    const cfg = ADDRESS_TYPES[address.type] || ADDRESS_TYPES.other;
+                    return (
+                      <div key={address._id} className="rounded-2xl border border-gray-100 p-3 flex gap-3 items-start">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: cfg.bg }}>
                           <MapPinIcon className="w-5 h-5" style={{ color: cfg.color }} />
                         </div>
-
-                        {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span
-                              className="text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
-                              style={{ background: cfg.bg, color: cfg.color }}
-                            >
-                              {cfg.label}
-                            </span>
-                          </div>
-                          <p className="text-[14px] max-[388px]:text-[13px] font-semibold text-gray-900 leading-snug">{a.street}</p>
-                          <p className="text-[12px] max-[388px]:text-[11px] text-gray-400 mt-0.5">
-                            {a.city}, {a.state} – {a.zipCode}
+                          <span className="inline-block text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ background: cfg.bg, color: cfg.color }}>
+                            {cfg.label}
+                          </span>
+                          <p className="mt-1 text-sm font-semibold text-gray-900 leading-snug">{address.street}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {address.city}, {address.state} - {address.zipCode}
                           </p>
-                          {a.landmark && (
-                            <p className="text-[12px] max-[388px]:text-[11px] text-gray-400">Near: {a.landmark}</p>
-                          )}
+                          {address.landmark ? <p className="text-xs text-gray-500">Near: {address.landmark}</p> : null}
                         </div>
-
-                        {/* Delete */}
                         <button
-                          onClick={() => handleDeleteAddress(a._id)}
-                          className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
+                          type="button"
+                          onClick={() => handleDeleteAddress(address._id)}
+                          className="w-8 h-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 inline-flex items-center justify-center"
                         >
                           <TrashIcon className="w-4 h-4" />
                         </button>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <AddAddressModal
+        isOpen={showAddAddressModal}
+        onClose={() => {
+          setShowAddAddressModal(false);
+          setShowAddressSheet(true);
+        }}
+        onAddressAdded={() => {
+          fetchAddresses();
+          setShowAddressSheet(true);
+        }}
+      />
     </div>
   );
 };
