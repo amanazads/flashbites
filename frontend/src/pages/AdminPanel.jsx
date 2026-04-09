@@ -9,7 +9,7 @@ import {
   UserGroupIcon,
   BuildingStorefrontIcon,
   ShoppingBagIcon,
-  CurrencyDollarIcon,
+  BanknotesIcon,
   ArrowPathIcon,
   TruckIcon,
   ChartBarIcon,
@@ -1364,7 +1364,7 @@ const AdminPanel = () => {
           <div className="bg-white rounded-lg shadow p-6 max-[388px]:p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <CurrencyDollarIcon className="h-8 w-8 text-purple-500" />
+                <BanknotesIcon className="h-8 w-8 text-purple-500" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Revenue</p>
@@ -2980,7 +2980,7 @@ const AdminPanel = () => {
 
                       <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6">
                         <div className="flex items-center">
-                          <CurrencyDollarIcon className="h-10 w-10 text-green-600" />
+                          <BanknotesIcon className="h-10 w-10 text-green-600" />
                           <div className="ml-4">
                             <p className="text-sm text-green-800">Total Revenue</p>
                             <p className="text-3xl font-bold text-green-900">{formatCurrency(analytics.overview.totalRevenue)}</p>

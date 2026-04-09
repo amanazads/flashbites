@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { PlusIcon, MinusIcon } from '@heroicons/react/24/solid';
-import { addToCart, updateQuantity } from '../../redux/slices/cartSlice';
+import { addToCart, clearCart, updateQuantity } from '../../redux/slices/cartSlice';
 import { formatCurrency } from '../../utils/formatters';
 import { BRAND } from '../../constants/theme';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 
 const MenuCard = ({ item, restaurant, disabled = false }) => {
   const dispatch = useDispatch();
@@ -16,10 +17,11 @@ const MenuCard = ({ item, restaurant, disabled = false }) => {
   const displayPrice = hasVariants ? activeVariant.price : item.price;
   
   const cartItems = useSelector(state => state.cart.items);
+  const cartRestaurant = useSelector(state => state.cart.restaurant);
   const cartItem = cartItems.find(i => i._id === currentItemId);
   const quantity = cartItem ? cartItem.quantity : 0;
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (disabled) {
       toast.error('Restaurant is currently closed');
       return;
@@ -33,6 +35,36 @@ const MenuCard = ({ item, restaurant, disabled = false }) => {
       price: activeVariant.price,
       selectedVariant: activeVariant
     } : item;
+
+    const hasOtherRestaurantItems = cartItems.length > 0
+      && cartRestaurant
+      && cartRestaurant._id !== restaurant?._id;
+
+    if (hasOtherRestaurantItems) {
+      const result = await Swal.fire({
+        title: 'Replace cart item?',
+        text: `Your cart contains dishes from ${cartRestaurant?.name || 'another restaurant'}. Do you want to discard the selection and add dishes from ${restaurant?.name || 'this restaurant'}?`,
+        showCancelButton: true,
+        showCloseButton: true,
+        buttonsStyling: false,
+        backdrop: 'rgba(17, 24, 39, 0.58)',
+        confirmButtonText: 'Yes',
+        cancelButtonText: 'No',
+        reverseButtons: true,
+        customClass: {
+          popup: 'cart-replace-popup',
+          title: 'cart-replace-title',
+          htmlContainer: 'cart-replace-text',
+          actions: 'cart-replace-actions',
+          confirmButton: 'cart-replace-yes',
+          cancelButton: 'cart-replace-no',
+          closeButton: 'cart-replace-close',
+        },
+      });
+
+      if (!result.isConfirmed) return;
+      dispatch(clearCart());
+    }
     
     dispatch(addToCart({ item: itemToAdd, restaurant }));
     toast.success('Added to cart!');

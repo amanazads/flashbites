@@ -15,7 +15,7 @@ export const CANCELLATION_POLICY = {
     PREPARING: {
       canCancel: false,
       fee: 100, // percentage
-      message: 'Order is being prepared and cannot be cancelled. Contact restaurant for assistance.'
+      message: 'Order is being prepared and cannot be cancelled. Contact FlashBites support for assistance.'
     },
     READY: {
       canCancel: false,

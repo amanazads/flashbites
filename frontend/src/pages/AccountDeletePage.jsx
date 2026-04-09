@@ -71,7 +71,7 @@ const AccountDeletePage = () => {
   if (user?.role !== 'user') {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
-        <div className="max-w-2xl mx-auto px-4 pt-6 pb-24">
+        <div className="max-w-2xl mx-auto px-4 pt-0 pb-24">
           <Link
             to="/profile"
             className="inline-flex items-center gap-2 text-sm font-semibold mb-4"
@@ -90,7 +90,7 @@ const AccountDeletePage = () => {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <div className="max-w-2xl mx-auto px-4 pt-6 pb-24">
+      <div className="max-w-2xl mx-auto px-4 pt-0 pb-24">
         <Link
           to="/profile"
           className="inline-flex items-center gap-2 text-sm font-semibold mb-4"
@@ -172,7 +172,7 @@ const AccountDeletePage = () => {
                   type="submit"
                   disabled={submittingDeletionRequest}
                   className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[14.5px] font-bold transition-colors disabled:opacity-60"
-                  style={{ background: '#FFE4E6', color: '#DC2626' }}
+                  style={{ background: BRAND, color: '#FFFFFF' }}
                 >
                   <TrashIcon className="w-5 h-5" />
                   {submittingDeletionRequest ? 'Submitting Request...' : 'Submit Deletion Request'}

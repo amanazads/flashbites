@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
+  ArrowLeftIcon,
   TruckIcon,
   UserIcon,
   PhoneIcon,
   EnvelopeIcon,
+  MagnifyingGlassIcon,
   MapPinIcon,
   DocumentTextIcon,
   CameraIcon,
@@ -19,6 +21,7 @@ import { submitPartnerApplication } from '../api/partnerApi';
 import AddressInput from '../components/location/AddressInput';
 import MapPicker from '../components/location/MapPicker';
 import { reverseGeocodeCoordinates } from '../api/locationApi';
+import logo from '../assets/logo.png';
 
 const isValidCoordinatePair = (lat, lng) => (
   Number.isFinite(lat)
@@ -673,7 +676,41 @@ const Partner = () => {
     : { lat: 31.53, lng: 75.91 };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="partner-home-theme min-h-screen" style={{ background: 'var(--bg-app)' }}>
+      <div className="px-4 pt-[max(env(safe-area-inset-top),10px)] -mx-6 max-[388px]:-mx-4 mb-4" style={{ backgroundColor: 'rgb(245, 243, 241)' }}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="h-8 w-8 rounded-full flex items-center justify-center text-white shadow-[0_8px_18px_rgba(234,88,12,0.32)]"
+              aria-label="Go back"
+              style={{ background: 'linear-gradient(rgb(255, 122, 69) 0%, rgb(234, 88, 12) 100%)' }}
+            >
+              <ArrowLeftIcon className="h-4 w-4" />
+            </button>
+
+            <button type="button" className="flex items-center gap-2 text-left">
+              <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
+              <div>
+                <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
+                <p className="text-[12px] leading-none font-semibold text-gray-900">Current Area</p>
+              </div>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <img src={logo} alt="FlashBites" className="h-4 w-4 object-contain" />
+            <button type="button" onClick={() => navigate('/restaurants')}>
+              <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
+            </button>
+            <button type="button" onClick={() => navigate('/profile')} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
+              <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-primary-500 to-primary-600 text-white py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">

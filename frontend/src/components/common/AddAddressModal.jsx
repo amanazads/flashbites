@@ -89,27 +89,28 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!formData.fullAddress?.trim()) {
-      toast.error('Please search and select a delivery address');
+
+    const trimmedStreet = (formData.street || '').trim();
+    const trimmedFullAddress = (formData.fullAddress || '').trim();
+
+    if (!trimmedStreet && !trimmedFullAddress) {
+      toast.error('Please enter street address or search/select a delivery address');
       return;
     }
 
-    const coordinates = formData.coordinates;
-    if (!coordinates || coordinates.length < 2) {
-      toast.error('Please select a valid address from suggestions');
-      return;
-    }
+    const coordinates = Array.isArray(formData.coordinates) && formData.coordinates.length >= 2
+      ? formData.coordinates
+      : null;
 
     setLoading(true);
     try {
+      const computedFullAddress = trimmedFullAddress || getQueryText();
       const payload = {
         ...formData,
-        street: formData.street || formData.fullAddress,
-        fullAddress: formData.fullAddress || getQueryText(),
+        street: trimmedStreet || computedFullAddress,
+        fullAddress: computedFullAddress,
         coordinates,
-        lat: coordinates?.[1],
-        lng: coordinates?.[0]
+        ...(coordinates ? { lat: coordinates[1], lng: coordinates[0] } : {})
       };
 
       const response = await addAddress(payload);
@@ -256,7 +257,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
           {/* Search address */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Search Delivery Address *
+              Search Delivery Address
             </label>
             <button
               type="button"
@@ -270,10 +271,10 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
               value={formData.fullAddress}
               onChange={(value) => setFormData({ ...formData, fullAddress: value, coordinates: null })}
               onSelect={handleGoogleAddressSelect}
-              placeholder="Search delivery address"
+              placeholder="Search delivery address (optional)"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
-            <p className="mt-1 text-xs text-gray-500">Select from suggestions, then optionally fine-tune the pin on map.</p>
+            <p className="mt-1 text-xs text-gray-500">Search from suggestions or fill details manually below. Map pin is optional but recommended.</p>
           </div>
 
           <div className="mb-4">
@@ -368,7 +369,7 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
               <p className="mt-1 text-xs text-gray-500">
-                Tip: always pick an address suggestion or map point so delivery uses exact coordinates.
+                Tip: You can save manually entered addresses. Selecting a suggestion or map point improves delivery accuracy.
               </p>
           </div>
 
