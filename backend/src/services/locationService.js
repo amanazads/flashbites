@@ -44,6 +44,56 @@ const uniqueNonEmpty = (values = []) => (
   [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))]
 );
 
+const normalizeSearchText = (value) => (
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s,.-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+);
+
+const tokenizeSearchText = (value) => (
+  normalizeSearchText(value)
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length >= 2)
+);
+
+const scoreAutocompleteResult = (query, item) => {
+  const normalizedQuery = normalizeSearchText(query);
+  const normalizedLabel = normalizeSearchText(item?.label || item?.fullAddress || '');
+
+  if (!normalizedQuery || !normalizedLabel) return 0;
+
+  const queryTokens = tokenizeSearchText(normalizedQuery);
+  const labelTokens = tokenizeSearchText(normalizedLabel);
+
+  if (!queryTokens.length || !labelTokens.length) return 0;
+
+  let score = 0;
+
+  if (normalizedLabel === normalizedQuery) score += 160;
+  if (normalizedLabel.startsWith(normalizedQuery)) score += 90;
+  if (normalizedLabel.includes(normalizedQuery)) score += 45;
+
+  for (const token of queryTokens) {
+    if (labelTokens.includes(token)) {
+      score += 20;
+      continue;
+    }
+
+    const prefixMatch = labelTokens.some((candidate) => candidate.startsWith(token));
+    if (prefixMatch) score += 10;
+  }
+
+  const queryWordCount = queryTokens.length;
+  const exactMatches = queryTokens.filter((token) => labelTokens.includes(token)).length;
+  if (exactMatches === queryWordCount) score += 30;
+
+  if (item?.source === 'google') score += 3;
+
+  return score;
+};
+
 const buildGeocodeQueries = (query) => {
   const base = String(query || '').trim();
   if (!base) return [];
@@ -139,8 +189,7 @@ const autocompleteWithGoogle = async (query) => {
     params: {
       input: query,
       key: GOOGLE_API_KEY,
-      components: 'country:in',
-      types: 'address'
+      components: 'country:in'
     }
   });
 
@@ -228,7 +277,7 @@ const autocompleteWithNominatim = async (query) => {
       q: query,
       format: 'jsonv2',
       addressdetails: 1,
-      limit: 6,
+      limit: 12,
       countrycodes: 'in'
     }
   });
@@ -291,18 +340,44 @@ const reverseGeocode = async (lat, lng) => {
 const autocompleteAddress = async (query) => {
   if (!query || String(query).trim().length < 3) return [];
 
+  const dedupeByLabel = (items = []) => {
+    const seen = new Set();
+    const out = [];
+
+    for (const item of items) {
+      const key = String(item?.fullAddress || item?.label || '').trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(item);
+    }
+
+    return out;
+  };
+
+  let googleResults = [];
+  let nominatimResults = [];
+
   try {
-    const googleResults = await autocompleteWithGoogle(query);
-    if (googleResults.length) return googleResults;
+    googleResults = await autocompleteWithGoogle(query);
   } catch {
-    // fallback to nominatim
+    googleResults = [];
   }
 
   try {
-    return await autocompleteWithNominatim(query);
+    nominatimResults = await autocompleteWithNominatim(query);
   } catch {
-    return [];
+    nominatimResults = [];
   }
+
+  const ranked = [...googleResults, ...nominatimResults]
+    .map((item) => ({
+      ...item,
+      _score: scoreAutocompleteResult(query, item)
+    }))
+    .sort((a, b) => b._score - a._score)
+    .map(({ _score, ...item }) => item);
+
+  return dedupeByLabel(ranked).slice(0, 15);
 };
 
 const buildFullAddress = ({ street, landmark, city, state, zipCode }) => (

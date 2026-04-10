@@ -88,7 +88,7 @@ const restaurantSchema = new mongoose.Schema({
     type: {
       type: String,
       enum: ['Polygon'],
-      default: 'Polygon'
+      default: undefined
     },
     coordinates: {
       type: [[[Number]]],
@@ -165,7 +165,10 @@ const restaurantSchema = new mongoose.Schema({
   documents: {
     fssai: String,
     gst: String,
-    panCard: String
+    panCard: String,
+    ownerIdProof: String,
+    menuDocument: String,
+    cancelledCheque: String
   },
   bankDetails: {
     accountNumber: String,

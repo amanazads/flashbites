@@ -8,6 +8,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.REACT_APP_GOOGLE_KEY;
+const ALLOW_GOOGLE_MAPS_ON_LOCALHOST = String(import.meta.env.VITE_ALLOW_GOOGLE_MAPS_ON_LOCALHOST || '').toLowerCase() === 'true';
 const MAP_LIBRARIES = ['places'];
 const MAP_OPTIONS = {
   streetViewControl: false,
@@ -40,20 +41,39 @@ export default function MapPicker({
   initialPosition = { lat: 31.53, lng: 75.91 },
   mapHeight = 300
 }) {
+  const isLocalHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const shouldUseGoogleMaps = Boolean(GOOGLE_KEY) && (!isLocalHost || ALLOW_GOOGLE_MAPS_ON_LOCALHOST);
   const defaultCenter = useMemo(() => ({
     lat: Number(initialPosition?.lat) || 31.53,
     lng: Number(initialPosition?.lng) || 75.91
   }), [initialPosition?.lat, initialPosition?.lng]);
 
   const [position, setPosition] = useState(defaultCenter);
+  const [googleAuthFailed, setGoogleAuthFailed] = useState(false);
 
   useEffect(() => {
     setPosition(defaultCenter);
   }, [defaultCenter]);
 
+  useEffect(() => {
+    if (!shouldUseGoogleMaps || typeof window === 'undefined') return;
+
+    const previousHandler = window.gm_authFailure;
+    window.gm_authFailure = () => {
+      setGoogleAuthFailed(true);
+      if (typeof previousHandler === 'function') {
+        previousHandler();
+      }
+    };
+
+    return () => {
+      window.gm_authFailure = previousHandler;
+    };
+  }, [shouldUseGoogleMaps]);
+
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'flashbites-google-map-picker',
-    googleMapsApiKey: GOOGLE_KEY || '',
+    googleMapsApiKey: shouldUseGoogleMaps ? GOOGLE_KEY : '',
     libraries: MAP_LIBRARIES
   });
 
@@ -100,11 +120,11 @@ export default function MapPicker({
     </div>
   );
 
-  if (!GOOGLE_KEY) {
+  if (!shouldUseGoogleMaps) {
     return renderLeafletFallback(false);
   }
 
-  if (loadError) {
+  if (googleAuthFailed || loadError) {
     return renderLeafletFallback(true);
   }
 

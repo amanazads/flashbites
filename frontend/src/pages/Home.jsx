@@ -14,7 +14,6 @@ import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  AdjustmentsHorizontalIcon,
   HomeIcon,
   MagnifyingGlassIcon,
   MapPinIcon,
@@ -23,6 +22,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const SELECTED_ADDRESS_KEY = 'fb_selected_address';
+const LAST_KNOWN_LOCATION_KEY = 'fb_last_known_location';
 
 const HOME_CUISINE_TABS = [
   { id: 'All', label: 'All', image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80' },
@@ -84,6 +84,7 @@ const Home = () => {
   const [trendingMenuItems, setTrendingMenuItems] = useState([]);
   const [trendingLoading, setTrendingLoading] = useState(false);
   const searchBoxRef = useRef(null);
+  const lastLocationErrorToastAtRef = useRef(0);
 
   const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
@@ -152,6 +153,51 @@ const Home = () => {
   }, [dispatch, selectedDeliveryAddress]);
 
   const handleUseCurrentLocation = () => {
+    const showLocationErrorToast = (message) => {
+      const now = Date.now();
+      // Avoid spamming repeated geolocation errors from transient iOS failures.
+      if (now - lastLocationErrorToastAtRef.current < 8000) return;
+      lastLocationErrorToastAtRef.current = now;
+      toast.error(message);
+    };
+
+    const useSavedAddressFallback = () => {
+      const fallback = (savedAddresses || [])
+        .map((addr) => mapSavedAddressToSelection(addr))
+        .find(Boolean);
+
+      if (!fallback) return false;
+
+      dispatch(setSelectedDeliveryAddress(fallback));
+      setShowAddressPicker(false);
+      toast('GPS unavailable. Using your saved address instead.');
+      return true;
+    };
+
+    const getPosition = (options) => new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, options);
+    });
+
+    const getLocationErrorMessage = (error) => {
+      if (!window.isSecureContext) {
+        return 'Location access requires HTTPS (or localhost). Please use address search instead.';
+      }
+
+      if (error?.code === 1) {
+        return 'Location permission is blocked. Please allow location access and try again.';
+      }
+
+      if (error?.code === 2) {
+        return 'Location signal is unavailable right now. Please move to open sky or use address search.';
+      }
+
+      if (error?.code === 3) {
+        return 'Location request timed out. Please try again or use address search.';
+      }
+
+      return 'Unable to detect your location. Please use address search.';
+    };
+
     setDetectingLocation(true);
 
     const onSuccess = (position) => {
@@ -162,6 +208,15 @@ const Home = () => {
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || (latitude === 0 && longitude === 0)) {
         toast.error('Could not detect your current location.');
         return;
+      }
+
+      try {
+        localStorage.setItem(
+          LAST_KNOWN_LOCATION_KEY,
+          JSON.stringify({ latitude, longitude, updatedAt: Date.now() })
+        );
+      } catch {
+        // ignore storage issues
       }
 
       dispatch(
@@ -179,20 +234,100 @@ const Home = () => {
       setShowAddressPicker(false);
     };
 
+    const useLastKnownLocation = () => {
+      try {
+        const raw = localStorage.getItem(LAST_KNOWN_LOCATION_KEY);
+        if (!raw) return false;
+
+        const parsed = JSON.parse(raw);
+        const latitude = Number(parsed?.latitude || 0);
+        const longitude = Number(parsed?.longitude || 0);
+        const updatedAt = Number(parsed?.updatedAt || 0);
+        const maxAgeMs = 24 * 60 * 60 * 1000;
+
+        const hasValidCoords = Number.isFinite(latitude) && Number.isFinite(longitude) && (latitude !== 0 || longitude !== 0);
+        const isFreshEnough = Number.isFinite(updatedAt) && Date.now() - updatedAt <= maxAgeMs;
+
+        if (!hasValidCoords || !isFreshEnough) return false;
+
+        dispatch(
+          setSelectedDeliveryAddress({
+            id: 'last-known-location',
+            type: 'current',
+            typeLabel: 'Current',
+            city: 'Nearby Area',
+            fullAddress: `Last known location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+            latitude,
+            longitude,
+          })
+        );
+
+        setShowAddressPicker(false);
+        toast('Using your last known location.');
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
     if (!navigator.geolocation) {
       setDetectingLocation(false);
-      toast.error('Location services are not supported.');
+      if (useSavedAddressFallback()) return;
+      showLocationErrorToast('Location services are not supported.');
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      onSuccess,
-      () => {
-        setDetectingLocation(false);
-        toast.error('Unable to fetch location right now. Please try again.');
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 120000 }
-    );
+    const getPositionWithRetries = async (options, retries = 0) => {
+      let attempt = 0;
+      let lastError;
+
+      while (attempt <= retries) {
+        try {
+          return await getPosition(options);
+        } catch (error) {
+          lastError = error;
+          // kCLErrorLocationUnknown on iOS is often transient; retry quickly.
+          if (error?.code !== 2 || attempt === retries) break;
+          await new Promise((resolve) => setTimeout(resolve, 500 + attempt * 400));
+          attempt += 1;
+        }
+      }
+
+      throw lastError;
+    };
+
+    (async () => {
+      try {
+        const highAccuracyPosition = await getPositionWithRetries({
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 120000,
+        }, 2);
+        onSuccess(highAccuracyPosition);
+      } catch (highAccuracyError) {
+        try {
+          const fallbackPosition = await getPositionWithRetries({
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 300000,
+          }, 1);
+          onSuccess(fallbackPosition);
+        } catch (fallbackError) {
+          setDetectingLocation(false);
+
+          if (useLastKnownLocation()) {
+            return;
+          }
+
+          if (useSavedAddressFallback()) {
+            return;
+          }
+
+          setShowAddressPicker(true);
+          showLocationErrorToast(getLocationErrorMessage(fallbackError || highAccuracyError));
+        }
+      }
+    })();
   };
 
   const handleSelectSavedAddress = (addr) => {
@@ -427,20 +562,19 @@ const Home = () => {
       />
 
       <div className="min-h-screen bg-[#F5F3F1]">
-        <div className="max-w-md mx-auto px-4 pb-28 pt-[max(env(safe-area-inset-top),14px)] text-[13px]">
-          <div className="flex items-center justify-between mb-4">
-            <button type="button" onClick={() => setShowAddressPicker(true)} className="flex items-center gap-2 text-left">
+        <div className="max-w-md mx-auto px-4 pb-28 pt-[max(env(safe-area-inset-top),8px)] text-[13px]">
+          <div className="flex items-center justify-between gap-3 mb-3 lg:hidden">
+            <button type="button" onClick={() => setShowAddressPicker(true)} className="min-w-0 flex-1 flex items-center gap-2 text-left">
               <MapPinIcon className="h-4 w-4" style={{ color: BRAND }} />
-              <div>
+              <div className="min-w-0">
                 <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
-                <p className="text-[12px] leading-none font-semibold text-gray-900">
+                <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">
                   {selectedDeliveryAddress?.city || 'Select location'}
                 </p>
               </div>
             </button>
 
-            <div className="flex items-center gap-3">
-              <img src={logo} alt="FlashBites" className="h-4 w-4 object-contain" />
+            <div className="flex items-center gap-2 shrink-0">
               <button type="button" onClick={() => navigate('/restaurants')}>
                 <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
               </button>
@@ -450,7 +584,7 @@ const Home = () => {
             </div>
           </div>
 
-          <form onSubmit={handleSearch} className="relative mb-5" ref={searchBoxRef}>
+          <form onSubmit={handleSearch} className="relative mb-4" ref={searchBoxRef}>
             <div className="rounded-full bg-[#E9E7E5] px-4 py-3 flex items-center gap-3">
               <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
               <input
@@ -461,12 +595,9 @@ const Home = () => {
                   setSearchQ(e.target.value);
                   setShowSuggestions(e.target.value.trim().length >= 2);
                 }}
-                placeholder="Crave something delicio"
+                placeholder="Crave something delicious"
                 className="flex-1 bg-transparent text-[12px] text-gray-700 placeholder:text-gray-400 outline-none"
               />
-              <button type="submit" className="h-9 w-9 rounded-full flex items-center justify-center text-white" style={{ background: BRAND }}>
-                <AdjustmentsHorizontalIcon className="h-4 w-4" />
-              </button>
             </div>
 
             {showSuggestions && (

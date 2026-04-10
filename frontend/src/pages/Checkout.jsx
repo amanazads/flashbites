@@ -102,6 +102,14 @@ const normalizeCommissionPercent = (rawPercent) => {
   return percent;
 };
 
+const normalizePayoutRate = (rawRate) => {
+  const rate = Number(rawRate);
+  if (!Number.isFinite(rate)) return 0.75;
+  if (rate < 0) return 0;
+  if (rate > 1) return 1;
+  return rate;
+};
+
 const Checkout = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -182,7 +190,15 @@ const Checkout = () => {
     [addresses, selectedAddress]
   );
 
-  const commissionPercent = normalizeCommissionPercent(platformSettings?.commissionPercent);
+  const globalCommissionPercent = normalizeCommissionPercent(platformSettings?.commissionPercent);
+  const globalPayoutRate = normalizePayoutRate(platformSettings?.restaurantPayoutRate);
+  const hasRestaurantPayoutOverride = Number.isFinite(Number(restaurant?.payoutRateOverride));
+  const effectivePayoutRate = hasRestaurantPayoutOverride
+    ? normalizePayoutRate(restaurant?.payoutRateOverride)
+    : globalPayoutRate;
+  const commissionPercent = hasRestaurantPayoutOverride
+    ? normalizeCommissionPercent((1 - effectivePayoutRate) * 100)
+    : globalCommissionPercent;
   const listedSubtotal = calculateCartTotal(items);
 
   const subtotal = useMemo(() => {
@@ -469,7 +485,6 @@ const Checkout = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              <img src={logo} alt="FlashBites" className="h-4 w-4 object-contain" />
               <button type="button" onClick={() => navigate('/restaurants')}>
                 <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
               </button>

@@ -32,7 +32,30 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.phone || !formData.password) { toast.error('Please fill in all fields'); return; }
+
+    const phone = formData.phone.trim();
+    const password = formData.password;
+
+    if (!phone && !password) {
+      toast.error('Please enter your phone number and password');
+      return;
+    }
+
+    if (!phone) {
+      toast.error('Please enter your phone number');
+      return;
+    }
+
+    if (phone.length !== 10) {
+      toast.error('Phone number must be exactly 10 digits');
+      return;
+    }
+
+    if (!password) {
+      toast.error('Please enter your password');
+      return;
+    }
+
     await dispatch(login(formData));
   };
 

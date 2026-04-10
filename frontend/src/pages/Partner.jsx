@@ -591,6 +591,45 @@ const Partner = () => {
     setRestaurantLoading(true);
 
     try {
+      const submitData = new FormData();
+      submitData.append('restaurantName', restaurantFormData.restaurantName);
+      submitData.append('ownerName', restaurantFormData.ownerName);
+      submitData.append('email', restaurantFormData.email);
+      submitData.append('phone', restaurantFormData.phone);
+      submitData.append('alternatePhone', restaurantFormData.alternatePhone || '');
+      submitData.append('businessType', restaurantFormData.businessType);
+      submitData.append('cuisineTypes', restaurantFormData.cuisineTypes);
+      submitData.append('openingTime', restaurantFormData.openingTime);
+      submitData.append('closingTime', restaurantFormData.closingTime);
+      submitData.append('address', JSON.stringify(restaurantFormData.address));
+      submitData.append('location', JSON.stringify({ lat: locationLat, lng: locationLng }));
+      submitData.append('fssaiLicenseNumber', restaurantFormData.fssaiLicenseNumber);
+      submitData.append('gstNumber', restaurantFormData.gstNumber || '');
+      submitData.append('panNumber', restaurantFormData.panNumber || '');
+      submitData.append('bankDetails', JSON.stringify(restaurantFormData.bankDetails));
+      submitData.append('menuItems', JSON.stringify(validMenuItems));
+      submitData.append('acceptTerms', String(restaurantFormData.acceptTerms));
+      submitData.append('acceptAgreement', String(restaurantFormData.acceptAgreement));
+
+      if (restaurantDocuments.fssaiLicense) {
+        submitData.append('fssaiLicense', restaurantDocuments.fssaiLicense);
+      }
+      if (restaurantDocuments.menuDocument) {
+        submitData.append('menuDocument', restaurantDocuments.menuDocument);
+      }
+      if (restaurantDocuments.ownerIdProof) {
+        submitData.append('ownerIdProof', restaurantDocuments.ownerIdProof);
+      }
+      if (restaurantDocuments.cancelledCheque) {
+        submitData.append('cancelledCheque', restaurantDocuments.cancelledCheque);
+      }
+
+      await axios.post('/partners/restaurant-apply', submitData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
       const restaurantCsvRow = [
         'Restaurant Partner',
         restaurantFormData.restaurantName,
@@ -651,15 +690,19 @@ const Partner = () => {
         'Post-Verification Action: Share new restaurant owner login credentials after verification for smooth restaurant login.',
       ].join('\n');
 
-      await axios.post('/contact', {
-        name: restaurantFormData.ownerName,
-        email: restaurantFormData.email,
-        phone: restaurantFormData.phone,
-        subject: `Restaurant Partner Registration - ${restaurantFormData.restaurantName}`,
-        message,
-      });
+      try {
+        await axios.post('/contact', {
+          name: restaurantFormData.ownerName,
+          email: restaurantFormData.email,
+          phone: restaurantFormData.phone,
+          subject: `Restaurant Partner Registration - ${restaurantFormData.restaurantName}`,
+          message,
+        });
+      } catch (notifyError) {
+        console.error('Restaurant admin notification failed:', notifyError);
+      }
 
-      toast.success('Restaurant registration submitted. After verification, login credentials will be shared with the owner.');
+      toast.success('Restaurant registration submitted and sent to admin approval queue. Credentials will be generated on approval.');
       resetRestaurantForm();
       setActiveSection('restaurant');
     } catch (error) {
@@ -700,7 +743,6 @@ const Partner = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <img src={logo} alt="FlashBites" className="h-4 w-4 object-contain" />
             <button type="button" onClick={() => navigate('/restaurants')}>
               <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
             </button>

@@ -246,7 +246,6 @@ const RestaurantDetail = () => {
               </button>
             </div>
             <div className="flex items-center gap-3">
-              <img src={logo} alt="FlashBites" className="h-4 w-4 object-contain" />
               <button type="button" onClick={() => navigate('/restaurants')}>
                 <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
               </button>

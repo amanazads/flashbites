@@ -96,6 +96,20 @@ const parseDeliveryZonePayload = (value) => {
   return normalizeDeliveryZone(raw);
 };
 
+const parseJsonField = (value, fieldName) => {
+  if (value == null) return { ok: true, value: null };
+  if (typeof value !== 'string') return { ok: true, value };
+
+  const trimmed = value.trim();
+  if (!trimmed) return { ok: true, value: null };
+
+  try {
+    return { ok: true, value: JSON.parse(trimmed) };
+  } catch {
+    return { ok: false, message: `Invalid ${fieldName} format.` };
+  }
+};
+
 const isUsableRestaurantDeliveryZone = (deliveryZone, restaurantCoords) => {
   if (!deliveryZone?.coordinates?.[0]?.length) return false;
   if (!Array.isArray(restaurantCoords) || restaurantCoords.length < 2) return false;
@@ -159,12 +173,54 @@ exports.createRestaurant = async (req, res) => {
   try {
     let { name, email, phone, description, cuisines, address, location, timing, deliveryFee, deliveryTime, prepTimeMinutes, deliveryRadiusKm, deliveryRadius, deliveryZone } = req.body;
 
-    // Parse JSON strings from FormData
-    if (typeof cuisines === 'string') cuisines = JSON.parse(cuisines);
-    if (typeof address === 'string') address = JSON.parse(address);
-    if (typeof location === 'string') location = JSON.parse(location);
-    if (typeof timing === 'string') timing = JSON.parse(timing);
-    if (typeof prepTimeMinutes === 'string') prepTimeMinutes = Number(prepTimeMinutes);
+    const parsedCuisines = parseJsonField(cuisines, 'cuisines');
+    if (!parsedCuisines.ok) return errorResponse(res, 400, parsedCuisines.message);
+    cuisines = parsedCuisines.value;
+
+    const parsedAddress = parseJsonField(address, 'address');
+    if (!parsedAddress.ok) return errorResponse(res, 400, parsedAddress.message);
+    address = parsedAddress.value;
+
+    const parsedLocation = parseJsonField(location, 'location');
+    if (!parsedLocation.ok) return errorResponse(res, 400, parsedLocation.message);
+    location = parsedLocation.value;
+
+    const parsedTiming = parseJsonField(timing, 'timing');
+    if (!parsedTiming.ok) return errorResponse(res, 400, parsedTiming.message);
+    timing = parsedTiming.value;
+
+    name = String(name || '').trim();
+    email = String(email || '').trim().toLowerCase();
+    phone = String(phone || '').trim();
+    description = String(description || '').trim();
+
+    if (!name || !email || !phone) {
+      return errorResponse(res, 400, 'Restaurant name, email, and phone are required.');
+    }
+
+    if (Array.isArray(cuisines)) {
+      cuisines = cuisines.map((item) => String(item || '').trim()).filter(Boolean);
+    } else if (typeof cuisines === 'string') {
+      cuisines = cuisines.split(',').map((item) => item.trim()).filter(Boolean);
+    } else {
+      cuisines = [];
+    }
+
+    if (!address || typeof address !== 'object') {
+      address = { street: '', city: '', state: '', zipCode: '' };
+    }
+
+    timing = timing && typeof timing === 'object'
+      ? {
+          open: String(timing.open || '09:00'),
+          close: String(timing.close || '22:00')
+        }
+      : { open: '09:00', close: '22:00' };
+
+    if (typeof prepTimeMinutes === 'string' && prepTimeMinutes.trim()) {
+      const parsedPrepTime = Number(prepTimeMinutes);
+      prepTimeMinutes = Number.isFinite(parsedPrepTime) ? parsedPrepTime : undefined;
+    }
 
     if (deliveryRadiusKm == null && deliveryRadius != null) {
       deliveryRadiusKm = deliveryRadius;
@@ -221,6 +277,18 @@ exports.createRestaurant = async (req, res) => {
 
     successResponse(res, 201, 'Restaurant created successfully. Pending admin approval', { restaurant });
   } catch (error) {
+    if (error?.name === 'ValidationError') {
+      const message = Object.values(error.errors || {})
+        .map((item) => item.message)
+        .filter(Boolean)
+        .join(', ') || 'Invalid restaurant data.';
+      return errorResponse(res, 400, message);
+    }
+
+    if (error?.code === 11000) {
+      return errorResponse(res, 400, 'Restaurant with this information already exists.');
+    }
+
     errorResponse(res, 500, 'Failed to create restaurant', error.message);
   }
 };

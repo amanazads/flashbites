@@ -416,7 +416,15 @@ exports.createOrder = async (req, res) => {
     );
     const now = new Date();
 
-    const commissionPercent = normalizeCommissionPercent(settings.commissionPercent);
+    const globalCommissionPercent = normalizeCommissionPercent(settings.commissionPercent);
+    const configuredGlobalPayoutRate = normalizeRestaurantPayoutRate(settings.restaurantPayoutRate);
+    const hasRestaurantPayoutOverride = Number.isFinite(Number(restaurant.payoutRateOverride));
+    const effectiveRestaurantPayoutRate = hasRestaurantPayoutOverride
+      ? normalizeRestaurantPayoutRate(restaurant.payoutRateOverride)
+      : configuredGlobalPayoutRate;
+    const commissionPercent = hasRestaurantPayoutOverride
+      ? normalizeCommissionPercent((1 - effectiveRestaurantPayoutRate) * 100)
+      : globalCommissionPercent;
 
     // Validate and calculate order totals
     let subtotal = 0;
@@ -666,7 +674,7 @@ exports.createOrder = async (req, res) => {
     const platformFee = isFeeEnabledAt(feeControls.platformFee, now) ? basePlatformFee : 0;
     const baseTaxRate = Number(settings.taxRate || 0);
     const taxRate = isFeeEnabledAt(feeControls.tax, now) ? baseTaxRate : 0;
-    const restaurantPayoutRate = roundToTwo((100 - commissionPercent) / 100);
+    const restaurantPayoutRate = roundToTwo(effectiveRestaurantPayoutRate);
     const initialDeliveryEarning = Number(settings?.deliveryPartnerPayout?.perOrder);
     const deliveryEarning = Number.isFinite(initialDeliveryEarning) && initialDeliveryEarning >= 0
       ? initialDeliveryEarning
