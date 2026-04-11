@@ -65,8 +65,17 @@ const normalizeSettingsPayload = (payload = {}) => {
           cta: typeof banner.cta === 'string' ? banner.cta.trim() : undefined,
           bg: typeof banner.bg === 'string' ? banner.bg.trim() : undefined,
           img: typeof banner.img === 'string' ? banner.img.trim() : undefined,
+          startsAt: banner.startsAt ? new Date(banner.startsAt) : null,
+          endsAt: banner.endsAt ? new Date(banner.endsAt) : null,
+          actionType: typeof banner.actionType === 'string' ? banner.actionType.trim() : 'none',
+          actionValue: typeof banner.actionValue === 'string' ? banner.actionValue.trim() : undefined,
           isActive: banner.isActive !== undefined ? Boolean(banner.isActive) : true,
           sortOrder: Number.isFinite(Number(banner.sortOrder)) ? Number(banner.sortOrder) : index
+        }))
+        .map((banner) => ({
+          ...banner,
+          startsAt: banner.startsAt && !Number.isNaN(banner.startsAt.getTime()) ? banner.startsAt : null,
+          endsAt: banner.endsAt && !Number.isNaN(banner.endsAt.getTime()) ? banner.endsAt : null,
         }))
         .filter((banner) => banner.bold || banner.sub || banner.img)
     : null;

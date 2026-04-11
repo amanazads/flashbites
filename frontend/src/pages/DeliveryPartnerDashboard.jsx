@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
+  ClockIcon,
+  MagnifyingGlassIcon,
+  MapPinIcon,
+  ShoppingBagIcon,
+  UserCircleIcon,
+} from '@heroicons/react/24/outline';
+import {
   getAvailableOrders,
   getAssignedOrders,
   acceptOrder,
@@ -16,6 +23,8 @@ import { formatCurrency } from '../utils/formatters';
 import toast from 'react-hot-toast';
 import socketService from '../services/socketService';
 import { useLanguage } from '../contexts/LanguageContext';
+import { BRAND } from '../constants/theme';
+import logo from '../assets/logo.png';
 
 const DeliveryPartnerDashboard = () => {
   const navigate = useNavigate();
@@ -388,8 +397,30 @@ const DeliveryPartnerDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-[#F5F3F1] pt-[max(env(safe-area-inset-top),8px)] pb-28 lg:py-8">
       <div className="max-w-7xl mx-auto container-px">
+        <div className="flex items-center justify-between gap-3 mb-3 lg:hidden">
+          <button type="button" className="min-w-0 flex-1 flex items-center gap-2 text-left">
+            <MapPinIcon className="h-4 w-4" style={{ color: BRAND }} />
+            <div className="min-w-0">
+              <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">
+                {t('delivery.deliverTo', 'Deliver to')}
+              </p>
+              <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">
+                {isOnDuty ? t('delivery.currentArea', 'Current Area') : t('delivery.offDutyArea', 'Off Duty')}
+              </p>
+            </div>
+          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button type="button" onClick={() => setActiveTab('available')}>
+              <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
+            </button>
+            <button type="button" onClick={() => navigate('/profile')} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
+              <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+            </button>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-4">
@@ -529,7 +560,7 @@ const DeliveryPartnerDashboard = () => {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-lg shadow mb-6">
+        <div className="bg-white rounded-lg shadow mb-6 hidden lg:block">
           <div className="flex border-b">
             <button
               onClick={() => setActiveTab('available')}
@@ -681,6 +712,50 @@ const DeliveryPartnerDashboard = () => {
             )}
           </div>
         )}
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t border-[#E6E2DE] bg-[#F5F3F1]" style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom))' }}>
+        <div className="max-w-md mx-auto px-6 pt-2 flex items-center justify-between text-[#B0ACA8]">
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            style={activeTab === 'history' ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
+          >
+            <ClockIcon className="h-5 w-5" />
+            <span className="text-[8px]">{t('delivery.orderHistory', 'History')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('available')}
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            style={activeTab === 'available' ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
+          >
+            <MagnifyingGlassIcon className="h-5 w-5" />
+            <span className="text-[8px]">{t('delivery.available', 'Available')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('assigned')}
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            style={activeTab === 'assigned' ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
+          >
+            <ShoppingBagIcon className="h-5 w-5" />
+            <span className="text-[8px]">{t('delivery.myOrders', 'My Orders')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/profile')}
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            style={{ color: '#B0ACA8' }}
+          >
+            <UserCircleIcon className="h-5 w-5" />
+            <span className="text-[8px]">{t('common.profile', 'Profile')}</span>
+          </button>
+        </div>
       </div>
     </div>
   );
