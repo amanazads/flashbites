@@ -11,6 +11,7 @@ import {
   CheckIcon,
   ChevronRightIcon,
   Cog6ToothIcon,
+  GlobeAltIcon,
   InformationCircleIcon,
   MagnifyingGlassIcon,
   MapPinIcon,
@@ -33,6 +34,7 @@ import Swal from 'sweetalert2';
 import { BRAND } from '../constants/theme';
 import logo from '../assets/logo.png';
 import AddAddressModal from '../components/common/AddAddressModal';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const PAGE_BG = '#F5F1EF';
 const CARD_BG = '#FFFFFF';
@@ -104,6 +106,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated, loading: authLoading } = useSelector((s) => s.auth);
+  const { t, openLanguageModal } = useLanguage();
 
   const [addresses, setAddresses] = useState([]);
   const [showAddressSheet, setShowAddressSheet] = useState(false);
@@ -153,10 +156,10 @@ const Profile = () => {
     setSavingProfile(true);
     try {
       await updateProfile(profileData);
-      toast.success('Profile updated successfully');
+      toast.success(t('profile.updated', 'Profile updated successfully'));
       setIsEditing(false);
     } catch {
-      toast.error('Failed to update profile');
+      toast.error(t('profile.updateFailed', 'Failed to update profile'));
     } finally {
       setSavingProfile(false);
     }
@@ -180,10 +183,10 @@ const Profile = () => {
 
     try {
       await deleteAddress(id);
-      toast.success('Address removed');
+      toast.success(t('profile.addressRemoved', 'Address removed'));
       fetchAddresses();
     } catch {
-      toast.error('Could not remove address');
+      toast.error(t('profile.addressRemoveFailed', 'Could not remove address'));
     }
   };
 
@@ -194,7 +197,7 @@ const Profile = () => {
       // Continue local logout even if server logout fails.
     }
     dispatch(logout());
-    toast.success("You've been signed out");
+    toast.success(t('profile.signedOut', "You've been signed out"));
     navigate('/');
   };
 
@@ -204,11 +207,11 @@ const Profile = () => {
 
   const roleRows = useMemo(
     () => [
-      ...(user?.role === 'admin' ? [{ icon: ShieldCheckIcon, label: 'Admin Dashboard', to: '/admin' }] : []),
-      ...(user?.role === 'restaurant_owner' ? [{ icon: ShieldCheckIcon, label: 'Restaurant Dashboard', to: '/dashboard' }] : []),
-      ...(user?.role === 'delivery_partner' ? [{ icon: ShieldCheckIcon, label: 'Delivery Dashboard', to: '/delivery-dashboard' }] : []),
+      ...(user?.role === 'admin' ? [{ icon: ShieldCheckIcon, label: t('nav.admin', 'Admin') + ' ' + t('nav.dashboard', 'Dashboard'), to: '/admin' }] : []),
+      ...(user?.role === 'restaurant_owner' ? [{ icon: ShieldCheckIcon, label: t('nav.restaurants', 'Restaurants') + ' ' + t('nav.dashboard', 'Dashboard'), to: '/dashboard' }] : []),
+      ...(user?.role === 'delivery_partner' ? [{ icon: ShieldCheckIcon, label: t('help.deliveryPartnership', 'Delivery') + ' ' + t('nav.dashboard', 'Dashboard'), to: '/delivery-dashboard' }] : []),
     ],
-    [user?.role]
+    [user?.role, t]
   );
 
   if (authLoading) {
@@ -229,14 +232,14 @@ const Profile = () => {
           <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: '#FFF7ED' }}>
             <UserCircleIcon className="w-10 h-10" style={{ color: BRAND }} />
           </div>
-          <h1 className="text-2xl font-black text-gray-900">Your Profile</h1>
-          <p className="text-sm text-gray-500 mt-1">Sign in to manage your account</p>
+          <h1 className="text-2xl font-black text-gray-900">{t('profile.title', 'Your Profile')}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t('profile.signInManage', 'Sign in to manage your account')}</p>
           <div className="mt-6 space-y-3">
             <Link to="/login" className="block w-full py-3.5 rounded-2xl text-[15px] font-bold text-white" style={{ background: BRAND }}>
-              Sign In
+              {t('profile.signIn', 'Sign In')}
             </Link>
             <Link to="/register" className="block w-full py-3.5 rounded-2xl text-[15px] font-bold bg-gray-100 text-gray-700">
-              Create Account
+              {t('profile.createAccount', 'Create Account')}
             </Link>
           </div>
         </div>
@@ -245,13 +248,13 @@ const Profile = () => {
   }
 
   const primaryRows = [
-    { icon: ShoppingBagIcon, label: 'Orders History', to: '/orders' },
-    { icon: MapPinIcon, label: 'Saved Addresses', onClick: () => setShowAddressSheet(true) },
-    { icon: TagIcon, label: 'Coupons & Offers', to: '/promos' },
-    { icon: QuestionMarkCircleIcon, label: 'Help & Support', to: '/help' },
-    { icon: Cog6ToothIcon, label: 'Settings', to: '/notifications' },
-    { icon: UserGroupIcon, label: 'Partner with Us', to: '/partner' },
-    { icon: InformationCircleIcon, label: 'About FlashBites', to: '/about' },
+    { icon: ShoppingBagIcon, label: t('profile.orderHistory', 'Orders History'), to: '/orders' },
+    { icon: MapPinIcon, label: t('profile.savedAddresses', 'Saved Addresses'), onClick: () => setShowAddressSheet(true) },
+    { icon: TagIcon, label: t('profile.couponsOffers', 'Coupons & Offers'), to: '/promos' },
+    { icon: QuestionMarkCircleIcon, label: t('profile.helpSupport', 'Help & Support'), to: '/help' },
+    { icon: Cog6ToothIcon, label: t('profile.settings', 'Settings'), to: '/notifications' },
+    { icon: UserGroupIcon, label: t('profile.partnerWithUs', 'Partner with Us'), to: '/partner' },
+    { icon: InformationCircleIcon, label: t('profile.aboutFlashBites', 'About FlashBites'), to: '/about' },
     ...roleRows,
   ];
 
@@ -282,13 +285,22 @@ const Profile = () => {
               <button type="button" onClick={() => setShowAddressSheet(true)} className="flex items-center gap-2 text-left">
                 <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
                 <div>
-                  <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
-                  <p className="text-[12px] leading-none font-semibold text-gray-900">Current Area</p>
+                  <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
+                  <p className="text-[12px] leading-none font-semibold text-gray-900">{t('common.currentArea', 'Current Area')}</p>
                 </div>
               </button>
             </div>
 
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={openLanguageModal}
+                className="h-10 w-10 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-700"
+                aria-label="Change language"
+                title="Change language"
+              >
+                <GlobeAltIcon className="h-5 w-5" />
+              </button>
               <button type="button" onClick={() => navigate('/restaurants')}>
                 <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
               </button>
@@ -321,7 +333,7 @@ const Profile = () => {
 
           <div className="mt-3 flex items-center justify-center gap-2">
             <span className="px-2.5 py-1 rounded-full text-[13px] max-[388px]:text-[11px] font-black tracking-wide" style={{ background: '#F4DDD3', color: '#EA580C' }}>
-              GOLD MEMBER
+              {t('profile.goldMember', 'GOLD MEMBER')}
             </span>
             <span className="px-2.5 py-1 rounded-full text-[13px] max-[388px]:text-[11px] font-black tracking-wide text-[#3A2722]" style={{ background: '#F4DDD3' }}>
               4.9 *
@@ -332,12 +344,12 @@ const Profile = () => {
         <section className="mt-9 flex justify-center">
           <div className="text-center">
             <p className="text-[42px] max-[388px]:text-[34px] leading-none font-black text-[#1A1514]">{ordersCount}</p>
-            <p className="text-[12px] mt-2 uppercase tracking-[0.18em] text-[#2E2724]">Total Orders</p>
+            <p className="text-[12px] mt-2 uppercase tracking-[0.18em] text-[#2E2724]">{t('profile.totalOrders', 'Total Orders')}</p>
           </div>
         </section>
 
         <section className="mt-9">
-          <p className="text-[18px] max-[388px]:text-[15px] font-black tracking-[0.2em] text-[#3A2A26] mb-3">ACCOUNT SETTINGS</p>
+          <p className="text-[18px] max-[388px]:text-[15px] font-black tracking-[0.2em] text-[#3A2A26] mb-3">{t('profile.accountSettings', 'ACCOUNT SETTINGS')}</p>
 
           <div className="divide-y divide-[#E5D7D0]">
             {primaryRows.map((row, idx) => (
@@ -368,14 +380,14 @@ const Profile = () => {
         >
           <span className="inline-flex items-center justify-center gap-2">
             <ArrowRightOnRectangleIcon className="w-5 h-5" />
-            Log Out
+            {t('profile.logOut', 'Log Out')}
           </span>
         </button>
 
         {user?.role === 'user' ? (
           <Link to="/account-delete" className="mt-4 flex items-center justify-center gap-2 text-[14px] max-[388px]:text-[12px] text-gray-500 font-medium">
             <NoSymbolIcon className="w-4 h-4" />
-            Request Account Deletion
+            {t('profile.requestDelete', 'Request Account Deletion')}
           </Link>
         ) : null}
       </div>
@@ -388,7 +400,7 @@ const Profile = () => {
             style={isActiveRoute('home') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
           >
             <HomeIcon className="h-5 w-5" />
-            <span className="text-[8px]">Home</span>
+            <span className="text-[8px]">{t('common.home', 'Home')}</span>
           </Link>
 
           <Link
@@ -397,7 +409,7 @@ const Profile = () => {
             style={isActiveRoute('search') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
           >
             <MagnifyingGlassIcon className="h-5 w-5" />
-            <span className="text-[8px]">Search</span>
+            <span className="text-[8px]">{t('common.search', 'Search')}</span>
           </Link>
 
           <Link
@@ -406,7 +418,7 @@ const Profile = () => {
             style={isActiveRoute('orders') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
           >
             <ShoppingBagIcon className="h-5 w-5" />
-            <span className="text-[8px]">Orders</span>
+            <span className="text-[8px]">{t('nav.orders', 'Orders')}</span>
           </Link>
 
           <Link
@@ -415,7 +427,7 @@ const Profile = () => {
             style={isActiveRoute('profile') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
           >
             <UserIcon className="h-5 w-5" />
-            <span className="text-[8px]">Profile</span>
+            <span className="text-[8px]">{t('common.profile', 'Profile')}</span>
           </Link>
         </div>
       </div>
@@ -424,7 +436,7 @@ const Profile = () => {
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4">
           <div className="w-full max-w-md bg-white rounded-3xl overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-[16px] font-bold text-gray-900">Edit Profile</h2>
+              <h2 className="text-[16px] font-bold text-gray-900">{t('profile.editProfile', 'Edit Profile')}</h2>
               <button type="button" onClick={() => setIsEditing(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
                 <XMarkIcon className="w-5 h-5 text-gray-600" />
               </button>
@@ -432,18 +444,18 @@ const Profile = () => {
 
             <form onSubmit={handleProfileUpdate} className="p-4 space-y-3">
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400 mb-1.5">Full Name</label>
+                <label className="block text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400 mb-1.5">{t('register.fullName', 'Full Name')}</label>
                 <input
                   type="text"
                   value={profileData.name}
                   onChange={(e) => setProfileData((prev) => ({ ...prev, name: e.target.value }))}
                   className="input-field"
-                  placeholder="Your name"
+                  placeholder={t('register.fullNamePlaceholder', 'Your name')}
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400 mb-1.5">Phone</label>
+                <label className="block text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400 mb-1.5">{t('auth.login.phoneNumber', 'Phone')}</label>
                 <input
                   type="tel"
                   value={profileData.phone}
@@ -464,7 +476,7 @@ const Profile = () => {
                   onClick={() => setIsEditing(false)}
                   className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold"
                 >
-                  Cancel
+                  {t('profile.cancel', 'Cancel')}
                 </button>
                 <button
                   type="submit"
@@ -480,7 +492,7 @@ const Profile = () => {
                   ) : (
                     <CheckIcon className="w-4 h-4" />
                   )}
-                  {savingProfile ? 'Saving...' : 'Save'}
+                  {savingProfile ? t('profile.saving', 'Saving...') : t('profile.save', 'Save')}
                 </button>
               </div>
             </form>
@@ -492,7 +504,7 @@ const Profile = () => {
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4">
           <div className="w-full max-w-md max-h-[86vh] bg-white rounded-3xl overflow-hidden flex flex-col">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-[16px] font-bold text-gray-900">Saved Addresses</h2>
+              <h2 className="text-[16px] font-bold text-gray-900">{t('profile.savedAddresses', 'Saved Addresses')}</h2>
               <button
                 type="button"
                 onClick={() => {
@@ -515,13 +527,13 @@ const Profile = () => {
                 style={{ background: BRAND }}
               >
                 <PlusIcon className="w-5 h-5" />
-                Add New Address
+                {t('profile.addNewAddress', 'Add New Address')}
               </button>
 
               {addresses.length === 0 ? (
                 <div className="rounded-2xl border border-gray-100 p-5 text-center">
-                  <p className="font-semibold text-gray-800">No saved addresses yet</p>
-                  <p className="text-sm text-gray-500 mt-1">Add your home or work address for faster checkout.</p>
+                  <p className="font-semibold text-gray-800">{t('profile.noSavedAddress', 'No saved addresses yet')}</p>
+                  <p className="text-sm text-gray-500 mt-1">{t('profile.addHomeWork', 'Add your home or work address for faster checkout.')}</p>
                 </div>
               ) : (
                 <div className="space-y-2.5">

@@ -40,6 +40,11 @@ const menuItemSchema = new mongoose.Schema({
     required: [true, 'Please provide item name'],
     trim: true
   },
+  nameHi: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   description: {
     type: String,
     required: [true, 'Please provide item description'],
@@ -50,6 +55,11 @@ const menuItemSchema = new mongoose.Schema({
       },
       message: 'Description cannot exceed 500 words'
     }
+  },
+  descriptionHi: {
+    type: String,
+    trim: true,
+    default: ''
   },
   price: {
     type: Number,

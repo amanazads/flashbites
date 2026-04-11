@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { BRAND } from '../constants/theme';
 import logo from '../assets/logo.png';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const CUISINE_TABS = [
   { id: 'All',       label: 'All',       image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80' },
@@ -45,6 +46,7 @@ const RestaurantPage = () => {
   const [searchMatchedItemsByRestaurant, setSearchMatchedItemsByRestaurant] = useState({});
   const [searchLoading, setSearchLoading] = useState(false);
   const routerLocation = useLocation();
+  const { t } = useLanguage();
   const params = new URLSearchParams(routerLocation.search);
   const searchQuery = params.get('search')?.trim() || '';
   const cuisineQuery = params.get('cuisine')?.trim() || '';
@@ -211,8 +213,9 @@ const RestaurantPage = () => {
             <MapPinIcon className="h-4 w-4" style={{ color: BRAND }} />
             <div>
               <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
+              <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
               <p className="text-[12px] leading-none font-semibold text-gray-900">
-                {selectedAddress?.city || 'Current Area'}
+                {selectedAddress?.city || t('common.currentArea', 'Current Area')}
               </p>
             </div>
           </button>
@@ -239,11 +242,11 @@ const RestaurantPage = () => {
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search restaurants or menu items"
+              placeholder={t('restaurant.searchPlaceholder', 'Search restaurants or menu items')}
               className="flex-1 bg-transparent text-[12px] text-gray-700 placeholder:text-gray-400 outline-none"
             />
             <button type="submit" className="text-[11px] font-semibold" style={{ color: BRAND }}>
-              Search
+              {t('restaurant.search', 'Search')}
             </button>
           </div>
         </form>
@@ -294,12 +297,12 @@ const RestaurantPage = () => {
       <div className="max-w-md lg:max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 max-[388px]:px-3 py-5 max-[388px]:py-4 pb-28 lg:pb-4">
         <div className="mb-5">
           <h1 className="text-xl max-[388px]:text-lg font-bold text-gray-900">
-            {inSearchMode ? `Search results for "${searchQuery}"` : 'Restaurants near you'}
+            {inSearchMode ? `${t('restaurant.resultsFor', 'Search results for')} "${searchQuery}"` : t('restaurant.nearYou', 'Restaurants near you')}
           </h1>
           {!loading && !searchLoading && (
             <p className="text-sm max-[388px]:text-xs text-gray-400 mt-0.5">
-              {displayedRestaurants.length} restaurants
-              {inSearchMode ? ` · ${searchResultItems.length} items` : ''}
+              {displayedRestaurants.length} {t('restaurant.restaurantsCount', 'restaurants')}
+              {inSearchMode ? ` · ${searchResultItems.length} ${t('restaurant.itemsCount', 'items')}` : ''}
               {selectedCuisine !== 'All' ? ` · ${selectedCuisine}` : ''}
             </p>
           )}
@@ -310,20 +313,20 @@ const RestaurantPage = () => {
         ) : displayedRestaurants.length === 0 && (!inSearchMode || searchResultItems.length === 0) ? (
           <div className="text-center py-24 max-[388px]:py-20">
             <div className="text-6xl max-[388px]:text-5xl mb-4 animate-float">🍽️</div>
-            <h3 className="text-xl max-[388px]:text-lg font-bold text-gray-900 mb-2">No restaurants found</h3>
-            <p className="text-gray-400 text-sm max-[388px]:text-xs mb-5">Try adjusting your filter</p>
+            <h3 className="text-xl max-[388px]:text-lg font-bold text-gray-900 mb-2">{t('restaurant.noRestaurants', 'No restaurants found')}</h3>
+            <p className="text-gray-400 text-sm max-[388px]:text-xs mb-5">{t('restaurant.adjustFilter', 'Try adjusting your filter')}</p>
             <button
               onClick={() => { setSelectedCuisine('All'); dispatch(setFilters({ cuisine: null, search: null })); }}
               className="btn-primary text-sm max-[388px]:text-xs"
             >
-              Clear filters
+              {t('restaurant.clearFilters', 'Clear filters')}
             </button>
           </div>
         ) : (
           <>
             {inSearchMode && searchResultItems.length > 0 && (
               <div className="mb-6">
-                <h2 className="text-base font-bold text-gray-900 mb-3">Matched Menu Items</h2>
+                <h2 className="text-base font-bold text-gray-900 mb-3">{t('restaurant.matchedMenuItems', 'Matched Menu Items')}</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {searchResultItems.slice(0, 24).map((item) => (
                     (() => {
@@ -347,7 +350,7 @@ const RestaurantPage = () => {
                           </div>
                           <div className="mt-2 flex items-center justify-between">
                             <span className="text-xs font-medium text-gray-500">
-                              {Array.isArray(item.categories) && item.categories.length > 0 ? item.categories[0] : item.category || 'Menu Item'}
+                              {Array.isArray(item.categories) && item.categories.length > 0 ? item.categories[0] : item.category || t('restaurant.menuItem', 'Menu Item')}
                             </span>
                             <span className="text-sm font-bold" style={{ color: BRAND }}>₹{item.price}</span>
                           </div>
@@ -366,7 +369,7 @@ const RestaurantPage = () => {
                     key={r._id}
                     restaurant={r}
                     matchedItems={searchMatchedItemsByRestaurant[String(r._id)] || []}
-                    matchedItemsTitle={inSearchMode ? 'Matched items' : null}
+                    matchedItemsTitle={inSearchMode ? t('restaurant.matchedItems', 'Matched items') : null}
                   />
                 ))}
               </div>
@@ -397,7 +400,7 @@ const RestaurantPage = () => {
             style={isNavActive('/') ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
           >
             <HomeIcon className="h-5 w-5" />
-            <span className="text-[8px]">Home</span>
+            <span className="text-[8px]">{t('common.home', 'Home')}</span>
           </Link>
           <Link
             to="/restaurants"
@@ -405,7 +408,7 @@ const RestaurantPage = () => {
             style={isNavActive('/restaurants') ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
           >
             <MagnifyingGlassIcon className="h-5 w-5" />
-            <span className="text-[8px]">Search</span>
+            <span className="text-[8px]">{t('common.search', 'Search')}</span>
           </Link>
           <Link
             to="/orders"
@@ -413,7 +416,7 @@ const RestaurantPage = () => {
             style={isNavActive('/orders') ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
           >
             <ShoppingBagIcon className="h-5 w-5" />
-            <span className="text-[8px]">Orders</span>
+            <span className="text-[8px]">{t('nav.orders', 'Orders')}</span>
           </Link>
           <Link
             to="/profile"
@@ -421,7 +424,7 @@ const RestaurantPage = () => {
             style={isNavActive('/profile') ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
           >
             <UserCircleIcon className="h-5 w-5" />
-            <span className="text-[8px]">Profile</span>
+            <span className="text-[8px]">{t('common.profile', 'Profile')}</span>
           </Link>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
+  GlobeAltIcon,
   ShoppingCartIcon,
   MagnifyingGlassIcon,
   UserCircleIcon,
@@ -13,6 +14,7 @@ import toast from 'react-hot-toast';
 import logo from '../../assets/logo.png';
 import NotificationBell from './NotificationBell';
 import { BRAND } from '../../constants/theme';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -20,6 +22,7 @@ const Navbar = () => {
   const dispatch = useDispatch();
   const { isAuthenticated, user } = useSelector((s) => s.auth);
   const { items } = useSelector((s) => s.cart);
+  const { openLanguageModal, t } = useLanguage();
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -40,7 +43,7 @@ const Navbar = () => {
       // Continue local logout even if server logout fails.
     }
     dispatch(logout());
-    toast.success('Logged out');
+    toast.success(t('auth.login.loggedOut', 'Logged out'));
     navigate('/');
   };
 
@@ -86,7 +89,7 @@ const Navbar = () => {
               >
                 <div className="search-bar" style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
                   <MagnifyingGlassIcon className="h-4.5 w-4.5 text-gray-400 flex-shrink-0" style={{ width: '18px', height: '18px' }} />
-                  <input name="q" type="text" placeholder='Search "pizza" or restaurant...' className="text-gray-900 placeholder:text-gray-400" />
+                  <input name="q" type="text" placeholder={t('nav.searchPlaceholder', 'Search "pizza" or restaurant...')} className="text-gray-900 placeholder:text-gray-400" />
                 </div>
               </form>
             ) : (
@@ -98,10 +101,20 @@ const Navbar = () => {
 
             {/* Right actions */}
             <div className="flex items-center gap-3 flex-shrink-0">
+              <button
+                type="button"
+                onClick={openLanguageModal}
+                className="h-10 w-10 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-700"
+                aria-label="Change language"
+                title="Change language"
+              >
+                <GlobeAltIcon className="h-5 w-5" />
+              </button>
+
               {isCustomer && (
                 <Link to="/restaurants" className={`text-[11px] font-medium transition-colors ${isActive('/restaurants') ? 'text-brand' : 'text-gray-600 hover:text-gray-900'}`}
                   style={isActive('/restaurants') ? { color: BRAND } : {}}>
-                  Restaurants
+                  {t('nav.restaurants', 'Restaurants')}
                 </Link>
               )}
 
@@ -110,12 +123,12 @@ const Navbar = () => {
                   {user?.role !== 'restaurant_owner' && user?.role !== 'delivery_partner' && user?.role !== 'admin' && (
                     <Link to="/orders" className={`text-[11px] font-medium transition-colors ${isActive('/orders') ? 'text-brand' : 'text-gray-600 hover:text-gray-900'}`}
                       style={isActive('/orders') ? { color: BRAND } : {}}>
-                      Orders
+                      {t('nav.orders', 'Orders')}
                     </Link>
                   )}
-                  {user?.role === 'restaurant_owner' && <Link to="/dashboard" className="text-[11px] text-gray-600 hover:text-gray-900">Dashboard</Link>}
-                  {user?.role === 'delivery_partner' && <Link to="/delivery-dashboard" className="text-[11px] text-gray-600 hover:text-gray-900">Dashboard</Link>}
-                  {user?.role === 'admin' && <Link to="/admin" className="text-[11px] text-gray-600 hover:text-gray-900">Admin</Link>}
+                  {user?.role === 'restaurant_owner' && <Link to="/dashboard" className="text-[11px] text-gray-600 hover:text-gray-900">{t('nav.dashboard', 'Dashboard')}</Link>}
+                  {user?.role === 'delivery_partner' && <Link to="/delivery-dashboard" className="text-[11px] text-gray-600 hover:text-gray-900">{t('nav.dashboard', 'Dashboard')}</Link>}
+                  {user?.role === 'admin' && <Link to="/admin" className="text-[11px] text-gray-600 hover:text-gray-900">{t('nav.admin', 'Admin')}</Link>}
 
                   <NotificationBell />
 
@@ -144,13 +157,13 @@ const Navbar = () => {
                       <div className="absolute right-0 mt-2 w-44 bg-white rounded-2xl shadow-xl border border-gray-200 py-1 z-50 animate-slide-down">
                         <Link to="/profile" onClick={() => setShowDropdown(false)}
                           className="block px-4 py-2.5 text-[11px] text-gray-700 hover:bg-gray-50 transition-colors">
-                          👤 My Profile
+                          👤 {t('nav.myProfile', 'My Profile')}
                         </Link>
                         <button
                           onClick={() => { setShowDropdown(false); handleLogout(); }}
                           className="w-full text-left block px-4 py-2.5 text-[11px] text-gray-700 hover:bg-gray-50 transition-colors"
                         >
-                          🚪 Sign out
+                          🚪 {t('nav.signOut', 'Sign out')}
                         </button>
                       </div>
                     )}
@@ -159,10 +172,10 @@ const Navbar = () => {
               ) : (
                 <>
                   <Link to="/login" className="text-[11px] font-medium text-gray-600 hover:text-gray-900 transition-colors">
-                    Log in
+                    {t('nav.logIn', 'Log in')}
                   </Link>
                   <Link to="/register" className="btn-primary py-2 px-5 text-[11px] rounded-xl">
-                    Sign up
+                    {t('nav.signUp', 'Sign up')}
                   </Link>
                 </>
               )}

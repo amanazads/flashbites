@@ -24,6 +24,7 @@ import { formatCurrency } from '../utils/formatters';
 import AddAddressModal from '../components/common/AddAddressModal';
 import logo from '../assets/logo.png';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
 const isProdBuild = import.meta.env.PROD;
@@ -125,6 +126,7 @@ const Checkout = () => {
   const [deliveryDistance, setDeliveryDistance] = useState(0);
   const [showAddAddressModal, setShowAddAddressModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { t } = useLanguage();
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -156,7 +158,7 @@ const Checkout = () => {
           }
         }
       } catch {
-        toast.error('Failed to load checkout details');
+        toast.error(t('checkout.failedLoad', 'Failed to load checkout details'));
       }
     };
 
@@ -267,28 +269,28 @@ const Checkout = () => {
 
   const handlePlaceOrder = async () => {
     if (items.length === 0) {
-      toast.error('Your cart is empty');
+      toast.error(t('checkout.cartEmptyToast', 'Your cart is empty'));
       return;
     }
 
     if (!restaurant?._id) {
-      toast.error('Restaurant details are missing. Please refresh and try again.');
+      toast.error(t('checkout.restaurantMissing', 'Restaurant details are missing. Please refresh and try again.'));
       return;
     }
 
     if (!isRestaurantCurrentlyOpen) {
       const opensAtText = restaurantAvailability.opensAt ? ` Opens at ${restaurantAvailability.opensAt}.` : '';
-      toast.error(`This outlet is currently closed.${opensAtText}`);
+      toast.error(`${t('checkout.closedToast', 'This outlet is currently closed.')}${opensAtText}`);
       return;
     }
 
     if (!selectedAddressObj) {
-      toast.error('Please select a delivery address');
+      toast.error(t('checkout.selectAddress', 'Please select a delivery address'));
       return;
     }
 
     if (!paymentMethod) {
-      toast.error('Please select a payment method');
+      toast.error(t('checkout.selectPayment', 'Please select a payment method'));
       return;
     }
 
@@ -298,7 +300,7 @@ const Checkout = () => {
       && Number.isFinite(Number(selectedAddressObj.coordinates[1]));
 
     if (!hasCoordinates) {
-      toast.error('Please edit this address and select a valid location before placing the order.');
+      toast.error(t('checkout.invalidAddressCoords', 'Please edit this address and select a valid location before placing the order.'));
       return;
     }
 
@@ -333,32 +335,32 @@ const Checkout = () => {
 
         if (!isOnlinePayment) {
           dispatch(clearCart());
-          toast.success('Order placed successfully! Pay on delivery');
+          toast.success(t('checkout.orderPlacedCod', 'Order placed successfully! Pay on delivery'));
           navigate(`/orders/${orderId}`);
           return;
         }
 
         if (!RAZORPAY_KEY_ID) {
-          toast.error('Razorpay key is missing. Please contact support.');
+          toast.error(t('checkout.razorpayKeyMissing', 'Razorpay key is missing. Please contact support.'));
           return;
         }
 
         if (isProdBuild && !isLiveRazorpayKey(RAZORPAY_KEY_ID)) {
-          toast.error('Live Razorpay key is not configured for production.');
+          toast.error(t('checkout.liveKeyMissing', 'Live Razorpay key is not configured for production.'));
           return;
         }
 
         const scriptReady = await loadRazorpayScript();
         if (!scriptReady) {
-          toast.error('Failed to load Razorpay. Please try again.');
+          toast.error(t('checkout.razorpayLoadFailed', 'Failed to load Razorpay. Please try again.'));
           return;
         }
 
-        toast.loading('Initializing payment...');
+        toast.loading(t('checkout.initializingPayment', 'Initializing payment...'));
         const razorpayResponse = await createRazorpayOrder(orderId, createdOrder.total);
         if (!razorpayResponse?.success) {
           toast.dismiss();
-          toast.error('Failed to initialize payment');
+          toast.error(t('checkout.paymentInitFailed', 'Failed to initialize payment'));
           return;
         }
 
@@ -384,7 +386,7 @@ const Checkout = () => {
           handler: async function (response) {
             try {
               toast.dismiss();
-              toast.loading('Verifying payment...');
+              toast.loading(t('checkout.verifyingPayment', 'Verifying payment...'));
 
               await verifyPayment({
                 paymentId: razorpayResponse.data.paymentId,
@@ -398,18 +400,18 @@ const Checkout = () => {
 
               dispatch(clearCart());
               toast.dismiss();
-              toast.success('Payment successful!');
+              toast.success(t('checkout.paymentSuccess', 'Payment successful!'));
               navigate(`/orders/${orderId}`);
             } catch {
               toast.dismiss();
-              toast.error('Payment verification failed. Please contact support.');
+              toast.error(t('checkout.paymentVerifyFailed', 'Payment verification failed. Please contact support.'));
               navigate(`/orders/${orderId}`);
             }
           },
           modal: {
             ondismiss: async function () {
               toast.dismiss();
-              toast.error('Payment cancelled. You can retry from your order details.');
+              toast.error(t('checkout.paymentCancelled', 'Payment cancelled. You can retry from your order details.'));
               await recordPaymentFailure(razorpayResponse.data.paymentId, {
                 gateway: 'razorpay',
                 reason: 'User cancelled payment',
@@ -426,10 +428,10 @@ const Checkout = () => {
         const razorpay = new window.Razorpay(options);
         razorpay.open();
       } else if (createOrder.rejected.match(result)) {
-        toast.error(result.payload || 'Unable to place your order right now. Please check your address and try again.');
+        toast.error(result.payload || t('checkout.orderPlaceFailed', 'Unable to place your order right now. Please check your address and try again.'));
       }
     } catch (error) {
-      toast.error(error.message || 'Unable to place your order right now. Please try again.');
+      toast.error(error.message || t('checkout.orderPlaceFailed', 'Unable to place your order right now. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -440,15 +442,15 @@ const Checkout = () => {
       <div className="min-h-screen w-full overflow-x-hidden" style={{ background: '#F5F3F1' }}>
         <div className="max-w-md mx-auto px-5 pt-12 pb-24 text-center">
           <div className="bg-white rounded-3xl border border-[#EEE8E3] p-8">
-            <h1 className="text-2xl font-bold text-[#171415]">Your cart is empty</h1>
-            <p className="text-sm text-[#726a66] mt-2">Add items to continue checkout.</p>
+            <h1 className="text-2xl font-bold text-[#171415]">{t('checkout.cartEmpty', 'Your cart is empty')}</h1>
+            <p className="text-sm text-[#726a66] mt-2">{t('checkout.addItems', 'Add items to continue checkout.')}</p>
             <button
               type="button"
               onClick={() => navigate('/restaurants')}
               className="mt-6 h-12 px-6 rounded-full text-white font-semibold"
               style={{ background: '#F85B24' }}
             >
-              Browse Restaurants
+              {t('checkout.browseRestaurants', 'Browse Restaurants')}
             </button>
           </div>
         </div>
@@ -478,8 +480,8 @@ const Checkout = () => {
               <button type="button" onClick={() => setShowAddAddressModal(true)} className="flex items-center gap-2 text-left">
                 <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
                 <div>
-                  <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
-                  <p className="text-[12px] leading-none font-semibold text-gray-900">Current Area</p>
+                  <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
+                  <p className="text-[12px] leading-none font-semibold text-gray-900">{t('common.currentArea', 'Current Area')}</p>
                 </div>
               </button>
             </div>
@@ -504,10 +506,10 @@ const Checkout = () => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-[14px] leading-none font-medium text-[#4E4A48] flex items-center gap-1.5">
-                    <ClockIcon className="h-3.5 w-3.5" /> Estimated Delivery
+                    <ClockIcon className="h-3.5 w-3.5" /> {t('checkout.estimatedDelivery', 'Estimated Delivery')}
                   </p>
                   <p className="text-[18px] leading-none font-extrabold tracking-[-0.01em] text-[#171415] mt-1.5">{etaText}</p>
-                  <p className="text-[13px] leading-none text-[#0D8656] font-medium mt-2">Flash Delivery active</p>
+                  <p className="text-[13px] leading-none text-[#0D8656] font-medium mt-2">{t('checkout.flashDelivery', 'Flash Delivery active')}</p>
                 </div>
               </div>
             </section>
@@ -515,14 +517,14 @@ const Checkout = () => {
 
           <section>
             <div className="flex items-center justify-between mb-2.5">
-              <h2 className="text-[15px] leading-none font-extrabold text-[#171415]">Delivery Address</h2>
+              <h2 className="text-[15px] leading-none font-extrabold text-[#171415]">{t('checkout.deliveryAddress', 'Delivery Address')}</h2>
               <button
                 type="button"
                 onClick={() => setShowAddAddressModal(true)}
                 className="text-[14px] leading-none font-semibold"
                 style={{ color: '#F85B24' }}
               >
-                Change
+                {t('checkout.change', 'Change')}
               </button>
             </div>
 
@@ -547,28 +549,28 @@ const Checkout = () => {
                 className="w-full rounded-[16px] border border-[#F4BBA8] bg-[#FFF2EC] py-3 text-[14px] font-semibold"
                 style={{ color: '#B34222' }}
               >
-                Add delivery address
+                {t('checkout.addAddress', 'Add delivery address')}
               </button>
             )}
           </section>
 
           <section>
-            <h2 className="text-[15px] leading-none font-extrabold text-[#171415] mb-3">Payment Method</h2>
+            <h2 className="text-[15px] leading-none font-extrabold text-[#171415] mb-3">{t('checkout.paymentMethod', 'Payment Method')}</h2>
             <div className="space-y-3">
               {[
                 {
                   value: 'upi',
-                  label: 'UPI Payment',
+                  label: t('checkout.upiPayment', 'UPI Payment'),
                   icon: <DevicePhoneMobileIcon className="h-6 w-6" />,
                 },
                 {
                   value: 'card',
-                  label: 'Credit / Debit Card',
+                  label: t('checkout.cardPayment', 'Credit / Debit Card'),
                   icon: <CreditCardIcon className="h-6 w-6" />,
                 },
                 {
                   value: 'cod',
-                  label: 'Cash on Delivery',
+                  label: t('checkout.cod', 'Cash on Delivery'),
                   icon: <BanknotesIcon className="h-6 w-6" />,
                 },
               ].map((option) => {
@@ -588,7 +590,7 @@ const Checkout = () => {
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] leading-none font-semibold text-[#171415]">{option.label}</p>
                         <p className="text-[12px] leading-none text-[#4E4542] mt-1.5">
-                          {option.value === 'upi' ? 'Pay using any UPI app' : option.value === 'card' ? 'Secure card payment' : 'Pay after receiving order'}
+                          {option.value === 'upi' ? t('checkout.payUsingUpi', 'Pay using any UPI app') : option.value === 'card' ? t('checkout.secureCard', 'Secure card payment') : t('checkout.payAfterDelivery', 'Pay after receiving order')}
                         </p>
                       </div>
                       <span
@@ -606,40 +608,40 @@ const Checkout = () => {
           </section>
 
           <section className="rounded-[22px] bg-[#EEEAE7] p-4.5">
-            <h2 className="text-[14px] leading-none font-extrabold text-[#171415] mb-4">Order Summary</h2>
+            <h2 className="text-[14px] leading-none font-extrabold text-[#171415] mb-4">{t('checkout.orderSummary', 'Order Summary')}</h2>
             <div className="space-y-3 text-[12px] leading-none text-[#3F3532]">
               <div className="flex items-center justify-between">
-                <span>Item Total</span>
+                <span>{t('checkout.itemTotal', 'Item Total')}</span>
                 <span className="font-medium">{formatCurrency(subtotal)}</span>
               </div>
               {Math.abs(subtotal - listedSubtotal) > 0.001 && (
                 <div className="flex items-center justify-between">
-                  <span>Listed Total</span>
+                  <span>{t('checkout.listedTotal', 'Listed Total')}</span>
                   <span className="font-medium">{formatCurrency(listedSubtotal)}</span>
                 </div>
               )}
               <div className="flex items-center justify-between">
-                <span>Delivery Fee</span>
+                <span>{t('checkout.deliveryFee', 'Delivery Fee')}</span>
                 <span className="font-medium" style={{ color: deliveryFee === 0 ? '#0D8656' : '#3F3532' }}>
-                  {deliveryFee === 0 ? 'FREE' : formatCurrency(deliveryFee)}
+                  {deliveryFee === 0 ? t('checkout.free', 'FREE') : formatCurrency(deliveryFee)}
                 </span>
               </div>
               {isPlatformFeeEnabled && (
                 <div className="flex items-center justify-between">
-                  <span>Platform Fee</span>
+                  <span>{t('checkout.platformFee', 'Platform Fee')}</span>
                   <span className="font-medium">{formatCurrency(platformFee)}</span>
                 </div>
               )}
               {isTaxEnabled && (
                 <div className="flex items-center justify-between">
-                  <span>Taxes & Charges</span>
+                  <span>{t('checkout.tax', 'Taxes & Charges')}</span>
                   <span className="font-medium">{formatCurrency(tax)}</span>
                 </div>
               )}
             </div>
 
             <div className="mt-4 pt-4 border-t border-dashed border-[#DEBBB2] flex items-center justify-between">
-              <span className="text-[15px] leading-none font-extrabold text-[#171415]">Total to Pay</span>
+              <span className="text-[15px] leading-none font-extrabold text-[#171415]">{t('checkout.totalToPay', 'Total to Pay')}</span>
               <span className="text-[18px] leading-none font-black text-[#171415]">{formatCurrency(total)}</span>
             </div>
           </section>
@@ -647,11 +649,11 @@ const Checkout = () => {
           <section className="pb-2 pt-1 flex items-center justify-center gap-6 text-[#726D68]">
             <div className="flex items-center gap-1.5">
               <ShieldCheckIcon className="h-4 w-4" />
-              <span className="text-[10px] leading-none tracking-[0.14em] font-semibold">SECURE PAYMENT</span>
+              <span className="text-[10px] leading-none tracking-[0.14em] font-semibold">{t('checkout.securePayment', 'SECURE PAYMENT')}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <CubeIcon className="h-4 w-4" />
-              <span className="text-[10px] leading-none tracking-[0.14em] font-semibold">ECO-PACKAGING</span>
+              <span className="text-[10px] leading-none tracking-[0.14em] font-semibold">{t('checkout.ecoPackaging', 'ECO-PACKAGING')}</span>
             </div>
           </section>
         </div>
@@ -670,21 +672,21 @@ const Checkout = () => {
               <div className="min-w-0">
                 <p className="text-[10px] leading-none font-semibold uppercase text-[#2F2927] tracking-[0.03em]">
                 {paymentMethod === 'upi'
-                  ? 'Paying with UPI'
+                  ? t('checkout.payingWithUpi', 'Paying with UPI')
                   : paymentMethod === 'card'
-                    ? 'Paying with Card'
+                    ? t('checkout.payingWithCard', 'Paying with Card')
                     : paymentMethod === 'cod'
-                      ? 'Cash on Delivery'
-                      : 'Select Payment Method'}
+                      ? t('checkout.payingWithCod', 'Cash on Delivery')
+                      : t('checkout.selectPaymentMethod', 'Select Payment Method')}
                 </p>
                 <p className="text-[12px] leading-none text-[#171415] mt-1 truncate">
                 {paymentMethod === 'upi'
-                  ? 'UPI apps'
+                  ? t('checkout.upiApps', 'UPI apps')
                   : paymentMethod === 'card'
-                    ? 'Card payment'
+                    ? t('checkout.cardPaymentShort', 'Card payment')
                     : paymentMethod === 'cod'
-                      ? 'Cash payment'
-                      : 'Choose one to continue'}
+                      ? t('checkout.cashPayment', 'Cash payment')
+                      : t('checkout.chooseToContinue', 'Choose one to continue')}
                 </p>
               </div>
             </div>
@@ -698,7 +700,7 @@ const Checkout = () => {
             className="w-full rounded-full py-3 text-[16px] leading-none font-extrabold text-white disabled:opacity-50"
             style={{ backgroundColor: '#F85B24' }}
           >
-            {loading ? 'Placing...' : (isRestaurantCurrentlyOpen ? 'Place Order  ->' : 'Outlet Closed')}
+            {loading ? t('checkout.placing', 'Placing...') : (isRestaurantCurrentlyOpen ? `${t('checkout.placeOrder', 'Place Order')}  ->` : t('checkout.outletClosed', 'Outlet Closed'))}
           </button>
         </div>
       </div>

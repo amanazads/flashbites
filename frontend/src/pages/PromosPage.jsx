@@ -14,6 +14,7 @@ import {
   SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { BRAND } from '../constants/theme';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const getCouponMeta = (coupon) => {
   if (coupon.discountType === 'percentage') {
@@ -37,14 +38,14 @@ const getCouponMeta = (coupon) => {
   };
 };
 
-const formatValidTill = (validTill) => {
-  if (!validTill) return 'Limited time';
+const formatValidTill = (validTill, t) => {
+  if (!validTill) return t('promos.limitedTime', 'Limited time');
   const date = new Date(validTill);
-  if (Number.isNaN(date.getTime())) return 'Limited time';
-  return `Valid till ${date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+  if (Number.isNaN(date.getTime())) return t('promos.limitedTime', 'Limited time');
+  return `${t('promos.validTill', 'Valid till')} ${date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
 };
 
-const mapCouponForCard = (coupon) => {
+const mapCouponForCard = (coupon, t) => {
   const meta = getCouponMeta(coupon);
   const minOrder = Number(coupon.minOrderValue || 0);
   const minOrderText = minOrder > 0 ? ` on orders above \u20b9${minOrder}` : '';
@@ -57,7 +58,7 @@ const mapCouponForCard = (coupon) => {
     description: `${coupon.description || 'Apply this coupon at checkout.'}${maxDiscountText}`.trim(),
     discount: meta.discountLabel,
     minOrder,
-    validTill: formatValidTill(coupon.validTill),
+    validTill: formatValidTill(coupon.validTill, t),
     tag: meta.tag,
     icon: meta.icon,
     iconColor: meta.iconColor,
@@ -65,7 +66,7 @@ const mapCouponForCard = (coupon) => {
   };
 };
 
-const CouponCard = ({ coupon }) => {
+const CouponCard = ({ coupon, t }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async (e) => {
@@ -73,10 +74,10 @@ const CouponCard = ({ coupon }) => {
     try {
       await navigator.clipboard.writeText(coupon.code);
       setCopied(true);
-      toast.success(`Copied! Use ${coupon.code} at checkout`);
+      toast.success(t('promos.copiedToast', 'Copied! Use {code} at checkout').replace('{code}', coupon.code));
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      toast.error('Unable to copy coupon code');
+      toast.error(t('promos.copyFailed', 'Unable to copy coupon code'));
     }
   };
 
@@ -118,10 +119,10 @@ const CouponCard = ({ coupon }) => {
         <p className="text-[13px] text-gray-500 mb-3 leading-relaxed">{coupon.description}</p>
 
         <div className="flex items-center gap-2 text-[12px] text-gray-400 mb-3">
-          <span className="font-medium">Min order:</span>
+          <span className="font-medium">{t('promos.minOrder', 'Min order')}:</span>
           <span className="font-semibold text-gray-600">\u20b9{coupon.minOrder}</span>
           <span className="w-1 h-1 rounded-full bg-gray-300" />
-          <span className="font-medium">Validity:</span>
+          <span className="font-medium">{t('promos.validity', 'Validity')}:</span>
           <span className="font-semibold text-gray-600">{coupon.validTill}</span>
         </div>
 
@@ -148,9 +149,9 @@ const CouponCard = ({ coupon }) => {
             }}
           >
             {copied ? (
-              <><CheckIcon className="w-4 h-4" /> Copied</>
+              <><CheckIcon className="w-4 h-4" /> {t('promos.copied', 'Copied')}</>
             ) : (
-              <><ClipboardDocumentIcon className="w-4 h-4" /> Copy</>
+              <><ClipboardDocumentIcon className="w-4 h-4" /> {t('promos.copy', 'Copy')}</>
             )}
           </button>
         </div>
@@ -162,6 +163,7 @@ const CouponCard = ({ coupon }) => {
 const PromosPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useSelector((s) => s.auth);
+  const { t } = useLanguage();
   const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -174,11 +176,11 @@ const PromosPage = () => {
         const response = await getPublicCoupons();
         const rawCoupons = response?.data?.coupons || response?.coupons || [];
         if (cancelled) return;
-        setCoupons(rawCoupons.map(mapCouponForCard));
+        setCoupons(rawCoupons.map((coupon) => mapCouponForCard(coupon, t)));
       } catch {
         if (!cancelled) {
           setCoupons([]);
-          toast.error('Failed to load latest coupons');
+          toast.error(t('promos.failedLoad', 'Failed to load latest coupons'));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -216,9 +218,9 @@ const PromosPage = () => {
             </button>
             <div className="flex-1">
               <h1 className="text-[20px] font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>
-                Offers &amp; Coupons
+                {t('promos.title', 'Offers & Coupons')}
               </h1>
-              <p className="text-[12px] text-gray-400">{loading ? 'Loading offers...' : `${activeCount} active offers`}</p>
+              <p className="text-[12px] text-gray-400">{loading ? t('promos.loadingOffers', 'Loading offers...') : `${activeCount} ${t('promos.activeOffers', 'active offers')}`}</p>
             </div>
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center"
@@ -238,11 +240,11 @@ const PromosPage = () => {
               className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-20"
               style={{ background: BRAND, transform: 'translate(40%, -40%)' }}
             />
-            <p className="text-white/60 text-[11px] font-bold uppercase tracking-widest mb-1">FlashBites Exclusive</p>
+            <p className="text-white/60 text-[11px] font-bold uppercase tracking-widest mb-1">{t('promos.exclusive', 'FlashBites Exclusive')}</p>
             <p className="text-white text-[22px] font-black leading-tight mb-1" style={{ letterSpacing: '-0.02em' }}>
-              Save More,<br />Order More
+              {t('promos.saveMore', 'Save More,')}<br />{t('promos.saveMore2', 'Order More')}
             </p>
-            <p className="text-white/50 text-[13px]">Only verified active coupons are shown here</p>
+            <p className="text-white/50 text-[13px]">{t('promos.verifiedOnly', 'Only verified active coupons are shown here')}</p>
           </div>
         </div>
 
@@ -259,41 +261,41 @@ const PromosPage = () => {
                 <GiftIcon className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-bold text-gray-900">Log in to apply coupons</p>
-                <p className="text-[12px] text-gray-500">Sign in to use these offers at checkout</p>
+                <p className="text-[13px] font-bold text-gray-900">{t('promos.loginApply', 'Log in to apply coupons')}</p>
+                <p className="text-[12px] text-gray-500">{t('promos.loginCheckout', 'Sign in to use these offers at checkout')}</p>
               </div>
               <button
                 onClick={() => navigate('/login')}
                 className="w-full sm:w-auto text-[12px] font-bold px-3 py-1.5 rounded-lg text-white flex-shrink-0"
                 style={{ background: BRAND }}
               >
-                Login
+                {t('promos.login', 'Login')}
               </button>
             </div>
           )}
 
           {loading && (
             <div className="bg-white rounded-2xl p-5 text-sm text-gray-500" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
-              Loading coupons...
+              {t('promos.loadingCoupons', 'Loading coupons...')}
             </div>
           )}
 
           {!loading && coupons.length === 0 && (
             <div className="bg-white rounded-2xl p-5 text-sm text-gray-500" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
-              No active coupons are available right now.
+              {t('promos.none', 'No active coupons are available right now.')}
             </div>
           )}
 
           {!loading && coupons.map((coupon) => (
-            <CouponCard key={coupon._id} coupon={coupon} />
+            <CouponCard key={coupon._id} coupon={coupon} t={t} />
           ))}
 
           <div className="pt-2 pb-4 text-center">
             <p className="text-[12px] text-gray-400">
-              Offers are managed by admin and may change without notice.
+              {t('promos.managedByAdmin', 'Offers are managed by admin and may change without notice.')}
             </p>
             <p className="text-[12px] text-gray-400 mt-0.5">
-              Need help?{' '}
+              {t('promos.needHelp', 'Need help?')}{' '}
               <a href="mailto:info.flashbites@gmail.com" className="font-semibold" style={{ color: BRAND }}>
                 info.flashbites@gmail.com
               </a>

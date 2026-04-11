@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 import { BRAND } from '../constants/theme';
+import { useLanguage } from '../contexts/LanguageContext';
 
 /* ─── Status config ─── */
 const STATUS_CONFIG = {
@@ -43,7 +44,7 @@ const getRestaurantImage = (order) =>
   'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=80';
 
 /* ─── Empty state ─── */
-const EmptyState = ({ isActive }) => (
+const EmptyState = ({ isActive, t }) => (
   <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
     <div
       className="w-20 h-20 rounded-2xl mb-5 flex items-center justify-center"
@@ -52,12 +53,12 @@ const EmptyState = ({ isActive }) => (
       <ShoppingBagIcon className="w-9 h-9" style={{ color: BRAND }} />
     </div>
     <h3 className="text-[18px] font-bold text-gray-900 mb-1">
-      {isActive ? 'No active orders' : 'No past orders'}
+      {isActive ? t('orders.noActive', 'No active orders') : t('orders.noPast', 'No past orders')}
     </h3>
     <p className="text-[13px] text-gray-400 mb-6 max-w-[240px]">
       {isActive
-        ? 'Your current orders will appear here.'
-        : 'Your delivered and past orders will show up here.'}
+        ? t('orders.activeHelp', 'Your current orders will appear here.')
+        : t('orders.pastHelp', 'Your delivered and past orders will show up here.')}
     </p>
     <Link
       to="/restaurants"
@@ -68,13 +69,13 @@ const EmptyState = ({ isActive }) => (
       }}
     >
       <ShoppingBagIcon className="w-4 h-4" />
-      Browse Restaurants
+      {t('orders.browseRestaurants', 'Browse Restaurants')}
     </Link>
   </div>
 );
 
 /* ─── Order card ─── */
-const OrderCard = ({ order }) => {
+const OrderCard = ({ order, t }) => {
   const navigate = useNavigate();
   const status = getStatus(order.status);
   const isActive = isActiveStatus(order.status);
@@ -149,7 +150,7 @@ const OrderCard = ({ order }) => {
             className="text-[12px] font-bold px-3 py-1.5 rounded-xl"
             style={{ background: '#FCE9D8', color: BRAND }}
           >
-            View Details
+            {t('orders.viewDetails', 'View Details')}
           </span>
         </div>
       </div>
@@ -163,6 +164,7 @@ const Orders = () => {
   const location = useLocation();
   const dispatch = useDispatch();
   const { orders, loading } = useSelector((state) => state.order);
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('active');
 
   useEffect(() => { dispatch(fetchUserOrders()); }, [dispatch]);
@@ -215,7 +217,7 @@ const Orders = () => {
               className="text-[22px] font-black text-[#171415] flex-1"
               style={{ letterSpacing: '-0.02em' }}
             >
-              My Orders
+              {t('orders.title', 'My Orders')}
             </h1>
             {uniqueOrders.length > 0 && (
               <span
@@ -233,8 +235,8 @@ const Orders = () => {
             style={{ background: '#EEE8E2' }}
           >
             {[
-              { id: 'active', label: 'Active', count: activeOrders.length },
-              { id: 'past',   label: 'Past',   count: pastOrders.length },
+              { id: 'active', label: t('orders.active', 'Active'), count: activeOrders.length },
+              { id: 'past',   label: t('orders.past', 'Past'), count: pastOrders.length },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -269,11 +271,11 @@ const Orders = () => {
           {loading ? (
             <Loader />
           ) : displayOrders.length === 0 ? (
-            <EmptyState isActive={activeTab === 'active'} />
+            <EmptyState isActive={activeTab === 'active'} t={t} />
           ) : (
             <div className="space-y-3">
               {displayOrders.map((order) => (
-                <OrderCard key={order._id} order={order} />
+                <OrderCard key={order._id} order={order} t={t} />
               ))}
             </div>
           )}
@@ -283,19 +285,19 @@ const Orders = () => {
           <div className="max-w-md mx-auto px-6 pt-2 flex items-center justify-between text-[#B0ACA8]">
             <Link to="/" className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1" style={isNavActive('/') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}>
               <HomeIcon className="h-5 w-5" />
-              <span className="text-[8px]">Home</span>
+              <span className="text-[8px]">{t('common.home', 'Home')}</span>
             </Link>
             <Link to="/restaurants" className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1" style={isNavActive('/restaurants') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}>
               <MagnifyingGlassIcon className="h-5 w-5" />
-              <span className="text-[8px]">Search</span>
+              <span className="text-[8px]">{t('common.search', 'Search')}</span>
             </Link>
             <Link to="/orders" className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1" style={isNavActive('/orders') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}>
               <ShoppingBagIcon className="h-5 w-5" />
-              <span className="text-[8px]">Orders</span>
+              <span className="text-[8px]">{t('nav.orders', 'Orders')}</span>
             </Link>
             <Link to="/profile" className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1" style={isNavActive('/profile') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}>
               <UserCircleIcon className="h-5 w-5" />
-              <span className="text-[8px]">Profile</span>
+              <span className="text-[8px]">{t('common.profile', 'Profile')}</span>
             </Link>
           </div>
         </div>

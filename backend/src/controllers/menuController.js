@@ -70,7 +70,20 @@ const parseCategories = (categories, category) => {
 // @access  Private (Owner)
 exports.addMenuItem = async (req, res) => {
   try {
-    const { name, description, price, category, categories, isVeg, tags, prepTime, isAvailable, variants } = req.body;
+    const {
+      name,
+      nameHi,
+      description,
+      descriptionHi,
+      price,
+      category,
+      categories,
+      isVeg,
+      tags,
+      prepTime,
+      isAvailable,
+      variants,
+    } = req.body;
     const normalizedCategories = parseCategories(categories, category);
     const parsedPrice = Number(price);
 
@@ -134,7 +147,9 @@ exports.addMenuItem = async (req, res) => {
     const menuItemData = {
       restaurantId: req.params.restaurantId,
       name: name.trim(),
+      nameHi: String(nameHi || '').trim(),
       description: description.trim(),
+      descriptionHi: String(descriptionHi || '').trim(),
       price: parsedPrice,
       category: normalizedCategories[0],
       categories: normalizedCategories,
@@ -166,13 +181,25 @@ exports.addMenuItem = async (req, res) => {
 exports.getMenuByRestaurant = async (req, res) => {
   try {
     const { category, isVeg, search, limit = 200 } = req.query;
-    let query = { restaurantId: req.params.restaurantId };
+    const query = { restaurantId: req.params.restaurantId };
+    const andFilters = [];
 
     if (category) {
-      query.$or = [{ category }, { categories: category }];
+      andFilters.push({ $or: [{ category }, { categories: category }] });
     }
-    if (isVeg) query.isVeg = isVeg === 'true';
-    if (search) query.name = { $regex: escapeRegex(search), $options: 'i' };
+
+    if (isVeg) {
+      query.isVeg = isVeg === 'true';
+    }
+
+    if (search) {
+      const pattern = { $regex: escapeRegex(search), $options: 'i' };
+      andFilters.push({ $or: [{ name: pattern }, { nameHi: pattern }] });
+    }
+
+    if (andFilters.length > 0) {
+      query.$and = andFilters;
+    }
 
     const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 200, 1), 500);
 

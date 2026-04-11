@@ -14,9 +14,11 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline';
 import logo from '../assets/logo.png';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const About = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   return (
     <div className="about-home-theme min-h-screen" style={{ background: 'var(--bg-app)' }}>
@@ -43,8 +45,8 @@ const About = () => {
             <button type="button" className="flex items-center gap-2 text-left">
               <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
               <div>
-                <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
-                <p className="text-[12px] leading-none font-semibold text-gray-900">Current Area</p>
+                <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
+                <p className="text-[12px] leading-none font-semibold text-gray-900">{t('common.currentArea', 'Current Area')}</p>
               </div>
             </button>
           </div>
@@ -65,10 +67,10 @@ const About = () => {
         <div className="max-w-7xl mx-auto container-px">
           <div className="text-center">
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
-              About FlashBites
+              {t('about.title', 'About FlashBites')}
             </h1>
             <p className="text-lg sm:text-xl lg:text-2xl text-primary-100 max-w-3xl mx-auto px-2 sm:px-0">
-              Bringing the joy of online food delivery to rural and semi-urban India
+              {t('about.subtitle', 'Bringing the joy of online food delivery to rural and semi-urban India')}
             </p>
           </div>
         </div>
@@ -80,7 +82,7 @@ const About = () => {
           <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div>
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                Our Story
+                {t('about.ourStory', 'Our Story')}
               </h2>
               <div className="space-y-4 text-gray-600 leading-relaxed">
                 <p>
@@ -141,7 +143,7 @@ const About = () => {
                 <SparklesIcon className="h-7 w-7 text-white" />
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
-                Our Mission
+                {t('about.ourMission', 'Our Mission')}
               </h2>
               <p className="text-gray-600 leading-relaxed">
                 To democratize food delivery by making it accessible, affordable, and reliable 
@@ -156,7 +158,7 @@ const About = () => {
                 <HeartIcon className="h-7 w-7 text-white" />
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
-                Our Vision
+                {t('about.ourVision', 'Our Vision')}
               </h2>
               <p className="text-gray-600 leading-relaxed">
                 To become India's leading food delivery platform for rural and semi-urban areas, 
@@ -173,7 +175,7 @@ const About = () => {
       <div className="max-w-7xl mx-auto container-px py-12 sm:py-16">
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-            Why Choose FlashBites?
+            {t('about.whyChoose', 'Why Choose FlashBites?')}
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             We're more than just a food delivery platform—we're a movement to transform 
@@ -240,7 +242,7 @@ const About = () => {
       <div className="max-w-7xl mx-auto container-px py-12 sm:py-16">
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-            Our Core Values
+            {t('about.coreValues', 'Our Core Values')}
           </h2>
           <p className="text-xl text-gray-600">
             The principles that guide everything we do
@@ -293,7 +295,7 @@ const About = () => {
       <div className="bg-gray-100 py-12 sm:py-16">
         <div className="max-w-4xl mx-auto container-px text-center">
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-            Join the FlashBites Revolution
+            {t('about.joinRevolution', 'Join the FlashBites Revolution')}
           </h2>
           <p className="text-xl text-gray-600 mb-8">
             Whether you're a customer, restaurant owner, or potential delivery partner, 
@@ -304,7 +306,7 @@ const About = () => {
               to="/register"
               className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold text-lg transition-colors"
             >
-              Order Now
+              {t('about.orderNow', 'Order Now')}
             </Link>
             <Link
               to="/partner"
