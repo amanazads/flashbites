@@ -45,9 +45,11 @@ const normalizeMenuItems = (value) => {
   return parsed
     .map((item) => ({
       name: String(item?.name || '').trim(),
+      nameHi: String(item?.nameHi || '').trim(),
       category: String(item?.category || '').trim(),
       price: Number(item?.price),
-      description: String(item?.description || '').trim()
+      description: String(item?.description || '').trim(),
+      descriptionHi: String(item?.descriptionHi || '').trim()
     }))
     .filter((item) => item.name && Number.isFinite(item.price) && item.price >= 0);
 };
@@ -518,15 +520,13 @@ exports.approvePartner = async (req, res) => {
       user.isActive = true;
       user.isPhoneVerified = true;
 
-      if (!user.password) {
-        const temporaryPassword = generateTemporaryPassword();
-        user.password = temporaryPassword;
-        generatedCredentials = {
-          phone: user.phone,
-          email: user.email || '',
-          password: temporaryPassword
-        };
-      }
+      const temporaryPassword = generateTemporaryPassword();
+      user.password = temporaryPassword;
+      generatedCredentials = {
+        phone: user.phone,
+        email: user.email || '',
+        password: temporaryPassword
+      };
 
       await user.save();
     }

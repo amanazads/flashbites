@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
+  ArrowLeftIcon,
   PlusIcon,
   PencilIcon,
   TrashIcon,
@@ -701,6 +702,12 @@ const RestaurantDashboard = () => {
     }
     return 'Unable to capture location automatically. Enter latitude/longitude manually below.';
   };
+
+  const getModalBottomNavTabClass = (tabKey) => (
+    `flex flex-col items-center rounded-lg py-1 text-[11px] font-medium ${
+      activeTab === tabKey ? 'bg-primary-100 text-primary-700' : 'text-gray-600'
+    }`
+  );
 
   const handleManualLocationChange = (field, value) => {
     setLocationDraft((prev) => {
@@ -1719,6 +1726,40 @@ const RestaurantDashboard = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 z-[1300] overflow-y-auto">
             <div className="min-h-full flex items-start justify-center p-2 sm:p-4 pt-[calc(16px+env(safe-area-inset-top))] pb-[calc(16px+env(safe-area-inset-bottom))]">
               <div className="bg-white rounded-lg max-w-2xl w-full p-4 sm:p-6 my-2 sm:my-6">
+              <div className="sm:hidden sticky top-0 z-10 -mx-4 px-4 py-2 mb-3 bg-white border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowRestaurantForm(false)}
+                      className="h-8 w-8 rounded-full flex items-center justify-center text-white shadow-[0_8px_18px_rgba(234,88,12,0.32)]"
+                      aria-label="Close restaurant form"
+                      style={{ background: 'linear-gradient(rgb(255, 122, 69) 0%, rgb(234, 88, 12) 100%)' }}
+                    >
+                      <ArrowLeftIcon className="h-4 w-4" />
+                    </button>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">Dashboard</p>
+                      <p className="text-[13px] leading-none font-semibold text-gray-900">Restaurant Setup</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => navigate('/restaurants')}>
+                      <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/profile')}
+                      className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden"
+                      aria-label="Open profile"
+                    >
+                      <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
                 {restaurant ? 'Edit Restaurant' : 'Register Restaurant'}
               </h2>
@@ -1727,7 +1768,7 @@ const RestaurantDashboard = () => {
                 <h3 className="text-lg font-bold text-gray-900">Restaurant Information</h3>
                 <p className="text-sm text-gray-600">Add restaurant identity, location and contact details.</p>
               </div>
-              <form onSubmit={handleRestaurantSubmit} className="space-y-3 sm:space-y-4">
+              <form onSubmit={handleRestaurantSubmit} className="space-y-3 sm:space-y-4 pb-24 sm:pb-0" id="restaurantFormModal">
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Restaurant Name *
@@ -2054,7 +2095,7 @@ const RestaurantDashboard = () => {
                   </p>
                 </div>
 
-                <div className="mt-6 pt-3 border-t border-gray-100 flex flex-wrap justify-end gap-3 sm:gap-4">
+                <div className="mt-6 pt-3 border-t border-gray-100 hidden sm:flex flex-wrap justify-end gap-3 sm:gap-4">
                   <button
                     type="button"
                     onClick={() => setShowRestaurantForm(false)}
@@ -2065,6 +2106,68 @@ const RestaurantDashboard = () => {
                   <button type="submit" className="btn-primary">
                     {restaurant ? 'Update' : 'Create'} Restaurant
                   </button>
+                </div>
+
+                <div className="sm:hidden fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2">
+                  <div className="mb-2 grid grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRestaurantForm(false);
+                        setActiveTab('overview');
+                      }}
+                      className={getModalBottomNavTabClass('overview')}
+                    >
+                      <ChartBarIcon className="h-4 w-4" />
+                      Dashboard
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRestaurantForm(false);
+                        setActiveTab('orders');
+                      }}
+                      className={getModalBottomNavTabClass('orders')}
+                    >
+                      <ShoppingBagIcon className="h-4 w-4" />
+                      Orders
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRestaurantForm(false);
+                        setActiveTab('menu');
+                      }}
+                      className={getModalBottomNavTabClass('menu')}
+                    >
+                      <DocumentTextIcon className="h-4 w-4" />
+                      Menu
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('profile');
+                        navigate('/profile');
+                      }}
+                      className={getModalBottomNavTabClass('profile')}
+                    >
+                      <img src={logo} alt="Profile" className="h-4 w-4 rounded-full border border-[#EA580C]" />
+                      Profile
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowRestaurantForm(false)}
+                      className="rounded-lg border border-gray-300 py-2 text-sm font-semibold text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                    <button type="submit" form="restaurantFormModal" className="btn-primary !w-full !py-2 text-sm">
+                      {restaurant ? 'Update' : 'Create'}
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>
@@ -2077,10 +2180,47 @@ const RestaurantDashboard = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 z-[1300] overflow-y-auto">
             <div className="min-h-full flex items-start justify-center p-2 sm:p-4 pt-[calc(16px+env(safe-area-inset-top))] pb-[calc(16px+env(safe-area-inset-bottom))]">
               <div className="bg-white rounded-lg max-w-lg w-full p-4 sm:p-6 my-2 sm:my-6">
+              <div className="sm:hidden sticky top-0 z-10 -mx-4 px-4 py-2 mb-3 bg-white border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMenuForm(false);
+                        setEditingItem(null);
+                      }}
+                      className="h-8 w-8 rounded-full flex items-center justify-center text-white shadow-[0_8px_18px_rgba(234,88,12,0.32)]"
+                      aria-label="Close menu item form"
+                      style={{ background: 'linear-gradient(rgb(255, 122, 69) 0%, rgb(234, 88, 12) 100%)' }}
+                    >
+                      <ArrowLeftIcon className="h-4 w-4" />
+                    </button>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">Dashboard</p>
+                      <p className="text-[13px] leading-none font-semibold text-gray-900">Menu Item Setup</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => navigate('/restaurants')}>
+                      <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/profile')}
+                      className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden"
+                      aria-label="Open profile"
+                    >
+                      <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
                 {editingItem ? 'Edit Menu Item' : 'Add Menu Item'}
               </h2>
-              <form onSubmit={handleMenuItemSubmit} className="space-y-3 sm:space-y-4">
+              <form onSubmit={handleMenuItemSubmit} className="space-y-3 sm:space-y-4 pb-24 sm:pb-0" id="menuItemFormModal">
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Item Name *
@@ -2301,7 +2441,7 @@ const RestaurantDashboard = () => {
                   </label>
                 </div>
 
-                <div className="mt-6 pt-3 border-t border-gray-100 flex flex-wrap justify-end gap-3 sm:gap-4">
+                <div className="mt-6 pt-3 border-t border-gray-100 hidden sm:flex flex-wrap justify-end gap-3 sm:gap-4">
                   <button
                     type="button"
                     onClick={() => {
@@ -2315,6 +2455,71 @@ const RestaurantDashboard = () => {
                   <button type="submit" className="btn-primary">
                     {editingItem ? 'Update' : 'Add'} Item
                   </button>
+                </div>
+
+                <div className="sm:hidden fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2">
+                  <div className="mb-2 grid grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMenuForm(false);
+                        setActiveTab('overview');
+                      }}
+                      className={getModalBottomNavTabClass('overview')}
+                    >
+                      <ChartBarIcon className="h-4 w-4" />
+                      Dashboard
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMenuForm(false);
+                        setActiveTab('orders');
+                      }}
+                      className={getModalBottomNavTabClass('orders')}
+                    >
+                      <ShoppingBagIcon className="h-4 w-4" />
+                      Orders
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMenuForm(false);
+                        setActiveTab('menu');
+                      }}
+                      className={getModalBottomNavTabClass('menu')}
+                    >
+                      <DocumentTextIcon className="h-4 w-4" />
+                      Menu
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('profile');
+                        navigate('/profile');
+                      }}
+                      className={getModalBottomNavTabClass('profile')}
+                    >
+                      <img src={logo} alt="Profile" className="h-4 w-4 rounded-full border border-[#EA580C]" />
+                      Profile
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMenuForm(false);
+                        setEditingItem(null);
+                      }}
+                      className="rounded-lg border border-gray-300 py-2 text-sm font-semibold text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                    <button type="submit" form="menuItemFormModal" className="btn-primary !w-full !py-2 text-sm">
+                      {editingItem ? 'Update' : 'Add'}
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>

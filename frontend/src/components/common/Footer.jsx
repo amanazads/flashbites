@@ -2,8 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import logo from '../../assets/logo.png';
 import { BRAND } from '../../constants/theme';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 const Footer = () => {
+  const { t } = useLanguage();
+
   return (
     <footer className="relative overflow-hidden border-t border-gray-200 bg-[#F8FAFC] text-gray-600">
       <div className="pointer-events-none absolute -top-16 -left-20 h-64 w-64 rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,82,59,0.05), transparent 68%)' }} />
@@ -22,7 +25,7 @@ const Footer = () => {
               />
             </div>
             <p className="text-sm text-gray-500 mb-4">
-              Your favorite food delivered fast. Order from the best restaurants in town.
+              {t('footer.description', 'Your favorite food delivered fast. Order from the best restaurants in town.')}
             </p>
             <div className="flex gap-4">
               <a 
@@ -52,21 +55,21 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 className="font-semibold mb-4" style={{ color: BRAND }}>Quick Links</h4>
+            <h4 className="font-semibold mb-4" style={{ color: BRAND }}>{t('footer.quickLinks', 'Quick Links')}</h4>
             <ul className="space-y-2">
               <li>
                 <Link to="/restaurants" className="hover:text-[var(--brand)] transition">
-                  Restaurants
+                  {t('nav.restaurants', 'Restaurants')}
                 </Link>
               </li>
               <li>
                 <Link to="/about" className="hover:text-[var(--brand)] transition">
-                  About Us
+                  {t('footer.aboutUs', 'About Us')}
                 </Link>
               </li>
               <li>
                 <Link to="/contact" className="hover:text-[var(--brand)] transition">
-                  Contact
+                  {t('footer.contact', 'Contact')}
                 </Link>
               </li>
             </ul>
@@ -74,16 +77,16 @@ const Footer = () => {
 
           {/* For Partners */}
           <div>
-            <h4 className="font-semibold mb-4" style={{ color: BRAND }}>For Partners</h4>
+            <h4 className="font-semibold mb-4" style={{ color: BRAND }}>{t('footer.forPartners', 'For Partners')}</h4>
             <ul className="space-y-2">
               <li>
                 <Link to="/partner" className="hover:text-[var(--brand)] transition">
-                  Partner with us
+                  {t('footer.partnerWithUs', 'Partner with us')}
                 </Link>
               </li>
               <li>
                 <Link to="/login" className="hover:text-[var(--brand)] transition">
-                  Restaurant Login
+                  {t('footer.restaurantLogin', 'Restaurant Login')}
                 </Link>
               </li>
             </ul>
@@ -91,16 +94,16 @@ const Footer = () => {
 
           {/* Legal */}
           <div>
-            <h4 className="font-semibold mb-4" style={{ color: BRAND }}>Legal</h4>
+            <h4 className="font-semibold mb-4" style={{ color: BRAND }}>{t('footer.legal', 'Legal')}</h4>
             <ul className="space-y-2">
               <li>
                 <Link to="/terms" className="hover:text-[var(--brand)] transition">
-                  Terms &amp; Conditions
+                  {t('footer.terms', 'Terms & Conditions')}
                 </Link>
               </li>
               <li>
                 <Link to="/privacy" className="hover:text-[var(--brand)] transition">
-                  Privacy Policy
+                  {t('footer.privacy', 'Privacy Policy')}
                 </Link>
               </li>
             </ul>
@@ -108,7 +111,7 @@ const Footer = () => {
         </div>
 
         <div className="mt-8 pt-8 border-t border-gray-200 text-center text-sm text-gray-500">
-          <p>&copy; {new Date().getFullYear()} FlashBites. All rights reserved. | <a href="https://flashbites.in" className="hover:text-[var(--brand)] transition">flashbites.in</a></p>
+          <p>&copy; {new Date().getFullYear()} FlashBites. {t('footer.rightsReserved', 'All rights reserved.')} | <a href="https://flashbites.in" className="hover:text-[var(--brand)] transition">flashbites.in</a></p>
         </div>
       </div>
     </footer>

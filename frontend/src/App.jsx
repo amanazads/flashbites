@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
@@ -19,6 +19,8 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ScrollToTop from './components/common/ScrollToTop';
 import { FullPageLoader } from './components/common/Loader';
+import LanguageChooserModal from './components/common/LanguageChooserModal';
+import { useLanguage } from './contexts/LanguageContext';
 
 // Pages — lazy loaded for code splitting (reduces initial bundle ~80%)
 const Home = React.lazy(() => import('./pages/Home'));
@@ -51,6 +53,8 @@ const PageLoader = () => <FullPageLoader />;
 
 // Google OAuth Success Handler
 const GoogleAuthSuccess = () => {
+  const { t } = useLanguage();
+
   useEffect(() => {
     const handleAuth = async () => {
       const params = new URLSearchParams(window.location.search);
@@ -74,7 +78,7 @@ const GoogleAuthSuccess = () => {
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Completing authentication...</p>
+        <p className="mt-4 text-gray-600">{t('auth.completingAuthentication', 'Completing authentication...')}</p>
       </div>
     </div>
   );
@@ -156,6 +160,8 @@ const NativeBackHandler = () => {
 function App() {
   const dispatch = useDispatch();
   const { isAuthenticated } = useSelector((state) => state.auth);
+  const { isLanguageReady, isLanguageModalOpen } = useLanguage();
+  const [showStartupSplash, setShowStartupSplash] = useState(true);
 
   // Check platform
   const isNative = Capacitor.getPlatform() !== 'web';
@@ -206,6 +212,14 @@ function App() {
 
     restoreSession();
   }, [dispatch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowStartupSplash(false);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const AppShell = () => {
     const location = useLocation();
@@ -363,6 +377,10 @@ function App() {
   return (
     <div className="min-h-screen bg-[var(--bg-app)]">
       <ErrorBoundary>
+        {showStartupSplash ? (
+          <FullPageLoader />
+        ) : (
+          <>
         {/* Global default title – overridden per-page by <SEO> components */}
         <Helmet defaultTitle="FlashBites" titleTemplate="%s | FlashBites" />
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -375,6 +393,12 @@ function App() {
           <RoleRedirector />
           <ScrollToTop />
           <AppShell />
+          {isLanguageReady && isLanguageModalOpen && (
+            <LanguageChooserModal
+              canClose
+              minVisibleMs={0}
+            />
+          )}
 
           {/* Toast Notifications */}
           <Toaster
@@ -425,6 +449,8 @@ function App() {
             }}
           />
         </Router>
+          </>
+        )}
       </ErrorBoundary>
     </div>
   );

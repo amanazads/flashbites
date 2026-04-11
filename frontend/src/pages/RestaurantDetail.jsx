@@ -13,6 +13,7 @@ import SEO from '../components/common/SEO';
 import logo from '../assets/logo.png';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const CATEGORY_PRIORITY = [
   'Fast Food', 'Pizza', 'Burger', 'Burgers', 'Desserts', 'Chinese', 'Italian', 'South Indian',
@@ -34,6 +35,7 @@ const RestaurantDetail = () => {
   const [menuSearch, setMenuSearch] = useState('');
   const [dietFilter, setDietFilter] = useState('All');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const { t, language } = useLanguage();
   const [menuItems, setMenuItems] = useState([]);
   const { items: cartItems, restaurant: cartRestaurant } = useSelector((state) => state.cart);
 
@@ -49,7 +51,7 @@ const RestaurantDetail = () => {
       setMenuItems(items);
     } catch (error) {
       console.error('Failed to load menu items:', error);
-      toast.error('Failed to load menu items');
+      toast.error(t('checkout.failedLoad', 'Failed to load checkout details'));
     }
   };
 
@@ -119,11 +121,23 @@ const RestaurantDetail = () => {
     'main course': ['main course', 'main', 'course', 'curry'],
   };
   const categoryTerms = categoryKeywords[normalizedCategory] || [normalizedCategory];
+
+  const getLocalizedItemName = (item) => {
+    const english = typeof item?.name === 'string' ? item.name : '';
+    const hindi = typeof item?.nameHi === 'string' ? item.nameHi.trim() : '';
+    return language === 'hi' && hindi ? hindi : english;
+  };
+
+  const getLocalizedItemDescription = (item) => {
+    const english = typeof item?.description === 'string' ? item.description : '';
+    const hindi = typeof item?.descriptionHi === 'string' ? item.descriptionHi.trim() : '';
+    return language === 'hi' && hindi ? hindi : english;
+  };
   
   const itemBelongsToCategory = (item, category) => {
     if (category === 'All') return true;
-    const itemName = typeof item?.name === 'string' ? item.name : '';
-    const itemDescription = typeof item?.description === 'string' ? item.description : '';
+    const itemName = getLocalizedItemName(item);
+    const itemDescription = getLocalizedItemDescription(item);
     const itemText = `${itemName} ${itemDescription}`.toLowerCase();
     const itemCategories = Array.isArray(item?.categories) && item.categories.length > 0
       ? item.categories.filter((cat) => typeof cat === 'string')
@@ -133,8 +147,8 @@ const RestaurantDetail = () => {
   };
 
   const filteredMenu = useMemo(() => (menuItems || []).filter((item) => {
-    const itemName = typeof item?.name === 'string' ? item.name : '';
-    const itemDescription = typeof item?.description === 'string' ? item.description : '';
+    const itemName = getLocalizedItemName(item);
+    const itemDescription = getLocalizedItemDescription(item);
     const itemText = `${itemName} ${itemDescription}`.toLowerCase();
     const searchMatch = menuSearch.trim().length === 0 || itemText.includes(menuSearch.trim().toLowerCase());
 
@@ -143,7 +157,7 @@ const RestaurantDetail = () => {
       || (dietFilter === 'Non-Veg' && item?.isVeg === false);
 
     return itemBelongsToCategory(item, selectedCategory) && searchMatch && vegMatch;
-  }), [menuItems, selectedCategory, categoryTerms, menuSearch, dietFilter]);
+  }), [menuItems, selectedCategory, categoryTerms, menuSearch, dietFilter, language]);
 
   const safeRestaurantId = getId(safeRestaurant);
   const isCurrentRestaurantCart = getId(cartRestaurant) === safeRestaurantId;
@@ -154,24 +168,24 @@ const RestaurantDetail = () => {
     e.stopPropagation();
     if (cartRestaurant && getId(cartRestaurant) !== safeRestaurantId) {
       Swal.fire({
-        title: 'Replace cart?',
-        text: 'Your cart contains items from another restaurant. Do you want to clear it and add this item?',
+        title: t('restaurant.replaceCart', 'Replace cart?'),
+        text: t('restaurant.replaceCartText', 'Your cart contains items from another restaurant. Do you want to clear it and add this item?'),
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#FF5A25',
         cancelButtonColor: '#6B7280',
-        confirmButtonText: 'Yes, clear it!'
+        confirmButtonText: t('restaurant.yesClear', 'Yes, clear it!')
       }).then((result) => {
         if (result.isConfirmed) {
           dispatch(clearCart());
           dispatch(addToCart({ item, restaurant: safeRestaurant }));
-          toast.success('Added to cart!');
+          toast.success(t('home.addedToCart', 'Added to cart!'));
         }
       });
       return;
     }
     dispatch(addToCart({ item, restaurant: safeRestaurant }));
-    toast.success('Added to cart!');
+    toast.success(t('home.addedToCart', 'Added to cart!'));
   };
 
   const handleQuantityChange = (e, itemId, nextQuantity) => {
@@ -218,7 +232,7 @@ const RestaurantDetail = () => {
   }, [categories, menuItems]);
 
   if (loading) return <Loader />;
-  if (!restaurant) return <div>Restaurant not found</div>;
+  if (!restaurant) return <div>{t('restaurant.notFound', 'Restaurant not found')}</div>;
 
   return (
     <div className="min-h-screen font-sans text-[13px] pb-28" style={{ backgroundColor: '#F5F3F1' }}>
@@ -240,8 +254,8 @@ const RestaurantDetail = () => {
               <button type="button" className="flex items-center gap-2 text-left">
                 <MapPinOutlineIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
                 <div>
-                  <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
-                  <p className="text-[12px] leading-none font-semibold text-gray-900">Current Area</p>
+                  <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
+                  <p className="text-[12px] leading-none font-semibold text-gray-900">{t('common.currentArea', 'Current Area')}</p>
                 </div>
               </button>
             </div>
@@ -268,8 +282,8 @@ const RestaurantDetail = () => {
         <div className="relative -mt-8 px-4 z-20">
           <div className="bg-white rounded-[22px] p-4 shadow-[0_5px_20px_rgba(0,0,0,0.06)] border border-[#E8E3DF]">
           <div className="flex items-center gap-2 mb-2.5">
-            <span className="bg-[#FF5A25] text-white text-[10px] leading-none font-bold px-3 py-2 rounded-full uppercase tracking-wide">
-              Top Rated
+              <span className="bg-[#FF5A25] text-white text-[10px] leading-none font-bold px-3 py-2 rounded-full uppercase tracking-wide">
+              {t('restaurant.topRated', 'Top Rated')}
             </span>
             <span className="text-[#3F3934] text-[13px] leading-[1.2] font-medium truncate max-w-[140px]">
               {cuisineStr}
@@ -290,12 +304,12 @@ const RestaurantDetail = () => {
             <div className="flex flex-col items-center gap-1">
               <ClockIcon className="w-4 h-4 text-[#FF5A25]" />
               <span className="text-[12px] leading-none font-bold text-[#1E1916]">{deliveryText}</span>
-              <span className="text-[10px] leading-none text-[#7D7772] font-medium uppercase tracking-wide">Delivery</span>
+              <span className="text-[10px] leading-none text-[#7D7772] font-medium uppercase tracking-wide">{t('restaurant.delivery', 'Delivery')}</span>
             </div>
             <div className="flex flex-col items-center gap-1">
               <MapPinIcon className="w-4 h-4 text-[#FF5A25]" />
               <span className="text-[12px] leading-none font-bold text-[#1E1916]">{distanceText}</span>
-              <span className="text-[10px] leading-none text-[#7D7772] font-medium uppercase tracking-wide">Distance</span>
+              <span className="text-[10px] leading-none text-[#7D7772] font-medium uppercase tracking-wide">{t('restaurant.distance', 'Distance')}</span>
             </div>
           </div>
         </div>
@@ -309,7 +323,7 @@ const RestaurantDetail = () => {
               type="text"
               value={menuSearch}
               onChange={(e) => setMenuSearch(e.target.value)}
-              placeholder="Search in this restaurant"
+              placeholder={t('restaurant.searchInRestaurant', 'Search in this restaurant')}
               className="w-full bg-white border border-[#E7DFD9] rounded-full pl-9 pr-3 py-2 text-[12px] text-[#292524] placeholder:text-[#A8A29E] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#EA580C]/10"
             />
           </div>
@@ -331,16 +345,16 @@ const RestaurantDetail = () => {
                       <div>
                         {item.isVeg && (
                           <div className="flex items-center gap-1.5 text-[#FF5A25] text-[10px] leading-none font-bold mb-1.5 uppercase tracking-tight">
-                            <span className="text-sm">🍃</span> VEGAN FAVORITE
+                            <span className="text-sm">🍃</span> {t('restaurant.veganFavorite', 'VEGAN FAVORITE')}
                           </div>
                         )}
                         {(!item.isVeg && item.isVeg !== undefined) && (
                           <div className="flex items-center gap-1.5 text-[#DC2626] text-[10px] leading-none font-bold mb-1.5 uppercase tracking-tight">
-                            <span className="text-sm">🍖</span> NON-VEG
+                            <span className="text-sm">🍖</span> {t('restaurant.nonVeg', 'NON-VEG')}
                           </div>
                         )}
-                        <h3 className="font-extrabold text-[#111] text-[17px] leading-[1.15] mb-1 line-clamp-2">{item.name}</h3>
-                        <p className="text-[12px] leading-[1.36] text-[rgba(46,42,37,0.72)] line-clamp-2">{item.description}</p>
+                        <h3 className="font-extrabold text-[#111] text-[17px] leading-[1.15] mb-1 line-clamp-2">{getLocalizedItemName(item)}</h3>
+                        <p className="text-[12px] leading-[1.36] text-[rgba(46,42,37,0.72)] line-clamp-2">{getLocalizedItemDescription(item)}</p>
                       </div>
                       
                       <div className="flex items-center justify-between mt-3">
@@ -394,7 +408,7 @@ const RestaurantDetail = () => {
                     <div className="w-[92px] h-[112px] flex-shrink-0 rounded-l-[18px] overflow-hidden">
                       <img 
                         src={item.image || 'https://via.placeholder.com/150'} 
-                        alt={item.name}
+                        alt={getLocalizedItemName(item)}
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -408,7 +422,7 @@ const RestaurantDetail = () => {
         {/* Empty state protection */}
         {sectionsToRender.length === 0 && (
            <div className="text-center py-10">
-              <p className="text-gray-500 font-medium">No items found in this section.</p>
+                <p className="text-gray-500 font-medium">{t('restaurant.noItemsSection', 'No items found in this section.')}</p>
            </div>
         )}
       </div>
@@ -429,8 +443,8 @@ const RestaurantDetail = () => {
 
         <div className="flex items-center justify-between mb-2">
           <div>
-            <p className="text-[12px] font-extrabold text-[#2A2522]">Menu Filters</p>
-            <p className="text-[9px] text-[#84746B]">Refine items in this restaurant</p>
+            <p className="text-[12px] font-extrabold text-[#2A2522]">{t('restaurant.menuFilters', 'Menu Filters')}</p>
+            <p className="text-[9px] text-[#84746B]">{t('restaurant.refineItems', 'Refine items in this restaurant')}</p>
           </div>
           <button
             type="button"
@@ -513,8 +527,8 @@ const RestaurantDetail = () => {
               </div>
               
               <div className="flex items-center text-[16px] leading-none">
-                <span className="font-extrabold mr-1">View Cart</span>
-                <span className="font-semibold text-white/85 mr-1">Total:</span>
+                <span className="font-extrabold mr-1">{t('restaurant.viewCart', 'View Cart')}</span>
+                <span className="font-semibold text-white/85 mr-1">{t('restaurant.total', 'Total')}:</span>
                 <span className="font-extrabold">₹{cartTotal.toFixed(2)}</span>
               </div>
               

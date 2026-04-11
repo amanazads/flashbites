@@ -9,6 +9,7 @@
     "seed": "node src/utils/seed.js",
     "smoke:address-flow": "node scripts/smoke-address-flow.js",
     "backfill:settlement-earnings": "node scripts/backfill-order-settlement-earnings.js",
+    "backfill:menu-hindi": "node scripts/backfill-menu-items-hindi.js",
     "fix:stale-delivery-zones": "node scripts/fix-stale-delivery-zones.js"
   },
   "keywords": [],

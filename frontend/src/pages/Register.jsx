@@ -8,6 +8,7 @@ import axios from '../api/axios';
 import { sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../firebase';
 import logo from '../assets/logo.png';
 import { BRAND } from '../constants/theme';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const HERO_IMAGE = 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=1200&q=80';
 
@@ -90,6 +91,7 @@ const Register = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { error, isAuthenticated, user } = useSelector((state) => state.auth);
+  const { t } = useLanguage();
   const nativePlatform = Boolean(window?.Capacitor?.isNativePlatform?.());
 
   const [step, setStep] = useState(1);
@@ -207,7 +209,7 @@ const Register = () => {
     e.preventDefault();
 
     if (otpBlockRemaining > 0) {
-      toast.error(`Please wait ${otpBlockRemaining}s before requesting OTP again.`);
+      toast.error(`${t('register.tryAgainIn', 'Try again in')} ${otpBlockRemaining}s`);
       return;
     }
 
@@ -232,7 +234,7 @@ const Register = () => {
     } catch (error) {
       if (isTooManyRequestsError(error)) {
         await startOtpBlock();
-        toast.error('OTP is temporarily rate-limited for this number/device. Please wait a few minutes and try again.');
+        toast.error(`${t('register.tryAgainIn', 'Try again in')} ${OTP_BLOCK_SECONDS}s`);
         return;
       }
       toast.error(getReadableFirebaseAuthError(error));
@@ -245,7 +247,7 @@ const Register = () => {
     e.preventDefault();
 
     if (!nativePlatform && (!formData.otp || formData.otp.length !== 6)) {
-      toast.error('Please enter valid 6-digit OTP');
+      toast.error(t('register.enterOtp', 'Enter OTP'));
       return;
     }
 
@@ -296,7 +298,7 @@ const Register = () => {
       dispatch(setAuthUser({ user: userData, token: accessToken }));
 
 
-      toast.success('Welcome to FlashBites! 🎉');
+      toast.success(t('register.welcomeToast', 'Welcome to FlashBites! 🎉'));
 
       // Redirect based on role
       const roleMap = { restaurant_owner: '/dashboard', delivery_partner: '/delivery-dashboard' };
@@ -320,12 +322,12 @@ const Register = () => {
     try {
       const phoneWithCode = `+91${formData.phone}`;
       await sendPhoneOTP(phoneWithCode);
-      toast.success('OTP resent to your phone');
+      toast.success(t('register.resendOtp', 'Resend OTP'));
       setResendCountdown(30);
     } catch (error) {
       if (isTooManyRequestsError(error)) {
         await startOtpBlock();
-        toast.error('OTP is temporarily rate-limited for this number/device. Please wait a few minutes and try again.');
+        toast.error(`${t('register.tryAgainIn', 'Try again in')} ${OTP_BLOCK_SECONDS}s`);
         return;
       }
       toast.error(getReadableFirebaseAuthError(error));
@@ -349,7 +351,7 @@ const Register = () => {
             <span className="text-4xl font-black text-[#201A1C] tracking-[-0.02em]">FlashBites</span>
           </div>
 
-          <p className="text-[#4B4346] text-lg mb-6">Create your account and start ordering in minutes.</p>
+          <p className="text-[#4B4346] text-lg mb-6">{t('register.hero', 'Create your account and start ordering in minutes.')}</p>
 
           <div className="rounded-[2rem] overflow-hidden shadow-[0_18px_42px_rgba(38,24,27,0.15)] mb-8">
             <img src={HERO_IMAGE} alt="Curated meal" className="w-full h-[280px] object-cover" />
@@ -357,9 +359,9 @@ const Register = () => {
 
           <div className="text-left inline-flex flex-col gap-3">
             {[
-              { icon: '📱', t: 'Quick phone verification' },
-              { icon: '🍽️', t: 'Curated restaurants' },
-              { icon: '🚀', t: 'Fast checkout experience' },
+              { icon: '📱', t: t('register.quickVerification', 'Quick phone verification') },
+              { icon: '🍽️', t: t('auth.login.curatedRestaurants', 'Curated restaurants') },
+              { icon: '🚀', t: t('register.fastCheckout', 'Fast checkout experience') },
             ].map((f) => (
               <div key={f.t} className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base" style={{ background: '#FFF0ED' }}>
@@ -383,13 +385,13 @@ const Register = () => {
 
           <div className="auth-surface p-5 sm:p-8">
             <h2 className="text-[1.7rem] sm:text-[2rem] font-black text-[#201A1C] leading-tight mb-1">
-              {step === 1 ? 'Create account' : 'Verify phone'}
+              {step === 1 ? t('register.title', 'Create account') : t('register.verifyPhone', 'Verify phone')}
             </h2>
             <p className="text-sm text-[#6B6064] mb-6">
               {step === 1 ? (
-                <>Already have an account? <Link to="/login" className="font-semibold" style={{ color: BRAND }}>Sign in</Link></>
+                <>{t('register.alreadyHaveAccount', 'Already have an account?')} <Link to="/login" className="font-semibold" style={{ color: BRAND }}>{t('register.signIn', 'Sign in')}</Link></>
               ) : (
-                <>Enter the 6-digit OTP sent to <span className="font-semibold text-[#4A4043]">+91 {formData.phone}</span></>
+                <>{t('register.enterOtpSentTo', 'Enter the 6-digit OTP sent to')} <span className="font-semibold text-[#4A4043]">+91 {formData.phone}</span></>
               )}
             </p>
 
@@ -401,20 +403,20 @@ const Register = () => {
             {step === 1 && (
               <form onSubmit={handleSendOTP} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">Full Name</label>
+                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('register.fullName', 'Full Name')}</label>
                   <input
                     name="name"
                     type="text"
                     required
                     value={formData.name}
                     onChange={handleChange}
-                    placeholder="Your full name"
+                    placeholder={t('register.fullNamePlaceholder', 'Your full name')}
                     className="auth-input-base px-4 text-[14px] sm:text-[15px] placeholder:text-[#AA9EA2] outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">Phone Number</label>
+                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('auth.login.phoneNumber', 'Phone Number')}</label>
                   <div className="auth-input-base flex overflow-hidden">
                     <span className="inline-flex items-center px-4 text-[#2B2426] text-sm font-semibold">+91</span>
                     <span className="inline-flex items-center px-2 text-[#7B6E72]">⌄</span>
@@ -426,14 +428,14 @@ const Register = () => {
                       maxLength="10"
                       value={formData.phone}
                       onChange={handleChange}
-                      placeholder="10-digit mobile number"
+                      placeholder={t('register.phonePlaceholder', '10-digit mobile number')}
                       className="flex-1 bg-transparent px-4 text-[14px] sm:text-[15px] text-[#3A3235] placeholder:text-[#AA9EA2] outline-none"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">Email <span className="text-[#B4A7AC]">(optional)</span></label>
+                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('register.emailOptional', 'Email (optional)')}</label>
                   <input
                     name="email"
                     type="email"
@@ -445,7 +447,7 @@ const Register = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">Password</label>
+                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('register.password', 'Password')}</label>
                   <div className="relative">
                     <input
                       name="password"
@@ -454,7 +456,7 @@ const Register = () => {
                       value={formData.password}
                       onChange={handleChange}
                       onFocus={() => setShowPasswordGuide(true)}
-                      placeholder="Min 6 characters"
+                      placeholder={t('register.passwordPlaceholder', 'Min 6 characters')}
                       className="auth-input-base px-4 pr-16 text-[14px] sm:text-[15px] placeholder:text-[#AA9EA2] outline-none"
                     />
                     <button
@@ -462,13 +464,13 @@ const Register = () => {
                       onClick={() => setShowPassword((prev) => !prev)}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold uppercase tracking-[0.06em] text-[#8A7E82]"
                     >
-                      {showPassword ? 'Hide' : 'Show'}
+                      {showPassword ? t('auth.login.hide', 'Hide') : t('auth.login.show', 'Show')}
                     </button>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">Confirm Password</label>
+                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('register.confirmPassword', 'Confirm Password')}</label>
                   <div className="relative">
                     <input
                       name="confirmPassword"
@@ -477,7 +479,7 @@ const Register = () => {
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       onFocus={() => setShowPasswordGuide(true)}
-                      placeholder="Re-enter password"
+                      placeholder={t('register.confirmPasswordPlaceholder', 'Re-enter password')}
                       className="auth-input-base px-4 pr-16 text-[14px] sm:text-[15px] placeholder:text-[#AA9EA2] outline-none"
                     />
                     <button
@@ -485,29 +487,29 @@ const Register = () => {
                       onClick={() => setShowConfirmPassword((prev) => !prev)}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold uppercase tracking-[0.06em] text-[#8A7E82]"
                     >
-                      {showConfirmPassword ? 'Hide' : 'Show'}
+                      {showConfirmPassword ? t('auth.login.hide', 'Hide') : t('auth.login.show', 'Show')}
                     </button>
                   </div>
                 </div>
 
                 {showPasswordGuide && (
                   <div className="rounded-2xl border border-[#E7DCDC] bg-[#F6EEEC] p-3 text-xs space-y-1">
-                    <p className="font-semibold text-[#52484B]">Password requirements</p>
+                    <p className="font-semibold text-[#52484B]">{t('register.passwordRequirements', 'Password requirements')}</p>
                     <p className={passwordRules.minLength ? 'text-green-600' : 'text-[#786E72]'}>
-                      {passwordRules.minLength ? '✓' : '•'} At least 6 characters
+                      {passwordRules.minLength ? '✓' : '•'} {t('register.atLeast6', 'At least 6 characters')}
                     </p>
                     <p className={passwordRules.uppercase ? 'text-green-600' : 'text-[#786E72]'}>
-                      {passwordRules.uppercase ? '✓' : '•'} One uppercase letter
+                      {passwordRules.uppercase ? '✓' : '•'} {t('register.uppercase', 'One uppercase letter')}
                     </p>
                     <p className={passwordRules.lowercase ? 'text-green-600' : 'text-[#786E72]'}>
-                      {passwordRules.lowercase ? '✓' : '•'} One lowercase letter
+                      {passwordRules.lowercase ? '✓' : '•'} {t('register.lowercase', 'One lowercase letter')}
                     </p>
                     <p className={passwordRules.special ? 'text-green-600' : 'text-[#786E72]'}>
-                      {passwordRules.special ? '✓' : '•'} One special character
+                      {passwordRules.special ? '✓' : '•'} {t('register.special', 'One special character')}
                     </p>
                     {formData.confirmPassword && (
                       <p className={passwordsMatch ? 'text-green-600' : 'text-red-500'}>
-                        {passwordsMatch ? '✓ Passwords match' : '• Passwords do not match'}
+                        {passwordsMatch ? `✓ ${t('register.passwordsMatch', 'Passwords match')}` : `• ${t('register.passwordsDoNotMatch', 'Passwords do not match')}`}
                       </p>
                     )}
                   </div>
@@ -519,7 +521,7 @@ const Register = () => {
                   className="w-full h-[54px] sm:h-[60px] rounded-[1.25rem] sm:rounded-[2rem] text-white text-base sm:text-lg font-extrabold transition-all disabled:opacity-70"
                   style={{ background: BRAND, boxShadow: '0 12px 28px rgba(234,88,12,0.24)' }}
                 >
-                  {loading ? 'Sending OTP...' : otpBlockRemaining > 0 ? `Try again in ${otpBlockRemaining}s` : 'Send OTP'}
+                  {loading ? t('register.sendingOtp', 'Sending OTP...') : otpBlockRemaining > 0 ? `${t('register.tryAgainIn', 'Try again in')} ${otpBlockRemaining}s` : t('register.sendOtp', 'Send OTP')}
                 </button>
               </form>
             )}
@@ -527,7 +529,7 @@ const Register = () => {
             {step === 2 && (
               <form onSubmit={handleRegister} className="space-y-5">
                 <div>
-                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">Enter OTP</label>
+                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('register.enterOtp', 'Enter OTP')}</label>
                   <input
                     name="otp"
                     type="text"
@@ -547,7 +549,7 @@ const Register = () => {
                   className="w-full h-[54px] sm:h-[60px] rounded-[1.25rem] sm:rounded-[2rem] text-white text-base sm:text-lg font-extrabold transition-all disabled:opacity-70"
                   style={{ background: BRAND, boxShadow: '0 12px 28px rgba(234,88,12,0.24)' }}
                 >
-                  {loading ? 'Verifying...' : 'Verify & Register'}
+                  {loading ? t('register.verifying', 'Verifying...') : t('register.verifyAndRegister', 'Verify & Register')}
                 </button>
 
                 <div className="flex items-center justify-between text-sm">
@@ -558,10 +560,10 @@ const Register = () => {
                     className="font-semibold disabled:opacity-40"
                     style={{ color: BRAND }}
                   >
-                    {otpBlockRemaining > 0 ? `Try again in ${otpBlockRemaining}s` : resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend OTP'}
+                    {otpBlockRemaining > 0 ? `${t('register.tryAgainIn', 'Try again in')} ${otpBlockRemaining}s` : resendCountdown > 0 ? `${t('register.resendIn', 'Resend in')} ${resendCountdown}s` : t('register.resendOtp', 'Resend OTP')}
                   </button>
                   <button type="button" onClick={() => setStep(1)} className="text-[#8E8387] hover:text-[#5B5256]">
-                    ← Change Details
+                    ← {t('register.changeDetails', 'Change Details')}
                   </button>
                 </div>
               </form>

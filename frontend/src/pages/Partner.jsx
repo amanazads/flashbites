@@ -22,6 +22,7 @@ import AddressInput from '../components/location/AddressInput';
 import MapPicker from '../components/location/MapPicker';
 import { reverseGeocodeCoordinates } from '../api/locationApi';
 import logo from '../assets/logo.png';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const isValidCoordinatePair = (lat, lng) => (
   Number.isFinite(lat)
@@ -35,6 +36,7 @@ const isValidCoordinatePair = (lat, lng) => (
 
 const Partner = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [activeSection, setActiveSection] = useState('overview'); // overview, delivery, restaurant, restaurantRegistration, career, contact
   const [loading, setLoading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -111,9 +113,11 @@ const Partner = () => {
     menuItems: [
       {
         name: '',
+        nameHi: '',
         category: '',
         price: '',
         description: '',
+        descriptionHi: '',
       },
     ],
     acceptTerms: false,
@@ -152,14 +156,14 @@ const Partner = () => {
     if (file) {
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size should not exceed 5MB');
+        toast.error(t('partner.fileSizeLimit', 'File size should not exceed 5MB'));
         return;
       }
 
       // Validate file type
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
       if (!validTypes.includes(file.type)) {
-        toast.error('Only JPG, PNG, and PDF files are allowed');
+        toast.error(t('partner.fileTypeAllowed', 'Only JPG, PNG, and PDF files are allowed'));
         return;
       }
 
@@ -186,17 +190,22 @@ const Partner = () => {
     
     // Validation
     if (!documents.photo || !documents.drivingLicense || !documents.aadharCard) {
-      toast.error('Please upload all required documents');
+      toast.error(t('partner.uploadRequiredDocs', 'Please upload all required documents'));
       return;
     }
 
-    if (formData.phone.length !== 10 || formData.alternatePhone.length !== 10) {
-      toast.error('Phone numbers must be 10 digits');
+    if (formData.phone.length !== 10) {
+      toast.error(t('partner.phone10DigitsSingle', 'Phone number must be 10 digits'));
+      return;
+    }
+
+    if (formData.alternatePhone && formData.alternatePhone.length !== 10) {
+      toast.error(t('partner.altPhone10Digits', 'Alternate phone number must be 10 digits'));
       return;
     }
 
     if (formData.aadharNumber.length !== 12) {
-      toast.error('Aadhar number must be 12 digits');
+      toast.error(t('partner.aadhar12Digits', 'Aadhar number must be 12 digits'));
       return;
     }
 
@@ -285,10 +294,10 @@ const Partner = () => {
         console.error('Delivery admin notification failed:', notifyError);
       }
       
-      toast.success('Application submitted. Details were sent to admin for approval review.');
+      toast.success(t('partner.applicationSubmitted', 'Application submitted. Details were sent to admin for approval review.'));
       navigate('/');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to submit application');
+      toast.error(error.response?.data?.message || t('partner.submitFailed', 'Failed to submit application'));
     } finally {
       setLoading(false);
     }
@@ -337,9 +346,11 @@ const Partner = () => {
         ...prev.menuItems,
         {
           name: '',
+          nameHi: '',
           category: '',
           price: '',
           description: '',
+          descriptionHi: '',
         },
       ],
     }));
@@ -366,13 +377,13 @@ const Partner = () => {
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Each document must be 5MB or smaller');
+      toast.error(t('partner.eachDoc5mb', 'Each document must be 5MB or smaller'));
       return;
     }
 
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
     if (!allowedTypes.includes(file.type)) {
-      toast.error('Only PDF, JPG, and PNG files are allowed');
+      toast.error(t('partner.pdfJpgPng', 'Only PDF, JPG, and PNG files are allowed'));
       return;
     }
 
@@ -540,7 +551,7 @@ const Partner = () => {
           console.error('Reverse geocode failed for restaurant registration:', error);
         }
 
-        toast.success('Restaurant location captured');
+        toast.success(t('partner.locationCaptured', 'Restaurant location captured'));
       },
       (error) => {
         toast.error(getRestaurantGeoFailureMessage(error));
@@ -557,34 +568,34 @@ const Partner = () => {
     );
 
     if (restaurantFormData.phone.length !== 10) {
-      toast.error('Phone number must be 10 digits');
+      toast.error(t('partner.phone10DigitsSingle', 'Phone number must be 10 digits'));
       return;
     }
 
     if (restaurantFormData.alternatePhone && restaurantFormData.alternatePhone.length !== 10) {
-      toast.error('Alternate phone number must be 10 digits');
+      toast.error(t('partner.altPhone10Digits', 'Alternate phone number must be 10 digits'));
       return;
     }
 
     if (!restaurantDocuments.fssaiLicense || !restaurantDocuments.menuDocument || !restaurantDocuments.ownerIdProof) {
-      toast.error('Please upload all required documents');
+      toast.error(t('partner.uploadRequiredDocs', 'Please upload all required documents'));
       return;
     }
 
     if (validMenuItems.length === 0) {
-      toast.error('Add at least one menu item with name and price');
+      toast.error(t('partner.menuItemRequired', 'Add at least one menu item with name and price'));
       return;
     }
 
     if (!restaurantFormData.acceptTerms || !restaurantFormData.acceptAgreement) {
-      toast.error('Please accept Terms and Partner Agreement before submitting');
+      toast.error(t('partner.acceptTermsRequired', 'Please accept Terms and Partner Agreement before submitting'));
       return;
     }
 
     const locationLat = Number(restaurantFormData.location?.lat);
     const locationLng = Number(restaurantFormData.location?.lng);
     if (!isValidCoordinatePair(locationLat, locationLng)) {
-      toast.error('Please set a valid restaurant location using address search, map pin, current location, or manual coordinates');
+      toast.error(t('partner.validLocationRequired', 'Please set a valid restaurant location using address search, map pin, current location, or manual coordinates'));
       return;
     }
 
@@ -702,11 +713,11 @@ const Partner = () => {
         console.error('Restaurant admin notification failed:', notifyError);
       }
 
-      toast.success('Restaurant registration submitted and sent to admin approval queue. Credentials will be generated on approval.');
+      toast.success(t('partner.restaurantSubmitted', 'Restaurant registration submitted and sent to admin approval queue. Credentials will be generated on approval.'));
       resetRestaurantForm();
       setActiveSection('restaurant');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to submit registration');
+      toast.error(error.response?.data?.message || t('partner.registrationFailed', 'Failed to submit registration'));
     } finally {
       setRestaurantLoading(false);
     }
@@ -736,8 +747,8 @@ const Partner = () => {
             <button type="button" className="flex items-center gap-2 text-left">
               <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
               <div>
-                <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
-                <p className="text-[12px] leading-none font-semibold text-gray-900">Current Area</p>
+                <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
+                <p className="text-[12px] leading-none font-semibold text-gray-900">{t('common.currentArea', 'Current Area')}</p>
               </div>
             </button>
           </div>
@@ -756,23 +767,22 @@ const Partner = () => {
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-primary-500 to-primary-600 text-white py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Partner With FlashBites</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">{t('partner.heroTitle', 'Partner With FlashBites')}</h1>
           <p className="text-xl text-primary-100 max-w-3xl mx-auto mb-8">
-            Join us in revolutionizing food delivery in rural and semi-urban India. 
-            Whether you're a restaurant owner, delivery partner, or looking for a career, we have opportunities for you.
+            {t('partner.heroSubtitle', 'Join us in revolutionizing food delivery in rural and semi-urban India. Whether you\'re a restaurant owner, delivery partner, or looking for a career, we have opportunities for you.')}
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <button
               onClick={() => setActiveSection('restaurant')}
               className="bg-white text-primary-600 px-6 py-3 rounded-lg font-semibold hover:bg-primary-50 transition-colors"
             >
-              Restaurant Partner
+              {t('partner.restaurantPartner', 'Restaurant Partner')}
             </button>
             <button
               onClick={() => setActiveSection('delivery')}
               className="bg-white text-primary-600 px-6 py-3 rounded-lg font-semibold hover:bg-primary-50 transition-colors"
             >
-              Delivery Partner
+              {t('partner.deliveryPartner', 'Delivery Partner')}
             </button>
             {/* <button
               onClick={() => setActiveSection('career')}
@@ -1173,20 +1183,20 @@ const Partner = () => {
               className="flex items-center text-primary-600 hover:text-primary-700 mb-6"
             >
               <ArrowRightIcon className="h-5 w-5 mr-2 rotate-180" />
-              Back to Restaurant Partner
+              {t('partner.backToRestaurantPartner', 'Back to Restaurant Partner')}
             </button>
 
             <div className="bg-white rounded-xl shadow-lg p-8">
               <div className="mb-8">
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">Restaurant Registration Form</h2>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('partner.restaurantRegistrationForm', 'Restaurant Registration Form')}</h2>
                 <p className="text-gray-600">
-                  Complete the onboarding form with your restaurant details, required documents, and menu information.
+                  {t('partner.completeOnboardingForm', 'Complete the onboarding form with your restaurant details, required documents, and menu information.')}
                 </p>
               </div>
 
               <form onSubmit={handleRestaurantSubmit} className="space-y-8">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('partner.basicInformation', 'Basic Information')}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1566,13 +1576,13 @@ const Partner = () => {
 
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Menu Item Details</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">{t('partner.menuItemDetails', 'Menu Item Details')}</h3>
                     <button
                       type="button"
                       onClick={addRestaurantMenuItem}
                       className="text-primary-600 hover:text-primary-700 font-semibold"
                     >
-                      + Add Menu Item
+                      + {t('partner.addMenuItem', 'Add Menu Item')}
                     </button>
                   </div>
 
@@ -1580,14 +1590,14 @@ const Partner = () => {
                     {restaurantFormData.menuItems.map((item, index) => (
                       <div key={`menu-item-${index}`} className="border border-gray-200 rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-semibold text-gray-900">Item {index + 1}</h4>
+                          <h4 className="font-semibold text-gray-900">{t('partner.item', 'Item')} {index + 1}</h4>
                           {restaurantFormData.menuItems.length > 1 && (
                             <button
                               type="button"
                               onClick={() => removeRestaurantMenuItem(index)}
                               className="text-red-600 hover:text-red-700 text-sm font-semibold"
                             >
-                              Remove
+                              {t('partner.remove', 'Remove')}
                             </button>
                           )}
                         </div>
@@ -1597,14 +1607,21 @@ const Partner = () => {
                             type="text"
                             value={item.name}
                             onChange={(e) => handleRestaurantMenuItemChange(index, 'name', e.target.value)}
-                            placeholder="Item name"
+                            placeholder={t('partner.itemName', 'Item name')}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          />
+                          <input
+                            type="text"
+                            value={item.nameHi || ''}
+                            onChange={(e) => handleRestaurantMenuItemChange(index, 'nameHi', e.target.value)}
+                            placeholder={t('partner.itemNameHindiOptional', 'Item name in Hindi (optional)')}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                           />
                           <input
                             type="text"
                             value={item.category}
                             onChange={(e) => handleRestaurantMenuItemChange(index, 'category', e.target.value)}
-                            placeholder="Category"
+                            placeholder={t('partner.category', 'Category')}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                           />
                           <input
@@ -1612,14 +1629,21 @@ const Partner = () => {
                             min="1"
                             value={item.price}
                             onChange={(e) => handleRestaurantMenuItemChange(index, 'price', e.target.value)}
-                            placeholder="Price"
+                            placeholder={t('partner.price', 'Price')}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                           />
                           <input
                             type="text"
                             value={item.description}
                             onChange={(e) => handleRestaurantMenuItemChange(index, 'description', e.target.value)}
-                            placeholder="Description"
+                            placeholder={t('partner.description', 'Description')}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          />
+                          <input
+                            type="text"
+                            value={item.descriptionHi || ''}
+                            onChange={(e) => handleRestaurantMenuItemChange(index, 'descriptionHi', e.target.value)}
+                            placeholder={t('partner.descriptionHindiOptional', 'Description in Hindi (optional)')}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                           />
                         </div>
@@ -1629,9 +1653,9 @@ const Partner = () => {
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Document Uploads</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('partner.documentUploads', 'Document Uploads')}</h3>
                   <p className="text-sm text-gray-600 mb-4">
-                    Upload PDF/JPG/PNG files, maximum 5MB each.
+                    {t('partner.uploadDocsHelp', 'Upload PDF/JPG/PNG files, maximum 5MB each.')}
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -1697,7 +1721,7 @@ const Partner = () => {
                 </div>
 
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-5 space-y-5">
-                  <h3 className="text-lg font-semibold text-gray-900">FlashBites Restaurant Partner Terms</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">{t('partner.restaurantTermsTitle', 'FlashBites Restaurant Partner Terms')}</h3>
 
                   <div className="max-h-80 overflow-y-auto pr-2 space-y-4 text-sm text-gray-700">
                     <p>
@@ -1874,7 +1898,7 @@ const Partner = () => {
                         className="mt-1"
                       />
                       <span>
-                        I have read and accept the FlashBites Restaurant Partner Terms.
+                        {t('partner.acceptRestaurantTerms', 'I have read and accept the FlashBites Restaurant Partner Terms.')}
                       </span>
                     </label>
 
@@ -1887,7 +1911,7 @@ const Partner = () => {
                         className="mt-1"
                       />
                       <span>
-                        I agree to the Partner Agreement, onboarding process, and operational guidelines.
+                        {t('partner.acceptPartnerAgreement', 'I agree to the Partner Agreement, onboarding process, and operational guidelines.')}
                       </span>
                     </label>
                   </div>
@@ -1898,12 +1922,11 @@ const Partner = () => {
                   disabled={restaurantLoading}
                   className="w-full bg-primary-600 text-white py-3 px-6 rounded-lg hover:bg-primary-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold text-lg"
                 >
-                  {restaurantLoading ? 'Submitting...' : 'Submit Restaurant Registration'}
+                  {restaurantLoading ? t('partner.submitting', 'Submitting...') : t('partner.submitRestaurantRegistration', 'Submit Restaurant Registration')}
                 </button>
 
                 <p className="text-sm text-gray-600 text-center">
-                  Submission details are sent to admin at info.flashbites@gmail.com for approval and tracking. New
-                  restaurant login credentials are shared with the owner after verification.
+                  {t('partner.submissionSentToAdmin', 'Submission details are sent to admin at info.flashbites@gmail.com for approval and tracking. New restaurant login credentials are shared with the owner after verification.')}
                 </p>
               </form>
             </div>
@@ -1947,7 +1970,7 @@ const Partner = () => {
                 </div>
                 <div className="text-center">
                   <div className="text-primary-600 font-bold text-2xl mb-1">Weekly</div>
-                  <div className="text-sm text-gray-600">Payment Cycle</div>
+                  <div className="text-sm text-gray-600">{t('partner.paymentCycle', 'Payment Cycle')}</div>
                 </div>
               </div>
             </div>
@@ -1958,7 +1981,7 @@ const Partner = () => {
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <UserIcon className="h-5 w-5 mr-2 text-primary-600" />
-              Personal Information
+              {t('partner.personalInformation', 'Personal Information')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -2063,7 +2086,7 @@ const Partner = () => {
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <MapPinIcon className="h-5 w-5 mr-2 text-primary-600" />
-              Address
+              {t('partner.address', 'Address')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
@@ -2134,7 +2157,7 @@ const Partner = () => {
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <TruckIcon className="h-5 w-5 mr-2 text-primary-600" />
-              Vehicle Information
+              {t('partner.vehicleInformation', 'Vehicle Information')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -2205,7 +2228,7 @@ const Partner = () => {
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <DocumentTextIcon className="h-5 w-5 mr-2 text-primary-600" />
-              Bank Details
+              {t('partner.bankDetails', 'Bank Details')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -2260,7 +2283,7 @@ const Partner = () => {
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <PhoneIcon className="h-5 w-5 mr-2 text-primary-600" />
-              Emergency Contact
+              {t('partner.emergencyContact', 'Emergency Contact')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
@@ -2316,10 +2339,10 @@ const Partner = () => {
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <CameraIcon className="h-5 w-5 mr-2 text-primary-600" />
-              Upload Documents
+              {t('partner.uploadDocuments', 'Upload Documents')}
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Please upload clear images or PDF files (max 5MB each)
+              {t('partner.uploadClearDocsHelp', 'Please upload clear images or PDF files (max 5MB each)')}
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -2349,7 +2372,7 @@ const Partner = () => {
                     <>
                       <CameraIcon className="h-12 w-12 mx-auto text-gray-400 mb-2" />
                       <label className="cursor-pointer text-primary-600 hover:text-primary-700">
-                        Click to upload
+                        {t('partner.clickToUpload', 'Click to upload')}
                         <input
                           type="file"
                           accept="image/jpeg,image/jpg,image/png"
@@ -2389,7 +2412,7 @@ const Partner = () => {
                     <>
                       <DocumentTextIcon className="h-12 w-12 mx-auto text-gray-400 mb-2" />
                       <label className="cursor-pointer text-primary-600 hover:text-primary-700">
-                        Click to upload
+                        {t('partner.clickToUpload', 'Click to upload')}
                         <input
                           type="file"
                           accept="image/jpeg,image/jpg,image/png,application/pdf"
@@ -2429,7 +2452,7 @@ const Partner = () => {
                     <>
                       <DocumentTextIcon className="h-12 w-12 mx-auto text-gray-400 mb-2" />
                       <label className="cursor-pointer text-primary-600 hover:text-primary-700">
-                        Click to upload
+                        {t('partner.clickToUpload', 'Click to upload')}
                         <input
                           type="file"
                           accept="image/jpeg,image/jpg,image/png,application/pdf"
@@ -2449,8 +2472,7 @@ const Partner = () => {
           <div>
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <p className="text-sm text-gray-600">
-                By submitting this application, you agree to our terms and conditions. 
-                We will verify your documents and contact you within 3-5 business days.
+                {t('partner.submitAgreementNote', 'By submitting this application, you agree to our terms and conditions. We will verify your documents and contact you within 3-5 business days.')}
               </p>
             </div>
 
@@ -2459,7 +2481,7 @@ const Partner = () => {
               disabled={loading}
               className="w-full bg-primary-600 text-white py-3 px-6 rounded-lg hover:bg-primary-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold text-lg"
             >
-              {loading ? 'Submitting...' : 'Submit Application'}
+              {loading ? t('partner.submitting', 'Submitting...') : t('partner.submitApplication', 'Submit Application')}
             </button>
           </div>
         </form>

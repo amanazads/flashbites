@@ -4,6 +4,7 @@ import { getOrderById } from '../api/orderApi';
 import { createRazorpayOrder, recordPaymentFailure, verifyPayment } from '../api/paymentApi';
 import { formatCurrency } from '../utils/formatters';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
 const isProdBuild = import.meta.env.PROD;
@@ -28,6 +29,7 @@ const Payment = () => {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(location.state?.paymentMethod || 'upi');
+  const { t } = useLanguage();
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -37,7 +39,7 @@ const Payment = () => {
         if (!fetchedOrder) throw new Error('Order not found');
         setOrder(fetchedOrder);
       } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to load order');
+        toast.error(error.response?.data?.message || t('payment.loadOrderFailed', 'Failed to load order'));
       } finally {
         setLoading(false);
       }
@@ -62,22 +64,22 @@ const Payment = () => {
     if (paying) return;
 
     if (!RAZORPAY_KEY_ID) {
-      toast.error('Razorpay key is missing. Please contact support.');
+      toast.error(t('payment.keyMissing', 'Razorpay key is missing. Please contact support.'));
       return;
     }
 
     if (isProdBuild && !isLiveRazorpayKey(RAZORPAY_KEY_ID)) {
-      toast.error('Live Razorpay key is not configured for production.');
+      toast.error(t('payment.liveKeyMissing', 'Live Razorpay key is not configured for production.'));
       return;
     }
 
     setPaying(true);
-    toast.loading('Initializing payment...');
+    toast.loading(t('payment.init', 'Initializing payment...'));
 
     try {
       const scriptReady = await loadRazorpayScript();
       if (!scriptReady) {
-        throw new Error('Failed to load Razorpay');
+        throw new Error(t('payment.loadFailed', 'Failed to load Razorpay'));
       }
 
       const razorpayResponse = await createRazorpayOrder(order._id, order.total);
@@ -107,7 +109,7 @@ const Payment = () => {
         handler: async function (response) {
           try {
             toast.dismiss();
-            toast.loading('Verifying payment...');
+            toast.loading(t('payment.verify', 'Verifying payment...'));
 
             await verifyPayment({
               paymentId: razorpayResponse.data.paymentId,
@@ -120,18 +122,18 @@ const Payment = () => {
             });
 
             toast.dismiss();
-            toast.success('Payment successful!');
+            toast.success(t('payment.success', 'Payment successful!'));
             navigate(`/orders/${order._id}`);
           } catch (error) {
             toast.dismiss();
-            toast.error('Payment verification failed. Please contact support.');
+            toast.error(t('payment.verifyFailed', 'Payment verification failed. Please contact support.'));
             navigate(`/orders/${order._id}`);
           }
         },
         modal: {
           ondismiss: async function () {
             toast.dismiss();
-            toast.error('Payment cancelled.');
+            toast.error(t('payment.cancelled', 'Payment cancelled.'));
             await recordPaymentFailure(razorpayResponse.data.paymentId, {
               gateway: 'razorpay',
               reason: 'User cancelled payment'
@@ -149,7 +151,7 @@ const Payment = () => {
       razorpay.open();
     } catch (error) {
       toast.dismiss();
-      toast.error(error.message || 'Payment initialization failed');
+      toast.error(error.message || t('payment.initFailed', 'Payment initialization failed'));
     } finally {
       setPaying(false);
     }
@@ -160,7 +162,7 @@ const Payment = () => {
       <div className="min-h-screen w-full flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 rounded-full border-4 border-red-200 border-t-red-500 animate-spin" />
-          <p className="text-sm text-gray-500">Loading payment...</p>
+          <p className="text-sm text-gray-500">{t('payment.loading', 'Loading payment...')}</p>
         </div>
       </div>
     );
@@ -170,13 +172,13 @@ const Payment = () => {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-white">
         <div className="text-center px-6">
-          <h1 className="text-xl font-bold text-gray-900">Order not found</h1>
-          <p className="text-sm text-gray-500 mt-2">Please go back and try again.</p>
+          <h1 className="text-xl font-bold text-gray-900">{t('payment.orderNotFound', 'Order not found')}</h1>
+          <p className="text-sm text-gray-500 mt-2">{t('payment.tryAgain', 'Please go back and try again.')}</p>
           <button
             onClick={() => navigate('/orders')}
             className="mt-4 px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold"
           >
-            View Orders
+            {t('payment.viewOrders', 'View Orders')}
           </button>
         </div>
       </div>
@@ -189,18 +191,18 @@ const Payment = () => {
         <div className="flex flex-col md:flex-row gap-6 max-[400px]:gap-4">
           <div className="flex-1 space-y-6">
             <div className="bg-white rounded-2xl shadow-soft p-5 max-[400px]:p-3.5">
-              <h1 className="text-2xl font-bold text-gray-900 max-[400px]:text-xl">Complete Payment</h1>
+              <h1 className="text-2xl font-bold text-gray-900 max-[400px]:text-xl">{t('payment.complete', 'Complete Payment')}</h1>
               <p className="text-sm text-gray-500 mt-1">
                 Order #{order._id.slice(-8)} · {order.restaurantId?.name || 'Restaurant'}
               </p>
             </div>
 
             <div className="bg-white rounded-2xl shadow-soft p-5 max-[400px]:p-3.5">
-              <h2 className="text-base font-bold text-gray-900 mb-3">Choose payment method</h2>
+              <h2 className="text-base font-bold text-gray-900 mb-3">{t('payment.chooseMethod', 'Choose payment method')}</h2>
               <div className="space-y-2">
                 {[
-                  { value: 'upi', label: 'UPI', sub: 'Pay via PhonePe, GPay, Paytm' },
-                  { value: 'card', label: 'Card', sub: 'Credit / Debit cards' }
+                  { value: 'upi', label: 'UPI', sub: t('payment.upiSub', 'Pay via PhonePe, GPay, Paytm') },
+                  { value: 'card', label: 'Card', sub: t('payment.cardSub', 'Credit / Debit cards') }
                 ].map((method) => (
                   <label
                     key={method.value}
@@ -229,14 +231,14 @@ const Payment = () => {
                 disabled={paying}
                 className="mt-4 w-full rounded-xl bg-red-500 text-white font-semibold text-sm py-3 disabled:opacity-60"
               >
-                {paying ? 'Opening Razorpay...' : `Pay ${formatCurrency(summary?.total || 0)}`}
+                {paying ? t('payment.openingRazorpay', 'Opening Razorpay...') : `${t('payment.pay', 'Pay')} ${formatCurrency(summary?.total || 0)}`}
               </button>
             </div>
           </div>
 
           <div className="w-full md:w-[340px]">
             <div className="bg-white rounded-2xl shadow-soft p-5 sticky top-6 max-[400px]:static max-[400px]:p-3.5">
-              <h2 className="text-base font-bold text-gray-900 mb-3">Order summary</h2>
+              <h2 className="text-base font-bold text-gray-900 mb-3">{t('payment.orderSummary', 'Order summary')}</h2>
               <div className="space-y-2 text-sm">
                 {summary?.items?.map((item) => (
                   <div key={item._id || item.menuItemId} className="flex justify-between text-gray-700">
@@ -248,23 +250,23 @@ const Payment = () => {
 
               <div className="mt-4 border-t border-gray-100 pt-3 space-y-2 text-sm">
                 <div className="flex justify-between text-gray-500">
-                  <span>Subtotal</span>
+                  <span>{t('payment.subtotal', 'Subtotal')}</span>
                   <span>{formatCurrency(summary?.subtotal || 0)}</span>
                 </div>
                 {(summary?.tax || 0) > 0 && (
                   <div className="flex justify-between text-gray-500">
-                    <span>Tax</span>
+                    <span>{t('payment.tax', 'Tax')}</span>
                     <span>{formatCurrency(summary?.tax || 0)}</span>
                   </div>
                 )}
                 {summary?.discount > 0 && (
                   <div className="flex justify-between text-green-600">
-                    <span>Discount</span>
+                    <span>{t('payment.discount', 'Discount')}</span>
                     <span>-{formatCurrency(summary.discount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-semibold text-gray-900">
-                  <span>Total</span>
+                  <span>{t('payment.total', 'Total')}</span>
                   <span>{formatCurrency(summary?.total || 0)}</span>
                 </div>
               </div>

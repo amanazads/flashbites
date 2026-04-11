@@ -13,7 +13,9 @@ import logo from '../assets/logo.png';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useLanguage } from '../contexts/LanguageContext';
 import {
+  GlobeAltIcon,
   HomeIcon,
   MagnifyingGlassIcon,
   MapPinIcon,
@@ -69,6 +71,19 @@ const Home = () => {
   const { items: cartItems, restaurant: cartRestaurant } = useSelector((s) => s.cart);
   const { selectedDeliveryAddress } = useSelector((s) => s.ui);
   const { isAuthenticated } = useSelector((s) => s.auth);
+  const { t, language, openLanguageModal } = useLanguage();
+
+  const getLocalizedItemName = useCallback((item) => {
+    const english = typeof item?.name === 'string' ? item.name : '';
+    const hindi = typeof item?.nameHi === 'string' ? item.nameHi.trim() : '';
+    return language === 'hi' && hindi ? hindi : english;
+  }, [language]);
+
+  const getLocalizedItemDescription = useCallback((item) => {
+    const english = typeof item?.description === 'string' ? item.description : '';
+    const hindi = typeof item?.descriptionHi === 'string' ? item.descriptionHi.trim() : '';
+    return language === 'hi' && hindi ? hindi : english;
+  }, [language]);
 
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
@@ -122,6 +137,16 @@ const Home = () => {
   }, [loadSavedAddresses]);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('openLocation') !== '1') return;
+
+    setShowAddressPicker(true);
+    params.delete('openLocation');
+    const nextSearch = params.toString();
+    navigate({ pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : '' }, { replace: true });
+  }, [location.pathname, location.search, navigate]);
+
+  useEffect(() => {
     try {
       const saved = localStorage.getItem(SELECTED_ADDRESS_KEY);
       if (!selectedDeliveryAddress && saved) {
@@ -170,7 +195,7 @@ const Home = () => {
 
       dispatch(setSelectedDeliveryAddress(fallback));
       setShowAddressPicker(false);
-      toast('GPS unavailable. Using your saved address instead.');
+      toast(t('home.usingSavedFallback', 'GPS unavailable. Using your saved address instead.'));
       return true;
     };
 
@@ -263,7 +288,7 @@ const Home = () => {
         );
 
         setShowAddressPicker(false);
-        toast('Using your last known location.');
+        toast(t('home.usingLastKnown', 'Using your last known location.'));
         return true;
       } catch {
         return false;
@@ -507,14 +532,16 @@ const Home = () => {
 
   const confirmCartReplacement = useCallback(async (nextRestaurantName) => {
     const result = await Swal.fire({
-      title: 'Replace cart item?',
-      text: `Your cart contains dishes from ${cartRestaurant?.name || 'another restaurant'}. Do you want to discard the selection and add dishes from ${nextRestaurantName || 'this restaurant'}?`,
+      title: t('home.replaceCartTitle', 'Replace cart item?'),
+      text: t('home.replaceCartText', 'Your cart contains dishes from {current}. Do you want to discard the selection and add dishes from {next}?')
+        .replace('{current}', cartRestaurant?.name || 'another restaurant')
+        .replace('{next}', nextRestaurantName || 'this restaurant'),
       showCancelButton: true,
       showCloseButton: true,
       buttonsStyling: false,
       backdrop: 'rgba(17, 24, 39, 0.58)',
-      confirmButtonText: 'Yes',
-      cancelButtonText: 'No',
+      confirmButtonText: t('home.yes', 'Yes'),
+      cancelButtonText: t('home.no', 'No'),
       reverseButtons: true,
       customClass: {
         popup: 'cart-replace-popup',
@@ -549,7 +576,7 @@ const Home = () => {
     }
 
     dispatch(addToCart({ item: dish, restaurant }));
-    toast.success('Added to cart!');
+    toast.success(t('home.addedToCart', 'Added to cart!'));
     navigate(`/restaurant/${restaurant._id}`);
   }, [cartItems.length, cartRestaurant, confirmCartReplacement, dispatch, navigate, nearbyRestaurantsById]);
 
@@ -567,14 +594,23 @@ const Home = () => {
             <button type="button" onClick={() => setShowAddressPicker(true)} className="min-w-0 flex-1 flex items-center gap-2 text-left">
               <MapPinIcon className="h-4 w-4" style={{ color: BRAND }} />
               <div className="min-w-0">
-                <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
+                <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
                 <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">
-                  {selectedDeliveryAddress?.city || 'Select location'}
+                  {selectedDeliveryAddress?.city || t('home.selectLocationTitle', 'Select location')}
                 </p>
               </div>
             </button>
 
             <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={openLanguageModal}
+                className="h-10 w-10 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-700"
+                aria-label="Change language"
+                title="Change language"
+              >
+                <GlobeAltIcon className="h-5 w-5" />
+              </button>
               <button type="button" onClick={() => navigate('/restaurants')}>
                 <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
               </button>
@@ -595,7 +631,7 @@ const Home = () => {
                   setSearchQ(e.target.value);
                   setShowSuggestions(e.target.value.trim().length >= 2);
                 }}
-                placeholder="Crave something delicious"
+                placeholder={t('home.searchCraving', 'Crave something delicious')}
                 className="flex-1 bg-transparent text-[12px] text-gray-700 placeholder:text-gray-400 outline-none"
               />
             </div>
@@ -603,9 +639,9 @@ const Home = () => {
             {showSuggestions && (
               <div className="absolute left-0 right-0 mt-2 bg-white border border-[#E8E3DF] rounded-2xl shadow-xl z-30 overflow-hidden">
                 {suggestionsLoading ? (
-                  <div className="px-4 py-3 text-[12px] text-gray-500">Searching...</div>
+                  <div className="px-4 py-3 text-[12px] text-gray-500">{t('home.searching', 'Searching...')}</div>
                 ) : searchSuggestions.restaurants.length === 0 && searchSuggestions.items.length === 0 ? (
-                  <div className="px-4 py-3 text-[12px] text-gray-500">No matching restaurants or menu items</div>
+                  <div className="px-4 py-3 text-[12px] text-gray-500">{t('home.noMatches', 'No matching restaurants or menu items')}</div>
                 ) : (
                   <>
                     {searchSuggestions.restaurants.map((r) => (
@@ -619,7 +655,7 @@ const Home = () => {
                         className="w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50"
                       >
                         <p className="text-[12px] font-semibold text-gray-900 line-clamp-1">{r.name}</p>
-                        <p className="text-[10px] text-gray-500 line-clamp-1">Restaurant</p>
+                        <p className="text-[10px] text-gray-500 line-clamp-1">{t('home.restaurant', 'Restaurant')}</p>
                       </button>
                     ))}
 
@@ -636,8 +672,8 @@ const Home = () => {
                           }}
                           className="w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50"
                         >
-                          <p className="text-[12px] font-semibold text-gray-900 line-clamp-1">{item.name}</p>
-                          <p className="text-[10px] text-gray-500 line-clamp-1">{item.restaurantName || 'Menu item'}</p>
+                          <p className="text-[12px] font-semibold text-gray-900 line-clamp-1">{getLocalizedItemName(item)}</p>
+                          <p className="text-[10px] text-gray-500 line-clamp-1">{item.restaurantName || t('home.menuItem', 'Menu item')}</p>
                         </button>
                       );
                     })}
@@ -655,9 +691,9 @@ const Home = () => {
                 className="absolute inset-0 w-full h-full object-cover opacity-40"
               />
               <div className="relative z-10">
-                <p className="text-[#FF6A1A] text-[10px] font-bold uppercase tracking-widest mb-2">Exclusive Offer</p>
+                <p className="text-[#FF6A1A] text-[10px] font-bold uppercase tracking-widest mb-2">{t('home.exclusiveOffer', 'Exclusive Offer')}</p>
                 <h2 className="text-white text-[34px] leading-[0.92] font-black">50% OFF your first FlashBite</h2>
-                <button className="mt-4 bg-[#FF5E1A] text-white px-6 py-2 rounded-full text-[12px] font-bold">Claim Now</button>
+                <button className="mt-4 bg-[#FF5E1A] text-white px-6 py-2 rounded-full text-[12px] font-bold">{t('home.claimNow', 'Claim Now')}</button>
               </div>
             </div>
           </section>
@@ -696,14 +732,14 @@ const Home = () => {
           {activeFilter !== 'All' && (
             <section className="mb-8">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-[25px] leading-[1.05] font-extrabold text-gray-900">{activeFilter} Items Near You</h2>
-                <span className="text-[11px] text-gray-500">Across nearby restaurants</span>
+                <h2 className="text-[25px] leading-[1.05] font-extrabold text-gray-900">{activeFilter} {t('home.itemsNearYou', 'Items Near You')}</h2>
+                <span className="text-[11px] text-gray-500">{t('home.acrossNearby', 'Across nearby restaurants')}</span>
               </div>
 
               {categoryItemsLoading ? (
-                <div className="py-8 text-center text-[12px] text-gray-500">Finding matching menu items...</div>
+                <div className="py-8 text-center text-[12px] text-gray-500">{t('home.findingItems', 'Finding matching menu items...')}</div>
               ) : categoryMenuItems.length === 0 ? (
-                <div className="py-8 text-center text-[12px] text-gray-500">No matching menu items found in this location.</div>
+                <div className="py-8 text-center text-[12px] text-gray-500">{t('home.noItems', 'No matching menu items found in this location.')}</div>
               ) : (
                 <div className="space-y-3">
                   {categoryMenuItems.map((item) => {
@@ -713,8 +749,8 @@ const Home = () => {
                       <Link key={item._id} to={`/restaurant/${rid}`} className="block bg-white rounded-2xl border border-[#E8E3DF] p-3">
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-[13px] font-bold text-gray-900 line-clamp-1">{item.name}</p>
-                            <p className="text-[10px] text-gray-500 line-clamp-1">{item.restaurantName || 'Restaurant'}</p>
+                            <p className="text-[13px] font-bold text-gray-900 line-clamp-1">{getLocalizedItemName(item)}</p>
+                            <p className="text-[10px] text-gray-500 line-clamp-1">{item.restaurantName || t('home.restaurant', 'Restaurant')}</p>
                           </div>
                           <span className="text-[13px] font-extrabold text-[#FF5E1A]">₹{Number(item.price || 0).toFixed(2)}</span>
                         </div>
@@ -728,14 +764,14 @@ const Home = () => {
 
           <section className="mb-8">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[25px] leading-[1.05] font-extrabold text-gray-900">Trending Dishes</h2>
-              <span className="text-gray-400 text-[12px]">Popular now</span>
+              <h2 className="text-[25px] leading-[1.05] font-extrabold text-gray-900">{t('home.trendingDishes', 'Trending Dishes')}</h2>
+              <span className="text-gray-400 text-[12px]">{t('home.popularNow', 'Popular now')}</span>
             </div>
 
             {trendingLoading ? (
-              <div className="py-8 text-center text-[12px] text-gray-500">Loading trending dishes...</div>
+              <div className="py-8 text-center text-[12px] text-gray-500">{t('home.loadingTrending', 'Loading trending dishes...')}</div>
             ) : trendingMenuItems.length === 0 ? (
-              <div className="py-8 text-center text-[12px] text-gray-500">No trending dishes available right now.</div>
+              <div className="py-8 text-center text-[12px] text-gray-500">{t('home.noTrending', 'No trending dishes available right now.')}</div>
             ) : (
               <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
                 {trendingMenuItems.map((dish, index) => {
@@ -746,19 +782,19 @@ const Home = () => {
                     (Array.isArray(dish.images) ? dish.images[0] : null) ||
                     dish.restaurantImage ||
                     'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=500&q=80';
-                  const description = dish.description || dish.category || dish.restaurantName || 'Freshly made favorite';
+                  const description = getLocalizedItemDescription(dish) || dish.category || dish.restaurantName || t('home.freshFavorite', 'Freshly made favorite');
                   const price = Number(dish.price || 0);
 
                   return (
                     <Link
-                      key={dish._id || `${restaurantId}-${dish.name}-${index}`}
+                      key={dish._id || `${restaurantId}-${getLocalizedItemName(dish)}-${index}`}
                       to={restaurantId ? `/restaurant/${restaurantId}` : '/restaurants'}
                       className="bg-white rounded-[26px] p-3 min-w-[250px] border border-[#ECE9E7]"
                     >
                       <div className="h-28 rounded-[20px] overflow-hidden mb-2">
-                        <img src={image} alt={dish.name} className="w-full h-full object-cover" />
+                        <img src={image} alt={getLocalizedItemName(dish)} className="w-full h-full object-cover" />
                       </div>
-                      <h4 className="text-[18px] leading-[1.05] font-extrabold text-gray-900">{dish.name}</h4>
+                      <h4 className="text-[18px] leading-[1.05] font-extrabold text-gray-900">{getLocalizedItemName(dish)}</h4>
                       <p className="text-[10px] text-gray-500 line-clamp-1">{description}</p>
                       <div className="mt-2 flex items-center justify-between">
                         <span className="text-[#FF5E1A] text-lg font-bold">₹{price.toFixed(2)}</span>
@@ -783,16 +819,16 @@ const Home = () => {
           <section className="mb-8">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-[25px] leading-[1.05] font-extrabold text-gray-900">Featured Near You</h2>
-                <p className="text-[12px] text-gray-500">Hand-picked by our local curators</p>
+                <h2 className="text-[25px] leading-[1.05] font-extrabold text-gray-900">{t('home.featuredNearYou', 'Featured Near You')}</h2>
+                <p className="text-[12px] text-gray-500">{t('home.handpicked', 'Hand-picked by our local curators')}</p>
               </div>
-              <Link to="/restaurants" className="text-[#EA580C] text-[12px] font-semibold">View All</Link>
+              <Link to="/restaurants" className="text-[#EA580C] text-[12px] font-semibold">{t('home.viewAll', 'View All')}</Link>
             </div>
 
             {loading ? (
-              <div className="py-10 text-center text-[12px] text-gray-500">Loading restaurants...</div>
+              <div className="py-10 text-center text-[12px] text-gray-500">{t('home.loadingRestaurants', 'Loading restaurants...')}</div>
             ) : featuredRestaurants.length === 0 ? (
-              <div className="py-10 text-center text-[12px] text-gray-500">No restaurants for this location yet.</div>
+              <div className="py-10 text-center text-[12px] text-gray-500">{t('home.noRestaurants', 'No restaurants for this location yet.')}</div>
             ) : (
               <div className="space-y-5">
                 {featuredRestaurants.map((r) => (
@@ -804,7 +840,7 @@ const Home = () => {
                     <div className="p-4">
                       <div className="flex items-center justify-between mb-1">
                         <h3 className="text-[25px] leading-[1.05] font-extrabold text-gray-900">{r.name}</h3>
-                        <span className="text-[9px] font-semibold px-3 py-1 rounded-full bg-[#E7F4EE] text-[#2E8B67]">FREE DELIVERY</span>
+                        <span className="text-[9px] font-semibold px-3 py-1 rounded-full bg-[#E7F4EE] text-[#2E8B67]">{t('home.freeDelivery', 'FREE DELIVERY')}</span>
                       </div>
                       <div className="text-[12px] text-gray-600 flex items-center gap-4">
                         <span>{String(r.deliveryTime || '25-35 min')}</span>
@@ -841,7 +877,7 @@ const Home = () => {
               style={isNavActive('/') ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
             >
               <HomeIcon className="h-5 w-5" />
-              <span className="text-[8px]">Home</span>
+              <span className="text-[8px]">{t('common.home', 'Home')}</span>
             </Link>
             <Link
               to="/restaurants"
@@ -849,7 +885,7 @@ const Home = () => {
               style={isNavActive('/restaurants') ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
             >
               <MagnifyingGlassIcon className="h-5 w-5" />
-              <span className="text-[8px]">Search</span>
+              <span className="text-[8px]">{t('common.search', 'Search')}</span>
             </Link>
             <Link
               to="/orders"
@@ -857,7 +893,7 @@ const Home = () => {
               style={isNavActive('/orders') ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
             >
               <ShoppingBagIcon className="h-5 w-5" />
-              <span className="text-[8px]">Orders</span>
+              <span className="text-[8px]">{t('nav.orders', 'Orders')}</span>
             </Link>
             <Link
               to="/profile"
@@ -865,7 +901,7 @@ const Home = () => {
               style={isNavActive('/profile') ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
             >
               <UserCircleIcon className="h-5 w-5" />
-              <span className="text-[8px]">Profile</span>
+              <span className="text-[8px]">{t('common.profile', 'Profile')}</span>
             </Link>
           </div>
         </div>
@@ -887,8 +923,8 @@ const Home = () => {
                 className="w-full max-w-md bg-white rounded-t-[28px] sm:rounded-[28px] shadow-2xl overflow-hidden"
               >
                 <div className="px-5 pt-5 pb-3 border-b border-gray-100">
-                  <p className="text-[8px] uppercase tracking-[0.24em] text-gray-400 font-semibold">Select your location</p>
-                  <h2 className="text-[21px] leading-none font-black text-gray-900 mt-2">Where should we deliver?</h2>
+                  <p className="text-[8px] uppercase tracking-[0.24em] text-gray-400 font-semibold">{t('home.selectLocationTitle', 'Select your location')}</p>
+                  <h2 className="text-[21px] leading-none font-black text-gray-900 mt-2">{t('home.whereDeliver', 'Where should we deliver?')}</h2>
                 </div>
 
                 <div className="p-4 space-y-3 max-h-[65vh] overflow-y-auto">
@@ -902,8 +938,8 @@ const Home = () => {
                       <MapPinIcon className="h-5 w-5" style={{ color: BRAND }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900">{detectingLocation ? 'Detecting current location...' : 'Use current location'}</p>
-                      <p className="text-[10px] text-gray-500">Fastest way to find nearby restaurants</p>
+                      <p className="font-bold text-gray-900">{detectingLocation ? t('home.detectingCurrent', 'Detecting current location...') : t('home.useCurrent', 'Use current location')}</p>
+                      <p className="text-[10px] text-gray-500">{t('home.fastestNearby', 'Fastest way to find nearby restaurants')}</p>
                     </div>
                   </button>
 
@@ -919,7 +955,7 @@ const Home = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-gray-900 truncate">{addr.fullAddress || addr.street || addr.city}</p>
-                        <p className="text-[10px] text-gray-500 capitalize">{addr.type || 'saved address'}</p>
+                        <p className="text-[10px] text-gray-500 capitalize">{addr.type || t('home.savedAddress', 'saved address')}</p>
                       </div>
                     </button>
                   ))}
@@ -932,7 +968,7 @@ const Home = () => {
                     }}
                     className="w-full rounded-2xl px-4 py-3 text-[12px] font-semibold text-[#EA580C] border border-[#F7D9CE] bg-[#FFF7F3]"
                   >
-                    + Add new address
+                    + {t('home.addNewAddress', 'Add new address')}
                   </button>
                 </div>
               </motion.div>

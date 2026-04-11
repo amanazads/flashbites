@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { BRAND } from '../constants/theme';
 import logo from '../assets/logo.png';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const faqs = [
   {
@@ -92,6 +93,7 @@ const FaqItem = ({ faq, index }) => {
 const HelpPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useLanguage();
 
   const isActiveRoute = (key) => {
     if (key === 'home') return location.pathname === '/';
@@ -121,8 +123,8 @@ const HelpPage = () => {
               <button type="button" className="flex items-center gap-2 text-left">
                 <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
                 <div>
-                  <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
-                  <p className="text-[12px] leading-none font-semibold text-gray-900">Current Area</p>
+                  <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
+                  <p className="text-[12px] leading-none font-semibold text-gray-900">{t('common.currentArea', 'Current Area')}</p>
                 </div>
               </button>
             </div>
@@ -151,9 +153,9 @@ const HelpPage = () => {
             </svg>
           </div>
           <h1 className="text-[26px] font-bold text-gray-900" style={{ letterSpacing: '-0.02em' }}>
-            Help &amp; Support
+            {t('help.title', 'Help & Support')}
           </h1>
-          <p className="text-[14px] text-gray-400 mt-1">We're here to help. Reach us anytime.</p>
+          <p className="text-[14px] text-gray-400 mt-1">{t('help.subtitle', "We're here to help. Reach us anytime.")}</p>
         </div>
 
         {/* ── Contact cards ── */}
@@ -168,7 +170,7 @@ const HelpPage = () => {
               <PhoneIcon className="w-5 h-5" style={{ color: '#1BA672' }} />
             </div>
             <div>
-              <p className="text-[13px] font-bold text-gray-900">Call Us</p>
+              <p className="text-[13px] font-bold text-gray-900">{t('help.callUs', 'Call Us')}</p>
               <p className="text-[13px] font-semibold mt-0.5" style={{ color: BRAND }}>+91 7068247779</p>
               <div className="flex items-center gap-1 mt-1 text-[11px] text-gray-400">
                 <ClockIcon className="w-3.5 h-3.5" />
@@ -187,11 +189,11 @@ const HelpPage = () => {
               <EnvelopeIcon className="w-5 h-5" style={{ color: BRAND }} />
             </div>
             <div>
-              <p className="text-[13px] font-bold text-gray-900">Email Support</p>
+              <p className="text-[13px] font-bold text-gray-900">{t('help.emailSupport', 'Email Support')}</p>
               <p className="text-[13px] font-semibold mt-0.5 break-all" style={{ color: BRAND }}>
                 info.flashbites@gmail.com
               </p>
-              <p className="text-[11px] text-gray-400 mt-1">General, Careers, Partnerships</p>
+              <p className="text-[11px] text-gray-400 mt-1">{t('help.generalCareersPartnership', 'General, Careers, Partnerships')}</p>
             </div>
           </a>
         </div>
@@ -199,13 +201,13 @@ const HelpPage = () => {
         {/* ── Contact types ── */}
         <div className="bg-white rounded-2xl overflow-hidden mb-6" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
           <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Contact by Topic</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">{t('help.contactByTopic', 'Contact by Topic')}</p>
           </div>
           {[
-            { label: 'Restaurant Partnership', email: 'info.flashbites@gmail.com' },
-            { label: 'Delivery Partnership', email: 'info.flashbites@gmail.com' },
-            { label: 'Careers', email: 'info.flashbites@gmail.com' },
-            { label: 'General Enquiries', email: 'info.flashbites@gmail.com' },
+            { label: t('help.restaurantPartnership', 'Restaurant Partnership'), email: 'info.flashbites@gmail.com' },
+            { label: t('help.deliveryPartnership', 'Delivery Partnership'), email: 'info.flashbites@gmail.com' },
+            { label: t('help.careers', 'Careers'), email: 'info.flashbites@gmail.com' },
+            { label: t('help.generalEnquiries', 'General Enquiries'), email: 'info.flashbites@gmail.com' },
           ].map((row, i, arr) => (
             <a
               key={row.label}
@@ -225,7 +227,7 @@ const HelpPage = () => {
             <BuildingOffice2Icon className="w-5 h-5" style={{ color: '#3B82F6' }} />
           </div>
           <div>
-            <p className="text-[13px] font-bold text-gray-900">FlashBites Headquarters</p>
+            <p className="text-[13px] font-bold text-gray-900">{t('help.headquarters', 'FlashBites Headquarters')}</p>
             <p className="text-[13px] text-gray-500 mt-0.5">NH24, Ataria, Sitapur, 261303, Uttar Pradesh, India</p>
           </div>
         </div>
@@ -233,7 +235,7 @@ const HelpPage = () => {
         {/* ── FAQs ── */}
         <div>
           <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-3 px-1">
-            Frequently Asked Questions
+            {t('help.faq', 'Frequently Asked Questions')}
           </p>
           <div className="bg-white rounded-2xl overflow-hidden" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
             {faqs.map((faq, i) => (
@@ -244,7 +246,7 @@ const HelpPage = () => {
 
         <div className="text-center mt-6">
           <Link to="/" className="text-[13px] font-semibold" style={{ color: BRAND }}>
-            ← Back to Home
+            ← {t('help.backToHome', 'Back to Home')}
           </Link>
         </div>
       </div>
@@ -257,7 +259,7 @@ const HelpPage = () => {
             style={isActiveRoute('home') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
           >
             <HomeIcon className="h-5 w-5" />
-            <span className="text-[8px]">Home</span>
+            <span className="text-[8px]">{t('common.home', 'Home')}</span>
           </Link>
 
           <Link
@@ -266,7 +268,7 @@ const HelpPage = () => {
             style={isActiveRoute('search') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
           >
             <MagnifyingGlassIcon className="h-5 w-5" />
-            <span className="text-[8px]">Search</span>
+            <span className="text-[8px]">{t('common.search', 'Search')}</span>
           </Link>
 
           <Link
@@ -275,7 +277,7 @@ const HelpPage = () => {
             style={isActiveRoute('orders') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
           >
             <ShoppingBagIcon className="h-5 w-5" />
-            <span className="text-[8px]">Orders</span>
+            <span className="text-[8px]">{t('nav.orders', 'Orders')}</span>
           </Link>
 
           <Link
@@ -284,7 +286,7 @@ const HelpPage = () => {
             style={isActiveRoute('profile') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}
           >
             <UserIcon className="h-5 w-5" />
-            <span className="text-[8px]">Profile</span>
+            <span className="text-[8px]">{t('common.profile', 'Profile')}</span>
           </Link>
         </div>
       </div>
