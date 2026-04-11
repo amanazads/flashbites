@@ -17,6 +17,10 @@ const promoBannerSchema = new mongoose.Schema(
     cta: { type: String, trim: true },
     bg: { type: String, trim: true },
     img: { type: String, trim: true },
+    startsAt: { type: Date, default: null },
+    endsAt: { type: Date, default: null },
+    actionType: { type: String, trim: true, default: 'none' },
+    actionValue: { type: String, trim: true },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 }
   },

@@ -128,6 +128,12 @@ const mapFeeControlToPayload = (control = {}) => {
   };
 };
 
+const mapBannerDateToPayload = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+};
+
 const defaultRestaurantFeeControls = () => ({
   deliveryFee: { useGlobal: true, enabled: true, effectiveFrom: '' },
   platformFee: { useGlobal: true, enabled: true, effectiveFrom: '' },
@@ -478,7 +484,20 @@ const AdminPanel = () => {
             { minDistance: 5, maxDistance: 15, charge: 25 },
             { minDistance: 15, maxDistance: 9999, charge: 30 }
           ],
-          promoBanners: settings.promoBanners || []
+          promoBanners: (settings.promoBanners || []).map((banner, index) => ({
+            tag: banner.tag || '',
+            bold: banner.bold || '',
+            sub: banner.sub || '',
+            cta: banner.cta || '',
+            bg: banner.bg || '',
+            img: banner.img || '',
+            startsAt: toDateTimeLocalValue(banner.startsAt),
+            endsAt: toDateTimeLocalValue(banner.endsAt),
+            actionType: banner.actionType || 'none',
+            actionValue: banner.actionValue || '',
+            isActive: banner.isActive !== false,
+            sortOrder: Number.isFinite(Number(banner.sortOrder)) ? Number(banner.sortOrder) : index
+          }))
         });
       }
     } catch (error) {
@@ -771,6 +790,10 @@ const AdminPanel = () => {
           cta: banner.cta || '',
           bg: banner.bg || '',
           img: banner.img || '',
+          startsAt: mapBannerDateToPayload(banner.startsAt),
+          endsAt: mapBannerDateToPayload(banner.endsAt),
+          actionType: banner.actionType || 'none',
+          actionValue: banner.actionValue || '',
           isActive: banner.isActive !== false,
           sortOrder: Number.isFinite(Number(banner.sortOrder)) ? Number(banner.sortOrder) : index
         }))
@@ -1273,7 +1296,20 @@ const AdminPanel = () => {
       ...prev,
       promoBanners: [
         ...(prev.promoBanners || []),
-        { tag: '', bold: '', sub: '', cta: '', bg: '', img: '', isActive: true, sortOrder: prev.promoBanners?.length || 0 }
+        {
+          tag: '',
+          bold: '',
+          sub: '',
+          cta: '',
+          bg: '',
+          img: '',
+          startsAt: '',
+          endsAt: '',
+          actionType: 'none',
+          actionValue: '',
+          isActive: true,
+          sortOrder: prev.promoBanners?.length || 0
+        }
       ]
     }));
   };
@@ -1921,6 +1957,55 @@ const AdminPanel = () => {
                             className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                           />
                         </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">Starts At (optional)</label>
+                          <input
+                            type="datetime-local"
+                            value={banner.startsAt || ''}
+                            onChange={(e) => handleUpdateBanner(index, 'startsAt', e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">Ends At (optional)</label>
+                          <input
+                            type="datetime-local"
+                            value={banner.endsAt || ''}
+                            onChange={(e) => handleUpdateBanner(index, 'endsAt', e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">Click Action</label>
+                          <select
+                            value={banner.actionType || 'none'}
+                            onChange={(e) => handleUpdateBanner(index, 'actionType', e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                          >
+                            <option value="none">No Action</option>
+                            <option value="restaurant">Open Restaurant</option>
+                            <option value="category">Filter Category</option>
+                            <option value="link">Open Link / Route</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 mb-1">
+                            {banner.actionType === 'restaurant'
+                              ? 'Restaurant ID'
+                              : banner.actionType === 'category'
+                                ? 'Category Name'
+                                : banner.actionType === 'link'
+                                  ? 'URL or Route'
+                                  : 'Action Value'}
+                          </label>
+                          <input
+                            type="text"
+                            value={banner.actionValue || ''}
+                            onChange={(e) => handleUpdateBanner(index, 'actionValue', e.target.value)}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                            placeholder={banner.actionType === 'restaurant' ? 'e.g. 67f0...db3' : banner.actionType === 'category' ? 'e.g. Pizza' : banner.actionType === 'link' ? 'e.g. /offers or https://example.com' : ''}
+                          />
+                        </div>
                       </div>
                       <div className="mt-3 flex flex-wrap items-center gap-3">
                         <label className="flex items-center gap-2 text-sm text-gray-600">
@@ -1950,6 +2035,49 @@ const AdminPanel = () => {
                     </div>
                   ))}
                 </div>
+
+                <div className="mt-6">
+                  <h3 className="text-sm font-bold text-gray-800 mb-3">Live Preview</h3>
+                  <div className="space-y-4">
+                    {(settingsForm.promoBanners || [])
+                      .filter((banner) => banner?.isActive !== false)
+                      .sort((a, b) => Number(a?.sortOrder || 0) - Number(b?.sortOrder || 0))
+                      .map((banner, index) => (
+                        <div
+                          key={`banner-preview-${index}`}
+                          className="rounded-[24px] overflow-hidden relative min-h-[160px] p-5"
+                          style={{ background: banner?.bg || 'linear-gradient(140deg, #1f2937, #374151)' }}
+                        >
+                          <img
+                            src={banner?.img || 'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?w=700&q=80'}
+                            alt={banner?.bold || 'Banner'}
+                            className="absolute inset-0 w-full h-full object-cover opacity-40"
+                          />
+                          <div className="relative z-10">
+                            <p className="text-[#FF6A1A] text-[10px] font-bold uppercase tracking-widest mb-2">
+                              {banner?.tag || 'Exclusive Offer'}
+                            </p>
+                            <h4 className="text-white text-2xl leading-tight font-black">
+                              {banner?.bold || 'Your headline appears here'}
+                            </h4>
+                            {banner?.sub && (
+                              <p className="mt-2 text-white/85 text-[12px] font-medium max-w-[75%]">{banner.sub}</p>
+                            )}
+                            <button type="button" className="mt-4 bg-[#FF5E1A] text-white px-6 py-2 rounded-full text-[12px] font-bold">
+                              {banner?.cta || 'CTA Text'}
+                            </button>
+                            <div className="mt-2 text-[11px] text-white/80">
+                              Action: {banner?.actionType || 'none'}{banner?.actionValue ? ` (${banner.actionValue})` : ''}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    {(settingsForm.promoBanners || []).filter((banner) => banner?.isActive !== false).length === 0 && (
+                      <p className="text-sm text-gray-500">Preview appears here after adding an active banner.</p>
+                    )}
+                  </div>
+                </div>
+
                 <div className="mt-6 flex justify-end">
                   <button
                     onClick={savePlatformSettings}

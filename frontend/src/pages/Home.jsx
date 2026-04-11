@@ -6,6 +6,7 @@ import { addToCart, clearCart } from '../redux/slices/cartSlice';
 import { openCart, setSelectedDeliveryAddress } from '../redux/slices/uiSlice';
 import { getAddresses } from '../api/userApi';
 import { getRestaurantMenuItems, searchRestaurantsAndItems } from '../api/restaurantApi';
+import { getPlatformSettings } from '../api/settingsApi';
 import AddAddressModal from '../components/common/AddAddressModal';
 import SEO from '../components/common/SEO';
 import { BRAND } from '../constants/theme';
@@ -98,6 +99,7 @@ const Home = () => {
   const [categoryItemsLoading, setCategoryItemsLoading] = useState(false);
   const [trendingMenuItems, setTrendingMenuItems] = useState([]);
   const [trendingLoading, setTrendingLoading] = useState(false);
+  const [promoBanners, setPromoBanners] = useState([]);
   const searchBoxRef = useRef(null);
   const lastLocationErrorToastAtRef = useRef(0);
 
@@ -117,6 +119,52 @@ const Home = () => {
     [restaurants]
   );
 
+  const activePromoBanners = useMemo(
+    () => {
+      const nowMs = Date.now();
+
+      return (promoBanners || [])
+        .filter((banner) => {
+          if (banner?.isActive === false) return false;
+
+          const startsAtMs = banner?.startsAt ? new Date(banner.startsAt).getTime() : null;
+          const endsAtMs = banner?.endsAt ? new Date(banner.endsAt).getTime() : null;
+
+          if (Number.isFinite(startsAtMs) && nowMs < startsAtMs) return false;
+          if (Number.isFinite(endsAtMs) && nowMs > endsAtMs) return false;
+          return true;
+        })
+        .sort((a, b) => Number(a?.sortOrder || 0) - Number(b?.sortOrder || 0));
+    },
+    [promoBanners]
+  );
+
+  const handlePromoBannerAction = useCallback((banner) => {
+    const actionType = String(banner?.actionType || 'none').trim();
+    const actionValue = String(banner?.actionValue || '').trim();
+
+    if (!actionType || actionType === 'none' || !actionValue) return;
+
+    if (actionType === 'restaurant') {
+      navigate(`/restaurant/${actionValue}`);
+      return;
+    }
+
+    if (actionType === 'category') {
+      setActiveFilter(actionValue);
+      toast.success(`${actionValue} offers loaded`);
+      return;
+    }
+
+    if (actionType === 'link') {
+      if (actionValue.startsWith('http://') || actionValue.startsWith('https://')) {
+        window.open(actionValue, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      navigate(actionValue.startsWith('/') ? actionValue : `/${actionValue}`);
+    }
+  }, [navigate]);
+
   const loadSavedAddresses = useCallback(async () => {
     if (!isAuthenticated) {
       setSavedAddresses([]);
@@ -135,6 +183,20 @@ const Home = () => {
   useEffect(() => {
     loadSavedAddresses();
   }, [loadSavedAddresses]);
+
+  useEffect(() => {
+    const fetchBannerSettings = async () => {
+      try {
+        const response = await getPlatformSettings();
+        const banners = response?.data?.settings?.promoBanners;
+        setPromoBanners(Array.isArray(banners) ? banners : []);
+      } catch {
+        setPromoBanners([]);
+      }
+    };
+
+    fetchBannerSettings();
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -683,20 +745,38 @@ const Home = () => {
             )}
           </form>
 
-          <section className="mb-5">
-            <div className="rounded-[30px] overflow-hidden relative min-h-[190px] p-5" style={{ background: 'linear-gradient(140deg, #1f2937, #374151)' }}>
-              <img
-                src="https://images.unsplash.com/photo-1551782450-a2132b4ba21d?w=700&q=80"
-                alt="Offer"
-                className="absolute inset-0 w-full h-full object-cover opacity-40"
-              />
-              <div className="relative z-10">
-                <p className="text-[#FF6A1A] text-[10px] font-bold uppercase tracking-widest mb-2">{t('home.exclusiveOffer', 'Exclusive Offer')}</p>
-                <h2 className="text-white text-[34px] leading-[0.92] font-black">50% OFF your first FlashBite</h2>
-                <button className="mt-4 bg-[#FF5E1A] text-white px-6 py-2 rounded-full text-[12px] font-bold">{t('home.claimNow', 'Claim Now')}</button>
+          {(activePromoBanners.length > 0 ? activePromoBanners : [null]).map((banner, index) => (
+            <section className="mb-5" key={`home-banner-${index}-${banner?.sortOrder ?? 'default'}`}>
+              <div
+                className="rounded-[30px] overflow-hidden relative min-h-[190px] p-5"
+                style={{ background: banner?.bg || 'linear-gradient(140deg, #1f2937, #374151)' }}
+              >
+                <img
+                  src={banner?.img || 'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?w=700&q=80'}
+                  alt={banner?.bold || t('home.exclusiveOffer', 'Exclusive Offer')}
+                  className="absolute inset-0 w-full h-full object-cover opacity-40"
+                />
+                <div className="relative z-10">
+                  <p className="text-[#FF6A1A] text-[10px] font-bold uppercase tracking-widest mb-2">
+                    {banner?.tag || t('home.exclusiveOffer', 'Exclusive Offer')}
+                  </p>
+                  <h2 className="text-white text-[34px] leading-[0.92] font-black">
+                    {banner?.bold || '50% OFF on your first Order'}
+                  </h2>
+                  {banner?.sub && (
+                    <p className="mt-2 text-white/85 text-[12px] font-medium max-w-[75%]">{banner.sub}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handlePromoBannerAction(banner)}
+                    className="mt-4 bg-[#FF5E1A] text-white px-6 py-2 rounded-full text-[12px] font-bold"
+                  >
+                    {banner?.cta || t('home.claimNow', 'Upto ₹20')}
+                  </button>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          ))}
 
           <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 max-[388px]:px-1 mb-6">
             <div className="flex gap-1 overflow-x-auto scrollbar-hide py-3 max-[388px]:py-2">
