@@ -126,18 +126,21 @@ const Payment = () => {
             navigate(`/orders/${order._id}`);
           } catch (error) {
             toast.dismiss();
-            toast.error(t('payment.verifyFailed', 'Payment verification failed. Please contact support.'));
-            navigate(`/orders/${order._id}`);
+            toast.error(t('payment.verifyFailedRetry', 'Payment verification failed. Redirecting to checkout.'));
+            navigate('/checkout');
           }
         },
         modal: {
           ondismiss: async function () {
             toast.dismiss();
             toast.error(t('payment.cancelled', 'Payment cancelled.'));
-            await recordPaymentFailure(razorpayResponse.data.paymentId, {
-              gateway: 'razorpay',
-              reason: 'User cancelled payment'
-            });
+            try {
+              await recordPaymentFailure(razorpayResponse.data.paymentId, {
+                gateway: 'razorpay',
+                reason: 'User cancelled payment',
+              });
+            } catch {}
+            navigate('/checkout');
           }
         },
         notes: {
@@ -148,6 +151,20 @@ const Payment = () => {
 
       toast.dismiss();
       const razorpay = new window.Razorpay(options);
+      razorpay.on('payment.failed', async (response) => {
+        toast.dismiss();
+        const reason = response?.error?.description || response?.error?.reason || 'Payment failed';
+        toast.error(t('payment.failed', 'Payment failed. Redirecting to order details.'));
+        try {
+          await recordPaymentFailure(razorpayResponse.data.paymentId, {
+            gateway: 'razorpay',
+            reason,
+          });
+        } catch {
+          // Ignore failure logging errors and continue redirect.
+        }
+        navigate('/checkout');
+      });
       razorpay.open();
     } catch (error) {
       toast.dismiss();

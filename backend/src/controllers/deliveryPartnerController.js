@@ -134,7 +134,7 @@ exports.getAssignedOrders = async (req, res) => {
   try {
     const orders = await Order.find({
       deliveryPartnerId: req.user._id,
-      status: { $in: ['out_for_delivery', 'ready', 'confirmed'] }
+      status: { $in: ['out_for_delivery', 'ready', 'preparing', 'confirmed'] }
     })
       .populate('userId', 'name phone')
       .populate('restaurantId', 'name address phone location')
@@ -536,7 +536,7 @@ exports.getStats = async (req, res) => {
       }),
       Order.countDocuments({
         deliveryPartnerId: req.user._id,
-        status: { $in: ['out_for_delivery', 'ready'] }
+        status: { $in: ['out_for_delivery', 'ready', 'preparing', 'confirmed'] }
       }),
       Order.aggregate([
         { $match: { deliveryPartnerId: req.user._id, status: 'delivered' } },

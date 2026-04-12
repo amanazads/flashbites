@@ -81,6 +81,11 @@ const ForgotPassword = () => {
   const handleSendOTP = async (e) => {
     e.preventDefault();
 
+    if (!navigator.onLine) {
+      toast.error(t('forgot.offline', 'No internet connection. Please reconnect and try again.'));
+      return;
+    }
+
     if (otpBlockRemaining > 0) {
       toast.error(`${t('forgot.retryIn', 'Retry in')} ${otpBlockRemaining}s`);
       return;

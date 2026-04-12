@@ -79,12 +79,14 @@ const OrderCard = ({ order, t }) => {
   const navigate = useNavigate();
   const status = getStatus(order.status);
   const isActive = isActiveStatus(order.status);
+  const isOnlineMethod = ['upi', 'card'].includes(String(order?.paymentMethod || '').toLowerCase());
+  const isPaymentPending = isOnlineMethod && order?.paymentStatus !== 'completed';
   const itemPreview = order.items?.slice(0, 2).map((i) => `${i.name}`).join(', ') || 'Items';
   const moreCount = (order.items?.length || 0) - 2;
 
   return (
     <button
-      onClick={() => navigate(`/orders/${order._id}`)}
+      onClick={() => navigate(isPaymentPending ? `/payment/${order._id}` : `/orders/${order._id}`)}
       className="w-full bg-[#F4F4F4] border border-[#E6E0D9] rounded-[26px] overflow-hidden text-left transition-all active:scale-[0.985]"
     >
       {/* Restaurant image strip */}
@@ -107,20 +109,27 @@ const OrderCard = ({ order, t }) => {
 
         {/* Status badge */}
         <div className="absolute top-3 right-3">
-          <span
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold"
-            style={{ background: status.bg, color: status.color }}
-          >
+          {isPaymentPending ? (
+            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FEF3C7] text-[#B45309]">
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-[#B45309]" />
+              {t('orders.paymentPending', 'Payment Pending')}
+            </span>
+          ) : (
             <span
-              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-              style={{
-                background: status.dot,
-                boxShadow: isActive ? `0 0 0 3px ${status.dot}33` : 'none',
-                animation: isActive ? 'pulse 2s infinite' : 'none',
-              }}
-            />
-            {status.label}
-          </span>
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold"
+              style={{ background: status.bg, color: status.color }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                style={{
+                  background: status.dot,
+                  boxShadow: isActive ? `0 0 0 3px ${status.dot}33` : 'none',
+                  animation: isActive ? 'pulse 2s infinite' : 'none',
+                }}
+              />
+              {status.label}
+            </span>
+          )}
         </div>
       </div>
 
@@ -150,7 +159,7 @@ const OrderCard = ({ order, t }) => {
             className="text-[12px] font-bold px-3 py-1.5 rounded-xl"
             style={{ background: '#FCE9D8', color: BRAND }}
           >
-            {t('orders.viewDetails', 'View Details')}
+            {isPaymentPending ? t('orders.completePayment', 'Complete Payment') : t('orders.viewDetails', 'View Details')}
           </span>
         </div>
       </div>
@@ -175,6 +184,13 @@ const Orders = () => {
     return orders.filter((o) => {
       if (seen.has(o._id)) return false;
       seen.add(o._id);
+      const status = String(o?.status || '').toLowerCase();
+      const paymentStatus = String(o?.paymentStatus || '').toLowerCase();
+      const cancellationReason = String(o?.cancellationReason || '').toLowerCase();
+      const isPaymentCancelledOrder =
+        (status === 'cancelled' || status === 'canceled')
+        && (paymentStatus === 'failed' || cancellationReason.includes('payment failed') || cancellationReason.includes('cancelled payment'));
+      if (isPaymentCancelledOrder) return false;
       return true;
     });
   }, [orders]);
