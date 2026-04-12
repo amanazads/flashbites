@@ -249,7 +249,7 @@ const calculateEarnings = (listedPrice, commissionPercent = 25) => {
 
   const commissionFactor = normalizeCommissionPercent(commissionPercent) / 100;
   const restaurantEarning = safeListed * (1 - commissionFactor);
-  const sellingPrice = safeListed * (1 + commissionFactor);
+  const sellingPrice = safeListed;
   const platformProfit = sellingPrice - restaurantEarning;
 
   return {
@@ -855,7 +855,8 @@ exports.getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
       .populate('userId', 'name phone email')
-      .populate('restaurantId', 'name phone address image')
+      .populate('restaurantId', 'name phone address image location')
+      .populate('deliveryPartnerId', 'name phone vehicleNumber profileImage avatar location')
       .populate('addressId');
 
     if (!order) {

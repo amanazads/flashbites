@@ -95,22 +95,6 @@ const isFeeEnabledNow = (control) => {
   return effectiveFrom.getTime() <= Date.now();
 };
 
-const normalizeCommissionPercent = (rawPercent) => {
-  const percent = Number(rawPercent);
-  if (!Number.isFinite(percent)) return 25;
-  if (percent < 0) return 0;
-  if (percent > 90) return 90;
-  return percent;
-};
-
-const normalizePayoutRate = (rawRate) => {
-  const rate = Number(rawRate);
-  if (!Number.isFinite(rate)) return 0.75;
-  if (rate < 0) return 0;
-  if (rate > 1) return 1;
-  return rate;
-};
-
 const Checkout = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -192,25 +176,7 @@ const Checkout = () => {
     [addresses, selectedAddress]
   );
 
-  const globalCommissionPercent = normalizeCommissionPercent(platformSettings?.commissionPercent);
-  const globalPayoutRate = normalizePayoutRate(platformSettings?.restaurantPayoutRate);
-  const hasRestaurantPayoutOverride = Number.isFinite(Number(restaurant?.payoutRateOverride));
-  const effectivePayoutRate = hasRestaurantPayoutOverride
-    ? normalizePayoutRate(restaurant?.payoutRateOverride)
-    : globalPayoutRate;
-  const commissionPercent = hasRestaurantPayoutOverride
-    ? normalizeCommissionPercent((1 - effectivePayoutRate) * 100)
-    : globalCommissionPercent;
   const listedSubtotal = calculateCartTotal(items);
-
-  const subtotal = useMemo(() => {
-    return items.reduce((sum, item) => {
-      const listedPrice = Number(item.price) || 0;
-      const quantity = Number(item.quantity) || 0;
-      const sellingPrice = listedPrice * (1 + commissionPercent / 100);
-      return sum + sellingPrice * quantity;
-    }, 0);
-  }, [items, commissionPercent]);
 
   const globalFeeControls = platformSettings?.feeControls || {};
   const restaurantFeeControls = restaurant?.feeControls || {};
@@ -242,8 +208,8 @@ const Checkout = () => {
   const deliveryFee = isDeliveryFeeEnabled ? resolvedDeliveryFee : 0;
   const platformFee = isPlatformFeeEnabled ? Number(platformSettings?.platformFee || 25) : 0;
   const taxRate = isTaxEnabled ? Number(platformSettings?.taxRate || 0.05) : 0;
-  const tax = subtotal * taxRate;
-  const total = subtotal + deliveryFee + platformFee + tax;
+  const tax = listedSubtotal * taxRate;
+  const total = listedSubtotal + deliveryFee + platformFee + tax;
 
   const restaurantAvailability = isRestaurantOpen(restaurant?.timing, restaurant?.acceptingOrders !== false);
   const isRestaurantCurrentlyOpen = !restaurant ? true : restaurantAvailability.isOpen;
@@ -342,17 +308,20 @@ const Checkout = () => {
 
         if (!RAZORPAY_KEY_ID) {
           toast.error(t('checkout.razorpayKeyMissing', 'Razorpay key is missing. Please contact support.'));
+          navigate('/checkout');
           return;
         }
 
         if (isProdBuild && !isLiveRazorpayKey(RAZORPAY_KEY_ID)) {
           toast.error(t('checkout.liveKeyMissing', 'Live Razorpay key is not configured for production.'));
+          navigate('/checkout');
           return;
         }
 
         const scriptReady = await loadRazorpayScript();
         if (!scriptReady) {
           toast.error(t('checkout.razorpayLoadFailed', 'Failed to load Razorpay. Please try again.'));
+          navigate('/checkout');
           return;
         }
 
@@ -405,18 +374,20 @@ const Checkout = () => {
             } catch {
               toast.dismiss();
               toast.error(t('checkout.paymentVerifyFailed', 'Payment verification failed. Please contact support.'));
-              navigate(`/orders/${orderId}`);
+              navigate('/checkout');
             }
           },
           modal: {
             ondismiss: async function () {
               toast.dismiss();
-              toast.error(t('checkout.paymentCancelled', 'Payment cancelled. You can retry from your order details.'));
-              await recordPaymentFailure(razorpayResponse.data.paymentId, {
-                gateway: 'razorpay',
-                reason: 'User cancelled payment',
-              });
-              navigate(`/orders/${orderId}`);
+              toast.error(t('checkout.paymentCancelled', 'Payment cancelled.'));
+              try {
+                await recordPaymentFailure(razorpayResponse.data.paymentId, {
+                  gateway: 'razorpay',
+                  reason: 'User cancelled payment',
+                });
+              } catch {}
+              navigate('/checkout');
             },
           },
           notes: {
@@ -426,6 +397,18 @@ const Checkout = () => {
 
         toast.dismiss();
         const razorpay = new window.Razorpay(options);
+        razorpay.on('payment.failed', async (response) => {
+          toast.dismiss();
+          toast.error(t('checkout.paymentFailed', 'Payment failed. Please try again.'));
+          try {
+            const reason = response?.error?.description || response?.error?.reason || 'Payment failed';
+            await recordPaymentFailure(razorpayResponse.data.paymentId, {
+              gateway: 'razorpay',
+              reason,
+            });
+          } catch {}
+          navigate('/checkout');
+        });
         razorpay.open();
       } else if (createOrder.rejected.match(result)) {
         toast.error(result.payload || t('checkout.orderPlaceFailed', 'Unable to place your order right now. Please check your address and try again.'));
@@ -611,15 +594,9 @@ const Checkout = () => {
             <h2 className="text-[14px] leading-none font-extrabold text-[#171415] mb-4">{t('checkout.orderSummary', 'Order Summary')}</h2>
             <div className="space-y-3 text-[12px] leading-none text-[#3F3532]">
               <div className="flex items-center justify-between">
-                <span>{t('checkout.itemTotal', 'Item Total')}</span>
-                <span className="font-medium">{formatCurrency(subtotal)}</span>
+                <span>{t('checkout.listedTotal', 'Listed Total')}</span>
+                <span className="font-medium">{formatCurrency(listedSubtotal)}</span>
               </div>
-              {Math.abs(subtotal - listedSubtotal) > 0.001 && (
-                <div className="flex items-center justify-between">
-                  <span>{t('checkout.listedTotal', 'Listed Total')}</span>
-                  <span className="font-medium">{formatCurrency(listedSubtotal)}</span>
-                </div>
-              )}
               <div className="flex items-center justify-between">
                 <span>{t('checkout.deliveryFee', 'Delivery Fee')}</span>
                 <span className="font-medium" style={{ color: deliveryFee === 0 ? '#0D8656' : '#3F3532' }}>

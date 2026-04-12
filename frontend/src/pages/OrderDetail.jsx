@@ -67,6 +67,25 @@ const riderIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
+const EARTH_RADIUS_KM = 6371;
+const DELIVERY_SPEED_KMPH = 22;
+
+const haversineKm = (from, to) => {
+  if (!Array.isArray(from) || !Array.isArray(to)) return null;
+  const [lat1, lon1] = from;
+  const [lat2, lon2] = to;
+  if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return null;
+
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+
+  return 2 * EARTH_RADIUS_KM * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
 const OrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -81,6 +100,7 @@ const OrderDetail = () => {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [socket, setSocket] = useState(null);
   const [livePartnerPosition, setLivePartnerPosition] = useState(null);
+  const [nowTs, setNowTs] = useState(Date.now());
 
   // Initialize socket connection
   useEffect(() => {
@@ -157,6 +177,11 @@ const OrderDetail = () => {
     return () => clearInterval(interval);
   }, [id]);
 
+  useEffect(() => {
+    const timer = setInterval(() => setNowTs(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
   const fetchOrderDetails = async () => {
     try {
       const response = await getOrderById(id);
@@ -190,9 +215,6 @@ const OrderDetail = () => {
   const isCancelled = order.status === 'cancelled';
   const isDelivered = order.status === 'delivered';
 
-  const etaMinutes = Number(order?.etaMinutes || 0);
-  const etaDisplay = etaMinutes > 0 ? `${etaMinutes}` : '12';
-  const arrivalTime = order?.estimatedDelivery ? formatDateTime(order.estimatedDelivery) : 'Arriving soon';
   const progressFlow = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
   const progressIndex = Math.max(progressFlow.indexOf(order.status), 0);
   const miniTimelineSteps = [
@@ -209,7 +231,7 @@ const OrderDetail = () => {
     (deliveryPerson && typeof deliveryPerson === 'object' && (deliveryPerson?._id || deliveryPartnerName || deliveryPartnerPhone))
       || (typeof deliveryPerson === 'string' && deliveryPerson.trim())
   );
-  const canShowDeliveryContact = hasDeliveryPartnerAssigned && ['ready', 'out_for_delivery', 'delivered'].includes(order.status);
+  const canShowDeliveryContact = hasDeliveryPartnerAssigned && !isCancelled;
 
   const restaurantPosition = (() => {
     const coords = order?.restaurantId?.location?.coordinates;
@@ -238,14 +260,52 @@ const OrderDetail = () => {
   const partnerPosition = (() => {
     if (livePartnerPosition) return livePartnerPosition;
 
+    const orderTracked = order?.deliveryPartnerLocation?.coordinates;
+    if (Array.isArray(orderTracked) && orderTracked.length >= 2) {
+      const [lng, lat] = orderTracked;
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
+    }
+
     const c = order?.deliveryPartnerId?.currentLocation?.coordinates;
     if (Array.isArray(c) && c.length >= 2) {
       const [lng, lat] = c;
       if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
     }
 
+    const userLocation = order?.deliveryPartnerId?.location?.coordinates;
+    if (Array.isArray(userLocation) && userLocation.length >= 2) {
+      const [lng, lat] = userLocation;
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
+    }
+
     return null;
   })();
+
+  const etaMinutesFromEstimated = (() => {
+    const estimatedMs = order?.estimatedDelivery ? new Date(order.estimatedDelivery).getTime() : null;
+    if (!Number.isFinite(estimatedMs)) return null;
+    return Math.max(0, Math.ceil((estimatedMs - nowTs) / 60000));
+  })();
+
+  const etaMinutesFromDistance = (() => {
+    if (!partnerPosition || !deliveryPosition) return null;
+    const km = haversineKm(partnerPosition, deliveryPosition);
+    if (!Number.isFinite(km)) return null;
+    return Math.max(1, Math.ceil((km / DELIVERY_SPEED_KMPH) * 60));
+  })();
+
+  const etaMinutesFromOrder = (() => {
+    const v = Number(order?.etaMinutes);
+    if (!Number.isFinite(v) || v <= 0) return null;
+    return Math.ceil(v);
+  })();
+
+  const etaCandidates = [etaMinutesFromEstimated, etaMinutesFromDistance, etaMinutesFromOrder].filter(
+    (v) => Number.isFinite(v) && v >= 0
+  );
+  const etaMinutes = etaCandidates.length ? Math.min(...etaCandidates) : 12;
+  const etaDisplay = `${etaMinutes}`;
+  const arrivalTime = etaMinutes >= 0 ? formatDateTime(new Date(nowTs + etaMinutes * 60000)) : 'Arriving soon';
 
   const mapCenter = partnerPosition || restaurantPosition || deliveryPosition || [12.9716, 77.5946];
   const hasRealMapData = Boolean(restaurantPosition || deliveryPosition || partnerPosition);
@@ -267,8 +327,17 @@ const OrderDetail = () => {
   const totalAmount = Number(order?.total ?? itemSubtotal + deliveryFee + taxAmount);
 
   const paymentMethodRaw = String(order?.paymentMethod || 'cod').toLowerCase();
+  const isOnlinePayment = paymentMethodRaw === 'upi' || paymentMethodRaw === 'card';
+  const paymentStatusNormalized = String(order?.paymentStatus || '').toLowerCase();
+  const isPaymentCompleted = ['completed', 'paid', 'success'].includes(paymentStatusNormalized);
+  const isPaymentPendingOnline = isOnlinePayment && !isPaymentCompleted && !isCancelled;
+  const shouldShowTrackingJourney = !isCancelled && !isPaymentPendingOnline;
   const paymentMethodLabel = paymentMethodRaw === 'cod' ? 'Cash On Delivery' : paymentMethodRaw === 'upi' ? 'UPI' : paymentMethodRaw === 'card' ? 'Card' : order?.paymentMethod || 'Unknown';
-  const paymentBadge = paymentMethodRaw === 'cod' ? 'Pay on Delivery' : order?.paymentStatus === 'paid' ? 'Paid Online' : 'Pending Payment';
+  const paymentBadge = paymentMethodRaw === 'cod'
+    ? 'Pay on Delivery'
+    : isPaymentCompleted
+      ? 'Paid Online'
+      : 'Pending Payment';
   const statusBadgeClass = order?.status === 'delivered'
     ? 'bg-green-100 text-green-700'
     : order?.status === 'cancelled'
@@ -288,7 +357,8 @@ const OrderDetail = () => {
       toast.error('Delivery partner contact is not available yet.');
       return;
     }
-    window.location.href = `sms:${deliveryPartnerPhone}`;
+    const message = `Hi ${deliveryPartnerName || 'Partner'}, I am contacting about order #${orderIdShort}.`;
+    window.location.href = `sms:${deliveryPartnerPhone}?body=${encodeURIComponent(message)}`;
   };
 
   return (
@@ -331,35 +401,63 @@ const OrderDetail = () => {
             </div>
           </div>
 
-        <div className="relative h-[54vh] overflow-hidden">
-          {hasRealMapData ? (
-            <MapContainer center={mapCenter} zoom={14} className="h-full w-full" zoomControl={false} attributionControl={false}>
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        {shouldShowTrackingJourney ? (
+          <div className="relative h-[54vh] overflow-hidden">
+            {hasRealMapData ? (
+              <MapContainer center={mapCenter} zoom={14} className="h-full w-full" zoomControl={false} attributionControl={false}>
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-              {restaurantPosition && (
+                {restaurantPosition && (
+                  <>
+                    <Marker position={restaurantPosition} icon={restaurantIcon} />
+                    <Circle center={restaurantPosition} radius={130} pathOptions={{ color: '#EF4444', fillColor: '#FCA5A5', fillOpacity: 0.18, weight: 1 }} />
+                  </>
+                )}
+
+                {deliveryPosition && <Marker position={deliveryPosition} icon={deliveryIcon} />}
+                {partnerPosition && <Marker position={partnerPosition} icon={riderIcon} />}
+              </MapContainer>
+            ) : (
+              <div
+                className="h-full w-full"
+                style={{
+                  backgroundImage:
+                    'linear-gradient(rgba(190,186,180,0.78), rgba(190,186,180,0.78)), url(https://images.unsplash.com/photo-1524661135-423995f22d0b?w=1200&q=80)',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              />
+            )}
+
+            <div className="absolute inset-0 bg-[#C3BBB2]/35" />
+          </div>
+        ) : (
+          <div className="px-4 pt-3">
+            <div className="rounded-2xl border border-[#E7DFD7] bg-white p-4">
+              <p className="text-[10px] tracking-[0.14em] font-bold text-[#A08B7D] uppercase">
+                {isCancelled ? 'Order Status' : 'Payment Status'}
+              </p>
+              {isCancelled ? (
                 <>
-                  <Marker position={restaurantPosition} icon={restaurantIcon} />
-                  <Circle center={restaurantPosition} radius={130} pathOptions={{ color: '#EF4444', fillColor: '#FCA5A5', fillOpacity: 0.18, weight: 1 }} />
+                  <p className="mt-1 text-[20px] font-black text-[#B42318]">Order Cancelled</p>
+                  <p className="mt-2 text-[12px] text-[#6C655F]">{order?.cancellationReason || 'This order is no longer active.'}</p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-1 text-[20px] font-black text-[#B45309]">Payment Pending</p>
+                  <p className="mt-2 text-[12px] text-[#6C655F]">Please complete payment to start restaurant processing and delivery tracking.</p>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/payment/${id}`, { state: { paymentMethod: paymentMethodRaw } })}
+                    className="mt-3 h-9 px-4 rounded-lg bg-[#F97316] text-white text-[12px] font-bold"
+                  >
+                    Complete Payment
+                  </button>
                 </>
               )}
-
-              {deliveryPosition && <Marker position={deliveryPosition} icon={deliveryIcon} />}
-              {partnerPosition && <Marker position={partnerPosition} icon={riderIcon} />}
-            </MapContainer>
-          ) : (
-            <div
-              className="h-full w-full"
-              style={{
-                backgroundImage:
-                  'linear-gradient(rgba(190,186,180,0.78), rgba(190,186,180,0.78)), url(https://images.unsplash.com/photo-1524661135-423995f22d0b?w=1200&q=80)',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }}
-            />
-          )}
-
-          <div className="absolute inset-0 bg-[#C3BBB2]/35" />
-        </div>
+            </div>
+          </div>
+        )}
 
         {showTracking && socket && (order.status === 'out_for_delivery' || order.status === 'ready') && (
           <div className="px-4 -mt-8 mb-4 relative z-20">
@@ -367,7 +465,7 @@ const OrderDetail = () => {
           </div>
         )}
 
-        <div className="px-4 -mt-14 relative z-10">
+        <div className={`px-4 relative z-10 ${shouldShowTrackingJourney ? '-mt-14' : 'mt-3'}`}>
           <div className="relative rounded-[30px] bg-[#F4F4F4] overflow-hidden border border-[#E5E2DE]">
             <div className="absolute left-1/2 -translate-x-1/2 -top-4 h-8 w-8 rounded-full bg-[#F4F4F4] border border-[#E5E2DE] flex items-center justify-center">
               <BuildingStorefrontIcon className="h-4 w-4 text-[#F97316]" />
@@ -390,7 +488,7 @@ const OrderDetail = () => {
                 </div>
               </div>
 
-              {!isCancelled && (
+              {shouldShowTrackingJourney && (
                 <div>
                   <div className="h-1.5 rounded-full bg-[#E6E3DF] relative">
                     <div
@@ -421,7 +519,7 @@ const OrderDetail = () => {
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="h-16 w-12 rounded-[14px] overflow-hidden border-2 border-[#F97316] bg-[#EFEAE6] flex-shrink-0">
                       <img
-                        src={deliveryPerson?.profileImage || logo}
+                        src={deliveryPerson?.profileImage || deliveryPerson?.avatar || logo}
                         alt={deliveryPartnerName || 'Delivery partner'}
                         className="h-full w-full object-cover"
                       />
@@ -628,7 +726,7 @@ const OrderDetail = () => {
                   </div>
                   <div className="flex items-center gap-2 text-[11px] text-[#F97316]">
                     <EnvelopeIcon className="h-3.5 w-3.5" />
-                    <a href="mailto:flashbites@gmail.com" className="hover:underline">flashbites@gmail.com</a>
+                    <a href="mailto:info.flashbites@gmail.com" className="hover:underline">info.flashbites@gmail.com</a>
                   </div>
                   <p className="text-[10px] text-[#8A837D] pt-0.5">Available 24/7 for payment, refund, and technical issues</p>
                 </div>

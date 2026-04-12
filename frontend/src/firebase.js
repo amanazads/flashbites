@@ -18,6 +18,7 @@ let otpRequestPromise = null;
 let nativeVerificationId = null;
 let currentOtpMode = 'web';
 const FIREBASE_PROJECT_MARKER_KEY = 'flashbites.firebase.project.marker.v1';
+const OTP_WEB_TIMEOUT_MS = 45000;
 let projectMigrationPromise = null;
 
 const isNativePlatform = () => Boolean(window?.Capacitor?.isNativePlatform?.());
@@ -129,13 +130,61 @@ const resetRecaptchaState = () => {
   }
 };
 
+const withTimeout = (promise, timeoutMs, message) => {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
+};
+
+const shouldRetryWebOtpError = (error) => {
+  const message = String(error?.code || error?.message || error || '').toLowerCase();
+  return (
+    message.includes('auth/network-request-failed') ||
+    message.includes('timed out') ||
+    message.includes('captcha') ||
+    message.includes('recaptcha')
+  );
+};
+
 export const setupRecaptcha = () => {
   getOrCreateRecaptchaContainer();
+
+  const container = document.getElementById('recaptcha-container');
+  if (container) {
+    container.style.minHeight = '78px';
+  }
+
+  // By default keep invisible flow for smooth UX.
+  return setupRecaptchaWithMode('invisible');
+};
+
+const setupRecaptchaWithMode = (mode = 'invisible') => {
+  getOrCreateRecaptchaContainer();
+
+  const wrapper = document.getElementById('recaptcha-wrapper');
+  if (wrapper) {
+    // Keep wrapper accessible when normal widget mode is needed.
+    wrapper.style.right = '8px';
+    wrapper.style.bottom = '8px';
+    wrapper.style.maxWidth = '320px';
+  }
 
   // Only create the verifier if it doesn't already exist
   if (!window.recaptchaVerifier) {
     window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      size: 'invisible',
+      size: mode,
       callback: (response) => {
         console.log("reCAPTCHA solved");
       },
@@ -149,13 +198,33 @@ export const setupRecaptcha = () => {
 };
 
 const sendPhoneOtpWeb = async (phoneNumber) => {
-  const appVerifier = setupRecaptcha();
+  const attempt = async (mode = 'invisible') => {
+    const appVerifier = mode === 'normal' ? setupRecaptchaWithMode('normal') : setupRecaptcha();
 
-  // Do NOT call await appVerifier.render() manually.
-  // signInWithPhoneNumber will automatically render and verify the reCAPTCHA.
-  const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
-  window.confirmationResult = confirmationResult;
-  return confirmationResult;
+    // Do NOT call await appVerifier.render() manually.
+    // signInWithPhoneNumber will automatically render and verify the reCAPTCHA.
+    return withTimeout(
+      signInWithPhoneNumber(auth, phoneNumber, appVerifier),
+      OTP_WEB_TIMEOUT_MS,
+      'OTP request timed out. Please check your internet and try again.'
+    );
+  };
+
+  try {
+    const confirmationResult = await attempt('invisible');
+    window.confirmationResult = confirmationResult;
+    return confirmationResult;
+  } catch (firstError) {
+    if (!shouldRetryWebOtpError(firstError)) {
+      throw firstError;
+    }
+
+    // Recover from transient reCAPTCHA/network state by re-initializing widget once.
+    resetRecaptchaState();
+    const confirmationResult = await attempt('normal');
+    window.confirmationResult = confirmationResult;
+    return confirmationResult;
+  }
 };
 
 export const sendPhoneOTP = async (phoneNumber) => {
@@ -166,6 +235,10 @@ export const sendPhoneOTP = async (phoneNumber) => {
   otpRequestPromise = (async () => {
     try {
       await ensureProjectMigrationState();
+
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        throw new Error('No internet connection. Please reconnect and try again.');
+      }
 
       if (isNativePlatform()) {
         const listenerHandles = [];
@@ -320,6 +393,8 @@ export const getReadableFirebaseAuthError = (error) => {
   }
   if (msg.includes('auth/invalid-verification-code')) return "Incorrect OTP code. Please enter the correct code.";
   if (msg.includes('auth/code-expired')) return "The OTP code has expired. Please request a new one.";
+  if (msg.includes('auth/unauthorized-domain')) return "This domain is not authorized in Firebase. Add it in Firebase Auth -> Settings -> Authorized domains.";
+  if (msg.includes('auth/operation-not-allowed')) return "Phone authentication is disabled in Firebase. Enable Phone provider in Firebase Auth.";
   if (
     normalized.includes('not authorized to use firebase authentication') ||
     normalized.includes('play_integrity_token') ||
@@ -329,6 +404,10 @@ export const getReadableFirebaseAuthError = (error) => {
     return "Android app verification is not configured in Firebase yet (package/SHA mismatch). Please add the correct SHA-256 and SHA-1 for this app in Firebase Console and try again.";
   }
   if (msg.includes('auth/captcha-check-failed') || msg.includes('auth/invalid-app-credential')) return "Device verification failed. Please check your connection and try again.";
+  if (normalized.includes('recaptcha enterprise config') || normalized.includes('recaptcha')) {
+    return "Security verification could not start. Please check network, disable VPN/ad-blocker, and try again.";
+  }
+  if (normalized.includes('timed out')) return "OTP request timed out. Please check network and retry.";
   if (msg.includes('auth/network-request-failed')) return "Network error. Please check your internet connection.";
   return `Error: ${msg.replace('auth/', '')}`;
 };
