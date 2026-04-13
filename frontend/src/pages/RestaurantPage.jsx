@@ -221,13 +221,6 @@ const RestaurantPage = () => {
           </button>
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => searchInputRef.current?.focus()}
-              aria-label="Focus search"
-            >
-              <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
-            </button>
             <button type="button" onClick={() => navigate('/profile')} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
               <img src={logo} alt="Profile" className="h-full w-full object-cover" />
             </button>

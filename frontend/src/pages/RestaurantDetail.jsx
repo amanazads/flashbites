@@ -14,6 +14,7 @@ import logo from '../assets/logo.png';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getDeliveryAddressLabel } from '../utils/deliveryAddress';
 
 const CATEGORY_PRIORITY = [
   'Fast Food', 'Pizza', 'Burger', 'Burgers', 'Desserts', 'Chinese', 'Italian', 'South Indian',
@@ -38,6 +39,8 @@ const RestaurantDetail = () => {
   const { t, language } = useLanguage();
   const [menuItems, setMenuItems] = useState([]);
   const { items: cartItems, restaurant: cartRestaurant } = useSelector((state) => state.cart);
+  const selectedDeliveryAddress = useSelector((state) => state.ui.selectedDeliveryAddress);
+  const deliveryAddressLabel = getDeliveryAddressLabel(selectedDeliveryAddress, t('common.currentArea', 'Current Area'));
 
   useEffect(() => {
     dispatch(fetchRestaurantById(id));
@@ -255,7 +258,7 @@ const RestaurantDetail = () => {
                 <MapPinOutlineIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
                 <div>
                   <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
-                  <p className="text-[12px] leading-none font-semibold text-gray-900">{t('common.currentArea', 'Current Area')}</p>
+                  <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">{deliveryAddressLabel}</p>
                 </div>
               </button>
             </div>

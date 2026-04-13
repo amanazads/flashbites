@@ -7,6 +7,7 @@ import { openCart, setSelectedDeliveryAddress } from '../redux/slices/uiSlice';
 import { getAddresses } from '../api/userApi';
 import { getRestaurantMenuItems, searchRestaurantsAndItems } from '../api/restaurantApi';
 import { getPlatformSettings } from '../api/settingsApi';
+import { reverseGeocodeCoordinates } from '../api/locationApi';
 import AddAddressModal from '../components/common/AddAddressModal';
 import SEO from '../components/common/SEO';
 import { BRAND } from '../constants/theme';
@@ -104,6 +105,33 @@ const Home = () => {
   const lastLocationErrorToastAtRef = useRef(0);
 
   const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+  const buildLocationSelection = useCallback(async (latitude, longitude, fallbackId) => {
+    const fallbackSelection = {
+      id: fallbackId,
+      type: 'current',
+      typeLabel: 'Current',
+      city: '',
+      fullAddress: `Current location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+      latitude,
+      longitude,
+    };
+
+    try {
+      const response = await reverseGeocodeCoordinates(latitude, longitude);
+      const location = response?.data?.location || response?.location || null;
+      if (!location) return fallbackSelection;
+
+      return {
+        ...fallbackSelection,
+        city: location.city || location.locality || location.stateDistrict || '',
+        fullAddress: location.fullAddress || location.address || fallbackSelection.fullAddress,
+        street: location.street || location.address || '',
+      };
+    } catch {
+      return fallbackSelection;
+    }
+  }, []);
 
   const featuredRestaurants = useMemo(() => {
     return Array.isArray(restaurants) ? restaurants : [];
@@ -287,7 +315,7 @@ const Home = () => {
 
     setDetectingLocation(true);
 
-    const onSuccess = (position) => {
+    const onSuccess = async (position, fallbackId = 'current-location') => {
       const latitude = Number(position?.coords?.latitude || 0);
       const longitude = Number(position?.coords?.longitude || 0);
       setDetectingLocation(false);
@@ -306,22 +334,13 @@ const Home = () => {
         // ignore storage issues
       }
 
-      dispatch(
-        setSelectedDeliveryAddress({
-          id: 'current-location',
-          type: 'current',
-          typeLabel: 'Current',
-          city: 'Current Area',
-          fullAddress: `Current location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
-          latitude,
-          longitude,
-        })
-      );
+      const locationSelection = await buildLocationSelection(latitude, longitude, fallbackId);
+      dispatch(setSelectedDeliveryAddress(locationSelection));
 
       setShowAddressPicker(false);
     };
 
-    const useLastKnownLocation = () => {
+    const useLastKnownLocation = async () => {
       try {
         const raw = localStorage.getItem(LAST_KNOWN_LOCATION_KEY);
         if (!raw) return false;
@@ -337,17 +356,8 @@ const Home = () => {
 
         if (!hasValidCoords || !isFreshEnough) return false;
 
-        dispatch(
-          setSelectedDeliveryAddress({
-            id: 'last-known-location',
-            type: 'current',
-            typeLabel: 'Current',
-            city: 'Nearby Area',
-            fullAddress: `Last known location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
-            latitude,
-            longitude,
-          })
-        );
+        const locationSelection = await buildLocationSelection(latitude, longitude, 'last-known-location');
+        dispatch(setSelectedDeliveryAddress(locationSelection));
 
         setShowAddressPicker(false);
         toast(t('home.usingLastKnown', 'Using your last known location.'));
@@ -390,7 +400,7 @@ const Home = () => {
           timeout: 15000,
           maximumAge: 120000,
         }, 2);
-        onSuccess(highAccuracyPosition);
+        await onSuccess(highAccuracyPosition);
       } catch (highAccuracyError) {
         try {
           const fallbackPosition = await getPositionWithRetries({
@@ -398,11 +408,11 @@ const Home = () => {
             timeout: 10000,
             maximumAge: 300000,
           }, 1);
-          onSuccess(fallbackPosition);
+          await onSuccess(fallbackPosition);
         } catch (fallbackError) {
           setDetectingLocation(false);
 
-          if (useLastKnownLocation()) {
+          if (await useLastKnownLocation()) {
             return;
           }
 
@@ -672,9 +682,6 @@ const Home = () => {
                 title="Change language"
               >
                 <GlobeAltIcon className="h-5 w-5" />
-              </button>
-              <button type="button" onClick={() => navigate('/restaurants')}>
-                <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
               </button>
               <button type="button" onClick={() => navigate('/profile')} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
                 <img src={logo} alt="Profile" className="h-full w-full object-cover" />

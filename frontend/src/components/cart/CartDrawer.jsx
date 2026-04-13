@@ -12,6 +12,7 @@ import { validateCoupon } from '../../api/couponApi';
 import logo from '../../assets/logo.png';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
+import { getDeliveryAddressLabel } from '../../utils/deliveryAddress';
 
 const CartDrawer = () => {
   const dispatch = useDispatch();
@@ -23,8 +24,10 @@ const CartDrawer = () => {
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponLoading, setCouponLoading] = useState(false);
   const { cartOpen } = useSelector((state) => state.ui);
+  const selectedDeliveryAddress = useSelector((state) => state.ui.selectedDeliveryAddress);
   const { items, restaurant } = useSelector((state) => state.cart);
   const { isAuthenticated } = useSelector((state) => state.auth);
+  const deliveryAddressLabel = getDeliveryAddressLabel(selectedDeliveryAddress);
 
   const isFeeEnabledNow = (control) => {
     if (control?.enabled === false) return false;
@@ -208,7 +211,7 @@ const CartDrawer = () => {
                 <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
                 <div>
                   <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
-                  <p className="text-[12px] leading-none font-semibold text-gray-900">Current Area</p>
+                  <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">{deliveryAddressLabel}</p>
                 </div>
               </button>
             </div>

@@ -1,13 +1,17 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { ArrowLeftIcon, MagnifyingGlassIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import NotificationSettings from '../components/common/NotificationSettings';
 import logo from '../assets/logo.png';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getDeliveryAddressLabel } from '../utils/deliveryAddress';
 
 const NotificationsPage = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const selectedDeliveryAddress = useSelector((s) => s.ui.selectedDeliveryAddress);
+  const deliveryAddressLabel = getDeliveryAddressLabel(selectedDeliveryAddress, t('common.currentArea', 'Current Area'));
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
@@ -29,7 +33,7 @@ const NotificationsPage = () => {
                 <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
                 <div>
                   <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
-                  <p className="text-[12px] leading-none font-semibold text-gray-900">{t('common.currentArea', 'Current Area')}</p>
+                  <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">{deliveryAddressLabel}</p>
                 </div>
               </button>
             </div>

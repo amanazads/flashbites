@@ -35,6 +35,7 @@ import { BRAND } from '../constants/theme';
 import logo from '../assets/logo.png';
 import AddAddressModal from '../components/common/AddAddressModal';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getDeliveryAddressLabel } from '../utils/deliveryAddress';
 
 const PAGE_BG = '#F5F1EF';
 const CARD_BG = '#FFFFFF';
@@ -106,7 +107,9 @@ const Profile = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated, loading: authLoading } = useSelector((s) => s.auth);
+  const selectedDeliveryAddress = useSelector((s) => s.ui.selectedDeliveryAddress);
   const { t, openLanguageModal } = useLanguage();
+  const deliveryAddressLabel = getDeliveryAddressLabel(selectedDeliveryAddress, t('common.currentArea', 'Current Area'));
 
   const [addresses, setAddresses] = useState([]);
   const [showAddressSheet, setShowAddressSheet] = useState(false);
@@ -286,7 +289,7 @@ const Profile = () => {
                 <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
                 <div>
                   <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
-                  <p className="text-[12px] leading-none font-semibold text-gray-900">{t('common.currentArea', 'Current Area')}</p>
+                  <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">{deliveryAddressLabel}</p>
                 </div>
               </button>
             </div>
@@ -300,9 +303,6 @@ const Profile = () => {
                 title="Change language"
               >
                 <GlobeAltIcon className="h-5 w-5" />
-              </button>
-              <button type="button" onClick={() => navigate('/restaurants')}>
-                <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
               </button>
               <button type="button" onClick={() => setIsEditing(true)} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
                 <img src={logo} alt="Profile" className="h-full w-full object-cover" />
@@ -587,3 +587,4 @@ const Profile = () => {
 };
 
 export default Profile;
+frontend/src/pages/RestaurantPage.jsx

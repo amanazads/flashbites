@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import {
   ArrowLeftIcon,
   ChevronDownIcon,
@@ -16,6 +17,7 @@ import {
 import { BRAND } from '../constants/theme';
 import logo from '../assets/logo.png';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getDeliveryAddressLabel } from '../utils/deliveryAddress';
 
 const faqs = [
   {
@@ -94,6 +96,8 @@ const HelpPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useLanguage();
+  const selectedDeliveryAddress = useSelector((s) => s.ui.selectedDeliveryAddress);
+  const deliveryAddressLabel = getDeliveryAddressLabel(selectedDeliveryAddress, t('common.currentArea', 'Current Area'));
 
   const isActiveRoute = (key) => {
     if (key === 'home') return location.pathname === '/';
@@ -124,15 +128,12 @@ const HelpPage = () => {
                 <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
                 <div>
                   <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
-                  <p className="text-[12px] leading-none font-semibold text-gray-900">{t('common.currentArea', 'Current Area')}</p>
+                  <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">{deliveryAddressLabel}</p>
                 </div>
               </button>
             </div>
 
             <div className="flex items-center gap-3">
-              <button type="button" onClick={() => navigate('/restaurants')}>
-                <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
-              </button>
               <button type="button" onClick={() => navigate('/profile')} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
                 <img src={logo} alt="Profile" className="h-full w-full object-cover" />
               </button>
