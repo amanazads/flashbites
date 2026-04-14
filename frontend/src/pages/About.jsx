@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import SEO from '../components/common/SEO';
 import {
   ArrowLeftIcon,
@@ -15,10 +16,13 @@ import {
 } from '@heroicons/react/24/outline';
 import logo from '../assets/logo.png';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getDeliveryAddressLabel } from '../utils/deliveryAddress';
 
 const About = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const selectedDeliveryAddress = useSelector((s) => s.ui.selectedDeliveryAddress);
+  const deliveryAddressLabel = getDeliveryAddressLabel(selectedDeliveryAddress, t('common.currentArea', 'Current Area'));
 
   return (
     <div className="about-home-theme min-h-screen" style={{ background: 'var(--bg-app)' }}>
@@ -29,35 +33,37 @@ const About = () => {
         keywords="about FlashBites, food delivery India, rural food delivery, Sitapur food delivery, FlashBites story"
       />
 
-      <div className="px-4 pt-[max(env(safe-area-inset-top),10px)] -mx-6 max-[388px]:-mx-4 mb-4" style={{ backgroundColor: 'rgb(245, 243, 241)' }}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="h-8 w-8 rounded-full flex items-center justify-center text-white shadow-[0_8px_18px_rgba(234,88,12,0.32)]"
-              aria-label="Go back"
-              style={{ background: 'linear-gradient(rgb(255, 122, 69) 0%, rgb(234, 88, 12) 100%)' }}
-            >
-              <ArrowLeftIcon className="h-4 w-4" />
-            </button>
+      <div className="lg:hidden" style={{ backgroundColor: 'rgb(245, 243, 241)' }}>
+        <div className="max-w-7xl mx-auto px-4 xs:px-5 sm:px-6 lg:px-0 pt-[max(env(safe-area-inset-top),10px)] pb-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="h-8 w-8 rounded-full flex items-center justify-center text-white shadow-[0_8px_18px_rgba(234,88,12,0.32)]"
+                aria-label="Go back"
+                style={{ background: 'linear-gradient(rgb(255, 122, 69) 0%, rgb(234, 88, 12) 100%)' }}
+              >
+                <ArrowLeftIcon className="h-4 w-4" />
+              </button>
 
-            <button type="button" className="flex items-center gap-2 text-left">
-              <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
-              <div>
-                <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
-                <p className="text-[12px] leading-none font-semibold text-gray-900">{t('common.currentArea', 'Current Area')}</p>
-              </div>
-            </button>
-          </div>
+              <button type="button" className="flex items-center gap-2 text-left">
+                <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
+                <div>
+                  <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
+                  <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">{deliveryAddressLabel}</p>
+                </div>
+              </button>
+            </div>
 
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => navigate('/restaurants')}>
-              <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
-            </button>
-            <button type="button" onClick={() => navigate('/profile')} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
-              <img src={logo} alt="Profile" className="h-full w-full object-cover" />
-            </button>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => navigate('/restaurants')}>
+                <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
+              </button>
+              <button type="button" onClick={() => navigate('/profile')} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
+                <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

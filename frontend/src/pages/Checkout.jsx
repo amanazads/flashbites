@@ -21,6 +21,7 @@ import { getPlatformSettings } from '../api/settingsApi';
 import { createRazorpayOrder, recordPaymentFailure, verifyPayment } from '../api/paymentApi';
 import { calculateCartTotal, calculateDistance, isRestaurantOpen } from '../utils/helpers';
 import { formatCurrency } from '../utils/formatters';
+import { getDeliveryAddressLabel } from '../utils/deliveryAddress';
 import AddAddressModal from '../components/common/AddAddressModal';
 import logo from '../assets/logo.png';
 import toast from 'react-hot-toast';
@@ -98,10 +99,12 @@ const isFeeEnabledNow = (control) => {
 const Checkout = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { t } = useLanguage();
 
   const { items, restaurant } = useSelector((state) => state.cart);
   const { user } = useSelector((state) => state.auth);
   const selectedDeliveryAddress = useSelector((state) => state.ui.selectedDeliveryAddress);
+  const deliveryAddressLabel = getDeliveryAddressLabel(selectedDeliveryAddress, t('common.currentArea', 'Current Area'));
 
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
@@ -110,7 +113,6 @@ const Checkout = () => {
   const [deliveryDistance, setDeliveryDistance] = useState(0);
   const [showAddAddressModal, setShowAddAddressModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { t } = useLanguage();
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -464,7 +466,7 @@ const Checkout = () => {
                 <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
                 <div>
                   <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
-                  <p className="text-[12px] leading-none font-semibold text-gray-900">{t('common.currentArea', 'Current Area')}</p>
+                  <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">{deliveryAddressLabel}</p>
                 </div>
               </button>
             </div>
