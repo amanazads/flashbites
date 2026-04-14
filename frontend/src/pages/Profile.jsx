@@ -587,4 +587,3 @@ const Profile = () => {
 };
 
 export default Profile;
-frontend/src/pages/RestaurantPage.jsx

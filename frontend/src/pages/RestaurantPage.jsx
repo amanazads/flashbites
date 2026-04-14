@@ -18,6 +18,7 @@ import {
 import { BRAND } from '../constants/theme';
 import logo from '../assets/logo.png';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getDeliveryAddressLabel } from '../utils/deliveryAddress';
 
 const CUISINE_TABS = [
   { id: 'All',       label: 'All',       image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80' },
@@ -47,6 +48,7 @@ const RestaurantPage = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const routerLocation = useLocation();
   const { t } = useLanguage();
+  const deliveryAddressLabel = getDeliveryAddressLabel(selectedAddress, t('common.currentArea', 'Current Area'));
   const params = new URLSearchParams(routerLocation.search);
   const searchQuery = params.get('search')?.trim() || '';
   const cuisineQuery = params.get('cuisine')?.trim() || '';
@@ -214,8 +216,8 @@ const RestaurantPage = () => {
             <div>
               <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
               <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
-              <p className="text-[12px] leading-none font-semibold text-gray-900">
-                {selectedAddress?.city || t('common.currentArea', 'Current Area')}
+              <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">
+                {deliveryAddressLabel}
               </p>
             </div>
           </button>
