@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchUserOrders } from '../redux/slices/orderSlice';
 import { Loader } from '../components/common/Loader';
@@ -9,9 +9,14 @@ import {
   ArrowLeftIcon,
   ClockIcon,
   ShoppingBagIcon,
+  HomeIcon,
+  MagnifyingGlassIcon,
+  UserCircleIcon,
+  MapPinIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 import { BRAND } from '../constants/theme';
+import { useLanguage } from '../contexts/LanguageContext';
 
 /* ─── Status config ─── */
 const STATUS_CONFIG = {
@@ -39,7 +44,7 @@ const getRestaurantImage = (order) =>
   'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&q=80';
 
 /* ─── Empty state ─── */
-const EmptyState = ({ isActive }) => (
+const EmptyState = ({ isActive, t }) => (
   <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
     <div
       className="w-20 h-20 rounded-2xl mb-5 flex items-center justify-center"
@@ -48,12 +53,12 @@ const EmptyState = ({ isActive }) => (
       <ShoppingBagIcon className="w-9 h-9" style={{ color: BRAND }} />
     </div>
     <h3 className="text-[18px] font-bold text-gray-900 mb-1">
-      {isActive ? 'No active orders' : 'No past orders'}
+      {isActive ? t('orders.noActive', 'No active orders') : t('orders.noPast', 'No past orders')}
     </h3>
     <p className="text-[13px] text-gray-400 mb-6 max-w-[240px]">
       {isActive
-        ? 'Your current orders will appear here.'
-        : 'Your delivered and past orders will show up here.'}
+        ? t('orders.activeHelp', 'Your current orders will appear here.')
+        : t('orders.pastHelp', 'Your delivered and past orders will show up here.')}
     </p>
     <Link
       to="/restaurants"
@@ -64,27 +69,28 @@ const EmptyState = ({ isActive }) => (
       }}
     >
       <ShoppingBagIcon className="w-4 h-4" />
-      Browse Restaurants
+      {t('orders.browseRestaurants', 'Browse Restaurants')}
     </Link>
   </div>
 );
 
 /* ─── Order card ─── */
-const OrderCard = ({ order }) => {
+const OrderCard = ({ order, t }) => {
   const navigate = useNavigate();
   const status = getStatus(order.status);
   const isActive = isActiveStatus(order.status);
+  const isOnlineMethod = ['upi', 'card'].includes(String(order?.paymentMethod || '').toLowerCase());
+  const isPaymentPending = isOnlineMethod && order?.paymentStatus !== 'completed';
   const itemPreview = order.items?.slice(0, 2).map((i) => `${i.name}`).join(', ') || 'Items';
   const moreCount = (order.items?.length || 0) - 2;
 
   return (
     <button
-      onClick={() => navigate(`/orders/${order._id}`)}
-      className="w-full bg-white rounded-2xl overflow-hidden text-left transition-all active:scale-[0.985]"
-      style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}
+      onClick={() => navigate(isPaymentPending ? `/payment/${order._id}` : `/orders/${order._id}`)}
+      className="w-full bg-[#F4F4F4] border border-[#E6E0D9] rounded-[26px] overflow-hidden text-left transition-all active:scale-[0.985]"
     >
       {/* Restaurant image strip */}
-      <div className="relative h-[120px] overflow-hidden">
+      <div className="relative h-[126px] overflow-hidden">
         <img
           src={getRestaurantImage(order)}
           alt={order.restaurantId?.name}
@@ -92,39 +98,43 @@ const OrderCard = ({ order }) => {
           loading="lazy"
         />
         {/* Gradient overlay */}
-        <div
-          className="absolute inset-0"
-          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.05) 60%, transparent 100%)' }}
-        />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(23,20,21,0.55) 0%, rgba(23,20,21,0.08) 60%, transparent 100%)' }} />
 
         {/* Restaurant name on image */}
-        <div className="absolute bottom-0 left-0 p-3">
-          <p className="text-white font-bold text-[15px] leading-tight">
+        <div className="absolute bottom-0 left-0 p-3.5">
+          <p className="text-white font-bold text-[16px] leading-tight">
             {order.restaurantId?.name || 'Restaurant'}
           </p>
         </div>
 
         {/* Status badge */}
         <div className="absolute top-3 right-3">
-          <span
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold"
-            style={{ background: status.bg, color: status.color }}
-          >
+          {isPaymentPending ? (
+            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FEF3C7] text-[#B45309]">
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-[#B45309]" />
+              {t('orders.paymentPending', 'Payment Pending')}
+            </span>
+          ) : (
             <span
-              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-              style={{
-                background: status.dot,
-                boxShadow: isActive ? `0 0 0 3px ${status.dot}33` : 'none',
-                animation: isActive ? 'pulse 2s infinite' : 'none',
-              }}
-            />
-            {status.label}
-          </span>
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold"
+              style={{ background: status.bg, color: status.color }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                style={{
+                  background: status.dot,
+                  boxShadow: isActive ? `0 0 0 3px ${status.dot}33` : 'none',
+                  animation: isActive ? 'pulse 2s infinite' : 'none',
+                }}
+              />
+              {status.label}
+            </span>
+          )}
         </div>
       </div>
 
       {/* Order details */}
-      <div className="p-3.5">
+      <div className="p-4">
         {/* Items preview */}
         <p className="text-[13px] text-gray-500 mb-2 line-clamp-1">
           {itemPreview}
@@ -147,9 +157,9 @@ const OrderCard = ({ order }) => {
 
           <span
             className="text-[12px] font-bold px-3 py-1.5 rounded-xl"
-            style={{ background: '#FFF7ED', color: BRAND }}
+            style={{ background: '#FCE9D8', color: BRAND }}
           >
-            View Details
+            {isPaymentPending ? t('orders.completePayment', 'Complete Payment') : t('orders.viewDetails', 'View Details')}
           </span>
         </div>
       </div>
@@ -160,8 +170,10 @@ const OrderCard = ({ order }) => {
 /* ─── Main ─── */
 const Orders = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const { orders, loading } = useSelector((state) => state.order);
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('active');
 
   useEffect(() => { dispatch(fetchUserOrders()); }, [dispatch]);
@@ -172,6 +184,13 @@ const Orders = () => {
     return orders.filter((o) => {
       if (seen.has(o._id)) return false;
       seen.add(o._id);
+      const status = String(o?.status || '').toLowerCase();
+      const paymentStatus = String(o?.paymentStatus || '').toLowerCase();
+      const cancellationReason = String(o?.cancellationReason || '').toLowerCase();
+      const isPaymentCancelledOrder =
+        (status === 'cancelled' || status === 'canceled')
+        && (paymentStatus === 'failed' || cancellationReason.includes('payment failed') || cancellationReason.includes('cancelled payment'));
+      if (isPaymentCancelledOrder) return false;
       return true;
     });
   }, [orders]);
@@ -186,32 +205,40 @@ const Orders = () => {
   );
   const displayOrders = activeTab === 'active' ? activeOrders : pastOrders;
 
+  const isNavActive = (path) => {
+    if (path === '/') return location.pathname === '/';
+    if (path === '/restaurants') return location.pathname.startsWith('/restaurants') || location.pathname.startsWith('/restaurant/');
+    if (path === '/orders') return location.pathname.startsWith('/orders');
+    if (path === '/profile') return location.pathname.startsWith('/profile');
+    return false;
+  };
+
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <div className="max-w-md mx-auto min-h-screen max-[388px]:px-1">
+    <div className="min-h-screen bg-[#F5F3F1]">
+      <div className="max-w-md mx-auto min-h-screen pb-28">
 
         {/* ── Header ── */}
         <div
-          className="sticky top-0 z-20 px-4 pt-5 pb-4 max-[388px]:px-3 max-[388px]:pt-4 max-[388px]:pb-3 bg-white"
-          style={{ borderBottom: '1px solid #F0F2F5', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}
+          className="sticky top-0 z-20 px-4 pt-[max(env(safe-area-inset-top),10px)] pb-4 bg-[#F5F3F1]"
+          style={{ borderBottom: '1px solid #ECE4DC' }}
         >
           <div className="flex items-center gap-3 mb-4">
             <button
               onClick={() => navigate(-1)}
-              className="w-9 h-9 max-[388px]:w-8 max-[388px]:h-8 rounded-xl flex items-center justify-center bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors flex-shrink-0"
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-[#171415] flex-shrink-0"
             >
               <ArrowLeftIcon className="w-5 h-5" />
             </button>
             <h1
-              className="text-[20px] max-[388px]:text-[18px] font-bold text-gray-900 flex-1"
+              className="text-[22px] font-black text-[#171415] flex-1"
               style={{ letterSpacing: '-0.02em' }}
             >
-              My Orders
+              {t('orders.title', 'My Orders')}
             </h1>
             {uniqueOrders.length > 0 && (
               <span
-                className="text-[12px] max-[388px]:text-[11px] font-bold px-2.5 py-1 rounded-full"
-                style={{ background: '#FFF7ED', color: BRAND }}
+                className="text-[12px] font-bold px-2.5 py-1 rounded-full"
+                style={{ background: '#FCE9D8', color: BRAND }}
               >
                 {uniqueOrders.length}
               </span>
@@ -221,11 +248,11 @@ const Orders = () => {
           {/* Pill tabs */}
           <div
             className="flex rounded-2xl p-1 max-[388px]:p-0.5"
-            style={{ background: '#F0F2F5' }}
+            style={{ background: '#EEE8E2' }}
           >
             {[
-              { id: 'active', label: 'Active', count: activeOrders.length },
-              { id: 'past',   label: 'Past',   count: pastOrders.length },
+              { id: 'active', label: t('orders.active', 'Active'), count: activeOrders.length },
+              { id: 'past',   label: t('orders.past', 'Past'), count: pastOrders.length },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -234,7 +261,7 @@ const Orders = () => {
                 style={
                   activeTab === tab.id
                     ? { background: 'white', color: BRAND, boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }
-                    : { color: '#9CA3AF' }
+                    : { color: '#9A8F85' }
                 }
               >
                 {tab.label}
@@ -244,7 +271,7 @@ const Orders = () => {
                     style={
                       activeTab === tab.id
                         ? { background: BRAND, color: 'white' }
-                        : { background: '#D1D5DB', color: 'white' }
+                        : { background: '#C9B8A7', color: 'white' }
                     }
                   >
                     {tab.count}
@@ -256,18 +283,39 @@ const Orders = () => {
         </div>
 
         {/* ── Content ── */}
-        <div className="px-4 py-4 pb-28 max-[388px]:px-3 max-[388px]:pb-24">
+        <div className="px-4 py-4">
           {loading ? (
             <Loader />
           ) : displayOrders.length === 0 ? (
-            <EmptyState isActive={activeTab === 'active'} />
+            <EmptyState isActive={activeTab === 'active'} t={t} />
           ) : (
             <div className="space-y-3">
               {displayOrders.map((order) => (
-                <OrderCard key={order._id} order={order} />
+                <OrderCard key={order._id} order={order} t={t} />
               ))}
             </div>
           )}
+        </div>
+
+        <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t border-[#E6E2DE] bg-[#F5F3F1]" style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom))' }}>
+          <div className="max-w-md mx-auto px-6 pt-2 flex items-center justify-between text-[#B0ACA8]">
+            <Link to="/" className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1" style={isNavActive('/') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}>
+              <HomeIcon className="h-5 w-5" />
+              <span className="text-[8px]">{t('common.home', 'Home')}</span>
+            </Link>
+            <Link to="/restaurants" className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1" style={isNavActive('/restaurants') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}>
+              <MagnifyingGlassIcon className="h-5 w-5" />
+              <span className="text-[8px]">{t('common.search', 'Search')}</span>
+            </Link>
+            <Link to="/orders" className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1" style={isNavActive('/orders') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}>
+              <ShoppingBagIcon className="h-5 w-5" />
+              <span className="text-[8px]">{t('nav.orders', 'Orders')}</span>
+            </Link>
+            <Link to="/profile" className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1" style={isNavActive('/profile') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}>
+              <UserCircleIcon className="h-5 w-5" />
+              <span className="text-[8px]">{t('common.profile', 'Profile')}</span>
+            </Link>
+          </div>
         </div>
       </div>
     </div>

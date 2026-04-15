@@ -77,7 +77,7 @@ const CancellationModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
                   </p>
                   {cancellationFee > 0 && (
                     <p className="text-sm text-red-800 mt-2">
-                      If you still want to cancel, please contact restaurant support.
+                      If you still want to cancel, please contact FlashBites support.
                     </p>
                   )}
                 </div>
@@ -210,7 +210,7 @@ const CancellationModal = ({ isOpen, onClose, onConfirm, order, loading }) => {
               <li>• Free cancellation within 60 seconds of restaurant confirmation</li>
               <li>• Orders being prepared cannot be cancelled</li>
               <li>• Refunds will be processed within 5-7 business days</li>
-              <li>• For assistance, contact restaurant or support</li>
+              <li>• For assistance, contact FlashBites support</li>
             </ul>
           </div>
         </div>

@@ -1,19 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  ArrowLeftIcon,
+  BanknotesIcon,
+  ClockIcon,
+  CreditCardIcon,
+  CubeIcon,
+  DevicePhoneMobileIcon,
+  HomeIcon,
+  MagnifyingGlassIcon,
+  MapPinIcon,
+  ShieldCheckIcon,
+} from '@heroicons/react/24/outline';
 import { createOrder } from '../redux/slices/orderSlice';
-import { clearCart, updateQuantity, removeFromCart } from '../redux/slices/cartSlice';
+import { clearCart } from '../redux/slices/cartSlice';
 import { setSelectedDeliveryAddress } from '../redux/slices/uiSlice';
 import { getAddresses } from '../api/userApi';
-import { formatCurrency } from '../utils/formatters';
-import { calculateCartTotal } from '../utils/helpers';
-import { calculateDistance } from '../utils/helpers';
-import { isRestaurantOpen } from '../utils/helpers';
-import { validateCoupon, getAvailableCoupons } from '../api/couponApi';
 import { getPlatformSettings } from '../api/settingsApi';
+import { createRazorpayOrder, recordPaymentFailure, verifyPayment } from '../api/paymentApi';
+import { calculateCartTotal, calculateDistance, isRestaurantOpen } from '../utils/helpers';
+import { formatCurrency } from '../utils/formatters';
+import { getDeliveryAddressLabel } from '../utils/deliveryAddress';
 import AddAddressModal from '../components/common/AddAddressModal';
+import logo from '../assets/logo.png';
 import toast from 'react-hot-toast';
-import { MinusIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { useLanguage } from '../contexts/LanguageContext';
+
+const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
+const isProdBuild = import.meta.env.PROD;
+const isLiveRazorpayKey = (key) => typeof key === 'string' && key.startsWith('rzp_live_');
+
+const loadRazorpayScript = () => new Promise((resolve) => {
+  if (window.Razorpay) return resolve(true);
+  const script = document.createElement('script');
+  script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+  script.async = true;
+  script.onload = () => resolve(true);
+  script.onerror = () => resolve(false);
+  document.body.appendChild(script);
+});
 
 const mapSavedAddressToSelection = (addr) => {
   if (!addr) return null;
@@ -35,67 +61,95 @@ const mapSavedAddressToSelection = (addr) => {
   };
 };
 
+const calculateDeliveryFee = (distance, rules) => {
+  const tiers = Array.isArray(rules) && rules.length > 0
+    ? rules
+    : [
+        { minDistance: 0, maxDistance: 5, charge: 0 },
+        { minDistance: 5, maxDistance: 15, charge: 25 },
+        { minDistance: 15, maxDistance: 9999, charge: 30 },
+      ];
+
+  const tier = tiers.find((t) => distance >= t.minDistance && distance < t.maxDistance);
+  return tier ? tier.charge : 0;
+};
+
+const resolveEffectiveFeeControl = (globalControl, restaurantControl) => {
+  if (restaurantControl?.useGlobal === false) {
+    return {
+      enabled: restaurantControl?.enabled !== false,
+      effectiveFrom: restaurantControl?.effectiveFrom || null,
+    };
+  }
+
+  return {
+    enabled: globalControl?.enabled !== false,
+    effectiveFrom: globalControl?.effectiveFrom || null,
+  };
+};
+
+const isFeeEnabledNow = (control) => {
+  if (control?.enabled === false) return false;
+  if (!control?.effectiveFrom) return true;
+  const effectiveFrom = new Date(control.effectiveFrom);
+  if (Number.isNaN(effectiveFrom.getTime())) return true;
+  return effectiveFrom.getTime() <= Date.now();
+};
+
 const Checkout = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { t } = useLanguage();
+
   const { items, restaurant } = useSelector((state) => state.cart);
   const { user } = useSelector((state) => state.auth);
   const selectedDeliveryAddress = useSelector((state) => state.ui.selectedDeliveryAddress);
+  const deliveryAddressLabel = getDeliveryAddressLabel(selectedDeliveryAddress, t('common.currentArea', 'Current Area'));
+
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState('card');
-  const [loading, setLoading] = useState(false);
-  const [showAddAddressModal, setShowAddAddressModal] = useState(false);
-  const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState(null);
-  const [couponLoading, setCouponLoading] = useState(false);
-  const [availableCoupons, setAvailableCoupons] = useState([]);
-  const [availableLoading, setAvailableLoading] = useState(false);
-  const [deliveryDistance, setDeliveryDistance] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [platformSettings, setPlatformSettings] = useState(null);
+  const [deliveryDistance, setDeliveryDistance] = useState(0);
+  const [showAddAddressModal, setShowAddAddressModal] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchAddresses();
-    fetchPlatformSettings();
-  }, []);
+    const bootstrap = async () => {
+      try {
+        const [addressResponse, settingsResponse] = await Promise.all([
+          getAddresses(),
+          getPlatformSettings(),
+        ]);
 
-  const fetchAddresses = async () => {
-    try {
-      const response = await getAddresses();
-      const fetchedAddresses = response?.data?.addresses || response?.addresses || [];
-      setAddresses(fetchedAddresses);
+        const fetchedAddresses = addressResponse?.data?.addresses || addressResponse?.addresses || [];
+        setAddresses(fetchedAddresses);
+        setPlatformSettings(settingsResponse?.data?.settings || null);
 
-      const preselectedFromGlobal = selectedDeliveryAddress?.id
-        ? fetchedAddresses.find((addr) => addr._id === selectedDeliveryAddress.id)
-        : null;
+        const preselectedFromGlobal = selectedDeliveryAddress?.id
+          ? fetchedAddresses.find((addr) => addr._id === selectedDeliveryAddress.id)
+          : null;
 
-      if (preselectedFromGlobal) {
-        setSelectedAddress(preselectedFromGlobal._id);
-        return;
-      }
-
-      const defaultAddr = fetchedAddresses.find(addr => addr.isDefault);
-      if (defaultAddr) {
-        setSelectedAddress(defaultAddr._id);
-        const mapped = mapSavedAddressToSelection(defaultAddr);
-        if (mapped) {
-          dispatch(setSelectedDeliveryAddress(mapped));
+        if (preselectedFromGlobal) {
+          setSelectedAddress(preselectedFromGlobal._id);
+          return;
         }
-      }
-    } catch (error) {
-      toast.error('Failed to load addresses');
-    }
-  };
 
-  const handleAddressAdded = (newAddress) => {
-    setAddresses((prev) => [...prev, newAddress]);
-    setSelectedAddress(newAddress._id);
-    const mapped = mapSavedAddressToSelection(newAddress);
-    if (mapped) {
-      dispatch(setSelectedDeliveryAddress(mapped));
-    }
-    setShowAddAddressModal(false);
-  };
+        const defaultAddr = fetchedAddresses.find((addr) => addr.isDefault) || fetchedAddresses[0];
+        if (defaultAddr) {
+          setSelectedAddress(defaultAddr._id);
+          const mapped = mapSavedAddressToSelection(defaultAddr);
+          if (mapped) {
+            dispatch(setSelectedDeliveryAddress(mapped));
+          }
+        }
+      } catch {
+        toast.error(t('checkout.failedLoad', 'Failed to load checkout details'));
+      }
+    };
+
+    bootstrap();
+  }, [dispatch, selectedDeliveryAddress?.id]);
 
   useEffect(() => {
     if (!selectedAddress) return;
@@ -107,151 +161,104 @@ const Checkout = () => {
     }
   }, [selectedAddress, addresses, dispatch]);
 
-  const fetchAvailableCoupons = async (orderValue, restaurantId) => {
-    if (!orderValue || !restaurantId) {
-      setAvailableCoupons([]);
-      return;
-    }
-
-    try {
-      setAvailableLoading(true);
-      const response = await getAvailableCoupons(orderValue, restaurantId);
-      setAvailableCoupons(response?.data?.coupons || []);
-    } catch {
-      setAvailableCoupons([]);
-    } finally {
-      setAvailableLoading(false);
-    }
-  };
-
-  const fetchPlatformSettings = async () => {
-    try {
-      const response = await getPlatformSettings();
-      setPlatformSettings(response?.data?.settings || null);
-    } catch {
-      setPlatformSettings(null);
-    }
-  };
-
-  const calculateDeliveryFee = (distance, rules) => {
-    const tiers = Array.isArray(rules) && rules.length > 0
-      ? rules
-      : [
-          { minDistance: 0, maxDistance: 5, charge: 0 },
-          { minDistance: 5, maxDistance: 15, charge: 25 },
-          { minDistance: 15, maxDistance: 9999, charge: 30 }
-        ];
-
-    const tier = tiers.find((t) => distance >= t.minDistance && distance < t.maxDistance);
-    return tier ? tier.charge : 0;
-  };
-
-  const normalizeCommissionPercent = (rawPercent) => {
-    const percent = Number(rawPercent);
-    if (!Number.isFinite(percent)) return 25;
-    if (percent < 0) return 0;
-    if (percent > 90) return 90;
-    return percent;
-  };
-
-  // Calculate distance when address or restaurant changes
   useEffect(() => {
-    if (selectedAddress && restaurant?.location?.coordinates) {
-      const address = addresses.find(addr => addr._id === selectedAddress);
-      if (address && Array.isArray(address.coordinates) && address.coordinates.length >= 2) {
-        const [restLng, restLat] = restaurant.location.coordinates;
-        const [addrLng, addrLat] = address.coordinates;
-        const distance = calculateDistance(restLat, restLng, addrLat, addrLng);
-        setDeliveryDistance(parseFloat(distance));
-      }
-    }
+    if (!selectedAddress || !restaurant?.location?.coordinates) return;
+
+    const address = addresses.find((addr) => addr._id === selectedAddress);
+    if (!address || !Array.isArray(address.coordinates) || address.coordinates.length < 2) return;
+
+    const [restLng, restLat] = restaurant.location.coordinates;
+    const [addrLng, addrLat] = address.coordinates;
+    const distance = calculateDistance(restLat, restLng, addrLat, addrLng);
+    setDeliveryDistance(parseFloat(distance));
   }, [selectedAddress, restaurant, addresses]);
 
+  const selectedAddressObj = useMemo(
+    () => addresses.find((addr) => addr._id === selectedAddress) || null,
+    [addresses, selectedAddress]
+  );
+
   const listedSubtotal = calculateCartTotal(items);
-  const commissionPercent = normalizeCommissionPercent(platformSettings?.commissionPercent);
-  const subtotal = items.reduce((sum, item) => {
-    const listedPrice = Number(item.price) || 0;
-    const quantity = Number(item.quantity) || 0;
-    const sellingPrice = listedPrice * (1 + commissionPercent / 100);
-    return sum + (sellingPrice * quantity);
-  }, 0);
-  const discount = appliedCoupon?.discount || 0;
-  const platformFee = Number(platformSettings?.platformFee || 25);
-  const taxRate = Number(platformSettings?.taxRate || 0.05);
+
+  const globalFeeControls = platformSettings?.feeControls || {};
+  const restaurantFeeControls = restaurant?.feeControls || {};
+
+  const effectiveDeliveryControl = resolveEffectiveFeeControl(
+    globalFeeControls.deliveryFee,
+    restaurantFeeControls.deliveryFee
+  );
+  const effectivePlatformControl = resolveEffectiveFeeControl(
+    globalFeeControls.platformFee,
+    restaurantFeeControls.platformFee
+  );
+  const effectiveTaxControl = resolveEffectiveFeeControl(
+    globalFeeControls.tax,
+    restaurantFeeControls.tax
+  );
+
+  const isDeliveryFeeEnabled = isFeeEnabledNow(effectiveDeliveryControl);
+  const isPlatformFeeEnabled = isFeeEnabledNow(effectivePlatformControl);
+  const isTaxEnabled = isFeeEnabledNow(effectiveTaxControl);
+
   const configuredDeliveryFee = Number(platformSettings?.deliveryFee);
-  const deliveryFee = Number.isFinite(configuredDeliveryFee) && configuredDeliveryFee >= 0
+  const resolvedDeliveryFee = Number.isFinite(configuredDeliveryFee) && configuredDeliveryFee >= 0
     ? configuredDeliveryFee
     : (deliveryDistance > 0
         ? calculateDeliveryFee(deliveryDistance, platformSettings?.deliveryChargeRules)
         : 0);
-  const tax = Math.max(subtotal - discount, 0) * taxRate;
-  const total = subtotal + deliveryFee + platformFee + tax - discount;
+
+  const deliveryFee = isDeliveryFeeEnabled ? resolvedDeliveryFee : 0;
+  const platformFee = isPlatformFeeEnabled ? Number(platformSettings?.platformFee || 25) : 0;
+  const taxRate = isTaxEnabled ? Number(platformSettings?.taxRate || 0.05) : 0;
+  const tax = listedSubtotal * taxRate;
+  const total = listedSubtotal + deliveryFee + platformFee + tax;
+
   const restaurantAvailability = isRestaurantOpen(restaurant?.timing, restaurant?.acceptingOrders !== false);
   const isRestaurantCurrentlyOpen = !restaurant ? true : restaurantAvailability.isOpen;
 
-  useEffect(() => {
-    if (!restaurant?._id) return;
-    fetchAvailableCoupons(subtotal, restaurant._id);
-  }, [subtotal, restaurant?._id]);
+  const etaText = useMemo(() => {
+    if (!deliveryDistance || deliveryDistance <= 0) return '18 - 25 Mins';
+    const minEta = Math.max(18, Math.round(deliveryDistance * 3.5));
+    const maxEta = Math.max(25, Math.round(deliveryDistance * 4.8));
+    return `${minEta} - ${maxEta} Mins`;
+  }, [deliveryDistance]);
 
-  const handleApplyCoupon = async (forcedCode) => {
-    const codeToApply = (forcedCode || couponCode).trim();
-    if (!codeToApply) {
-      toast.error('Please enter a coupon code');
-      return;
+  const handleAddressAdded = (newAddress) => {
+    setAddresses((prev) => [...prev, newAddress]);
+    setSelectedAddress(newAddress._id);
+
+    const mapped = mapSavedAddressToSelection(newAddress);
+    if (mapped) {
+      dispatch(setSelectedDeliveryAddress(mapped));
     }
 
-    setCouponLoading(true);
-    try {
-      const response = await validateCoupon(codeToApply, subtotal, restaurant?._id);
-      if (response.success) {
-        setAppliedCoupon(response.data.coupon);
-        setCouponCode(codeToApply.toUpperCase());
-        toast.success(response.message || 'Coupon applied successfully!');
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Invalid coupon code');
-      setAppliedCoupon(null);
-    } finally {
-      setCouponLoading(false);
-    }
-  };
-
-  const handleApplySuggestedCoupon = async (code) => {
-    await handleApplyCoupon(code);
-  };
-
-  const handleRemoveCoupon = () => {
-    setAppliedCoupon(null);
-    setCouponCode('');
-    toast.success('Coupon removed');
+    setShowAddAddressModal(false);
   };
 
   const handlePlaceOrder = async () => {
     if (items.length === 0) {
-      toast.error('Your cart is empty');
+      toast.error(t('checkout.cartEmptyToast', 'Your cart is empty'));
       return;
     }
 
     if (!restaurant?._id) {
-      toast.error('Restaurant details are missing. Please refresh and try again.');
+      toast.error(t('checkout.restaurantMissing', 'Restaurant details are missing. Please refresh and try again.'));
       return;
     }
 
     if (!isRestaurantCurrentlyOpen) {
       const opensAtText = restaurantAvailability.opensAt ? ` Opens at ${restaurantAvailability.opensAt}.` : '';
-      toast.error(`This outlet is currently closed.${opensAtText}`);
+      toast.error(`${t('checkout.closedToast', 'This outlet is currently closed.')}${opensAtText}`);
       return;
     }
 
-    if (!selectedAddress) {
-      toast.error('Please select a delivery address');
-      return;
-    }
-
-    const selectedAddressObj = addresses.find((addr) => addr._id === selectedAddress);
     if (!selectedAddressObj) {
-      toast.error('Selected address is unavailable. Please select an address again.');
+      toast.error(t('checkout.selectAddress', 'Please select a delivery address'));
+      return;
+    }
+
+    if (!paymentMethod) {
+      toast.error(t('checkout.selectPayment', 'Please select a payment method'));
       return;
     }
 
@@ -261,31 +268,30 @@ const Checkout = () => {
       && Number.isFinite(Number(selectedAddressObj.coordinates[1]));
 
     if (!hasCoordinates) {
-      toast.error('Please edit this address and select a valid location before placing the order.');
+      toast.error(t('checkout.invalidAddressCoords', 'Please edit this address and select a valid location before placing the order.'));
       return;
     }
 
-    if (loading) {
-      return; // Prevent multiple submissions
-    }
+    if (loading) return;
 
     setLoading(true);
-
     try {
+      const selectedPaymentMethod = paymentMethod === 'cod' ? 'cod' : paymentMethod;
+
       const orderData = {
         restaurantId: restaurant._id,
         addressId: selectedAddress,
-        items: items.map(item => ({
+        items: items.map((item) => ({
           menuItemId: item.originalId || item._id,
           quantity: item.quantity,
-          variantName: item.selectedVariant ? item.selectedVariant.name : undefined
+          variantName: item.selectedVariant ? item.selectedVariant.name : undefined,
         })),
-        paymentMethod: paymentMethod || 'cod',
-        couponCode: appliedCoupon?.code || null
+        paymentMethod: selectedPaymentMethod,
+        couponCode: null,
       };
 
       const result = await dispatch(createOrder(orderData));
-      
+
       if (createOrder.fulfilled.match(result)) {
         const createdOrder = result.payload?.data?.order;
         if (!createdOrder?._id) {
@@ -293,24 +299,124 @@ const Checkout = () => {
         }
 
         const orderId = createdOrder._id;
-        const isOnlinePayment = paymentMethod === 'card' || paymentMethod === 'upi';
-        
-        // Clear cart after order creation to prevent duplicate submissions.
-        dispatch(clearCart());
+        const isOnlinePayment = selectedPaymentMethod === 'card' || selectedPaymentMethod === 'upi';
 
-        if (isOnlinePayment) {
-          toast.success('Order created. Complete payment to confirm your order.');
-          navigate(`/payment/${orderId}`, { state: { paymentMethod } });
+        if (!isOnlinePayment) {
+          dispatch(clearCart());
+          toast.success(t('checkout.orderPlacedCod', 'Order placed successfully! Pay on delivery'));
+          navigate(`/orders/${orderId}`);
           return;
         }
 
-        toast.success('Order placed successfully! Pay on delivery');
-        navigate(`/orders/${orderId}`);
+        if (!RAZORPAY_KEY_ID) {
+          toast.error(t('checkout.razorpayKeyMissing', 'Razorpay key is missing. Please contact support.'));
+          navigate('/checkout');
+          return;
+        }
+
+        if (isProdBuild && !isLiveRazorpayKey(RAZORPAY_KEY_ID)) {
+          toast.error(t('checkout.liveKeyMissing', 'Live Razorpay key is not configured for production.'));
+          navigate('/checkout');
+          return;
+        }
+
+        const scriptReady = await loadRazorpayScript();
+        if (!scriptReady) {
+          toast.error(t('checkout.razorpayLoadFailed', 'Failed to load Razorpay. Please try again.'));
+          navigate('/checkout');
+          return;
+        }
+
+        toast.loading(t('checkout.initializingPayment', 'Initializing payment...'));
+        const razorpayResponse = await createRazorpayOrder(orderId, createdOrder.total);
+        if (!razorpayResponse?.success) {
+          toast.dismiss();
+          toast.error(t('checkout.paymentInitFailed', 'Failed to initialize payment'));
+          return;
+        }
+
+        const options = {
+          key: RAZORPAY_KEY_ID,
+          amount: razorpayResponse.data.amount,
+          currency: razorpayResponse.data.currency,
+          name: 'FlashBites',
+          description: `Order #${orderId.slice(-8)}`,
+          order_id: razorpayResponse.data.orderId,
+          prefill: {
+            name: user?.name || '',
+            email: user?.email || '',
+            contact: user?.phone || '',
+          },
+          theme: { color: '#EA580C' },
+          method: {
+            upi: selectedPaymentMethod === 'upi',
+            card: selectedPaymentMethod === 'card',
+            netbanking: false,
+            wallet: false,
+          },
+          handler: async function (response) {
+            try {
+              toast.dismiss();
+              toast.loading(t('checkout.verifyingPayment', 'Verifying payment...'));
+
+              await verifyPayment({
+                paymentId: razorpayResponse.data.paymentId,
+                gateway: 'razorpay',
+                gatewayResponse: {
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature,
+                },
+              });
+
+              dispatch(clearCart());
+              toast.dismiss();
+              toast.success(t('checkout.paymentSuccess', 'Payment successful!'));
+              navigate(`/orders/${orderId}`);
+            } catch {
+              toast.dismiss();
+              toast.error(t('checkout.paymentVerifyFailed', 'Payment verification failed. Please contact support.'));
+              navigate('/checkout');
+            }
+          },
+          modal: {
+            ondismiss: async function () {
+              toast.dismiss();
+              toast.error(t('checkout.paymentCancelled', 'Payment cancelled.'));
+              try {
+                await recordPaymentFailure(razorpayResponse.data.paymentId, {
+                  gateway: 'razorpay',
+                  reason: 'User cancelled payment',
+                });
+              } catch {}
+              navigate('/checkout');
+            },
+          },
+          notes: {
+            order_id: orderId,
+          },
+        };
+
+        toast.dismiss();
+        const razorpay = new window.Razorpay(options);
+        razorpay.on('payment.failed', async (response) => {
+          toast.dismiss();
+          toast.error(t('checkout.paymentFailed', 'Payment failed. Please try again.'));
+          try {
+            const reason = response?.error?.description || response?.error?.reason || 'Payment failed';
+            await recordPaymentFailure(razorpayResponse.data.paymentId, {
+              gateway: 'razorpay',
+              reason,
+            });
+          } catch {}
+          navigate('/checkout');
+        });
+        razorpay.open();
       } else if (createOrder.rejected.match(result)) {
-        toast.error(result.payload || 'Unable to place your order right now. Please check your address and try again.');
+        toast.error(result.payload || t('checkout.orderPlaceFailed', 'Unable to place your order right now. Please check your address and try again.'));
       }
     } catch (error) {
-      toast.error(error.message || 'Unable to place your order right now. Please try again.');
+      toast.error(error.message || t('checkout.orderPlaceFailed', 'Unable to place your order right now. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -318,16 +424,18 @@ const Checkout = () => {
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen w-full overflow-x-hidden" style={{ background: 'var(--bg-app)' }}>
-        <div className="max-w-4xl w-full mx-auto container-px pt-6 pb-20 text-center">
-          <div className="bg-white rounded-2xl shadow-soft p-8">
-            <h1 className="text-2xl font-bold text-gray-900">Your cart is empty</h1>
-            <p className="text-sm text-gray-500 mt-2">Add items to your cart to continue checkout.</p>
+      <div className="min-h-screen w-full overflow-x-hidden" style={{ background: '#F5F3F1' }}>
+        <div className="max-w-md mx-auto px-5 pt-12 pb-24 text-center">
+          <div className="bg-white rounded-3xl border border-[#EEE8E3] p-8">
+            <h1 className="text-2xl font-bold text-[#171415]">{t('checkout.cartEmpty', 'Your cart is empty')}</h1>
+            <p className="text-sm text-[#726a66] mt-2">{t('checkout.addItems', 'Add items to continue checkout.')}</p>
             <button
+              type="button"
               onClick={() => navigate('/restaurants')}
-              className="mt-6 btn-primary px-6 py-3 text-sm font-semibold rounded-xl"
+              className="mt-6 h-12 px-6 rounded-full text-white font-semibold"
+              style={{ background: '#F85B24' }}
             >
-              Browse Restaurants
+              {t('checkout.browseRestaurants', 'Browse Restaurants')}
             </button>
           </div>
         </div>
@@ -336,329 +444,246 @@ const Checkout = () => {
   }
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden" style={{ background: 'var(--bg-app)' }}>
-      <div className="max-w-4xl w-full mx-auto container-px pt-6 pb-28 lg:pb-10 max-[400px]:max-w-none max-[400px]:w-full max-[400px]:px-4 max-[375px]:px-3 max-[320px]:px-2 max-[400px]:pt-4 max-[400px]:pb-20 max-[320px]:pt-3.5 max-[300px]:pt-3 max-[320px]:pb-18 max-[300px]:pb-16">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-gray-900 max-[400px]:text-xl max-[400px]:mb-4 max-[300px]:text-lg max-[300px]:mb-3" style={{ letterSpacing: '-0.02em' }}>Checkout</h1>
-
-        <div className="grid md:grid-cols-3 gap-6 w-full max-[400px]:gap-4 max-[320px]:gap-3 max-[300px]:gap-3">
-          {/* Left Column */}
-          <div className="md:col-span-2 min-w-0 space-y-6 max-[300px]:space-y-4">
-            {/* Restaurant Details */}
-            {restaurant && (
-              <div className="bg-white rounded-2xl shadow-soft p-4 sm:p-5 max-[400px]:p-3.5 max-[300px]:p-3 w-full max-w-full overflow-hidden">
-                <div className="flex items-start justify-between gap-3 min-w-0">
-                  <div>
-                    <h2 className="text-base font-bold text-gray-900 max-[300px]:text-sm">Restaurant Details</h2>
-                    <p className="text-sm text-gray-700 mt-1 font-semibold max-[300px]:text-xs">{restaurant.name}</p>
-                    {restaurant.cuisines?.length ? (
-                      <p className="text-xs text-gray-500 mt-1 max-[300px]:text-[11px]">{restaurant.cuisines.join(', ')}</p>
-                    ) : null}
-                    {restaurant.address?.city && (
-                      <p className="text-xs text-gray-500 mt-1 max-[300px]:text-[11px]">{restaurant.address.city}, {restaurant.address.state}</p>
-                    )}
-                    {!isRestaurantCurrentlyOpen && (
-                      <p className="text-xs font-semibold text-red-600 mt-2 max-[300px]:text-[11px]">Outlet is currently closed.</p>
-                    )}
-                  </div>
-                  {restaurant.deliveryTime && (
-                    <div className="text-xs font-semibold text-gray-600 max-[300px]:text-[11px]">{restaurant.deliveryTime}</div>
-                  )}
-                </div>
-                <button
-                  onClick={() => navigate(`/restaurant/${restaurant._id}`)}
-                  className="mt-3 text-sm font-semibold max-[300px]:text-xs"
-                  style={{ color: '#EA580C' }}
-                >
-                  + Add more items
-                </button>
-              </div>
-            )}
-
-            {/* Your Items */}
-              <div className="bg-white rounded-2xl shadow-soft p-4 sm:p-5 max-[400px]:p-3.5 max-[300px]:p-3 w-full max-w-full overflow-hidden">
-              <h2 className="text-base font-bold text-gray-900 mb-3 max-[320px]:text-sm max-[300px]:text-sm max-[320px]:mb-2">Your Items</h2>
-              <div className="space-y-3">
-                {items.map((item) => (
-                  <div key={item._id} className="flex items-center justify-between gap-3 max-[320px]:flex-col max-[320px]:items-start min-w-0">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate max-[320px]:text-xs">{item.name}</p>
-                      <p className="text-xs text-gray-500 max-[320px]:text-[11px]">{formatCurrency(Number(item.price) || 0)} each</p>
-                    </div>
-                    <div className="flex items-center gap-2 max-[320px]:w-full max-[320px]:justify-between">
-                      <button
-                        onClick={() => dispatch(updateQuantity({ itemId: item._id, quantity: item.quantity - 1 }))}
-                        className="w-7 h-7 max-[320px]:w-6 max-[320px]:h-6 rounded-lg flex items-center justify-center"
-                        style={{ border: '1.5px solid #EA580C', color: '#EA580C' }}
-                      >
-                        <MinusIcon className="h-3.5 w-3.5" />
-                      </button>
-                      <span className="w-6 text-center font-bold text-sm max-[320px]:text-xs">{item.quantity}</span>
-                      <button
-                        onClick={() => dispatch(updateQuantity({ itemId: item._id, quantity: item.quantity + 1 }))}
-                        className="w-7 h-7 max-[320px]:w-6 max-[320px]:h-6 rounded-lg flex items-center justify-center"
-                        style={{ background: '#EA580C', color: 'white' }}
-                      >
-                        <PlusIcon className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => dispatch(removeFromCart(item._id))}
-                        className="ml-1 p-1.5 max-[320px]:p-1 text-gray-400 hover:text-red-500"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Delivery Address */}
-              <div className="bg-white rounded-2xl shadow-soft p-4 sm:p-5 max-[400px]:p-3.5 max-[320px]:p-3 w-full max-w-full overflow-hidden">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-bold text-gray-900 max-[320px]:text-sm">Delivery Address</h2>
-                <button
-                  onClick={() => setShowAddAddressModal(true)}
-                  className="text-sm font-semibold flex items-center gap-1 max-[320px]:text-xs"
-                  style={{ color: '#EA580C' }}
-                >
-                  + Add New
-                </button>
-              </div>
-
-              {addresses.length === 0 ? (
-                <div className="text-center py-8 max-[320px]:py-6">
-                  <p className="text-gray-500 mb-4 text-sm max-[320px]:text-xs">No saved addresses</p>
-                  <button onClick={() => setShowAddAddressModal(true)} className="btn-primary text-sm max-[320px]:text-xs px-5 max-[320px]:px-4 py-2.5 max-[320px]:py-2">
-                    Add Address
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2.5 max-[320px]:space-y-2">
-                  {addresses.map((address) => (
-                    <label
-                      key={address._id}
-                      className={`flex items-start gap-3 p-3.5 rounded-xl cursor-pointer transition-all max-[400px]:p-3 max-[320px]:p-2.5 w-full max-w-full ${
-                        selectedAddress === address._id
-                          ? 'border-2 bg-red-50'
-                          : 'border border-gray-200 hover:border-gray-300'
-                      }`}
-                      style={selectedAddress === address._id ? { borderColor: '#EA580C' } : {}}
-                    >
-                      <input
-                        type="radio"
-                        name="address"
-                        value={address._id}
-                        checked={selectedAddress === address._id}
-                        onChange={() => {
-                          setSelectedAddress(address._id);
-                        }}
-                        className="mt-1 flex-shrink-0"
-                        style={{ accentColor: '#EA580C' }}
-                      />
-                      <div className="min-w-0">
-                        <span className="font-semibold capitalize text-sm text-gray-900 max-[320px]:text-xs">{address.type}</span>
-                        <p className="text-xs text-gray-500 mt-0.5 max-[320px]:text-[11px] break-words">
-                          {address.street}, {address.city}, {address.state} - {address.zipCode}
-                        </p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Customer Details */}
-            <div className="bg-white rounded-2xl shadow-soft p-4 sm:p-5 max-[400px]:p-3.5 max-[320px]:p-3 w-full max-w-full overflow-hidden">
-              <h2 className="text-base font-bold text-gray-900 mb-3 max-[320px]:text-sm">Customer Details</h2>
-              <div className="text-sm text-gray-600 space-y-1 max-[320px]:text-xs">
-                <p><span className="font-semibold text-gray-800">Name:</span> {user?.name || '—'}</p>
-                <p><span className="font-semibold text-gray-800">Phone:</span> {user?.phone || '—'}</p>
-                <p><span className="font-semibold text-gray-800">Email:</span> {user?.email || '—'}</p>
-              </div>
-            </div>
-
-            {/* Apply Coupon */}
-            <div className="bg-white rounded-2xl shadow-soft p-4 sm:p-5 max-[400px]:p-3.5 max-[320px]:p-3 w-full max-w-full overflow-hidden">
-              <h2 className="text-base font-bold text-gray-900 mb-3 max-[320px]:text-sm">Have a coupon?</h2>
-              {appliedCoupon ? (
-                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-green-700 font-bold">{appliedCoupon.code}</span>
-                        <span className="bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">APPLIED</span>
-                      </div>
-                      <p className="text-xs text-green-600 mt-1 max-[320px]:text-[11px]">{appliedCoupon.description}</p>
-                      <p className="text-xs font-bold text-green-700 mt-1 max-[320px]:text-[11px]">You saved {formatCurrency(appliedCoupon.discount)}</p>
-                    </div>
-                    <button onClick={handleRemoveCoupon} className="text-red-500 text-sm font-semibold max-[320px]:text-xs">
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex gap-2 max-[320px]:flex-col">
-                  <input
-                    type="text"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                    placeholder="Enter coupon code"
-                    className="flex-1 px-4 py-2.5 max-[320px]:px-3 max-[320px]:py-2 rounded-xl bg-gray-100 border border-transparent focus:outline-none focus:border-red-400 text-sm max-[320px]:text-xs font-medium transition"
-                  />
-                  <button
-                    onClick={handleApplyCoupon}
-                    disabled={couponLoading || !couponCode.trim()}
-                    className="btn-primary px-5 max-[320px]:px-4 py-2.5 max-[320px]:py-2 text-sm max-[320px]:text-xs disabled:opacity-50"
-                  >
-                    {couponLoading ? '...' : 'Apply'}
-                  </button>
-                </div>
-              )}
-              <div className="mt-4">
-                <div className="flex items-center justify-between mb-2 min-w-0">
-                  <h3 className="text-sm font-semibold text-gray-800 max-[320px]:text-xs">Available Coupons</h3>
-                  {availableLoading && <span className="text-xs text-gray-400 max-[320px]:text-[11px]">Loading…</span>}
-                </div>
-                {availableCoupons.length === 0 && !availableLoading ? (
-                  <p className="text-xs text-gray-500 max-[320px]:text-[11px]">No coupons available for this restaurant.</p>
-                ) : (
-                  <div className="space-y-2 max-[320px]:space-y-1.5">
-                    {availableCoupons.map((coupon) => (
-                      <div key={coupon.code} className="flex items-center justify-between gap-2 rounded-xl border border-gray-100 px-3 py-2 max-[320px]:px-2.5 max-[320px]:py-1.5 w-full max-w-full">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate max-[320px]:text-xs">{coupon.code}</p>
-                          <p className="text-xs text-gray-500 truncate max-[320px]:text-[11px]">{coupon.description}</p>
-                        </div>
-                        <button
-                          onClick={() => handleApplySuggestedCoupon(coupon.code)}
-                          className="text-xs font-semibold px-3 py-1 max-[320px]:px-2.5 max-[320px]:py-0.5 rounded-lg"
-                          style={{ color: '#EA580C', background: '#FFF7ED' }}
-                        >
-                          Apply
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Payment Method */}
-            <div className="bg-white rounded-2xl shadow-soft p-4 sm:p-5 max-[400px]:p-3.5 max-[320px]:p-3 w-full max-w-full overflow-hidden">
-              <h2 className="text-base font-bold text-gray-900 mb-3 max-[320px]:text-sm">Payment Method</h2>
-              <div className="space-y-2.5 max-[320px]:space-y-2">
-                {[
-                  { value: 'card', label: 'Credit / Debit Card', sub: 'Visa, Mastercard, Amex & more', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> },
-                  { value: 'upi', label: 'UPI', sub: 'PhonePe, Google Pay, Paytm & more', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18" strokeLinecap="round" strokeWidth="3"/></svg> },
-                  { value: 'cod', label: 'Cash on Delivery', sub: 'Pay with cash when your order arrives', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg> },
-                ].map(opt => (
-                  <label
-                    key={opt.value}
-                    className={`flex items-center gap-3 p-3.5 rounded-xl cursor-pointer transition-all max-[400px]:p-3 max-[320px]:p-2.5 ${
-                      paymentMethod === opt.value ? 'border-2 bg-red-50' : 'border border-gray-200'
-                    }`}
-                    style={paymentMethod === opt.value ? { borderColor: '#EA580C' } : {}}
-                  >
-                    <input
-                      type="radio"
-                      name="payment"
-                      value={opt.value}
-                      checked={paymentMethod === opt.value}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="flex-shrink-0"
-                      style={{ accentColor: '#EA580C' }}
-                    />
-                    <span className="flex-shrink-0" style={{ color: paymentMethod === opt.value ? '#EA580C' : '#6B7280' }}>
-                      {opt.icon}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <span className="font-semibold text-sm text-gray-900 max-[320px]:text-xs">{opt.label}</span>
-                      <p className="text-xs text-gray-400 mt-0.5 max-[320px]:text-[11px]">{opt.sub}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - Order Summary */}
-          <div className="min-w-0">
-            <div className="bg-white rounded-2xl shadow-soft p-4 sm:p-5 sticky top-20 md:top-24 max-[400px]:static max-[400px]:p-3.5 max-[320px]:p-3 w-full max-w-full overflow-hidden">
-              <h2 className="text-base font-bold text-gray-900 mb-4 max-[320px]:text-sm max-[320px]:mb-3">Order Summary</h2>
-
-              <div className="space-y-2.5 mb-4 max-[320px]:space-y-2 max-[320px]:mb-3">
-                {items.map((item) => (
-                  <div key={item._id} className="flex justify-between gap-3 text-sm min-w-0 max-[320px]:text-xs">
-                    <span className="text-gray-700 min-w-0 truncate">{item.name} <span className="text-gray-400">x{item.quantity}</span></span>
-                    <span className="font-medium shrink-0">{formatCurrency(((Number(item.price) || 0) * (1 + commissionPercent / 100)) * (item.quantity || 1))}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="rounded-xl p-3 max-[320px]:p-2.5 space-y-2 text-sm max-[320px]:text-xs mb-4 max-[320px]:mb-3" style={{ background: 'var(--bg-input)' }}>
-                <div className="flex justify-between text-gray-500">
-                  <span>Subtotal (with commission)</span>
-                  <span className="font-medium text-gray-700">{formatCurrency(subtotal)}</span>
-                </div>
-                {Math.abs(subtotal - listedSubtotal) > 0.001 && (
-                  <div className="flex justify-between text-gray-400">
-                    <span>Listed item total</span>
-                    <span className="font-medium">{formatCurrency(listedSubtotal)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-gray-500">
-                  <span>Delivery Fee</span>
-                  <span className="font-medium text-gray-700">{formatCurrency(deliveryFee)}</span>
-                </div>
-                <div className="flex justify-between text-gray-500">
-                  <span>Platform Fee</span>
-                  <span className="font-medium text-gray-700">{formatCurrency(platformFee)}</span>
-                </div>
-                {appliedCoupon && (
-                  <div className="flex justify-between text-green-600 font-semibold">
-                    <span>Discount ({appliedCoupon.code})</span>
-                    <span>-{formatCurrency(discount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-gray-500">
-                  <span>Tax ({Math.round((taxRate || 0) * 100)}%)</span>
-                  <span className="font-medium text-gray-700">{formatCurrency(tax)}</span>
-                </div>
-                <div className="flex justify-between text-[15px] max-[320px]:text-[14px] font-bold pt-2 border-t border-gray-200">
-                  <span>Total</span>
-                  <span style={{ color: '#EA580C' }}>{formatCurrency(total)}</span>
-                </div>
-              </div>
-
+    <div className="min-h-screen w-full overflow-x-hidden" style={{ background: '#F5F3F1' }}>
+      <div className="max-w-md mx-auto pb-32">
+        <div className="px-4 pt-[max(env(safe-area-inset-top),10px)]" style={{ backgroundColor: 'rgb(245, 243, 241)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
               <button
-                onClick={handlePlaceOrder}
-                disabled={loading || !selectedAddress || items.length === 0 || !isRestaurantCurrentlyOpen}
-                className="hidden md:block w-full btn-primary py-3.5 max-[320px]:py-3 text-[15px] max-[320px]:text-[14px] font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={() => {
+                  if (window.history.length > 1) navigate(-1);
+                  else navigate('/restaurants');
+                }}
+                className="h-8 w-8 rounded-full flex items-center justify-center text-white shadow-[0_8px_18px_rgba(234,88,12,0.32)]"
+                aria-label="Go back"
+                style={{ background: 'linear-gradient(rgb(255, 122, 69) 0%, rgb(234, 88, 12) 100%)' }}
               >
-                {loading ? 'Placing Order...' : (isRestaurantCurrentlyOpen ? 'Place Order' : 'Outlet Closed')}
+                <ArrowLeftIcon className="h-4 w-4" />
+              </button>
+
+              <button type="button" onClick={() => setShowAddAddressModal(true)} className="flex items-center gap-2 text-left">
+                <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
+                <div>
+                  <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
+                  <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">{deliveryAddressLabel}</p>
+                </div>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => navigate('/restaurants')}>
+                <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
+              </button>
+              <button type="button" onClick={() => navigate('/profile')} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
+                <img src={logo} alt="Profile" className="h-full w-full object-cover" />
               </button>
             </div>
           </div>
         </div>
+
+        <div className="px-5 pt-2.5 space-y-5">
+          {restaurant && (
+            <section className="rounded-[22px] border border-[#ECE8E5] bg-white px-4 py-3.5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+              <div className="flex items-center gap-3.5">
+                <div className="h-[78px] w-[78px] rounded-full overflow-hidden bg-[#E6E1DC] flex-shrink-0">
+                  <img src={restaurant.image || '/logo.png'} alt={restaurant.name} className="h-full w-full object-cover" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[14px] leading-none font-medium text-[#4E4A48] flex items-center gap-1.5">
+                    <ClockIcon className="h-3.5 w-3.5" /> {t('checkout.estimatedDelivery', 'Estimated Delivery')}
+                  </p>
+                  <p className="text-[18px] leading-none font-extrabold tracking-[-0.01em] text-[#171415] mt-1.5">{etaText}</p>
+                  <p className="text-[13px] leading-none text-[#0D8656] font-medium mt-2">{t('checkout.flashDelivery', 'Flash Delivery active')}</p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          <section>
+            <div className="flex items-center justify-between mb-2.5">
+              <h2 className="text-[15px] leading-none font-extrabold text-[#171415]">{t('checkout.deliveryAddress', 'Delivery Address')}</h2>
+              <button
+                type="button"
+                onClick={() => setShowAddAddressModal(true)}
+                className="text-[14px] leading-none font-semibold"
+                style={{ color: '#F85B24' }}
+              >
+                {t('checkout.change', 'Change')}
+              </button>
+            </div>
+
+            {selectedAddressObj ? (
+              <div className="rounded-[20px] bg-[#EEECEA] p-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-12 w-12 rounded-full bg-[#FFDCCD] flex items-center justify-center flex-shrink-0">
+                    <HomeIcon className="h-6 w-6 text-[#3A1D14]" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[13px] leading-none font-semibold text-[#171415] capitalize">{selectedAddressObj.type || 'home'}</p>
+                    <p className="text-[12px] leading-[1.45] text-[#4C3F3B] mt-1.5 break-words">
+                      {selectedAddressObj.street}, {selectedAddressObj.city}, {selectedAddressObj.state} - {selectedAddressObj.zipCode}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAddAddressModal(true)}
+                className="w-full rounded-[16px] border border-[#F4BBA8] bg-[#FFF2EC] py-3 text-[14px] font-semibold"
+                style={{ color: '#B34222' }}
+              >
+                {t('checkout.addAddress', 'Add delivery address')}
+              </button>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-[15px] leading-none font-extrabold text-[#171415] mb-3">{t('checkout.paymentMethod', 'Payment Method')}</h2>
+            <div className="space-y-3">
+              {[
+                {
+                  value: 'upi',
+                  label: t('checkout.upiPayment', 'UPI Payment'),
+                  icon: <DevicePhoneMobileIcon className="h-6 w-6" />,
+                },
+                {
+                  value: 'card',
+                  label: t('checkout.cardPayment', 'Credit / Debit Card'),
+                  icon: <CreditCardIcon className="h-6 w-6" />,
+                },
+                {
+                  value: 'cod',
+                  label: t('checkout.cod', 'Cash on Delivery'),
+                  icon: <BanknotesIcon className="h-6 w-6" />,
+                },
+              ].map((option) => {
+                const isActive = paymentMethod === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setPaymentMethod(option.value)}
+                    className="w-full rounded-[20px] bg-white px-4 py-3.5 border text-left"
+                    style={{ borderColor: isActive ? '#F8AF94' : '#EFECE8' }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-11 w-11 rounded-full bg-[#F1EFED] flex items-center justify-center text-[#5A3D34] flex-shrink-0">
+                        {option.icon}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] leading-none font-semibold text-[#171415]">{option.label}</p>
+                        <p className="text-[12px] leading-none text-[#4E4542] mt-1.5">
+                          {option.value === 'upi' ? t('checkout.payUsingUpi', 'Pay using any UPI app') : option.value === 'card' ? t('checkout.secureCard', 'Secure card payment') : t('checkout.payAfterDelivery', 'Pay after receiving order')}
+                        </p>
+                      </div>
+                      <span
+                        className="h-7 w-7 rounded-full border-2 flex-shrink-0"
+                        style={{
+                          borderColor: isActive ? '#DDAFA4' : '#D8C5BF',
+                          background: isActive ? '#EA580C' : 'transparent',
+                        }}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="rounded-[22px] bg-[#EEEAE7] p-4.5">
+            <h2 className="text-[14px] leading-none font-extrabold text-[#171415] mb-4">{t('checkout.orderSummary', 'Order Summary')}</h2>
+            <div className="space-y-3 text-[12px] leading-none text-[#3F3532]">
+              <div className="flex items-center justify-between">
+                <span>{t('checkout.listedTotal', 'Listed Total')}</span>
+                <span className="font-medium">{formatCurrency(listedSubtotal)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>{t('checkout.deliveryFee', 'Delivery Fee')}</span>
+                <span className="font-medium" style={{ color: deliveryFee === 0 ? '#0D8656' : '#3F3532' }}>
+                  {deliveryFee === 0 ? t('checkout.free', 'FREE') : formatCurrency(deliveryFee)}
+                </span>
+              </div>
+              {isPlatformFeeEnabled && (
+                <div className="flex items-center justify-between">
+                  <span>{t('checkout.platformFee', 'Platform Fee')}</span>
+                  <span className="font-medium">{formatCurrency(platformFee)}</span>
+                </div>
+              )}
+              {isTaxEnabled && (
+                <div className="flex items-center justify-between">
+                  <span>{t('checkout.tax', 'Taxes & Charges')}</span>
+                  <span className="font-medium">{formatCurrency(tax)}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-dashed border-[#DEBBB2] flex items-center justify-between">
+              <span className="text-[15px] leading-none font-extrabold text-[#171415]">{t('checkout.totalToPay', 'Total to Pay')}</span>
+              <span className="text-[18px] leading-none font-black text-[#171415]">{formatCurrency(total)}</span>
+            </div>
+          </section>
+
+          <section className="pb-2 pt-1 flex items-center justify-center gap-6 text-[#726D68]">
+            <div className="flex items-center gap-1.5">
+              <ShieldCheckIcon className="h-4 w-4" />
+              <span className="text-[10px] leading-none tracking-[0.14em] font-semibold">{t('checkout.securePayment', 'SECURE PAYMENT')}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <CubeIcon className="h-4 w-4" />
+              <span className="text-[10px] leading-none tracking-[0.14em] font-semibold">{t('checkout.ecoPackaging', 'ECO-PACKAGING')}</span>
+            </div>
+          </section>
+        </div>
       </div>
 
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 z-40" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
-        <div className="max-w-4xl mx-auto flex items-center gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] text-gray-500 font-medium uppercase tracking-wide">Total Payable</p>
-            <p className="text-base font-bold text-gray-900">{formatCurrency(total)}</p>
+      <div
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#E7E2DE] rounded-t-[28px]"
+        style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
+      >
+        <div className="max-w-md mx-auto px-5 pt-2">
+          <div className="flex items-start justify-between mb-2.5 gap-3">
+            <div className="min-w-0 flex items-start gap-2">
+              <div className="h-5 w-5 mt-0.5 rounded-[5px] bg-[#F85B24] text-white flex items-center justify-center flex-shrink-0">
+                <DevicePhoneMobileIcon className="h-3 w-3" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] leading-none font-semibold uppercase text-[#2F2927] tracking-[0.03em]">
+                {paymentMethod === 'upi'
+                  ? t('checkout.payingWithUpi', 'Paying with UPI')
+                  : paymentMethod === 'card'
+                    ? t('checkout.payingWithCard', 'Paying with Card')
+                    : paymentMethod === 'cod'
+                      ? t('checkout.payingWithCod', 'Cash on Delivery')
+                      : t('checkout.selectPaymentMethod', 'Select Payment Method')}
+                </p>
+                <p className="text-[12px] leading-none text-[#171415] mt-1 truncate">
+                {paymentMethod === 'upi'
+                  ? t('checkout.upiApps', 'UPI apps')
+                  : paymentMethod === 'card'
+                    ? t('checkout.cardPaymentShort', 'Card payment')
+                    : paymentMethod === 'cod'
+                      ? t('checkout.cashPayment', 'Cash payment')
+                      : t('checkout.chooseToContinue', 'Choose one to continue')}
+                </p>
+              </div>
+            </div>
+            <p className="text-[18px] leading-none font-black text-[#171415]">{formatCurrency(total)}</p>
           </div>
+
           <button
+            type="button"
             onClick={handlePlaceOrder}
-            disabled={loading || !selectedAddress || items.length === 0 || !isRestaurantCurrentlyOpen}
-            className="btn-primary px-5 py-3 text-sm font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || !selectedAddress || !paymentMethod || items.length === 0 || !isRestaurantCurrentlyOpen}
+            className="w-full rounded-full py-3 text-[16px] leading-none font-extrabold text-white disabled:opacity-50"
+            style={{ backgroundColor: '#F85B24' }}
           >
-            {loading ? 'Placing...' : (isRestaurantCurrentlyOpen ? 'Place Order' : 'Outlet Closed')}
+            {loading ? t('checkout.placing', 'Placing...') : (isRestaurantCurrentlyOpen ? `${t('checkout.placeOrder', 'Place Order')}  ->` : t('checkout.outletClosed', 'Outlet Closed'))}
           </button>
         </div>
       </div>
 
-      {/* Add Address Modal */}
       <AddAddressModal
         isOpen={showAddAddressModal}
         onClose={() => setShowAddAddressModal(false)}

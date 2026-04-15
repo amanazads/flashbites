@@ -5,6 +5,8 @@ import axios from '../api/axios';
 import { sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../firebase';
 import { validatePassword, validatePhone } from '../utils/validators';
 import { BRAND } from '../constants/theme';
+import logo from '../assets/logo.png';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const OTP_BLOCK_SECONDS = 300;
 const OTP_BLOCK_KEY = 'fb_otp_block_until';
@@ -22,6 +24,7 @@ const isTooManyRequestsError = (error) => {
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const nativePlatform = Boolean(window?.Capacitor?.isNativePlatform?.());
   const [step, setStep] = useState(1); // 1: phone, 2: otp, 3: new password
   const [loading, setLoading] = useState(false);
@@ -78,13 +81,18 @@ const ForgotPassword = () => {
   const handleSendOTP = async (e) => {
     e.preventDefault();
 
+    if (!navigator.onLine) {
+      toast.error(t('forgot.offline', 'No internet connection. Please reconnect and try again.'));
+      return;
+    }
+
     if (otpBlockRemaining > 0) {
-      toast.error(`Please wait ${otpBlockRemaining}s before trying OTP again.`);
+      toast.error(`${t('forgot.retryIn', 'Retry in')} ${otpBlockRemaining}s`);
       return;
     }
 
     if (!validatePhone(formData.phone)) {
-      toast.error('Please enter a valid 10-digit phone number');
+      toast.error(t('forgot.phoneInvalid', 'Please enter a valid 10-digit phone number'));
       return;
     }
 
@@ -92,7 +100,7 @@ const ForgotPassword = () => {
     try {
       const phoneWithCode = `+91${formData.phone}`;
       await sendPhoneOTP(phoneWithCode);
-      toast.success('OTP sent to your phone number');
+      toast.success(t('forgot.otpSent', 'OTP sent to your phone number'));
       setStep(2);
     } catch (error) {
       console.error('Send OTP error:', error);
@@ -109,7 +117,7 @@ const ForgotPassword = () => {
     e.preventDefault();
 
     if (!nativePlatform && (!formData.otp || formData.otp.length !== 6)) {
-      toast.error('Please enter valid 6-digit OTP');
+      toast.error(t('forgot.otpInvalid', 'Please enter valid 6-digit OTP'));
       return;
     }
 
@@ -117,7 +125,7 @@ const ForgotPassword = () => {
     try {
       const token = await verifyPhoneOTP(formData.otp);
       setFirebaseToken(token);
-      toast.success('Phone verified successfully');
+      toast.success(t('forgot.phoneVerified', 'Phone verified successfully'));
       setStep(3);
     } catch (error) {
       toast.error(getReadableFirebaseAuthError(error));
@@ -130,12 +138,12 @@ const ForgotPassword = () => {
     e.preventDefault();
 
     if (!validatePassword(formData.newPassword)) {
-      toast.error('Password must be at least 6 characters, with one uppercase, one lowercase, and one special character');
+      toast.error(t('forgot.passwordRules', 'Password must be at least 6 characters, with one uppercase, one lowercase, and one special character'));
       return;
     }
 
     if (formData.newPassword !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
+      toast.error(t('forgot.passwordMismatch', 'Passwords do not match'));
       return;
     }
 
@@ -147,10 +155,10 @@ const ForgotPassword = () => {
         newPassword: formData.newPassword
       });
 
-      toast.success(response.data.message || 'Password reset successful');
+      toast.success(response.data.message || t('forgot.resetSuccess', 'Password reset successful'));
       setTimeout(() => navigate('/login'), 2000);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to reset password');
+      toast.error(error.response?.data?.message || t('forgot.resetFailed', 'Failed to reset password'));
     } finally {
       setLoading(false);
     }
@@ -162,7 +170,7 @@ const ForgotPassword = () => {
     try {
       const phoneWithCode = `+91${formData.phone}`;
       await sendPhoneOTP(phoneWithCode);
-      toast.success('OTP resent to your phone');
+      toast.success(t('forgot.otpResent', 'OTP resent to your phone'));
     } catch (error) {
       if (isTooManyRequestsError(error)) {
         startOtpBlock();
@@ -174,138 +182,153 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8"
-      style={{ background: '#F8F6F5' }}>
-      <div className="max-w-md w-full space-y-6 sm:space-y-8">
-        <div className="bg-white rounded-3xl p-6 sm:p-8"
-          style={{ boxShadow: '0 4px 40px rgba(0,0,0,0.07)' }}>
+    <div className="auth-page-shell min-h-screen flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8" style={{ background: '#F6F1F1' }}>
+      <div className="auth-form-shell max-w-md w-full space-y-6 sm:space-y-8">
+        <div className="text-center mb-1">
+          <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 bg-[#FBF7F6] border border-[#EFE3E3]">
+            <div className="w-8 h-8 rounded-md bg-white border border-[#EEE4E4] flex items-center justify-center">
+              <img src={logo} alt="FlashBites" className="h-5 w-5 object-contain" />
+            </div>
+            <span className="text-base font-black text-[#201A1C]">FlashBites</span>
+          </div>
+        </div>
+
+        <div className="auth-surface p-5 sm:p-8">
           <div className="text-center">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-2">
-              Forgot Password
-            </h2>
-            <p className="text-sm text-gray-400">
-              {step === 1 && "Enter your phone number to receive OTP"}
-              {step === 2 && "Enter the OTP sent to your phone"}
-              {step === 3 && "Create your new password"}
+            <h2 className="text-2xl sm:text-3xl font-black text-[#201A1C] mb-2">{t('forgot.title', 'Forgot Password')}</h2>
+            <p className="text-sm text-[#6B6064]">
+              {step === 1 && t('forgot.step1', 'Enter your phone number to receive OTP')}
+              {step === 2 && t('forgot.step2', 'Enter the OTP sent to your phone')}
+              {step === 3 && t('forgot.step3', 'Create your new password')}
             </p>
           </div>
 
-          {/* Step Indicator */}
           <div className="flex justify-center items-center space-x-4 my-6">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 1 ? 'text-white' : 'bg-gray-200 text-gray-500'}`}
-              style={step >= 1 ? { background: BRAND } : {}}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 1 ? 'text-white' : 'bg-[#E7DCDC] text-[#8E8387]'}`} style={step >= 1 ? { background: BRAND } : {}}>
               1
             </div>
-            <div className="w-12 h-1 rounded-full" style={{ background: step >= 2 ? BRAND : '#E5E7EB' }} />
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 2 ? 'text-white' : 'bg-gray-200 text-gray-500'}`}
-              style={step >= 2 ? { background: BRAND } : {}}>
+            <div className="w-12 h-1 rounded-full" style={{ background: step >= 2 ? BRAND : '#E7DCDC' }} />
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 2 ? 'text-white' : 'bg-[#E7DCDC] text-[#8E8387]'}`} style={step >= 2 ? { background: BRAND } : {}}>
               2
             </div>
-            <div className="w-12 h-1 rounded-full" style={{ background: step >= 3 ? BRAND : '#E5E7EB' }} />
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 3 ? 'text-white' : 'bg-gray-200 text-gray-500'}`}
-              style={step >= 3 ? { background: BRAND } : {}}>
+            <div className="w-12 h-1 rounded-full" style={{ background: step >= 3 ? BRAND : '#E7DCDC' }} />
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 3 ? 'text-white' : 'bg-[#E7DCDC] text-[#8E8387]'}`} style={step >= 3 ? { background: BRAND } : {}}>
               3
             </div>
           </div>
 
-          {/* Step 1: Phone */}
           {step === 1 && (
             <form onSubmit={handleSendOTP} className="mt-8 space-y-6">
               <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone Number
-                </label>
-                <div className="flex">
-                  <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-gray-200 bg-gray-50 text-gray-500 text-sm font-semibold">
-                    +91
-                  </span>
+                <label htmlFor="phone" className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('auth.login.phoneNumber', 'Phone Number')}</label>
+                <div className="auth-input-base flex overflow-hidden">
+                  <span className="inline-flex items-center px-4 text-[#2B2426] text-sm font-semibold">+91</span>
+                  <span className="inline-flex items-center px-2 text-[#7B6E72]">⌄</span>
+                  <span className="my-3 w-px bg-[#DCCFCF]" />
                   <input
-                    id="phone" name="phone" type="tel" maxLength="10" required
-                    value={formData.phone} onChange={handleChange}
-                    className="input-field rounded-l-none flex-1"
-                    placeholder="10-digit mobile number"
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    maxLength="10"
+                    required
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="flex-1 bg-transparent px-4 text-[14px] sm:text-[15px] text-[#3A3235] placeholder:text-[#AA9EA2] outline-none"
+                    placeholder={t('register.phonePlaceholder', '10-digit mobile number')}
                   />
                 </div>
               </div>
 
-              <button type="submit" disabled={loading || otpBlockRemaining > 0}
-                className="btn-primary w-full py-3">
-                {loading ? 'Sending...' : otpBlockRemaining > 0 ? `Try again in ${otpBlockRemaining}s` : 'Send OTP'}
+              <button
+                type="submit"
+                disabled={loading || otpBlockRemaining > 0}
+                className="w-full h-[54px] sm:h-[58px] rounded-[1.25rem] sm:rounded-[2rem] text-white text-base font-extrabold transition-all disabled:opacity-70"
+                style={{ background: BRAND, boxShadow: '0 12px 28px rgba(234,88,12,0.24)' }}
+              >
+                {loading ? t('forgot.sending', 'Sending...') : otpBlockRemaining > 0 ? `${t('forgot.retryIn', 'Retry in')} ${otpBlockRemaining}s` : t('forgot.sendOtp', 'Send OTP')}
               </button>
             </form>
           )}
 
-          {/* Step 2: OTP Verification */}
           {step === 2 && (
             <form onSubmit={handleVerifyOTP} className="mt-8 space-y-6">
               <div>
-                <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-2">
-                  Enter OTP
-                </label>
+                <label htmlFor="otp" className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('register.enterOtp', 'Enter OTP')}</label>
                 <input
-                  id="otp" name="otp" type="text" maxLength="6" required
-                  value={formData.otp} onChange={handleChange}
-                  className="input-field text-center text-xl sm:text-2xl tracking-[0.24em] sm:tracking-[0.5em] font-bold"
+                  id="otp"
+                  name="otp"
+                  type="text"
+                  maxLength="6"
+                  required
+                  value={formData.otp}
+                  onChange={handleChange}
+                  className="auth-input-base text-center text-lg sm:text-xl tracking-[0.22em] sm:tracking-[0.24em] font-bold text-[#3A3235] placeholder:text-[#AA9EA2] outline-none"
                   placeholder="000000"
                   autoFocus
                 />
-                <p className="mt-2 text-xs text-gray-400 text-center">
-                  OTP sent to +91 {formData.phone}
-                </p>
+                <p className="mt-2 text-xs text-[#8E8387] text-center">{t('forgot.otpSentTo', 'OTP sent to')} +91 {formData.phone}</p>
               </div>
 
-              <button type="submit" disabled={loading}
-                className="btn-primary w-full py-3">
-                {loading ? 'Verifying...' : 'Verify OTP'}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-[54px] sm:h-[58px] rounded-[1.25rem] sm:rounded-[2rem] text-white text-base font-extrabold transition-all disabled:opacity-70"
+                style={{ background: BRAND, boxShadow: '0 12px 28px rgba(234,88,12,0.24)' }}
+              >
+                {loading ? t('forgot.verifying', 'Verifying...') : t('forgot.verifyOtp', 'Verify OTP')}
               </button>
 
               <div className="text-center">
-                <button type="button" onClick={handleResendOTP} disabled={loading}
-                  className="text-sm font-semibold" style={{ color: BRAND }}>
-                  {otpBlockRemaining > 0 ? `Retry in ${otpBlockRemaining}s` : 'Resend OTP'}
+                <button type="button" onClick={handleResendOTP} disabled={loading} className="text-sm font-semibold" style={{ color: BRAND }}>
+                  {otpBlockRemaining > 0 ? `${t('forgot.retryIn', 'Retry in')} ${otpBlockRemaining}s` : t('forgot.resendOtp', 'Resend OTP')}
                 </button>
               </div>
             </form>
           )}
 
-          {/* Step 3: New Password */}
           {step === 3 && (
             <form onSubmit={handleResetPassword} className="mt-8 space-y-6">
               <div>
-                <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                  New Password
-                </label>
+                <label htmlFor="newPassword" className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('forgot.newPassword', 'New Password')}</label>
                 <input
-                  id="newPassword" name="newPassword" type="password" required
-                  value={formData.newPassword} onChange={handleChange}
-                  className="input-field"
-                  placeholder="Min 6 characters"
+                  id="newPassword"
+                  name="newPassword"
+                  type="password"
+                  required
+                  value={formData.newPassword}
+                  onChange={handleChange}
+                  className="auth-input-base px-4 text-[14px] sm:text-[15px] text-[#3A3235] placeholder:text-[#AA9EA2] outline-none"
+                  placeholder={t('register.passwordPlaceholder', 'Min 6 characters')}
                 />
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                  Confirm Password
-                </label>
+                <label htmlFor="confirmPassword" className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('forgot.confirmPassword', 'Confirm Password')}</label>
                 <input
-                  id="confirmPassword" name="confirmPassword" type="password" required
-                  value={formData.confirmPassword} onChange={handleChange}
-                  className="input-field"
-                  placeholder="Re-enter password"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  required
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="auth-input-base px-4 text-[14px] sm:text-[15px] text-[#3A3235] placeholder:text-[#AA9EA2] outline-none"
+                  placeholder={t('register.confirmPasswordPlaceholder', 'Re-enter password')}
                 />
               </div>
 
-              <button type="submit" disabled={loading}
-                className="btn-primary w-full py-3">
-                {loading ? 'Resetting...' : 'Reset Password'}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-[54px] sm:h-[58px] rounded-[1.25rem] sm:rounded-[2rem] text-white text-base font-extrabold transition-all disabled:opacity-70"
+                style={{ background: BRAND, boxShadow: '0 12px 28px rgba(234,88,12,0.24)' }}
+              >
+                {loading ? t('forgot.resetting', 'Resetting...') : t('forgot.resetPassword', 'Reset Password')}
               </button>
             </form>
           )}
 
           <div className="mt-6 text-center">
-            <Link to="/login" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
-              ← Back to Login
-            </Link>
+            <Link to="/login" className="text-sm text-[#8E8387] hover:text-[#5B5256] transition-colors">← {t('forgot.backToLogin', 'Back to Login')}</Link>
           </div>
         </div>
       </div>

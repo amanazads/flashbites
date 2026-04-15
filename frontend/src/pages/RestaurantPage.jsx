@@ -1,14 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchRestaurants, setFilters } from '../redux/slices/restaurantSlice';
-import { searchRestaurantsAndItems } from '../api/restaurantApi';
+import { openCart } from '../redux/slices/uiSlice';
+import { getNearbyRestaurants, searchRestaurantsAndItems } from '../api/restaurantApi';
 import RestaurantCard from '../components/restaurant/RestaurantCard';
 import { Loader } from '../components/common/Loader';
 import { CUISINES } from '../utils/constants';
-import { AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
+import {
+  HomeIcon,
+  MagnifyingGlassIcon,
+  MapPinIcon,
+  ShoppingBagIcon,
+  UserCircleIcon,
+} from '@heroicons/react/24/outline';
 import { BRAND } from '../constants/theme';
+import logo from '../assets/logo.png';
+import { useLanguage } from '../contexts/LanguageContext';
+import { getDeliveryAddressLabel } from '../utils/deliveryAddress';
 
 const CUISINE_TABS = [
   { id: 'All',       label: 'All',       image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80' },
@@ -25,22 +35,35 @@ const CUISINE_TABS = [
   { id: 'Coffee',    label: 'Drinks',    image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=120&q=80' },
 ];
 
-const SORT_OPTIONS = ['Ratings 4.0+', 'New to you', 'Fastest delivery', 'Free delivery'];
-
 const RestaurantPage = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { restaurants, loading, filters } = useSelector((s) => s.restaurant);
+  const selectedAddress = useSelector((s) => s.ui.selectedDeliveryAddress);
+  const { items: cartItems } = useSelector((s) => s.cart);
   const [selectedCuisine, setSelectedCuisine] = useState('All');
-  const [activeSort, setActiveSort] = useState(null);
   const [searchResultRestaurants, setSearchResultRestaurants] = useState([]);
   const [searchResultItems, setSearchResultItems] = useState([]);
   const [searchMatchedItemsByRestaurant, setSearchMatchedItemsByRestaurant] = useState({});
   const [searchLoading, setSearchLoading] = useState(false);
   const routerLocation = useLocation();
+  const { t } = useLanguage();
+  const deliveryAddressLabel = getDeliveryAddressLabel(selectedAddress, t('common.currentArea', 'Current Area'));
   const params = new URLSearchParams(routerLocation.search);
   const searchQuery = params.get('search')?.trim() || '';
   const cuisineQuery = params.get('cuisine')?.trim() || '';
   const inSearchMode = searchQuery.length > 0;
+  const [searchInput, setSearchInput] = useState(searchQuery);
+  const searchInputRef = useRef(null);
+  const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const isNavActive = (path) => {
+    if (path === '/') return routerLocation.pathname === '/';
+    return routerLocation.pathname.startsWith(path);
+  };
+
+  useEffect(() => {
+    setSearchInput(searchQuery);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (!inSearchMode) {
@@ -60,24 +83,54 @@ const RestaurantPage = () => {
     const runSearch = async () => {
       setSearchLoading(true);
       try {
+        const lat = Number(selectedAddress?.latitude || 0);
+        const lng = Number(selectedAddress?.longitude || 0);
+        const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
+
+        let nearbyIds = null;
+        let nearbyRestaurantMap = new Map();
+
+        if (hasCoords) {
+          const nearbyResponse = await getNearbyRestaurants(lat, lng, 50000, 250);
+          const nearbyRestaurants = nearbyResponse?.data?.restaurants || nearbyResponse?.restaurants || [];
+          nearbyIds = new Set(nearbyRestaurants.map((r) => String(r?._id || '')).filter(Boolean));
+          nearbyRestaurantMap = new Map(nearbyRestaurants.map((r) => [String(r?._id || ''), r]));
+        }
+
         const response = await searchRestaurantsAndItems({ q: searchQuery, limit: 30 });
         const payload = response?.data || {};
         if (cancelled) return;
 
-        const restaurantMap = new Map((payload?.restaurants || []).map((r) => [String(r._id), r]));
+        const searchedRestaurants = payload?.restaurants || [];
+        const searchedItems = payload?.items || [];
+
+        const locationFilteredRestaurants = nearbyIds
+          ? searchedRestaurants.filter((r) => nearbyIds.has(String(r?._id || '')))
+          : searchedRestaurants;
+
+        const locationFilteredItems = nearbyIds
+          ? searchedItems.filter((item) => nearbyIds.has(String(item?.restaurantId || '')))
+          : searchedItems;
+
+        const restaurantMap = new Map(locationFilteredRestaurants.map((r) => [String(r._id), r]));
         const matchesByRestaurant = {};
 
-        (payload?.items || []).forEach((item) => {
+        locationFilteredItems.forEach((item) => {
           const rid = String(item.restaurantId || '');
           if (!rid) return;
 
           if (!restaurantMap.has(rid)) {
-            restaurantMap.set(rid, {
-              _id: rid,
-              name: item.restaurantName || 'Restaurant',
-              cuisines: [],
-              image: null,
-            });
+            const fallbackRestaurant = nearbyRestaurantMap.get(rid);
+            if (fallbackRestaurant) {
+              restaurantMap.set(rid, fallbackRestaurant);
+            } else {
+              restaurantMap.set(rid, {
+                _id: rid,
+                name: item.restaurantName || 'Restaurant',
+                cuisines: [],
+                image: null,
+              });
+            }
           }
 
           if (!Array.isArray(matchesByRestaurant[rid])) {
@@ -86,7 +139,7 @@ const RestaurantPage = () => {
           matchesByRestaurant[rid].push(item);
         });
 
-        setSearchResultItems(payload?.items || []);
+        setSearchResultItems(locationFilteredItems);
         setSearchMatchedItemsByRestaurant(matchesByRestaurant);
         setSearchResultRestaurants(Array.from(restaurantMap.values()));
       } catch {
@@ -105,7 +158,17 @@ const RestaurantPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [dispatch, inSearchMode, searchQuery, filters.search]);
+  }, [dispatch, inSearchMode, searchQuery, filters.search, selectedAddress]);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const q = searchInput.trim();
+    if (!q) {
+      navigate('/restaurants');
+      return;
+    }
+    navigate(`/restaurants?search=${encodeURIComponent(q)}`);
+  };
 
   useEffect(() => {
     if (inSearchMode) return;
@@ -117,10 +180,23 @@ const RestaurantPage = () => {
 
   useEffect(() => {
     if (inSearchMode) return;
-    dispatch(fetchRestaurants(filters));
-  }, [dispatch, filters, inSearchMode]);
+
+    const lat = Number(selectedAddress?.latitude || 0);
+    const lng = Number(selectedAddress?.longitude || 0);
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
+
+    const nextFilters = hasCoords
+      ? { ...filters, lat, lng, radius: 50000 }
+      : filters;
+
+    dispatch(fetchRestaurants(nextFilters));
+  }, [dispatch, filters, inSearchMode, selectedAddress]);
 
   const sourceRestaurants = inSearchMode ? searchResultRestaurants : restaurants;
+  const restaurantLookup = useMemo(
+    () => new Map((sourceRestaurants || []).map((r) => [String(r._id), r])),
+    [sourceRestaurants]
+  );
   const displayedRestaurants = selectedCuisine === 'All'
     ? sourceRestaurants
     : sourceRestaurants.filter((r) => Array.isArray(r.cuisines) && r.cuisines.some((c) => String(c).toLowerCase() === selectedCuisine.toLowerCase()));
@@ -131,11 +207,49 @@ const RestaurantPage = () => {
   };
 
   return (
-    <div className="page-wrapper">
+    <div className="page-wrapper bg-[#F5F3F1]">
+
+      <div className="max-w-md mx-auto px-4 pt-[max(env(safe-area-inset-top),14px)] mb-4 lg:hidden">
+        <div className="flex items-center justify-between mb-4">
+          <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2 text-left">
+            <MapPinIcon className="h-4 w-4" style={{ color: BRAND }} />
+            <div>
+              <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
+              <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
+              <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">
+                {deliveryAddressLabel}
+              </p>
+            </div>
+          </button>
+
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => navigate('/profile')} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
+              <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSearchSubmit} className="mb-2">
+          <div className="rounded-full bg-[#E9E7E5] px-4 py-2.5 flex items-center gap-3 border border-[#E0DDD9]">
+            <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder={t('restaurant.searchPlaceholder', 'Search restaurants or menu items')}
+              className="flex-1 bg-transparent text-[12px] text-gray-700 placeholder:text-gray-400 outline-none"
+            />
+            <button type="submit" className="text-[11px] font-semibold" style={{ color: BRAND }}>
+              {t('restaurant.search', 'Search')}
+            </button>
+          </div>
+        </form>
+      </div>
 
       {/* ── Sticky cuisine tab row ── */}
       <div
-        className="sticky top-[56px] sm:top-[72px] max-[388px]:top-[48px] bg-white z-10"
+        className="sticky top-0 bg-white z-10"
         style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}
       >
         <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 max-[388px]:px-1">
@@ -172,39 +286,18 @@ const RestaurantPage = () => {
           </div>
         </div>
 
-        {/* Sort pills */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 max-[388px]:px-3 pb-3 max-[388px]:pb-2">
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-            <button className="flex-shrink-0 flex items-center gap-1 bg-white border border-gray-200 text-gray-600 text-xs max-[388px]:text-[11px] font-semibold px-3 py-1.5 max-[388px]:px-2.5 max-[388px]:py-1 rounded-xl shadow-sm hover:border-gray-300 transition-all">
-              <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" />
-              Filters
-            </button>
-            {SORT_OPTIONS.map((s) => (
-              <button
-                key={s}
-                onClick={() => setActiveSort(activeSort === s ? null : s)}
-                className="flex-shrink-0 text-xs max-[388px]:text-[11px] font-semibold px-3 py-1.5 max-[388px]:px-2.5 max-[388px]:py-1 rounded-xl border transition-all whitespace-nowrap"
-                style={activeSort === s
-                  ? { background: BRAND, color: 'white', borderColor: 'transparent' }
-                  : { background: 'white', color: '#6B7280', borderColor: '#E5E7EB' }}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* ── Content ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 max-[388px]:px-3 py-5 max-[388px]:py-4">
+      <div className="max-w-md lg:max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 max-[388px]:px-3 py-5 max-[388px]:py-4 pb-28 lg:pb-4">
         <div className="mb-5">
           <h1 className="text-xl max-[388px]:text-lg font-bold text-gray-900">
-            {inSearchMode ? `Search results for "${searchQuery}"` : 'Restaurants near you'}
+            {inSearchMode ? `${t('restaurant.resultsFor', 'Search results for')} "${searchQuery}"` : t('restaurant.nearYou', 'Restaurants near you')}
           </h1>
           {!loading && !searchLoading && (
             <p className="text-sm max-[388px]:text-xs text-gray-400 mt-0.5">
-              {displayedRestaurants.length} restaurants
-              {inSearchMode ? ` · ${searchResultItems.length} items` : ''}
+              {displayedRestaurants.length} {t('restaurant.restaurantsCount', 'restaurants')}
+              {inSearchMode ? ` · ${searchResultItems.length} ${t('restaurant.itemsCount', 'items')}` : ''}
               {selectedCuisine !== 'All' ? ` · ${selectedCuisine}` : ''}
             </p>
           )}
@@ -215,36 +308,50 @@ const RestaurantPage = () => {
         ) : displayedRestaurants.length === 0 && (!inSearchMode || searchResultItems.length === 0) ? (
           <div className="text-center py-24 max-[388px]:py-20">
             <div className="text-6xl max-[388px]:text-5xl mb-4 animate-float">🍽️</div>
-            <h3 className="text-xl max-[388px]:text-lg font-bold text-gray-900 mb-2">No restaurants found</h3>
-            <p className="text-gray-400 text-sm max-[388px]:text-xs mb-5">Try adjusting your filter</p>
+            <h3 className="text-xl max-[388px]:text-lg font-bold text-gray-900 mb-2">{t('restaurant.noRestaurants', 'No restaurants found')}</h3>
+            <p className="text-gray-400 text-sm max-[388px]:text-xs mb-5">{t('restaurant.adjustFilter', 'Try adjusting your filter')}</p>
             <button
               onClick={() => { setSelectedCuisine('All'); dispatch(setFilters({ cuisine: null, search: null })); }}
               className="btn-primary text-sm max-[388px]:text-xs"
             >
-              Clear filters
+              {t('restaurant.clearFilters', 'Clear filters')}
             </button>
           </div>
         ) : (
           <>
             {inSearchMode && searchResultItems.length > 0 && (
               <div className="mb-6">
-                <h2 className="text-base font-bold text-gray-900 mb-3">Matched Menu Items</h2>
+                <h2 className="text-base font-bold text-gray-900 mb-3">{t('restaurant.matchedMenuItems', 'Matched Menu Items')}</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {searchResultItems.slice(0, 24).map((item) => (
-                    <Link
-                      key={item._id}
-                      to={`/restaurant/${item.restaurantId}`}
-                      className="bg-white rounded-xl p-3 border border-gray-100 hover:border-gray-200 transition-colors"
-                    >
-                      <p className="text-sm font-semibold text-gray-900 line-clamp-1">{item.name}</p>
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{item.restaurantName || 'Restaurant'}</p>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="text-xs font-medium text-gray-500">
-                          {Array.isArray(item.categories) && item.categories.length > 0 ? item.categories[0] : item.category || 'Menu Item'}
-                        </span>
-                        <span className="text-sm font-bold" style={{ color: BRAND }}>₹{item.price}</span>
-                      </div>
-                    </Link>
+                    (() => {
+                      const rid = String(item.restaurantId || '');
+                      const restaurant = restaurantLookup.get(rid);
+                      const restaurantName = restaurant?.name || item.restaurantName || 'Restaurant';
+                      const rating = Number(restaurant?.rating || 0);
+                      const deliveryTime = restaurant?.deliveryTime;
+
+                      return (
+                        <Link
+                          key={item._id}
+                          to={`/restaurant/${rid}`}
+                          className="bg-white rounded-xl p-3 border border-gray-100 hover:border-gray-200 transition-colors"
+                        >
+                          <p className="text-sm font-semibold text-gray-900 line-clamp-1">{item.name}</p>
+                          <p className="text-xs text-gray-700 mt-0.5 line-clamp-1 font-medium">{restaurantName}</p>
+                          <div className="mt-1.5 flex items-center gap-2 text-[11px] text-gray-500">
+                            {rating > 0 && <span>★ {rating.toFixed(1)}</span>}
+                            {deliveryTime && <span>{deliveryTime} min</span>}
+                          </div>
+                          <div className="mt-2 flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-500">
+                              {Array.isArray(item.categories) && item.categories.length > 0 ? item.categories[0] : item.category || t('restaurant.menuItem', 'Menu Item')}
+                            </span>
+                            <span className="text-sm font-bold" style={{ color: BRAND }}>₹{item.price}</span>
+                          </div>
+                        </Link>
+                      );
+                    })()
                   ))}
                 </div>
               </div>
@@ -257,13 +364,64 @@ const RestaurantPage = () => {
                     key={r._id}
                     restaurant={r}
                     matchedItems={searchMatchedItemsByRestaurant[String(r._id)] || []}
-                    matchedItemsTitle={inSearchMode ? 'Matched items' : null}
+                    matchedItemsTitle={inSearchMode ? t('restaurant.matchedItems', 'Matched items') : null}
                   />
                 ))}
               </div>
             )}
           </>
         )}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => dispatch(openCart())}
+        className="fixed right-5 bottom-[84px] z-50 h-14 w-14 rounded-full text-white flex items-center justify-center lg:hidden"
+        style={{ background: 'rgb(255, 94, 26)', boxShadow: 'rgba(234, 88, 12, 0.34) 0px 8px 18px' }}
+      >
+        <ShoppingBagIcon className="h-6 w-6" />
+        {cartCount > 0 && (
+          <span className="absolute -top-1 -right-1 bg-[#1f1f1f] text-white text-[8px] font-bold rounded-full h-5 min-w-[20px] px-1 flex items-center justify-center">
+            {cartCount}
+          </span>
+        )}
+      </button>
+
+      <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t border-[#E6E2DE] bg-[#F5F3F1]" style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom))' }}>
+        <div className="max-w-md mx-auto px-6 pt-2 flex items-center justify-between text-[#B0ACA8]">
+          <Link
+            to="/"
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            style={isNavActive('/') ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
+          >
+            <HomeIcon className="h-5 w-5" />
+            <span className="text-[8px]">{t('common.home', 'Home')}</span>
+          </Link>
+          <Link
+            to="/restaurants"
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            style={isNavActive('/restaurants') ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
+          >
+            <MagnifyingGlassIcon className="h-5 w-5" />
+            <span className="text-[8px]">{t('common.search', 'Search')}</span>
+          </Link>
+          <Link
+            to="/orders"
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            style={isNavActive('/orders') ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
+          >
+            <ShoppingBagIcon className="h-5 w-5" />
+            <span className="text-[8px]">{t('nav.orders', 'Orders')}</span>
+          </Link>
+          <Link
+            to="/profile"
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            style={isNavActive('/profile') ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
+          >
+            <UserCircleIcon className="h-5 w-5" />
+            <span className="text-[8px]">{t('common.profile', 'Profile')}</span>
+          </Link>
+        </div>
       </div>
     </div>
   );

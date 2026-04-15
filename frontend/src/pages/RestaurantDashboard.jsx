@@ -2,16 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
+  ArrowLeftIcon,
   PlusIcon,
   PencilIcon,
   TrashIcon,
+  MapPinIcon,
+  MagnifyingGlassIcon,
   BuildingStorefrontIcon,
   ChartBarIcon,
   ClockIcon,
-  CurrencyDollarIcon,
+  BanknotesIcon,
   ShoppingBagIcon,
   CheckCircleIcon,
   XCircleIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
@@ -27,14 +31,15 @@ import {
   toggleMenuItemAvailability,
   getRestaurantAnalytics 
 } from '../api/restaurantApi';
-import { autocompleteAddress } from '../api/locationApi';
+import { autocompleteAddress, geocodeAddressQuery } from '../api/locationApi';
 import { getRestaurantOrders, updateOrderStatus } from '../api/orderApi';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
 import socketService from '../services/socketService';
 import { playNotificationSound } from '../utils/notificationSound';
-import AddressInput from '../components/location/AddressInput';
 import MapPicker from '../components/location/MapPicker';
+import OrderInvoiceModal from '../components/common/OrderInvoiceModal';
+import logo from '../assets/logo.png';
 
 const MENU_CATEGORY_OPTIONS = [
   'Starters',
@@ -128,6 +133,7 @@ const RestaurantDashboard = () => {
   const [autoRefreshOrders, setAutoRefreshOrders] = useState(false);
   const [showRestaurantForm, setShowRestaurantForm] = useState(false);
   const [showMenuForm, setShowMenuForm] = useState(false);
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [restaurantImageFile, setRestaurantImageFile] = useState(null);
   const [restaurantImagePreview, setRestaurantImagePreview] = useState(null);
@@ -615,6 +621,16 @@ const RestaurantDashboard = () => {
     }
   };
 
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab === 'orders') {
+      fetchOrders();
+    }
+    if (tab === 'analytics') {
+      fetchAnalytics();
+    }
+  };
+
   const handleEditMenuItem = (item) => {
     setEditingItem(item);
     setMenuItemData({
@@ -687,6 +703,12 @@ const RestaurantDashboard = () => {
     return 'Unable to capture location automatically. Enter latitude/longitude manually below.';
   };
 
+  const getModalBottomNavTabClass = (tabKey) => (
+    `flex flex-col items-center rounded-lg py-1 text-[11px] font-medium ${
+      activeTab === tabKey ? 'bg-primary-100 text-primary-700' : 'text-gray-600'
+    }`
+  );
+
   const handleManualLocationChange = (field, value) => {
     setLocationDraft((prev) => {
       const next = { ...prev, [field]: value };
@@ -756,12 +778,39 @@ const RestaurantDashboard = () => {
     );
   };
 
-  const handleRestaurantLocationSuggestionSelect = (suggestion) => {
-    const lat = Number(suggestion?.lat);
-    const lng = Number(suggestion?.lng);
+  const handleRestaurantLocationSuggestionSelect = async (suggestion) => {
+    let lat = Number(suggestion?.lat);
+    let lng = Number(suggestion?.lng);
+    let resolvedAddress = {
+      street: suggestion?.street || '',
+      city: suggestion?.city || '',
+      state: suggestion?.state || '',
+      zipCode: suggestion?.zipCode || ''
+    };
 
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      toast.error('This suggestion does not contain valid coordinates. Please try another result.');
+      try {
+        const query = suggestion?.fullAddress || suggestion?.label || '';
+        const geocodeResponse = await geocodeAddressQuery(query);
+        const location = geocodeResponse?.data?.location || geocodeResponse?.location;
+
+        if (location) {
+          lat = Number(location?.lat);
+          lng = Number(location?.lng);
+          resolvedAddress = {
+            street: location?.street || resolvedAddress.street,
+            city: location?.city || resolvedAddress.city,
+            state: location?.state || resolvedAddress.state,
+            zipCode: location?.zipCode || resolvedAddress.zipCode
+          };
+        }
+      } catch {
+        // keep fallback validation/error below
+      }
+    }
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      toast.error('Unable to resolve coordinates for this location. Please choose another result or use map/manual coordinates.');
       return;
     }
 
@@ -773,33 +822,10 @@ const RestaurantDashboard = () => {
       ...prev,
       address: {
         ...prev.address,
-        street: suggestion?.street || prev.address.street,
-        city: suggestion?.city || prev.address.city,
-        state: suggestion?.state || prev.address.state,
-        zipCode: suggestion?.zipCode || prev.address.zipCode,
-      }
-    }));
-  };
-
-  const handleRestaurantGoogleAddressSelect = (selection) => {
-    const lat = Number(selection?.lat);
-    const lng = Number(selection?.lng);
-
-    if (isValidRestaurantCoordPair(lat, lng)) {
-      applyLocationCoordinates(lat, lng);
-    }
-
-    setRestaurantLocationSearch(selection?.fullAddress || selection?.address || '');
-    setRestaurantLocationSuggestions([]);
-
-    setRestaurantData((prev) => ({
-      ...prev,
-      address: {
-        ...prev.address,
-        street: selection?.street || selection?.address || prev.address.street,
-        city: selection?.city || prev.address.city,
-        state: selection?.state || prev.address.state,
-        zipCode: selection?.zipCode || prev.address.zipCode
+        street: resolvedAddress.street || prev.address.street,
+        city: resolvedAddress.city || prev.address.city,
+        state: resolvedAddress.state || prev.address.state,
+        zipCode: resolvedAddress.zipCode || prev.address.zipCode,
       }
     }));
   };
@@ -848,6 +874,28 @@ const RestaurantDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8 pb-[calc(120px+env(safe-area-inset-bottom))] lg:pb-8">
       <div className="max-w-7xl mx-auto container-px">
+        {restaurant && (
+          <div className="lg:hidden flex items-center justify-between mb-4">
+            <button type="button" onClick={() => handleTabChange('overview')} className="flex items-center gap-2 text-left">
+              <MapPinIcon className="h-4 w-4" style={{ color: 'rgb(234, 88, 12)' }} />
+              <div>
+                <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
+                <p className="text-[12px] leading-none font-semibold text-gray-900">
+                  {restaurant?.address?.city || 'Current Area'}
+                </p>
+              </div>
+            </button>
+            <div className="flex items-center gap-3">
+              <button type="button" aria-label="Focus search" onClick={() => handleTabChange('menu')}>
+                <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
+              </button>
+              <button type="button" onClick={() => navigate('/profile')} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
+                <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
@@ -966,7 +1014,7 @@ const RestaurantDashboard = () => {
               <div className="border-b border-gray-200 overflow-x-auto">
                 <nav className="flex space-x-4 sm:space-x-8 px-4 sm:px-6 min-w-max sm:min-w-0">
                   <button
-                    onClick={() => setActiveTab('overview')}
+                    onClick={() => handleTabChange('overview')}
                     className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'overview'
                         ? 'border-primary-500 text-primary-600'
@@ -976,7 +1024,7 @@ const RestaurantDashboard = () => {
                     Overview
                   </button>
                   <button
-                    onClick={() => setActiveTab('menu')}
+                    onClick={() => handleTabChange('menu')}
                     className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'menu'
                         ? 'border-primary-500 text-primary-600'
@@ -986,10 +1034,7 @@ const RestaurantDashboard = () => {
                     Menu Items
                   </button>
                   <button
-                    onClick={() => {
-                      setActiveTab('orders');
-                      fetchOrders();
-                    }}
+                    onClick={() => handleTabChange('orders')}
                     className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'orders'
                         ? 'border-primary-500 text-primary-600'
@@ -999,10 +1044,7 @@ const RestaurantDashboard = () => {
                     Orders
                   </button>
                   <button
-                    onClick={() => {
-                      setActiveTab('analytics');
-                      fetchAnalytics();
-                    }}
+                    onClick={() => handleTabChange('analytics')}
                     className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       activeTab === 'analytics'
                         ? 'border-primary-500 text-primary-600'
@@ -1401,6 +1443,17 @@ const RestaurantDashboard = () => {
                         </div>
 
                         {/* Order Status Actions */}
+                        <div className="flex gap-2 flex-wrap mb-3">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedInvoiceOrder(order)}
+                            className="btn-outline text-sm px-4 py-2 flex items-center gap-1"
+                          >
+                            <DocumentTextIcon className="h-4 w-4" />
+                            View/Print Invoice
+                          </button>
+                        </div>
+
                         {order.status !== 'delivered' && order.status !== 'cancelled' && (
                           <div className="flex gap-2 flex-wrap">
                             {order.status === 'pending' && (
@@ -1540,7 +1593,7 @@ const RestaurantDashboard = () => {
 
                       <div className="bg-white rounded-lg shadow-md p-6">
                         <div className="flex items-center">
-                          <CurrencyDollarIcon className="h-10 w-10 text-green-500 flex-shrink-0" />
+                          <BanknotesIcon className="h-10 w-10 text-green-500 flex-shrink-0" />
                           <div className="ml-4">
                             <p className="text-sm text-gray-600">Total Revenue</p>
                             <p className="text-2xl font-bold">{formatCurrency(analytics.overview.totalRevenue)}</p>
@@ -1670,8 +1723,43 @@ const RestaurantDashboard = () => {
 
         {/* Restaurant Form Modal */}
         {showRestaurantForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 pt-[calc(88px+env(safe-area-inset-top))] pb-[calc(120px+env(safe-area-inset-bottom))] z-[1300] overflow-y-auto">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 pb-24 sm:pb-6 my-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-[1300] overflow-y-auto">
+            <div className="min-h-full flex items-start justify-center p-2 sm:p-4 pt-[calc(16px+env(safe-area-inset-top))] pb-[calc(16px+env(safe-area-inset-bottom))]">
+              <div className="bg-white rounded-lg max-w-2xl w-full p-4 sm:p-6 my-2 sm:my-6">
+              <div className="sm:hidden sticky top-0 z-10 -mx-4 px-4 py-2 mb-3 bg-white border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowRestaurantForm(false)}
+                      className="h-8 w-8 rounded-full flex items-center justify-center text-white shadow-[0_8px_18px_rgba(234,88,12,0.32)]"
+                      aria-label="Close restaurant form"
+                      style={{ background: 'linear-gradient(rgb(255, 122, 69) 0%, rgb(234, 88, 12) 100%)' }}
+                    >
+                      <ArrowLeftIcon className="h-4 w-4" />
+                    </button>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">Dashboard</p>
+                      <p className="text-[13px] leading-none font-semibold text-gray-900">Restaurant Setup</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => navigate('/restaurants')}>
+                      <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/profile')}
+                      className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden"
+                      aria-label="Open profile"
+                    >
+                      <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
                 {restaurant ? 'Edit Restaurant' : 'Register Restaurant'}
               </h2>
@@ -1680,7 +1768,7 @@ const RestaurantDashboard = () => {
                 <h3 className="text-lg font-bold text-gray-900">Restaurant Information</h3>
                 <p className="text-sm text-gray-600">Add restaurant identity, location and contact details.</p>
               </div>
-              <form onSubmit={handleRestaurantSubmit} className="space-y-3 sm:space-y-4">
+              <form onSubmit={handleRestaurantSubmit} className="space-y-3 sm:space-y-4 pb-24 sm:pb-0" id="restaurantFormModal">
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Restaurant Name *
@@ -1839,13 +1927,6 @@ const RestaurantDashboard = () => {
 
                 <div className="rounded-xl border border-gray-200 bg-white p-4">
                   <p className="text-sm font-semibold text-gray-900 mb-2">Pick Restaurant Location</p>
-                  <AddressInput
-                    value={restaurantLocationSearch}
-                    onChange={setRestaurantLocationSearch}
-                    onSelect={handleRestaurantGoogleAddressSelect}
-                    placeholder="Search area, street, landmark"
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
                   <div className="relative">
                     <input
                       type="text"
@@ -2014,7 +2095,7 @@ const RestaurantDashboard = () => {
                   </p>
                 </div>
 
-                <div className="sticky bottom-0 bg-white pt-3 pb-[calc(8px+env(safe-area-inset-bottom))] flex justify-end space-x-3 sm:space-x-4 mt-6">
+                <div className="mt-6 pt-3 border-t border-gray-100 hidden sm:flex flex-wrap justify-end gap-3 sm:gap-4">
                   <button
                     type="button"
                     onClick={() => setShowRestaurantForm(false)}
@@ -2026,19 +2107,120 @@ const RestaurantDashboard = () => {
                     {restaurant ? 'Update' : 'Create'} Restaurant
                   </button>
                 </div>
+
+                <div className="sm:hidden fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2">
+                  <div className="mb-2 grid grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRestaurantForm(false);
+                        setActiveTab('overview');
+                      }}
+                      className={getModalBottomNavTabClass('overview')}
+                    >
+                      <ChartBarIcon className="h-4 w-4" />
+                      Dashboard
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRestaurantForm(false);
+                        setActiveTab('orders');
+                      }}
+                      className={getModalBottomNavTabClass('orders')}
+                    >
+                      <ShoppingBagIcon className="h-4 w-4" />
+                      Orders
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRestaurantForm(false);
+                        setActiveTab('menu');
+                      }}
+                      className={getModalBottomNavTabClass('menu')}
+                    >
+                      <DocumentTextIcon className="h-4 w-4" />
+                      Menu
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('profile');
+                        navigate('/profile');
+                      }}
+                      className={getModalBottomNavTabClass('profile')}
+                    >
+                      <img src={logo} alt="Profile" className="h-4 w-4 rounded-full border border-[#EA580C]" />
+                      Profile
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowRestaurantForm(false)}
+                      className="rounded-lg border border-gray-300 py-2 text-sm font-semibold text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                    <button type="submit" form="restaurantFormModal" className="btn-primary !w-full !py-2 text-sm">
+                      {restaurant ? 'Update' : 'Create'}
+                    </button>
+                  </div>
+                </div>
               </form>
             </div>
+          </div>
           </div>
         )}
 
         {/* Menu Item Form Modal */}
         {showMenuForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 pt-[calc(88px+env(safe-area-inset-top))] pb-[calc(120px+env(safe-area-inset-bottom))] z-[1300] overflow-y-auto">
-            <div className="bg-white rounded-lg max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 pb-24 sm:pb-6 my-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-[1300] overflow-y-auto">
+            <div className="min-h-full flex items-start justify-center p-2 sm:p-4 pt-[calc(16px+env(safe-area-inset-top))] pb-[calc(16px+env(safe-area-inset-bottom))]">
+              <div className="bg-white rounded-lg max-w-lg w-full p-4 sm:p-6 my-2 sm:my-6">
+              <div className="sm:hidden sticky top-0 z-10 -mx-4 px-4 py-2 mb-3 bg-white border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMenuForm(false);
+                        setEditingItem(null);
+                      }}
+                      className="h-8 w-8 rounded-full flex items-center justify-center text-white shadow-[0_8px_18px_rgba(234,88,12,0.32)]"
+                      aria-label="Close menu item form"
+                      style={{ background: 'linear-gradient(rgb(255, 122, 69) 0%, rgb(234, 88, 12) 100%)' }}
+                    >
+                      <ArrowLeftIcon className="h-4 w-4" />
+                    </button>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">Dashboard</p>
+                      <p className="text-[13px] leading-none font-semibold text-gray-900">Menu Item Setup</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => navigate('/restaurants')}>
+                      <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/profile')}
+                      className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden"
+                      aria-label="Open profile"
+                    >
+                      <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
                 {editingItem ? 'Edit Menu Item' : 'Add Menu Item'}
               </h2>
-              <form onSubmit={handleMenuItemSubmit} className="space-y-3 sm:space-y-4">
+              <form onSubmit={handleMenuItemSubmit} className="space-y-3 sm:space-y-4 pb-24 sm:pb-0" id="menuItemFormModal">
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Item Name *
@@ -2259,7 +2441,7 @@ const RestaurantDashboard = () => {
                   </label>
                 </div>
 
-                <div className="sticky bottom-0 bg-white pt-3 pb-[calc(8px+env(safe-area-inset-bottom))] flex justify-end space-x-3 sm:space-x-4 mt-6">
+                <div className="mt-6 pt-3 border-t border-gray-100 hidden sm:flex flex-wrap justify-end gap-3 sm:gap-4">
                   <button
                     type="button"
                     onClick={() => {
@@ -2274,10 +2456,83 @@ const RestaurantDashboard = () => {
                     {editingItem ? 'Update' : 'Add'} Item
                   </button>
                 </div>
+
+                <div className="sm:hidden fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2">
+                  <div className="mb-2 grid grid-cols-4 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMenuForm(false);
+                        setActiveTab('overview');
+                      }}
+                      className={getModalBottomNavTabClass('overview')}
+                    >
+                      <ChartBarIcon className="h-4 w-4" />
+                      Dashboard
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMenuForm(false);
+                        setActiveTab('orders');
+                      }}
+                      className={getModalBottomNavTabClass('orders')}
+                    >
+                      <ShoppingBagIcon className="h-4 w-4" />
+                      Orders
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMenuForm(false);
+                        setActiveTab('menu');
+                      }}
+                      className={getModalBottomNavTabClass('menu')}
+                    >
+                      <DocumentTextIcon className="h-4 w-4" />
+                      Menu
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('profile');
+                        navigate('/profile');
+                      }}
+                      className={getModalBottomNavTabClass('profile')}
+                    >
+                      <img src={logo} alt="Profile" className="h-4 w-4 rounded-full border border-[#EA580C]" />
+                      Profile
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMenuForm(false);
+                        setEditingItem(null);
+                      }}
+                      className="rounded-lg border border-gray-300 py-2 text-sm font-semibold text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                    <button type="submit" form="menuItemFormModal" className="btn-primary !w-full !py-2 text-sm">
+                      {editingItem ? 'Update' : 'Add'}
+                    </button>
+                  </div>
+                </div>
               </form>
             </div>
           </div>
+          </div>
         )}
+
+        <OrderInvoiceModal
+          isOpen={Boolean(selectedInvoiceOrder)}
+          onClose={() => setSelectedInvoiceOrder(null)}
+          order={selectedInvoiceOrder}
+          viewer="restaurant"
+        />
       </div>
     </div>
   );

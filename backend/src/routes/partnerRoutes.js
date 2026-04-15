@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   submitApplication,
+  submitRestaurantApplication,
   getAllPartnerApplications,
   getPartnerById,
   approvePartner,
@@ -11,17 +12,28 @@ const {
 } = require('../controllers/partnerController');
 const { protect } = require('../middleware/auth');
 const { restrictTo } = require('../middleware/roleAuth');
-const upload = require('../middleware/upload');
+const uploadPartnerDocs = require('../middleware/uploadPartnerDocs');
 
 // Public route - Submit partner application
 router.post(
   '/apply',
-  upload.fields([
+  uploadPartnerDocs.fields([
     { name: 'photo', maxCount: 1 },
     { name: 'drivingLicense', maxCount: 1 },
     { name: 'aadharCard', maxCount: 1 },
   ]),
   submitApplication
+);
+
+router.post(
+  '/restaurant-apply',
+  uploadPartnerDocs.fields([
+    { name: 'fssaiLicense', maxCount: 1 },
+    { name: 'menuDocument', maxCount: 1 },
+    { name: 'ownerIdProof', maxCount: 1 },
+    { name: 'cancelledCheque', maxCount: 1 },
+  ]),
+  submitRestaurantApplication
 );
 
 // Admin routes - all require authentication and admin role

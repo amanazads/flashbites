@@ -42,6 +42,9 @@ export default defineConfig({
           'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/messaging'],
           // UI utilities
           'vendor-ui': ['react-hot-toast', 'react-helmet-async', 'sweetalert2'],
+          // Icon packs and date utilities are heavily reused
+          'vendor-icons': ['@heroicons/react/24/outline', '@heroicons/react/24/solid'],
+          'vendor-date': ['date-fns'],
           // HTTP + Socket
           'vendor-network': ['axios', 'socket.io-client'],
           // Capacitor native plugins

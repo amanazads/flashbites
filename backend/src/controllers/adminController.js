@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const User = require('../models/User');
 const Order = require('../models/Order');
@@ -9,6 +10,7 @@ const Address = require('../models/Address');
 const Notification = require('../models/Notification');
 const AccountDeletionRequest = require('../models/AccountDeletionRequest');
 const PlatformSettings = require('../models/PlatformSettings');
+const { normalizeFeeControls, normalizeRestaurantFeeControls } = require('../utils/feeControl');
 const { notifyCouponAvailable, notifyUser } = require('../utils/notificationService');
 const { normalizeDeliveryZone } = require('../utils/deliveryGeo');
 const { cacheGet, cacheSet, cacheDelByPrefix } = require('../utils/memoryCache');
@@ -19,6 +21,11 @@ const TRACKING_CACHE_TTL_MS = 15000;
 
 const makeCacheKey = (scope, payload = {}) => `${ADMIN_CACHE_PREFIX}${scope}:${JSON.stringify(payload)}`;
 const invalidateAdminCache = () => cacheDelByPrefix(ADMIN_CACHE_PREFIX);
+
+const generateTemporaryPassword = () => {
+  const randomChunk = crypto.randomBytes(4).toString('hex');
+  return `Fb@${randomChunk}A1`;
+};
 
 const normalizeDeliveryPartnerPayout = (payload = {}) => {
   const perOrder = Number(payload.perOrder);
@@ -58,14 +65,27 @@ const normalizeSettingsPayload = (payload = {}) => {
           cta: typeof banner.cta === 'string' ? banner.cta.trim() : undefined,
           bg: typeof banner.bg === 'string' ? banner.bg.trim() : undefined,
           img: typeof banner.img === 'string' ? banner.img.trim() : undefined,
+          startsAt: banner.startsAt ? new Date(banner.startsAt) : null,
+          endsAt: banner.endsAt ? new Date(banner.endsAt) : null,
+          actionType: typeof banner.actionType === 'string' ? banner.actionType.trim() : 'none',
+          actionValue: typeof banner.actionValue === 'string' ? banner.actionValue.trim() : undefined,
           isActive: banner.isActive !== undefined ? Boolean(banner.isActive) : true,
           sortOrder: Number.isFinite(Number(banner.sortOrder)) ? Number(banner.sortOrder) : index
+        }))
+        .map((banner) => ({
+          ...banner,
+          startsAt: banner.startsAt && !Number.isNaN(banner.startsAt.getTime()) ? banner.startsAt : null,
+          endsAt: banner.endsAt && !Number.isNaN(banner.endsAt.getTime()) ? banner.endsAt : null,
         }))
         .filter((banner) => banner.bold || banner.sub || banner.img)
     : null;
 
   const deliveryPartnerPayout = payload.deliveryPartnerPayout
     ? normalizeDeliveryPartnerPayout(payload.deliveryPartnerPayout)
+    : null;
+
+  const feeControls = payload.feeControls
+    ? normalizeFeeControls(payload.feeControls)
     : null;
 
   return {
@@ -82,9 +102,20 @@ const normalizeSettingsPayload = (payload = {}) => {
       : undefined,
     deliveryChargeRules: deliveryChargeRules && deliveryChargeRules.length > 0 ? deliveryChargeRules : undefined,
     promoBanners: promoBanners ? promoBanners : undefined,
-    deliveryPartnerPayout: deliveryPartnerPayout || undefined
+    deliveryPartnerPayout: deliveryPartnerPayout || undefined,
+    feeControls: feeControls || undefined
   };
 };
+
+const attachFeeControls = (settings = {}) => ({
+  ...settings,
+  feeControls: normalizeFeeControls(settings.feeControls),
+});
+
+const attachRestaurantFeeControls = (restaurant = {}) => ({
+  ...restaurant,
+  feeControls: normalizeRestaurantFeeControls(restaurant?.feeControls),
+});
 
 // @desc    Get admin dashboard statistics
 // @route   GET /api/admin/dashboard
@@ -542,6 +573,8 @@ exports.getPlatformSettings = async (req, res) => {
       settings = settings.toObject();
     }
 
+    settings = attachFeeControls(settings);
+
     successResponse(res, 200, 'Platform settings retrieved', { settings });
   } catch (error) {
     errorResponse(res, 500, 'Failed to get platform settings', error.message);
@@ -555,11 +588,13 @@ exports.updatePlatformSettings = async (req, res) => {
   try {
     const updates = normalizeSettingsPayload(req.body);
 
-    const settings = await PlatformSettings.findOneAndUpdate(
+    let settings = await PlatformSettings.findOneAndUpdate(
       {},
       { $set: updates },
       { new: true, upsert: true, runValidators: true }
     ).lean();
+
+    settings = attachFeeControls(settings);
 
     invalidateAdminCache();
     successResponse(res, 200, 'Platform settings updated', { settings });
@@ -583,9 +618,13 @@ exports.getAllRestaurants = async (req, res) => {
       .populate('ownerId', 'name email phone')
       .sort('-createdAt');
 
+    const normalizedRestaurants = restaurants.map((restaurant) =>
+      attachRestaurantFeeControls(restaurant.toObject())
+    );
+
     successResponse(res, 200, 'Restaurants retrieved successfully', {
-      count: restaurants.length,
-      restaurants
+      count: normalizedRestaurants.length,
+      restaurants: normalizedRestaurants
     });
   } catch (error) {
     errorResponse(res, 500, 'Failed to get restaurants', error.message);
@@ -599,18 +638,42 @@ exports.approveRestaurant = async (req, res) => {
   try {
     const { isApproved } = req.body;
 
-    const restaurant = await Restaurant.findByIdAndUpdate(
-      req.params.id,
-      { isApproved },
-      { new: true }
-    );
+    const restaurant = await Restaurant.findById(req.params.id);
 
     if (!restaurant) {
       return errorResponse(res, 404, 'Restaurant not found');
     }
 
+    restaurant.isApproved = Boolean(isApproved);
+    restaurant.isActive = Boolean(isApproved);
+
+    let credentials = null;
+
+    if (restaurant.isApproved && restaurant.ownerId) {
+      const owner = await User.findById(restaurant.ownerId).select('+password');
+      if (owner) {
+        owner.role = 'restaurant_owner';
+
+        if (!owner.isActive) {
+          const temporaryPassword = generateTemporaryPassword();
+          owner.password = temporaryPassword;
+          credentials = {
+            phone: owner.phone,
+            email: owner.email || '',
+            password: temporaryPassword
+          };
+        }
+
+        owner.isActive = true;
+        owner.isPhoneVerified = true;
+        await owner.save();
+      }
+    }
+
+    await restaurant.save();
+
     invalidateAdminCache();
-    successResponse(res, 200, `Restaurant ${isApproved ? 'approved' : 'rejected'}`, { restaurant });
+    successResponse(res, 200, `Restaurant ${isApproved ? 'approved' : 'rejected'}`, { restaurant, credentials });
   } catch (error) {
     errorResponse(res, 500, 'Failed to update restaurant status', error.message);
   }
@@ -1328,6 +1391,34 @@ exports.updateRestaurantPayoutRate = async (req, res) => {
     );
   } catch (error) {
     return errorResponse(res, 500, 'Failed to update restaurant payout rate', error.message);
+  }
+};
+
+// @desc    Update restaurant fee controls override
+// @route   PATCH /api/admin/restaurants/:id/fee-controls
+// @access  Private (Admin)
+exports.updateRestaurantFeeControls = async (req, res) => {
+  try {
+    const parsedFeeControls = normalizeRestaurantFeeControls(req.body?.feeControls || {});
+
+    const restaurant = await Restaurant.findByIdAndUpdate(
+      req.params.id,
+      { $set: { feeControls: parsedFeeControls } },
+      { new: true, runValidators: true }
+    )
+      .select('name feeControls')
+      .lean();
+
+    if (!restaurant) {
+      return errorResponse(res, 404, 'Restaurant not found');
+    }
+
+    invalidateAdminCache();
+    return successResponse(res, 200, 'Restaurant fee controls updated', {
+      restaurant: attachRestaurantFeeControls(restaurant),
+    });
+  } catch (error) {
+    return errorResponse(res, 500, 'Failed to update restaurant fee controls', error.message);
   }
 };
 

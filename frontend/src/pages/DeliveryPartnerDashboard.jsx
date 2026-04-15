@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
+  ClockIcon,
+  MagnifyingGlassIcon,
+  MapPinIcon,
+  ShoppingBagIcon,
+  UserCircleIcon,
+} from '@heroicons/react/24/outline';
+import {
   getAvailableOrders,
   getAssignedOrders,
   acceptOrder,
@@ -15,10 +22,14 @@ import { useLocationTracking } from '../hooks/useLocationTracking';
 import { formatCurrency } from '../utils/formatters';
 import toast from 'react-hot-toast';
 import socketService from '../services/socketService';
+import { useLanguage } from '../contexts/LanguageContext';
+import { BRAND } from '../constants/theme';
+import logo from '../assets/logo.png';
 
 const DeliveryPartnerDashboard = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('available');
   const [availableOrders, setAvailableOrders] = useState([]);
   const [assignedOrders, setAssignedOrders] = useState([]);
@@ -147,7 +158,7 @@ const DeliveryPartnerDashboard = () => {
       setIsOnDuty(Boolean(dutyRes?.data?.isOnDuty));
       setDutyStatusUpdatedAt(dutyRes?.data?.dutyStatusUpdatedAt || null);
     } catch (error) {
-      toast.error('Failed to load dashboard data');
+      toast.error(t('delivery.failedLoadDashboard', 'Failed to load dashboard data'));
     } finally {
       setLoading(false);
     }
@@ -160,13 +171,13 @@ const DeliveryPartnerDashboard = () => {
       const response = await updateDutyStatus(nextDutyStatus);
       setIsOnDuty(Boolean(response?.data?.isOnDuty));
       setDutyStatusUpdatedAt(response?.data?.dutyStatusUpdatedAt || null);
-      toast.success(nextDutyStatus ? 'You are now on duty' : 'You are now off duty');
+      toast.success(nextDutyStatus ? t('delivery.onDutyNow', 'You are now on duty') : t('delivery.offDutyNow', 'You are now off duty'));
 
       if (nextDutyStatus) {
         fetchData();
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update duty status');
+      toast.error(error.response?.data?.message || t('delivery.failedDutyUpdate', 'Failed to update duty status'));
     } finally {
       setDutyUpdating(false);
     }
@@ -176,11 +187,11 @@ const DeliveryPartnerDashboard = () => {
     setActionLoading(orderId);
     try {
       await acceptOrder(orderId);
-      toast.success('Order accepted successfully!');
+      toast.success(t('delivery.orderAccepted', 'Order accepted successfully!'));
       fetchData();
       setActiveTab('assigned');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to accept order');
+      toast.error(error.response?.data?.message || t('delivery.failedAcceptOrder', 'Failed to accept order'));
     } finally {
       setActionLoading(null);
     }
@@ -190,13 +201,13 @@ const DeliveryPartnerDashboard = () => {
     setActionLoading(orderId);
     try {
       await markAsDelivered(orderId);
-      toast.success('Order marked as delivered!');
+      toast.success(t('delivery.orderDelivered', 'Order marked as delivered!'));
       fetchData();
       if (activeTab === 'history') {
         fetchOrderHistory(historyTimeframe);
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to mark as delivered');
+      toast.error(error.response?.data?.message || t('delivery.failedMarkDelivered', 'Failed to mark as delivered'));
     } finally {
       setActionLoading(null);
     }
@@ -213,7 +224,7 @@ const DeliveryPartnerDashboard = () => {
         avgEarningPerOrder: 0
       });
     } catch (error) {
-      toast.error('Failed to load order history');
+      toast.error(t('delivery.failedLoadHistory', 'Failed to load order history'));
     } finally {
       setHistoryLoading(false);
     }
@@ -228,7 +239,7 @@ const DeliveryPartnerDashboard = () => {
   const getEtaLabel = (order) => {
     if (!order?.estimatedDelivery) return null;
     const mins = Math.max(0, Math.round((new Date(order.estimatedDelivery).getTime() - Date.now()) / 60000));
-    return `${mins} min`;
+    return `${mins} ${t('delivery.min', 'min')}`;
   };
 
   const getOrderEarning = (order) => {
@@ -268,20 +279,17 @@ const DeliveryPartnerDashboard = () => {
 
       {/* Restaurant Info */}
       <div className="mb-4 pb-4 border-b">
-        <h4 className="font-semibold text-gray-900 mb-2">🏪 Pickup From:</h4>
+        <h4 className="font-semibold text-gray-900 mb-2">🏪 {t('delivery.pickupFrom', 'Pickup From')}:</h4>
         <p className="text-sm font-medium break-words">{order.restaurantId?.name}</p>
         <p className="text-sm text-gray-600 break-words">{order.restaurantId?.address?.street}</p>
         <p className="text-sm text-gray-600">
           {order.restaurantId?.address?.city}, {order.restaurantId?.address?.state}
         </p>
-        <p className="text-sm text-primary-600 font-medium mt-1">
-          📞 {order.restaurantId?.phone}
-        </p>
       </div>
 
       {/* Delivery Info */}
       <div className="mb-4 pb-4 border-b">
-        <h4 className="font-semibold text-gray-900 mb-2">📍 Deliver To:</h4>
+        <h4 className="font-semibold text-gray-900 mb-2">📍 {t('delivery.deliverTo', 'Deliver To')}:</h4>
         <p className="text-sm font-medium break-words">{order.userId?.name}</p>
         <p className="text-sm text-gray-600 break-words">{order.addressId?.street}, {order.addressId?.landmark}</p>
         <p className="text-sm text-gray-600">
@@ -294,7 +302,7 @@ const DeliveryPartnerDashboard = () => {
 
       {/* Order Items */}
       <div className="mb-4 pb-4 border-b">
-        <h4 className="font-semibold text-gray-900 mb-2">📦 Items ({order.items?.length}):</h4>
+        <h4 className="font-semibold text-gray-900 mb-2">📦 {t('delivery.items', 'Items')} ({order.items?.length}):</h4>
         <div className="space-y-1">
           {order.items?.slice(0, 3).map((item, idx) => (
             <p key={idx} className="text-sm text-gray-600">
@@ -302,7 +310,7 @@ const DeliveryPartnerDashboard = () => {
             </p>
           ))}
           {order.items?.length > 3 && (
-            <p className="text-sm text-gray-500">+ {order.items.length - 3} more items</p>
+            <p className="text-sm text-gray-500">+ {order.items.length - 3} {t('delivery.moreItems', 'more items')}</p>
           )}
         </div>
       </div>
@@ -310,22 +318,22 @@ const DeliveryPartnerDashboard = () => {
       {/* Payment Info */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <div>
-          <p className="text-sm text-gray-600">Order Total</p>
+          <p className="text-sm text-gray-600">{t('delivery.orderTotal', 'Order Total')}</p>
           <p className="text-lg font-bold text-gray-900">{formatCurrency(order.total)}</p>
         </div>
         <div>
-          <p className="text-sm text-gray-600">Customer Delivery Fee</p>
+          <p className="text-sm text-gray-600">{t('delivery.customerDeliveryFee', 'Customer Delivery Fee')}</p>
           <p className="text-lg font-bold text-gray-900">{formatCurrency(order.deliveryFee)}</p>
         </div>
         <div>
-          <p className="text-sm text-gray-600">Payment</p>
+          <p className="text-sm text-gray-600">{t('delivery.payment', 'Payment')}</p>
           <p className="text-sm font-semibold text-gray-900">{order.paymentMethod.toUpperCase()}</p>
         </div>
       </div>
 
       {getEtaLabel(order) && (
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-          ETA Countdown: <span className="font-bold">{getEtaLabel(order)}</span>
+          {t('delivery.etaCountdown', 'ETA Countdown')}: <span className="font-bold">{getEtaLabel(order)}</span>
         </div>
       )}
 
@@ -337,7 +345,7 @@ const DeliveryPartnerDashboard = () => {
             rel="noreferrer"
             className="inline-flex items-center rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200"
           >
-            Navigate to Restaurant
+            {t('delivery.navigateRestaurant', 'Navigate to Restaurant')}
           </a>
         )}
         {buildGoogleMapsLink(order.addressId?.coordinates) && (
@@ -347,7 +355,7 @@ const DeliveryPartnerDashboard = () => {
             rel="noreferrer"
             className="inline-flex items-center rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200"
           >
-            Navigate to Customer
+            {t('delivery.navigateCustomer', 'Navigate to Customer')}
           </a>
         )}
       </div>
@@ -360,10 +368,10 @@ const DeliveryPartnerDashboard = () => {
           className="w-full btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {actionLoading === order._id
-            ? 'Accepting...'
+            ? t('delivery.accepting', 'Accepting...')
             : isOnDuty
-              ? '✅ Accept Order'
-              : 'Go On Duty to Accept'}
+              ? t('delivery.acceptOrder', '✅ Accept Order')
+              : t('delivery.goOnDutyAccept', 'Go On Duty to Accept')}
         </button>
       ) : (
         <button
@@ -371,7 +379,7 @@ const DeliveryPartnerDashboard = () => {
           disabled={actionLoading === order._id || order.status !== 'out_for_delivery'}
           className="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {actionLoading === order._id ? 'Updating...' : '✓ Mark as Delivered'}
+          {actionLoading === order._id ? t('delivery.updating', 'Updating...') : t('delivery.markDelivered', '✓ Mark as Delivered')}
         </button>
       )}
     </div>
@@ -382,46 +390,68 @@ const DeliveryPartnerDashboard = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+          <p className="mt-4 text-gray-600">{t('delivery.loadingDashboard', 'Loading dashboard...')}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-[#F5F3F1] pt-[max(env(safe-area-inset-top),8px)] pb-28 lg:py-8">
       <div className="max-w-7xl mx-auto container-px">
+        <div className="flex items-center justify-between gap-3 mb-3 lg:hidden">
+          <button type="button" className="min-w-0 flex-1 flex items-center gap-2 text-left">
+            <MapPinIcon className="h-4 w-4" style={{ color: BRAND }} />
+            <div className="min-w-0">
+              <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">
+                {t('delivery.deliverTo', 'Deliver to')}
+              </p>
+              <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">
+                {isOnDuty ? t('delivery.currentArea', 'Current Area') : t('delivery.offDutyArea', 'Off Duty')}
+              </p>
+            </div>
+          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button type="button" onClick={() => setActiveTab('available')}>
+              <MagnifyingGlassIcon className="h-4 w-4 text-gray-700" />
+            </button>
+            <button type="button" onClick={() => navigate('/profile')} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
+              <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+            </button>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Delivery Partner Dashboard
+                {t('delivery.dashboardTitle', 'Delivery Partner Dashboard')}
               </h1>
-              <p className="text-gray-600">Welcome back, {user?.name}! 🚴</p>
+              <p className="text-gray-600">{t('delivery.welcomeBack', 'Welcome back')}, {user?.name}! 🚴</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   onClick={handleDutyToggle}
                   disabled={dutyUpdating}
                   className={`px-3 py-2 rounded-lg text-sm font-medium text-white ${isOnDuty ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-600 hover:bg-emerald-700'} disabled:opacity-60`}
                 >
-                  {dutyUpdating ? 'Updating Duty...' : isOnDuty ? 'Go Off Duty' : 'Go On Duty'}
+                  {dutyUpdating ? t('delivery.updatingDuty', 'Updating Duty...') : isOnDuty ? t('delivery.goOffDuty', 'Go Off Duty') : t('delivery.goOnDuty', 'Go On Duty')}
                 </button>
                 <button
                   onClick={() => setAutoRefreshEnabled((prev) => !prev)}
                   className={`px-3 py-2 rounded-lg text-sm font-medium text-white ${autoRefreshEnabled ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
                 >
-                  {autoRefreshEnabled ? 'Stop Auto Refresh' : 'Start Auto Refresh'}
+                  {autoRefreshEnabled ? t('delivery.stopAutoRefresh', 'Stop Auto Refresh') : t('delivery.startAutoRefresh', 'Start Auto Refresh')}
                 </button>
                 <button
                   onClick={fetchData}
                   className="px-3 py-2 rounded-lg text-sm font-medium text-white bg-primary-500 hover:bg-primary-600"
                 >
-                  Refresh Now
+                  {t('delivery.refreshNow', 'Refresh Now')}
                 </button>
               </div>
               <p className={`mt-2 text-sm font-semibold ${isOnDuty ? 'text-green-700' : 'text-amber-700'}`}>
-                Duty Status: {isOnDuty ? 'On Duty' : 'Off Duty'}
+                {t('delivery.dutyStatus', 'Duty Status')}: {isOnDuty ? t('delivery.onDuty', 'On Duty') : t('delivery.offDuty', 'Off Duty')}
                 {dutyStatusUpdatedAt ? ` • Updated ${new Date(dutyStatusUpdatedAt).toLocaleTimeString()}` : ''}
               </p>
             </div>
@@ -429,7 +459,7 @@ const DeliveryPartnerDashboard = () => {
             {/* Location Tracking Status */}
             <div className="bg-white rounded-lg shadow p-4 w-full sm:w-auto sm:min-w-[250px]">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-gray-700">Location Tracking</span>
+                <span className="text-sm font-semibold text-gray-700">{t('delivery.locationTracking', 'Location Tracking')}</span>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -445,21 +475,21 @@ const DeliveryPartnerDashboard = () => {
                   <>
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                     <span className="text-xs text-green-600 font-medium">
-                      Active - Tracking Order
+                      {t('delivery.activeTracking', 'Active - Tracking Order')}
                     </span>
                   </>
                 ) : locationTrackingEnabled ? (
                   <>
                     <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
                     <span className="text-xs text-yellow-600 font-medium">
-                      Ready - No Active Order
+                      {t('delivery.readyNoOrder', 'Ready - No Active Order')}
                     </span>
                   </>
                 ) : (
                   <>
                     <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
                     <span className="text-xs text-gray-600 font-medium">
-                      Disabled
+                      {t('delivery.disabled', 'Disabled')}
                     </span>
                   </>
                 )}
@@ -481,7 +511,7 @@ const DeliveryPartnerDashboard = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Total Deliveries</p>
+                <p className="text-sm text-gray-600 mb-1">{t('delivery.totalDeliveries', 'Total Deliveries')}</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.totalDeliveries || 0}</p>
               </div>
               <div className="bg-blue-100 p-3 rounded-full">
@@ -493,7 +523,7 @@ const DeliveryPartnerDashboard = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Today's Deliveries</p>
+                <p className="text-sm text-gray-600 mb-1">{t('delivery.todayDeliveries', "Today's Deliveries")}</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.todayDeliveries || 0}</p>
               </div>
               <div className="bg-green-100 p-3 rounded-full">
@@ -505,7 +535,7 @@ const DeliveryPartnerDashboard = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Active Orders</p>
+                <p className="text-sm text-gray-600 mb-1">{t('delivery.activeOrders', 'Active Orders')}</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.activeOrders || 0}</p>
               </div>
               <div className="bg-primary-100 p-3 rounded-full">
@@ -517,7 +547,7 @@ const DeliveryPartnerDashboard = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Total Earnings</p>
+                <p className="text-sm text-gray-600 mb-1">{t('delivery.totalEarnings', 'Total Earnings')}</p>
                 <p className="text-2xl font-bold text-green-600">
                   {formatCurrency(stats.totalEarnings || 0)}
                 </p>
@@ -530,7 +560,7 @@ const DeliveryPartnerDashboard = () => {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-lg shadow mb-6">
+        <div className="bg-white rounded-lg shadow mb-6 hidden lg:block">
           <div className="flex border-b">
             <button
               onClick={() => setActiveTab('available')}
@@ -540,7 +570,7 @@ const DeliveryPartnerDashboard = () => {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              Available Orders ({availableOrders.length})
+              {t('delivery.availableOrders', 'Available Orders')} ({availableOrders.length})
             </button>
             <button
               onClick={() => setActiveTab('assigned')}
@@ -550,7 +580,7 @@ const DeliveryPartnerDashboard = () => {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              My Orders ({assignedOrders.length})
+              {t('delivery.myOrders', 'My Orders')} ({assignedOrders.length})
             </button>
             <button
               onClick={() => setActiveTab('history')}
@@ -560,7 +590,7 @@ const DeliveryPartnerDashboard = () => {
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              Order History
+              {t('delivery.orderHistory', 'Order History')}
             </button>
           </div>
         </div>
@@ -576,8 +606,8 @@ const DeliveryPartnerDashboard = () => {
           ) : (
             <div className="bg-white rounded-lg shadow p-12 text-center">
               <p className="text-6xl mb-4">📭</p>
-              <p className="text-xl text-gray-600">No available orders at the moment</p>
-              <p className="text-sm text-gray-500 mt-2">Check back soon for new delivery opportunities!</p>
+              <p className="text-xl text-gray-600">{t('delivery.noAvailableOrders', 'No available orders at the moment')}</p>
+              <p className="text-sm text-gray-500 mt-2">{t('delivery.checkBackSoon', 'Check back soon for new delivery opportunities!')}</p>
             </div>
           )
         ) : activeTab === 'assigned' ? (
@@ -590,8 +620,8 @@ const DeliveryPartnerDashboard = () => {
           ) : (
             <div className="bg-white rounded-lg shadow p-12 text-center">
               <p className="text-6xl mb-4">🚫</p>
-              <p className="text-xl text-gray-600">No assigned orders</p>
-              <p className="text-sm text-gray-500 mt-2">Accept orders from the Available Orders tab to start delivering!</p>
+              <p className="text-xl text-gray-600">{t('delivery.noAssignedOrders', 'No assigned orders')}</p>
+              <p className="text-sm text-gray-500 mt-2">{t('delivery.acceptFromAvailable', 'Accept orders from the Available Orders tab to start delivering!')}</p>
             </div>
           )
         ) : (
@@ -609,7 +639,13 @@ const DeliveryPartnerDashboard = () => {
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
-                      {period === 'all' ? 'All Time' : period.charAt(0).toUpperCase() + period.slice(1)}
+                      {period === 'all'
+                        ? t('delivery.allTime', 'All Time')
+                        : period === 'day'
+                          ? t('delivery.day', 'Day')
+                          : period === 'week'
+                            ? t('delivery.week', 'Week')
+                            : t('delivery.month', 'Month')}
                     </button>
                   ))}
                 </div>
@@ -617,32 +653,32 @@ const DeliveryPartnerDashboard = () => {
                   onClick={() => fetchOrderHistory(historyTimeframe)}
                   className="px-3 py-2 rounded-lg text-sm font-semibold bg-primary-500 text-white hover:bg-primary-600"
                 >
-                  Refresh History
+                  {t('delivery.refreshHistory', 'Refresh History')}
                 </button>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white rounded-lg shadow p-4">
-                <p className="text-sm text-gray-600">Delivered Orders</p>
+                <p className="text-sm text-gray-600">{t('delivery.deliveredOrders', 'Delivered Orders')}</p>
                 <p className="text-2xl font-bold text-gray-900">{historySummary.totalDeliveries || 0}</p>
               </div>
               <div className="bg-white rounded-lg shadow p-4">
-                <p className="text-sm text-gray-600">Total Earnings</p>
+                <p className="text-sm text-gray-600">{t('delivery.totalEarnings', 'Total Earnings')}</p>
                 <p className="text-2xl font-bold text-green-600">{formatCurrency(historySummary.totalEarnings || 0)}</p>
               </div>
               <div className="bg-white rounded-lg shadow p-4">
-                <p className="text-sm text-gray-600">Avg Earning / Order</p>
+                <p className="text-sm text-gray-600">{t('delivery.avgEarning', 'Avg Earning / Order')}</p>
                 <p className="text-2xl font-bold text-primary-600">{formatCurrency(historySummary.avgEarningPerOrder || 0)}</p>
               </div>
             </div>
 
             {historyLoading ? (
-              <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">Loading history...</div>
+              <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">{t('delivery.loadingHistory', 'Loading history...')}</div>
             ) : historyOrders.length === 0 ? (
               <div className="bg-white rounded-lg shadow p-12 text-center">
                 <p className="text-5xl mb-3">🗂️</p>
-                <p className="text-lg text-gray-600">No delivered orders found for this period.</p>
+                <p className="text-lg text-gray-600">{t('delivery.noHistoryPeriod', 'No delivered orders found for this period.')}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -651,22 +687,22 @@ const DeliveryPartnerDashboard = () => {
                     <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-2">
                       <div>
                         <p className="text-sm font-bold text-gray-900">Order #{order._id.slice(-8).toUpperCase()}</p>
-                        <p className="text-xs text-gray-500">Delivered: {order.deliveredAt ? new Date(order.deliveredAt).toLocaleString() : '-'}</p>
-                        <p className="text-sm text-gray-700 mt-1">Customer: {order.userId?.name || 'N/A'} ({order.userId?.phone || 'N/A'})</p>
-                        <p className="text-sm text-gray-700">Restaurant: {order.restaurantId?.name || 'N/A'}</p>
+                        <p className="text-xs text-gray-500">{t('delivery.deliveredAt', 'Delivered')}: {order.deliveredAt ? new Date(order.deliveredAt).toLocaleString() : '-'}</p>
+                        <p className="text-sm text-gray-700 mt-1">{t('delivery.customer', 'Customer')}: {order.userId?.name || t('delivery.na', 'N/A')} ({order.userId?.phone || t('delivery.na', 'N/A')})</p>
+                        <p className="text-sm text-gray-700">{t('delivery.restaurant', 'Restaurant')}: {order.restaurantId?.name || t('delivery.na', 'N/A')}</p>
                         <p className="text-xs text-gray-500 mt-1 break-words">
-                          To: {order.addressId
+                          {t('delivery.to', 'To')}: {order.addressId
                             ? `${order.addressId.street}, ${order.addressId.city}, ${order.addressId.state} - ${order.addressId.zipCode}`
                             : `${order.deliveryAddress?.street || ''}, ${order.deliveryAddress?.city || ''}, ${order.deliveryAddress?.state || ''} - ${order.deliveryAddress?.zipCode || ''}`}
                         </p>
                       </div>
                       <div className="text-left md:text-right">
-                        <p className="text-sm text-gray-500">Order Total</p>
+                        <p className="text-sm text-gray-500">{t('delivery.orderTotal', 'Order Total')}</p>
                         <p className="text-lg font-bold text-gray-900">{formatCurrency(order.total || 0)}</p>
-                        <p className="text-sm text-gray-500 mt-1">Your Earning</p>
+                        <p className="text-sm text-gray-500 mt-1">{t('delivery.yourEarning', 'Your Earning')}</p>
                         <p className="text-lg font-bold text-green-600">{formatCurrency(getOrderEarning(order))}</p>
                         {order.deliveryPartnerPayoutSnapshot?.bonusApplied && (
-                          <p className="text-xs font-semibold text-amber-700 mt-1">Bonus Applied</p>
+                          <p className="text-xs font-semibold text-amber-700 mt-1">{t('delivery.bonusApplied', 'Bonus Applied')}</p>
                         )}
                       </div>
                     </div>
@@ -676,6 +712,50 @@ const DeliveryPartnerDashboard = () => {
             )}
           </div>
         )}
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t border-[#E6E2DE] bg-[#F5F3F1]" style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom))' }}>
+        <div className="max-w-md mx-auto px-6 pt-2 flex items-center justify-between text-[#B0ACA8]">
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            style={activeTab === 'history' ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
+          >
+            <ClockIcon className="h-5 w-5" />
+            <span className="text-[8px]">{t('delivery.orderHistory', 'History')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('available')}
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            style={activeTab === 'available' ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
+          >
+            <MagnifyingGlassIcon className="h-5 w-5" />
+            <span className="text-[8px]">{t('delivery.available', 'Available')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('assigned')}
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            style={activeTab === 'assigned' ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
+          >
+            <ShoppingBagIcon className="h-5 w-5" />
+            <span className="text-[8px]">{t('delivery.myOrders', 'My Orders')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/profile')}
+            className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
+            style={{ color: '#B0ACA8' }}
+          >
+            <UserCircleIcon className="h-5 w-5" />
+            <span className="text-[8px]">{t('common.profile', 'Profile')}</span>
+          </button>
+        </div>
       </div>
     </div>
   );

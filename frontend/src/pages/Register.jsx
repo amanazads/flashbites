@@ -8,6 +8,9 @@ import axios from '../api/axios';
 import { sendPhoneOTP, verifyPhoneOTP, getReadableFirebaseAuthError } from '../firebase';
 import logo from '../assets/logo.png';
 import { BRAND } from '../constants/theme';
+import { useLanguage } from '../contexts/LanguageContext';
+
+const HERO_IMAGE = 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=1200&q=80';
 
 const OTP_BLOCK_SECONDS = 300;
 const OTP_BLOCK_KEY_PREFIX = 'fb_otp_block_until:';
@@ -88,6 +91,7 @@ const Register = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { error, isAuthenticated, user } = useSelector((state) => state.auth);
+  const { t } = useLanguage();
   const nativePlatform = Boolean(window?.Capacitor?.isNativePlatform?.());
 
   const [step, setStep] = useState(1);
@@ -205,7 +209,7 @@ const Register = () => {
     e.preventDefault();
 
     if (otpBlockRemaining > 0) {
-      toast.error(`Please wait ${otpBlockRemaining}s before requesting OTP again.`);
+      toast.error(`${t('register.tryAgainIn', 'Try again in')} ${otpBlockRemaining}s`);
       return;
     }
 
@@ -230,7 +234,7 @@ const Register = () => {
     } catch (error) {
       if (isTooManyRequestsError(error)) {
         await startOtpBlock();
-        toast.error('OTP is temporarily rate-limited for this number/device. Please wait a few minutes and try again.');
+        toast.error(`${t('register.tryAgainIn', 'Try again in')} ${OTP_BLOCK_SECONDS}s`);
         return;
       }
       toast.error(getReadableFirebaseAuthError(error));
@@ -243,7 +247,7 @@ const Register = () => {
     e.preventDefault();
 
     if (!nativePlatform && (!formData.otp || formData.otp.length !== 6)) {
-      toast.error('Please enter valid 6-digit OTP');
+      toast.error(t('register.enterOtp', 'Enter OTP'));
       return;
     }
 
@@ -294,7 +298,7 @@ const Register = () => {
       dispatch(setAuthUser({ user: userData, token: accessToken }));
 
 
-      toast.success('Welcome to FlashBites! 🎉');
+      toast.success(t('register.welcomeToast', 'Welcome to FlashBites! 🎉'));
 
       // Redirect based on role
       const roleMap = { restaurant_owner: '/dashboard', delivery_partner: '/delivery-dashboard' };
@@ -318,12 +322,12 @@ const Register = () => {
     try {
       const phoneWithCode = `+91${formData.phone}`;
       await sendPhoneOTP(phoneWithCode);
-      toast.success('OTP resent to your phone');
+      toast.success(t('register.resendOtp', 'Resend OTP'));
       setResendCountdown(30);
     } catch (error) {
       if (isTooManyRequestsError(error)) {
         await startOtpBlock();
-        toast.error('OTP is temporarily rate-limited for this number/device. Please wait a few minutes and try again.');
+        toast.error(`${t('register.tryAgainIn', 'Try again in')} ${OTP_BLOCK_SECONDS}s`);
         return;
       }
       toast.error(getReadableFirebaseAuthError(error));
@@ -333,100 +337,117 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-stretch" style={{ background: '#F8F6F5' }}>
-      {/* Left brand panel — desktop only */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-12 relative overflow-hidden bg-white">
-        {/* Decorative circles */}
-        <div className="absolute -top-24 -left-24 w-64 h-64 rounded-full opacity-10"
-          style={{ background: BRAND }} />
-        <div className="absolute -bottom-16 -right-16 w-48 h-48 rounded-full opacity-8"
-          style={{ background: BRAND }} />
+    <div className="auth-page-shell min-h-screen flex items-stretch" style={{ background: '#F6F1F1' }}>
+      <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-12 relative overflow-hidden bg-[#F8F3F2]">
+        <div className="absolute -top-24 -left-24 w-64 h-64 rounded-full opacity-10" style={{ background: BRAND }} />
+        <div className="absolute -top-16 -left-16 w-32 h-32 rounded-full blur-3xl opacity-15" style={{ background: BRAND }} />
+        <div className="absolute -bottom-16 -right-16 w-48 h-48 rounded-full opacity-8" style={{ background: BRAND }} />
 
-        <div className="relative z-10 text-center max-w-sm">
-          <div className="flex items-center justify-center gap-3 mb-10">
-            <img src={logo} alt="FlashBites" className="h-14 w-14 rounded-2xl shadow-md" />
-            <span className="text-3xl font-extrabold" style={{ color: BRAND }}>FlashBites</span>
+        <div className="relative z-10 text-center max-w-md">
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="w-14 h-14 rounded-lg bg-white border border-[#EEE4E4] flex items-center justify-center">
+              <img src={logo} alt="FlashBites" className="h-10 w-10 object-contain" />
+            </div>
+            <span className="text-4xl font-black text-[#201A1C] tracking-[-0.02em]">FlashBites</span>
           </div>
-          <h1 className="text-4xl font-extrabold text-gray-900 leading-tight mb-4">
-            Join <span style={{ color: BRAND }}>FlashBites</span>
-          </h1>
-          <p className="text-gray-400 leading-relaxed mb-10 text-base">
-            Create your account and start ordering from the best restaurants near you.
-          </p>
-          <div className="flex flex-col gap-3 items-start">
+
+          <p className="text-[#4B4346] text-lg mb-6">{t('register.hero', 'Create your account and start ordering in minutes.')}</p>
+
+          <div className="rounded-[2rem] overflow-hidden shadow-[0_18px_42px_rgba(38,24,27,0.15)] mb-8">
+            <img src={HERO_IMAGE} alt="Curated meal" className="w-full h-[280px] object-cover" />
+          </div>
+
+          <div className="text-left inline-flex flex-col gap-3">
             {[
-              { icon: '📱', t: 'Quick phone verification' },
-              { icon: '🍽️', t: '500+ top restaurants' },
-              { icon: '🚀', t: 'Fast & free delivery' },
+              { icon: '📱', t: t('register.quickVerification', 'Quick phone verification') },
+              { icon: '🍽️', t: t('auth.login.curatedRestaurants', 'Curated restaurants') },
+              { icon: '🚀', t: t('register.fastCheckout', 'Fast checkout experience') },
             ].map((f) => (
               <div key={f.t} className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg" style={{ background: '#FFF0ED' }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base" style={{ background: '#FFF0ED' }}>
                   {f.icon}
                 </div>
-                <span className="text-sm font-medium text-gray-600">{f.t}</span>
+                <span className="text-sm font-medium text-[#5B5256]">{f.t}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Right form panel */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
+      <div className="auth-form-shell flex-1 flex items-center justify-center p-4 sm:p-8 lg:p-10">
         <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-2 justify-center mb-8">
-            <img src={logo} alt="FlashBites" className="h-10 w-10 rounded-xl shadow" />
-            <span className="text-2xl font-extrabold" style={{ color: BRAND }}>FlashBites</span>
+          <div className="lg:hidden flex items-center gap-2 justify-center mb-6">
+            <div className="w-10 h-10 rounded-md bg-white border border-[#EEE4E4] flex items-center justify-center">
+              <img src={logo} alt="FlashBites" className="h-7 w-7 object-contain" />
+            </div>
+            <span className="text-2xl font-black text-[#201A1C]">FlashBites</span>
           </div>
 
-          <div className="bg-white rounded-3xl p-8 sm:p-10"
-            style={{ boxShadow: '0 4px 40px rgba(0,0,0,0.07)' }}>
-
-            <h2 className="text-2xl font-extrabold text-gray-900 mb-1">
-              {step === 1 ? 'Create account 🚀' : 'Verify phone 📱'}
+          <div className="auth-surface p-5 sm:p-8">
+            <h2 className="text-[1.7rem] sm:text-[2rem] font-black text-[#201A1C] leading-tight mb-1">
+              {step === 1 ? t('register.title', 'Create account') : t('register.verifyPhone', 'Verify phone')}
             </h2>
-            <p className="text-sm text-gray-400 mb-6">
+            <p className="text-sm text-[#6B6064] mb-6">
               {step === 1 ? (
-                <>Already have an account? <Link to="/login" className="font-semibold" style={{ color: BRAND }}>Sign in</Link></>
+                <>{t('register.alreadyHaveAccount', 'Already have an account?')} <Link to="/login" className="font-semibold" style={{ color: BRAND }}>{t('register.signIn', 'Sign in')}</Link></>
               ) : (
-                <>Enter the 6-digit OTP sent to <span className="font-semibold text-gray-700">+91 {formData.phone}</span></>
+                <>{t('register.enterOtpSentTo', 'Enter the 6-digit OTP sent to')} <span className="font-semibold text-[#4A4043]">+91 {formData.phone}</span></>
               )}
             </p>
 
-            {/* Step indicator */}
             <div className="flex items-center gap-2 mb-6">
               <div className="flex-1 h-1.5 rounded-full" style={{ background: BRAND }} />
-              <div className="flex-1 h-1.5 rounded-full" style={{ background: step >= 2 ? BRAND : '#E5E7EB' }} />
+              <div className="flex-1 h-1.5 rounded-full" style={{ background: step >= 2 ? BRAND : '#E7DCDC' }} />
             </div>
 
-            {/* Step 1: Details */}
             {step === 1 && (
               <form onSubmit={handleSendOTP} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Full Name</label>
-                  <input name="name" type="text" required value={formData.name} onChange={handleChange}
-                    placeholder="Your full name" className="input-field" />
+                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('register.fullName', 'Full Name')}</label>
+                  <input
+                    name="name"
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={handleChange}
+                    placeholder={t('register.fullNamePlaceholder', 'Your full name')}
+                    className="auth-input-base px-4 text-[14px] sm:text-[15px] placeholder:text-[#AA9EA2] outline-none"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Phone Number</label>
-                  <div className="flex">
-                    <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-gray-200 bg-gray-50 text-gray-500 text-sm font-semibold">
-                      +91
-                    </span>
-                    <input name="phone" type="tel" required maxLength="10" value={formData.phone} onChange={handleChange}
-                      placeholder="10-digit mobile number" className="input-field rounded-l-none flex-1" />
+                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('auth.login.phoneNumber', 'Phone Number')}</label>
+                  <div className="auth-input-base flex overflow-hidden">
+                    <span className="inline-flex items-center px-4 text-[#2B2426] text-sm font-semibold">+91</span>
+                    <span className="inline-flex items-center px-2 text-[#7B6E72]">⌄</span>
+                    <span className="my-3 w-px bg-[#DCCFCF]" />
+                    <input
+                      name="phone"
+                      type="tel"
+                      required
+                      maxLength="10"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder={t('register.phonePlaceholder', '10-digit mobile number')}
+                      className="flex-1 bg-transparent px-4 text-[14px] sm:text-[15px] text-[#3A3235] placeholder:text-[#AA9EA2] outline-none"
+                    />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Email <span className="text-gray-300">(optional)</span></label>
-                  <input name="email" type="email" value={formData.email} onChange={handleChange}
-                    placeholder="you@example.com" className="input-field" />
+                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('register.emailOptional', 'Email (optional)')}</label>
+                  <input
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="you@example.com"
+                    className="auth-input-base px-4 text-[14px] sm:text-[15px] placeholder:text-[#AA9EA2] outline-none"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Password</label>
+                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('register.password', 'Password')}</label>
                   <div className="relative">
                     <input
                       name="password"
@@ -435,21 +456,21 @@ const Register = () => {
                       value={formData.password}
                       onChange={handleChange}
                       onFocus={() => setShowPasswordGuide(true)}
-                      placeholder="Min 6 characters"
-                      className="input-field pr-16"
+                      placeholder={t('register.passwordPlaceholder', 'Min 6 characters')}
+                      className="auth-input-base px-4 pr-16 text-[14px] sm:text-[15px] placeholder:text-[#AA9EA2] outline-none"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((prev) => !prev)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-500 hover:text-gray-700"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold uppercase tracking-[0.06em] text-[#8A7E82]"
                     >
-                      {showPassword ? 'Hide' : 'Show'}
+                      {showPassword ? t('auth.login.hide', 'Hide') : t('auth.login.show', 'Show')}
                     </button>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Confirm Password</label>
+                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('register.confirmPassword', 'Confirm Password')}</label>
                   <div className="relative">
                     <input
                       name="confirmPassword"
@@ -458,85 +479,91 @@ const Register = () => {
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       onFocus={() => setShowPasswordGuide(true)}
-                      placeholder="Re-enter password"
-                      className="input-field pr-16"
+                      placeholder={t('register.confirmPasswordPlaceholder', 'Re-enter password')}
+                      className="auth-input-base px-4 pr-16 text-[14px] sm:text-[15px] placeholder:text-[#AA9EA2] outline-none"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword((prev) => !prev)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-500 hover:text-gray-700"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold uppercase tracking-[0.06em] text-[#8A7E82]"
                     >
-                      {showConfirmPassword ? 'Hide' : 'Show'}
+                      {showConfirmPassword ? t('auth.login.hide', 'Hide') : t('auth.login.show', 'Show')}
                     </button>
                   </div>
                 </div>
 
                 {showPasswordGuide && (
-                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs space-y-1">
-                    <p className="font-semibold text-gray-700">Password requirements</p>
-                    <p className={passwordRules.minLength ? 'text-green-600' : 'text-gray-500'}>
-                      {passwordRules.minLength ? '✓' : '•'} At least 6 characters
+                  <div className="rounded-2xl border border-[#E7DCDC] bg-[#F6EEEC] p-3 text-xs space-y-1">
+                    <p className="font-semibold text-[#52484B]">{t('register.passwordRequirements', 'Password requirements')}</p>
+                    <p className={passwordRules.minLength ? 'text-green-600' : 'text-[#786E72]'}>
+                      {passwordRules.minLength ? '✓' : '•'} {t('register.atLeast6', 'At least 6 characters')}
                     </p>
-                    <p className={passwordRules.uppercase ? 'text-green-600' : 'text-gray-500'}>
-                      {passwordRules.uppercase ? '✓' : '•'} One uppercase letter
+                    <p className={passwordRules.uppercase ? 'text-green-600' : 'text-[#786E72]'}>
+                      {passwordRules.uppercase ? '✓' : '•'} {t('register.uppercase', 'One uppercase letter')}
                     </p>
-                    <p className={passwordRules.lowercase ? 'text-green-600' : 'text-gray-500'}>
-                      {passwordRules.lowercase ? '✓' : '•'} One lowercase letter
+                    <p className={passwordRules.lowercase ? 'text-green-600' : 'text-[#786E72]'}>
+                      {passwordRules.lowercase ? '✓' : '•'} {t('register.lowercase', 'One lowercase letter')}
                     </p>
-                    <p className={passwordRules.special ? 'text-green-600' : 'text-gray-500'}>
-                      {passwordRules.special ? '✓' : '•'} One special character
+                    <p className={passwordRules.special ? 'text-green-600' : 'text-[#786E72]'}>
+                      {passwordRules.special ? '✓' : '•'} {t('register.special', 'One special character')}
                     </p>
                     {formData.confirmPassword && (
                       <p className={passwordsMatch ? 'text-green-600' : 'text-red-500'}>
-                        {passwordsMatch ? '✓ Passwords match' : '• Passwords do not match'}
+                        {passwordsMatch ? `✓ ${t('register.passwordsMatch', 'Passwords match')}` : `• ${t('register.passwordsDoNotMatch', 'Passwords do not match')}`}
                       </p>
                     )}
                   </div>
                 )}
 
-                <button type="submit" disabled={loading || otpBlockRemaining > 0} className="btn-primary w-full py-3.5 mt-2">
-                  {loading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                      Sending OTP...
-                    </span>
-                  ) : 'Send OTP →'}
+                <button
+                  type="submit"
+                  disabled={loading || otpBlockRemaining > 0}
+                  className="w-full h-[54px] sm:h-[60px] rounded-[1.25rem] sm:rounded-[2rem] text-white text-base sm:text-lg font-extrabold transition-all disabled:opacity-70"
+                  style={{ background: BRAND, boxShadow: '0 12px 28px rgba(234,88,12,0.24)' }}
+                >
+                  {loading ? t('register.sendingOtp', 'Sending OTP...') : otpBlockRemaining > 0 ? `${t('register.tryAgainIn', 'Try again in')} ${otpBlockRemaining}s` : t('register.sendOtp', 'Send OTP')}
                 </button>
               </form>
             )}
 
-            {/* Step 2: OTP Verification */}
             {step === 2 && (
               <form onSubmit={handleRegister} className="space-y-5">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Enter OTP</label>
+                  <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('register.enterOtp', 'Enter OTP')}</label>
                   <input
-                    name="otp" type="text" maxLength="6" required
-                    value={formData.otp} onChange={handleChange}
+                    name="otp"
+                    type="text"
+                    maxLength="6"
+                    required
+                    value={formData.otp}
+                    onChange={handleChange}
                     placeholder="000000"
-                    className="input-field text-center text-xl sm:text-2xl tracking-[0.24em] sm:tracking-[0.5em] font-bold"
+                    className="auth-input-base text-center text-lg sm:text-xl tracking-[0.22em] sm:tracking-[0.24em] font-bold placeholder:text-[#AA9EA2] outline-none"
                     autoFocus
                   />
                 </div>
 
-                <button type="submit" disabled={loading} className="btn-primary w-full py-3.5">
-                  {loading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                      Verifying...
-                    </span>
-                  ) : 'Verify & Register →'}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-[54px] sm:h-[60px] rounded-[1.25rem] sm:rounded-[2rem] text-white text-base sm:text-lg font-extrabold transition-all disabled:opacity-70"
+                  style={{ background: BRAND, boxShadow: '0 12px 28px rgba(234,88,12,0.24)' }}
+                >
+                  {loading ? t('register.verifying', 'Verifying...') : t('register.verifyAndRegister', 'Verify & Register')}
                 </button>
 
                 <div className="flex items-center justify-between text-sm">
-                  <button type="button" onClick={handleResendOTP}
+                  <button
+                    type="button"
+                    onClick={handleResendOTP}
                     disabled={loading || resendCountdown > 0 || otpBlockRemaining > 0}
-                    className="font-semibold disabled:opacity-40" style={{ color: BRAND }}>
-                    {otpBlockRemaining > 0 ? `Try again in ${otpBlockRemaining}s` : resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend OTP'}
+                    className="font-semibold disabled:opacity-40"
+                    style={{ color: BRAND }}
+                  >
+                    {otpBlockRemaining > 0 ? `${t('register.tryAgainIn', 'Try again in')} ${otpBlockRemaining}s` : resendCountdown > 0 ? `${t('register.resendIn', 'Resend in')} ${resendCountdown}s` : t('register.resendOtp', 'Resend OTP')}
                   </button>
-                  <button type="button" onClick={() => setStep(1)}
-                    className="text-gray-400 hover:text-gray-600">
-                    ← Change Details
+                  <button type="button" onClick={() => setStep(1)} className="text-[#8E8387] hover:text-[#5B5256]">
+                    ← {t('register.changeDetails', 'Change Details')}
                   </button>
                 </div>
               </form>

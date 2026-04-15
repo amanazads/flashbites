@@ -5,11 +5,14 @@ import { login, clearError } from '../redux/slices/authSlice';
 import toast from 'react-hot-toast';
 import logo from '../assets/logo.png';
 import { BRAND } from '../constants/theme';
+import { useLanguage } from '../contexts/LanguageContext';
+const HERO_IMAGE = 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=1200&q=80';
 
 const Login = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { loading, error, isAuthenticated, user } = useSelector((s) => s.auth);
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({ phone: '', password: '' });
   const [showPass, setShowPass] = useState(false);
   const lastErrorRef = useRef('');
@@ -31,112 +34,150 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.phone || !formData.password) { toast.error('Please fill in all fields'); return; }
+
+    const phone = formData.phone.trim();
+    const password = formData.password;
+
+    if (!phone && !password) {
+      toast.error(t('auth.login.phoneAndPasswordRequired', 'Please enter your phone number and password'));
+      return;
+    }
+
+    if (!phone) {
+      toast.error(t('auth.login.phoneRequired', 'Please enter your phone number'));
+      return;
+    }
+
+    if (phone.length !== 10) {
+      toast.error(t('auth.login.phoneLength', 'Phone number must be exactly 10 digits'));
+      return;
+    }
+
+    if (!password) {
+      toast.error(t('auth.login.passwordRequired', 'Please enter your password'));
+      return;
+    }
+
     await dispatch(login(formData));
   };
 
   return (
-    <div className="min-h-screen flex items-stretch" style={{ background: '#F8F6F5' }}>
-      {/* Left brand panel — desktop only */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-12 relative overflow-hidden bg-white">
-        {/* Decorative circles */}
-        <div className="absolute -top-24 -left-24 w-64 h-64 rounded-full opacity-10"
-          style={{ background: BRAND }} />
-        <div className="absolute -top-16 -left-16 w-32 h-32 rounded-full blur-3xl opacity-15"
-          style={{ background: BRAND }} />
-        <div className="absolute -bottom-16 -right-16 w-48 h-48 rounded-full opacity-8"
-          style={{ background: BRAND }} />
+    <div className="auth-page-shell min-h-screen flex items-stretch" style={{ background: '#F6F1F1' }}>
+      <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-12 relative overflow-hidden bg-[#F8F3F2]">
+        <div className="absolute -top-24 -left-24 w-64 h-64 rounded-full opacity-10" style={{ background: BRAND }} />
+        <div className="absolute -top-16 -left-16 w-32 h-32 rounded-full blur-3xl opacity-15" style={{ background: BRAND }} />
+        <div className="absolute -bottom-16 -right-16 w-48 h-48 rounded-full opacity-8" style={{ background: BRAND }} />
 
-        <div className="relative z-10 text-center max-w-sm">
-          <div className="flex items-center justify-center gap-3 mb-10">
-            <img src={logo} alt="FlashBites" className="h-14 w-14 rounded-2xl shadow-md" />
-            <span className="text-3xl font-extrabold" style={{ color: BRAND }}>FlashBites</span>
+        <div className="relative z-10 text-center max-w-md">
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="w-14 h-14 rounded-lg bg-white border border-[#EEE4E4] flex items-center justify-center">
+              <img src={logo} alt="FlashBites" className="h-10 w-10 object-contain" />
+            </div>
+            <span className="text-4xl font-black text-[#201A1C] tracking-[-0.02em]">FlashBites</span>
           </div>
-          <h1 className="text-4xl font-extrabold text-gray-900 leading-tight mb-4">
-            Food you love,{' '}
-            <span style={{ color: BRAND }}>delivered</span>
-          </h1>
-          <p className="text-gray-400 leading-relaxed mb-10 text-base">
-            Hundreds of restaurants, thousands of dishes — at your fingertips.
-          </p>
-          <div className="flex flex-col gap-3 items-start">
+
+          <p className="text-[#4B4346] text-lg mb-6">{t('auth.login.tagline', 'Deliciously fast, curated for you.')}</p>
+
+          <div className="rounded-[2rem] overflow-hidden shadow-[0_18px_42px_rgba(38,24,27,0.15)] mb-8">
+            <img src={HERO_IMAGE} alt="Curated meal" className="w-full h-[280px] object-cover" />
+          </div>
+
+          <div className="text-left inline-flex flex-col gap-3">
             {[
-              { icon: '⚡', t: '30-min delivery guaranteed' },
-              { icon: '🍽️', t: '500+ top restaurants' },
-              { icon: '💯', t: 'Real-time order tracking' },
+              { icon: '⚡', t: t('auth.login.quickDelivery', 'Quick delivery') },
+              { icon: '🍽️', t: t('auth.login.curatedRestaurants', 'Curated restaurants') },
+              { icon: '📍', t: t('auth.login.liveTracking', 'Live order tracking') },
             ].map((f) => (
               <div key={f.t} className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg" style={{ background: '#FFF0ED' }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base" style={{ background: '#FFF0ED' }}>
                   {f.icon}
                 </div>
-                <span className="text-sm font-medium text-gray-600">{f.t}</span>
+                <span className="text-sm font-medium text-[#5B5256]">{f.t}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Right form panel */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
+      <div className="auth-form-shell flex-1 flex items-center justify-center p-4 sm:p-8 lg:p-10">
         <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-2 justify-center mb-8">
-            <img src={logo} alt="FlashBites" className="h-10 w-10 rounded-xl shadow" />
-            <span className="text-2xl font-extrabold" style={{ color: BRAND }}>FlashBites</span>
+          <div className="lg:hidden flex items-center gap-2 justify-center mb-6">
+            <div className="w-10 h-10 rounded-md bg-white border border-[#EEE4E4] flex items-center justify-center">
+              <img src={logo} alt="FlashBites" className="h-7 w-7 object-contain" />
+            </div>
+            <span className="text-2xl font-black text-[#201A1C]">FlashBites</span>
           </div>
 
-          <div className="bg-white rounded-3xl p-8 sm:p-10"
-            style={{ boxShadow: '0 4px 40px rgba(0,0,0,0.07)' }}>
-            <h2 className="text-2xl font-extrabold text-gray-900 mb-1">Welcome back 👋</h2>
-            <p className="text-sm text-gray-400 mb-7">
-              New here?{' '}
-              <Link to="/register" className="font-semibold" style={{ color: BRAND }}>Create an account</Link>
+          <div className="auth-surface p-5 sm:p-8">
+            <h2 className="text-[1.7rem] sm:text-[2rem] font-black text-[#201A1C] leading-tight mb-1">{t('auth.login.welcomeBack', 'Welcome back')}</h2>
+            <p className="text-sm text-[#6B6064] mb-7">
+              {t('auth.login.newHere', 'New here?')}{' '}
+              <Link to="/register" className="font-semibold" style={{ color: BRAND }}>{t('auth.login.createAccount', 'Create an account')}</Link>
             </p>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Phone Number</label>
-                <div className="flex">
-                  <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-gray-200 bg-gray-50 text-gray-500 text-sm font-semibold">
-                    +91
-                  </span>
+                <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('auth.login.phoneNumber', 'Phone Number')}</label>
+                <div className="auth-input-base flex overflow-hidden">
+                  <span className="inline-flex items-center px-4 text-[#2B2426] text-sm font-semibold">+91</span>
+                  <span className="inline-flex items-center px-2 text-[#7B6E72]">⌄</span>
+                  <span className="my-3 w-px bg-[#DCCFCF]" />
                   <input
-                    id="phone" name="phone" type="tel" autoComplete="tel" required maxLength="10"
-                    value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="10-digit mobile number" className="input-field rounded-l-none flex-1"
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    autoComplete="tel"
+                    required
+                    maxLength="10"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                    placeholder={t('auth.login.phonePlaceholder', 'Phone number')}
+                    className="flex-1 bg-transparent px-4 text-[14px] sm:text-[15px] text-[#3A3235] placeholder:text-[#AA9EA2] outline-none"
                   />
                 </div>
               </div>
+
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Password</label>
+                <label className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('auth.login.password', 'Password')}</label>
                 <div className="relative">
                   <input
-                    id="password" name="password" type={showPass ? 'text' : 'password'}
-                    autoComplete="current-password" required
-                    value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder="Enter your password" className="input-field pr-14"
+                    id="password"
+                    name="password"
+                    type={showPass ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    required
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder={t('auth.login.enterPassword', 'Enter your password')}
+                    className="auth-input-base px-4 pr-16 text-[14px] sm:text-[15px] placeholder:text-[#AA9EA2] outline-none"
                   />
-                  <button type="button" onClick={() => setShowPass(!showPass)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-400 hover:text-gray-600">
-                    {showPass ? 'Hide' : 'Show'}
+                  <button
+                    type="button"
+                    onClick={() => setShowPass(!showPass)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold uppercase tracking-[0.06em] text-[#8A7E82]"
+                  >
+                    {showPass ? t('auth.login.hide', 'Hide') : t('auth.login.show', 'Show')}
                   </button>
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+              <div className="flex items-center justify-between gap-2">
+                <label className="flex items-center gap-2 text-sm text-[#5B5256] cursor-pointer">
                   <input type="checkbox" className="h-4 w-4 rounded" style={{ accentColor: BRAND }} />
-                  Remember me
+                  {t('auth.login.rememberMe', 'Remember me')}
                 </label>
                 <Link to="/forgot-password" className="text-sm font-semibold" style={{ color: BRAND }}>
-                  Forgot password?
+                  {t('auth.login.forgotPassword', 'Forgot password?')}
                 </Link>
               </div>
 
-              <button type="submit" disabled={loading} className="btn-primary w-full py-3.5 mt-1">
-                {loading ? (
-                  <span className="flex items-center gap-2"><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Signing in...</span>
-                ) : 'Sign in →'}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-[54px] sm:h-[60px] rounded-[1.25rem] sm:rounded-[2rem] text-white text-base sm:text-xl font-extrabold transition-all disabled:opacity-70"
+                style={{ background: BRAND, boxShadow: '0 12px 28px rgba(234,88,12,0.24)' }}
+              >
+                {loading ? t('auth.login.signingIn', 'Signing in...') : t('auth.login.submit', 'Submit')}
               </button>
             </form>
           </div>

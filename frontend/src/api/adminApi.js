@@ -52,6 +52,10 @@ export const updateRestaurantPayoutRate = (id, payload) => {
   return axios.patch(`/admin/restaurants/${id}/payout-rate`, payload);
 };
 
+export const updateRestaurantFeeControls = (id, payload) => {
+  return axios.patch(`/admin/restaurants/${id}/fee-controls`, payload);
+};
+
 export const blockUser = (id, isActive) => {
   return axios.patch(`/admin/users/${id}/block`, { isActive });
 };

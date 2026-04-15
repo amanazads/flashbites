@@ -2,6 +2,20 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import * as authApi from '../../api/authApi';
 import { Preferences } from '@capacitor/preferences';
 
+const extractApiErrorMessage = (error, fallbackMessage) => {
+  const responseData = error?.response?.data;
+  const details = Array.isArray(responseData?.errors) ? responseData.errors : [];
+
+  if (details.length > 0) {
+    const first = details[0];
+    if (first?.message) return first.message;
+  }
+
+  if (responseData?.message) return responseData.message;
+  if (error?.message) return error.message;
+  return fallbackMessage;
+};
+
 // Thunks
 export const login = createAsyncThunk(
   'auth/login',
@@ -22,7 +36,7 @@ export const login = createAsyncThunk(
       // Return the nested data object which contains user, accessToken, refreshToken
       return apiResponse.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Login failed');
+      return rejectWithValue(extractApiErrorMessage(error, 'Login failed'));
     }
   }
 );
@@ -46,7 +60,7 @@ export const register = createAsyncThunk(
       // Return the nested data object which contains user, accessToken, refreshToken
       return apiResponse.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Registration failed');
+      return rejectWithValue(extractApiErrorMessage(error, 'Registration failed'));
     }
   }
 );

@@ -1,11 +1,33 @@
 import axios from 'axios';
 import { Preferences } from '@capacitor/preferences';
+import { getApiBaseUrl } from '../utils/apiBase';
 
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const getResolvedApiUrl = () => getApiBaseUrl();
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-// Detect if running in Capacitor
-const isCapacitor = window.Capacitor !== undefined;
+const isNativePlatform = () => {
+  if (typeof window === 'undefined') return false;
+
+  const cap = window.Capacitor;
+  if (!cap) {
+    const host = window.location.hostname;
+    const protocol = window.location.protocol;
+    return ((host === 'localhost' || host === '127.0.0.1') && protocol === 'https:') || protocol === 'capacitor:';
+  }
+
+  if (typeof cap.isNativePlatform === 'function') {
+    return cap.isNativePlatform();
+  }
+
+  if (typeof cap.getPlatform === 'function') {
+    return cap.getPlatform() !== 'web';
+  }
+
+  return false;
+};
+
+// Detect if running in native Capacitor runtime
+const isCapacitor = isNativePlatform();
 
 const clearAuthStorage = async () => {
   if (isCapacitor) {
@@ -55,7 +77,7 @@ const protectedPagePrefixes = ['/checkout', '/orders', '/payment', '/profile', '
 const isOnProtectedPage = () => protectedPagePrefixes.some((prefix) => window.location.pathname.startsWith(prefix));
 
 const instance = axios.create({
-  baseURL: apiUrl,
+  baseURL: getResolvedApiUrl(),
   timeout: isCapacitor ? 60000 : 30000, // 60s on mobile (Render cold start), 30s on web
   headers: {
     'Content-Type': 'application/json',
@@ -66,6 +88,8 @@ const instance = axios.create({
 // Request interceptor for adding auth token
 instance.interceptors.request.use(
   async (config) => {
+    config.baseURL = getResolvedApiUrl();
+
     let token;
     
     if (isCapacitor) {
@@ -141,7 +165,7 @@ instance.interceptors.response.use(
         try {
           if (!refreshPromise) {
             refreshPromise = axios.post(
-              `${apiUrl}/auth/refresh`,
+              `${getResolvedApiUrl()}/auth/refresh`,
               { refreshToken },
               {
                 headers: { 'Content-Type': 'application/json' },

@@ -1,6 +1,63 @@
 const Partner = require('../models/Partner');
+const User = require('../models/User');
+const Restaurant = require('../models/Restaurant');
+const crypto = require('crypto');
 const cloudinary = require('../config/cloudinary');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
+
+const uploadDocToCloudinary = (file, folder) => {
+  return new Promise((resolve, reject) => {
+    if (!file?.buffer) {
+      return reject(new Error('Missing file buffer for upload'));
+    }
+
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: 'auto',
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+
+    stream.end(file.buffer);
+  });
+};
+
+const normalizePhone = (value) => String(value || '').replace(/\D/g, '').slice(-10);
+
+const parseJsonField = (value, fallback = {}) => {
+  if (!value) return fallback;
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+};
+
+const normalizeMenuItems = (value) => {
+  const parsed = parseJsonField(value, []);
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed
+    .map((item) => ({
+      name: String(item?.name || '').trim(),
+      nameHi: String(item?.nameHi || '').trim(),
+      category: String(item?.category || '').trim(),
+      price: Number(item?.price),
+      description: String(item?.description || '').trim(),
+      descriptionHi: String(item?.descriptionHi || '').trim()
+    }))
+    .filter((item) => item.name && Number.isFinite(item.price) && item.price >= 0);
+};
+
+const generateTemporaryPassword = () => {
+  const randomChunk = crypto.randomBytes(4).toString('hex');
+  return `Fb@${randomChunk}A1`;
+};
 
 // @desc    Submit partner application
 // @route   POST /api/partners/apply
@@ -23,9 +80,46 @@ exports.submitApplication = async (req, res) => {
       emergencyContact,
     } = req.body;
 
+    const normalizedPhone = normalizePhone(phone);
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const normalizedAlternatePhone = String(alternatePhone || '').trim() || null;
+
+    if (
+      !fullName
+      || !normalizedEmail
+      || !normalizedPhone
+      || !dateOfBirth
+      || !vehicleType
+      || !vehicleNumber
+      || !vehicleModel
+      || !licenseNumber
+      || !aadharNumber
+      || !address
+      || !bankAccount
+      || !emergencyContact
+    ) {
+      return errorResponse(
+        res,
+        400,
+        'Missing required fields for delivery partner application'
+      );
+    }
+
+    if (!/^[0-9]{10}$/.test(normalizedPhone)) {
+      return errorResponse(res, 400, 'Phone number must be a valid 10-digit number');
+    }
+
+    if (normalizedAlternatePhone && !/^[0-9]{10}$/.test(normalizedAlternatePhone)) {
+      return errorResponse(res, 400, 'Alternate phone number must be a valid 10-digit number');
+    }
+
+    if (!/^[0-9]{12}$/.test(String(aadharNumber || '').trim())) {
+      return errorResponse(res, 400, 'Aadhar number must be a valid 12-digit number');
+    }
+
     // Check if partner already exists with this phone or email
     const existingPartner = await Partner.findOne({
-      $or: [{ phone }, { email }],
+      $or: [{ phone: normalizedPhone }, { email: normalizedEmail }],
     });
 
     if (existingPartner) {
@@ -37,9 +131,10 @@ exports.submitApplication = async (req, res) => {
 
     if (req.files) {
       if (req.files.photo) {
-        const photoResult = await cloudinary.uploader.upload(req.files.photo[0].path, {
-          folder: 'flashbites/partners/photos',
-        });
+        const photoResult = await uploadDocToCloudinary(
+          req.files.photo[0],
+          'flashbites/partners/photos'
+        );
         documents.photo = {
           url: photoResult.secure_url,
           cloudinaryId: photoResult.public_id,
@@ -47,9 +142,10 @@ exports.submitApplication = async (req, res) => {
       }
 
       if (req.files.drivingLicense) {
-        const licenseResult = await cloudinary.uploader.upload(req.files.drivingLicense[0].path, {
-          folder: 'flashbites/partners/licenses',
-        });
+        const licenseResult = await uploadDocToCloudinary(
+          req.files.drivingLicense[0],
+          'flashbites/partners/licenses'
+        );
         documents.drivingLicense = {
           url: licenseResult.secure_url,
           cloudinaryId: licenseResult.public_id,
@@ -57,9 +153,10 @@ exports.submitApplication = async (req, res) => {
       }
 
       if (req.files.aadharCard) {
-        const aadharResult = await cloudinary.uploader.upload(req.files.aadharCard[0].path, {
-          folder: 'flashbites/partners/aadhar',
-        });
+        const aadharResult = await uploadDocToCloudinary(
+          req.files.aadharCard[0],
+          'flashbites/partners/aadhar'
+        );
         documents.aadharCard = {
           url: aadharResult.secure_url,
           cloudinaryId: aadharResult.public_id,
@@ -68,16 +165,24 @@ exports.submitApplication = async (req, res) => {
     }
 
     // Parse JSON strings
-    const parsedAddress = typeof address === 'string' ? JSON.parse(address) : address;
-    const parsedBankAccount = typeof bankAccount === 'string' ? JSON.parse(bankAccount) : bankAccount;
-    const parsedEmergencyContact = typeof emergencyContact === 'string' ? JSON.parse(emergencyContact) : emergencyContact;
+    let parsedAddress;
+    let parsedBankAccount;
+    let parsedEmergencyContact;
+
+    try {
+      parsedAddress = typeof address === 'string' ? JSON.parse(address) : address;
+      parsedBankAccount = typeof bankAccount === 'string' ? JSON.parse(bankAccount) : bankAccount;
+      parsedEmergencyContact = typeof emergencyContact === 'string' ? JSON.parse(emergencyContact) : emergencyContact;
+    } catch (parseError) {
+      return errorResponse(res, 400, 'Invalid form data payload', parseError.message);
+    }
 
     // Create partner application
     const partner = await Partner.create({
       fullName,
-      email,
-      phone,
-      alternatePhone,
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      alternatePhone: normalizedAlternatePhone,
       dateOfBirth,
       address: parsedAddress,
       vehicleType,
@@ -94,7 +199,180 @@ exports.submitApplication = async (req, res) => {
     successResponse(res, 201, 'Application submitted successfully', { partner });
   } catch (error) {
     console.error('Submit application error:', error);
-    errorResponse(res, 500, 'Failed to submit application', error.message);
+    if (error?.name === 'ValidationError') {
+      return errorResponse(res, 400, 'Invalid application data', error.message);
+    }
+
+    return errorResponse(res, 500, 'Failed to submit application', error.message);
+  }
+};
+
+// @desc    Submit restaurant partner application
+// @route   POST /api/partners/restaurant-apply
+// @access  Public
+exports.submitRestaurantApplication = async (req, res) => {
+  try {
+    const {
+      restaurantName,
+      ownerName,
+      email,
+      phone,
+      alternatePhone,
+      businessType,
+      cuisineTypes,
+      openingTime,
+      closingTime,
+      address,
+      location,
+      fssaiLicenseNumber,
+      gstNumber,
+      panNumber,
+      bankDetails,
+      menuItems,
+      acceptTerms,
+      acceptAgreement,
+    } = req.body;
+
+    const normalizedPhone = normalizePhone(phone);
+    const normalizedAlternatePhone = normalizePhone(alternatePhone);
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+
+    const parsedAddress = parseJsonField(address, {});
+    const parsedLocation = parseJsonField(location, {});
+    const parsedBankDetails = parseJsonField(bankDetails, {});
+    const parsedMenuItems = normalizeMenuItems(menuItems);
+
+    const lat = Number(parsedLocation?.lat);
+    const lng = Number(parsedLocation?.lng);
+
+    if (!restaurantName || !ownerName || !normalizedEmail || !normalizedPhone) {
+      return errorResponse(res, 400, 'Restaurant name, owner name, email, and phone are required');
+    }
+
+    if (!/^[0-9]{10}$/.test(normalizedPhone)) {
+      return errorResponse(res, 400, 'Phone number must be a valid 10-digit number');
+    }
+
+    if (normalizedAlternatePhone && !/^[0-9]{10}$/.test(normalizedAlternatePhone)) {
+      return errorResponse(res, 400, 'Alternate phone number must be a valid 10-digit number');
+    }
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return errorResponse(res, 400, 'A valid latitude and longitude are required');
+    }
+
+    if (String(acceptTerms) !== 'true' || String(acceptAgreement) !== 'true') {
+      return errorResponse(res, 400, 'Please accept Terms and Partner Agreement');
+    }
+
+    const existingUser = await User.findOne({
+      $or: [{ phone: normalizedPhone }, { email: normalizedEmail }]
+    }).select('_id');
+
+    if (existingUser) {
+      return errorResponse(res, 400, 'An account already exists with this phone or email');
+    }
+
+    const existingRestaurant = await Restaurant.findOne({
+      $or: [{ phone: normalizedPhone }, { email: normalizedEmail }]
+    }).select('_id');
+
+    if (existingRestaurant) {
+      return errorResponse(res, 400, 'A restaurant application already exists with this phone or email');
+    }
+
+    const documents = {};
+    if (req.files?.fssaiLicense?.[0]) {
+      const fssai = await uploadDocToCloudinary(req.files.fssaiLicense[0], 'flashbites/restaurants/fssai');
+      documents.fssai = fssai.secure_url;
+    }
+    if (req.files?.ownerIdProof?.[0]) {
+      const ownerId = await uploadDocToCloudinary(req.files.ownerIdProof[0], 'flashbites/restaurants/owner-id');
+      documents.ownerIdProof = ownerId.secure_url;
+    }
+    if (req.files?.menuDocument?.[0]) {
+      const menuDoc = await uploadDocToCloudinary(req.files.menuDocument[0], 'flashbites/restaurants/menu-docs');
+      documents.menuDocument = menuDoc.secure_url;
+    }
+    if (req.files?.cancelledCheque?.[0]) {
+      const cheque = await uploadDocToCloudinary(req.files.cancelledCheque[0], 'flashbites/restaurants/bank-docs');
+      documents.cancelledCheque = cheque.secure_url;
+    }
+
+    const temporaryPassword = generateTemporaryPassword();
+
+    const owner = await User.create({
+      name: ownerName,
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      password: temporaryPassword,
+      role: 'restaurant_owner',
+      isActive: false,
+      isPhoneVerified: true
+    });
+
+    const cuisines = String(cuisineTypes || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    const restaurant = await Restaurant.create({
+      ownerId: owner._id,
+      name: String(restaurantName).trim(),
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      description: `${businessType || 'Restaurant'} onboarding via partner form`,
+      cuisines,
+      address: {
+        street: parsedAddress?.street || '',
+        city: parsedAddress?.city || '',
+        state: parsedAddress?.state || '',
+        zipCode: parsedAddress?.pincode || '',
+        landmark: parsedAddress?.landmark || ''
+      },
+      location: {
+        type: 'Point',
+        coordinates: [lng, lat]
+      },
+      timing: {
+        open: openingTime || '09:00',
+        close: closingTime || '22:00'
+      },
+      isApproved: false,
+      isActive: false,
+      fssaiLicense: String(fssaiLicenseNumber || '').trim(),
+      documents: {
+        ...documents,
+        gst: String(gstNumber || '').trim() || undefined,
+        panCard: String(panNumber || '').trim() || undefined
+      },
+      bankDetails: {
+        accountNumber: parsedBankDetails?.accountNumber || '',
+        ifscCode: String(parsedBankDetails?.ifscCode || '').toUpperCase(),
+        accountHolderName: parsedBankDetails?.accountHolderName || ownerName,
+        bankName: ''
+      }
+    });
+
+    successResponse(res, 201, 'Restaurant application submitted successfully. Awaiting admin approval.', {
+      restaurant,
+      owner: {
+        id: owner._id,
+        name: owner.name,
+        phone: owner.phone,
+        email: owner.email
+      },
+      menuItemsCount: parsedMenuItems.length
+    });
+  } catch (error) {
+    console.error('Submit restaurant application error:', error);
+    if (error?.name === 'ValidationError') {
+      return errorResponse(res, 400, 'Invalid restaurant application data', error.message);
+    }
+    if (error?.code === 11000) {
+      return errorResponse(res, 400, 'A user or restaurant with this phone/email already exists');
+    }
+    return errorResponse(res, 500, 'Failed to submit restaurant application', error.message);
   }
 };
 
@@ -204,16 +482,66 @@ exports.approvePartner = async (req, res) => {
       return errorResponse(res, 400, 'Only pending applications can be approved');
     }
 
-    partner.status = 'approved';
+    let user = null;
+    let generatedCredentials = null;
+
+    if (partner.userId) {
+      user = await User.findById(partner.userId).select('+password');
+    }
+
+    if (!user) {
+      user = await User.findOne({
+        $or: [
+          { phone: normalizePhone(partner.phone) },
+          { email: String(partner.email || '').trim().toLowerCase() }
+        ]
+      }).select('+password');
+    }
+
+    if (!user) {
+      const temporaryPassword = generateTemporaryPassword();
+      user = await User.create({
+        name: partner.fullName,
+        email: String(partner.email || '').trim().toLowerCase(),
+        phone: normalizePhone(partner.phone),
+        password: temporaryPassword,
+        role: 'delivery_partner',
+        isActive: true,
+        isPhoneVerified: true
+      });
+
+      generatedCredentials = {
+        phone: user.phone,
+        email: user.email || '',
+        password: temporaryPassword
+      };
+    } else {
+      user.role = 'delivery_partner';
+      user.isActive = true;
+      user.isPhoneVerified = true;
+
+      const temporaryPassword = generateTemporaryPassword();
+      user.password = temporaryPassword;
+      generatedCredentials = {
+        phone: user.phone,
+        email: user.email || '',
+        password: temporaryPassword
+      };
+
+      await user.save();
+    }
+
+    partner.status = 'active';
+    partner.userId = user._id;
     partner.reviewedBy = req.user._id;
     partner.reviewedAt = new Date();
     
     await partner.save();
 
-    // TODO: Send approval email/SMS to partner
-    // TODO: Create user account for partner with role 'delivery_partner'
-
-    successResponse(res, 200, 'Partner approved successfully', { partner });
+    successResponse(res, 200, 'Partner approved successfully', {
+      partner,
+      credentials: generatedCredentials
+    });
   } catch (error) {
     console.error('Approve partner error:', error);
     errorResponse(res, 500, 'Failed to approve partner', error.message);

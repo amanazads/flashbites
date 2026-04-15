@@ -17,6 +17,10 @@ const promoBannerSchema = new mongoose.Schema(
     cta: { type: String, trim: true },
     bg: { type: String, trim: true },
     img: { type: String, trim: true },
+    startsAt: { type: Date, default: null },
+    endsAt: { type: Date, default: null },
+    actionType: { type: String, trim: true, default: 'none' },
+    actionValue: { type: String, trim: true },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 }
   },
@@ -28,6 +32,32 @@ const deliveryPartnerPayoutSchema = new mongoose.Schema(
     perOrder: { type: Number, default: 40, min: 0 },
     bonusThreshold: { type: Number, default: 13, min: 1 },
     bonusAmount: { type: Number, default: 850, min: 0 }
+  },
+  { _id: false }
+);
+
+const feeControlSchema = new mongoose.Schema(
+  {
+    enabled: { type: Boolean, default: true },
+    effectiveFrom: { type: Date, default: null }
+  },
+  { _id: false }
+);
+
+const feeControlsSchema = new mongoose.Schema(
+  {
+    deliveryFee: {
+      type: feeControlSchema,
+      default: () => ({ enabled: true, effectiveFrom: null })
+    },
+    platformFee: {
+      type: feeControlSchema,
+      default: () => ({ enabled: true, effectiveFrom: null })
+    },
+    tax: {
+      type: feeControlSchema,
+      default: () => ({ enabled: true, effectiveFrom: null })
+    }
   },
   { _id: false }
 );
@@ -58,6 +88,10 @@ const platformSettingsSchema = new mongoose.Schema(
         bonusThreshold: 13,
         bonusAmount: 850
       }
+    },
+    feeControls: {
+      type: feeControlsSchema,
+      default: () => ({})
     }
   },
   { timestamps: true }

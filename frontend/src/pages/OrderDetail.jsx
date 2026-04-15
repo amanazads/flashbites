@@ -1,31 +1,95 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { getOrderById, cancelOrder } from '../api/orderApi';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
-import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
+import { ORDER_STATUS_LABELS } from '../utils/constants';
+import { getSocketBaseUrl } from '../utils/apiBase';
 import { Loader } from '../components/common/Loader';
 import ReviewModal from '../components/common/ReviewModal';
 import CancellationModal from '../components/common/CancellationModal';
+import OrderInvoiceModal from '../components/common/OrderInvoiceModal';
 import LiveTracking from '../components/tracking/LiveTracking';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
+import { MapContainer, Marker, TileLayer, Circle } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
+  ArrowLeftIcon,
   MapPinIcon,
   PhoneIcon,
-  ClockIcon,
-  CheckCircleIcon,
   XCircleIcon,
-  TruckIcon,
+  EnvelopeIcon,
   CreditCardIcon,
-  ReceiptRefundIcon,
+  DocumentTextIcon,
   BuildingStorefrontIcon,
-  StarIcon
+  StarIcon,
+  HomeIcon,
+  MagnifyingGlassIcon,
+  UserCircleIcon,
+  ChatBubbleLeftEllipsisIcon,
+  ShoppingBagIcon
 } from '@heroicons/react/24/outline';
+import logo from '../assets/logo.png';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+const restaurantIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const deliveryIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const riderIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const EARTH_RADIUS_KM = 6371;
+const DELIVERY_SPEED_KMPH = 22;
+
+const haversineKm = (from, to) => {
+  if (!Array.isArray(from) || !Array.isArray(to)) return null;
+  const [lat1, lon1] = from;
+  const [lat2, lon2] = to;
+  if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return null;
+
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+
+  return 2 * EARTH_RADIUS_KM * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
 
 const OrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useSelector((state) => state.auth);
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,12 +97,14 @@ const OrderDetail = () => {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showCancellationModal, setShowCancellationModal] = useState(false);
   const [showTracking, setShowTracking] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [socket, setSocket] = useState(null);
+  const [livePartnerPosition, setLivePartnerPosition] = useState(null);
+  const [nowTs, setNowTs] = useState(Date.now());
 
   // Initialize socket connection
   useEffect(() => {
-    const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
-    const socketUrl = rawApiUrl.replace(/\/api\/?$/, '') || window.location.origin;
+    const socketUrl = getSocketBaseUrl();
 
     const newSocket = io(socketUrl, {
       auth: {
@@ -73,10 +139,17 @@ const OrderDetail = () => {
       refreshOrder();
     };
 
-    const handleLiveLocation = () => {
-      if (showTracking) {
-        refreshOrder();
+    const handleLiveLocation = (payload) => {
+      const latitude = payload?.location?.latitude ?? payload?.lat;
+      const longitude = payload?.location?.longitude ?? payload?.lng;
+
+      if (payload?.orderId && payload.orderId !== id) return;
+
+      if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+        setLivePartnerPosition([latitude, longitude]);
       }
+
+      refreshOrder();
     };
 
     newSocket.on('status_update', handleLiveStatus);
@@ -95,7 +168,7 @@ const OrderDetail = () => {
       newSocket.off('locationUpdate', handleLiveLocation);
       newSocket.close();
     };
-  }, [id, showTracking]);
+  }, [id]);
 
   useEffect(() => {
     fetchOrderDetails();
@@ -103,6 +176,11 @@ const OrderDetail = () => {
     const interval = setInterval(fetchOrderDetails, 30000);
     return () => clearInterval(interval);
   }, [id]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowTs(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchOrderDetails = async () => {
     try {
@@ -130,26 +208,6 @@ const OrderDetail = () => {
     }
   };
 
-  const getOrderStatusSteps = () => {
-    const steps = [
-      { key: 'pending', label: 'Order Placed', icon: CheckCircleIcon },
-      { key: 'confirmed', label: 'Confirmed', icon: CheckCircleIcon },
-      { key: 'preparing', label: 'Preparing', icon: ClockIcon },
-      { key: 'ready', label: 'Ready', icon: CheckCircleIcon },
-      { key: 'out_for_delivery', label: 'Out for Delivery', icon: TruckIcon },
-      { key: 'delivered', label: 'Delivered', icon: CheckCircleIcon }
-    ];
-
-    const statusOrder = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
-    const currentIndex = statusOrder.indexOf(order.status);
-
-    return steps.map((step, index) => ({
-      ...step,
-      completed: index <= currentIndex,
-      current: index === currentIndex
-    }));
-  };
-
   if (loading) return <Loader />;
   if (!order) return null;
 
@@ -157,400 +215,543 @@ const OrderDetail = () => {
   const isCancelled = order.status === 'cancelled';
   const isDelivered = order.status === 'delivered';
 
-  return (
-    <div className="min-h-screen bg-gray-50 py-6 sm:py-8 max-[388px]:py-4">
-      <div className="max-w-6xl mx-auto container-px">
-        {/* Header */}
-        <div className="mb-6 max-[388px]:mb-4">
-          <button
-            onClick={() => navigate('/orders')}
-            className="text-primary-600 hover:text-primary-700 mb-4 max-[388px]:text-sm"
-          >
-            ← Back to Orders
-          </button>
-          <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
-            <div>
-              <h1 className="text-2xl sm:text-3xl max-[388px]:text-xl font-bold mb-2">Order Details</h1>
-              <p className="text-gray-600">Order #{order._id.slice(-8).toUpperCase()}</p>
-              <p className="text-sm max-[388px]:text-xs text-gray-500">{formatDateTime(order.createdAt)}</p>
-            </div>
-            <span className={`badge text-sm sm:text-lg max-[388px]:text-xs px-3 sm:px-4 max-[388px]:px-2 py-1.5 sm:py-2 max-[388px]:py-1 ${ORDER_STATUS_COLORS[order.status]}`}>
-              {ORDER_STATUS_LABELS[order.status]}
-            </span>
-          </div>
-        </div>
+  const progressFlow = ['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
+  const progressIndex = Math.max(progressFlow.indexOf(order.status), 0);
+  const miniTimelineSteps = [
+    { label: 'ORDERED', active: progressIndex >= 0 },
+    { label: 'PREPARING', active: progressIndex >= 1 },
+    { label: 'DELIVERY', active: progressIndex >= 4 },
+    { label: 'ENJOY', active: progressIndex >= 5 },
+  ];
+  const deliveryPerson = order?.deliveryPartnerId;
+  const deliveryPartnerName = typeof deliveryPerson === 'object' ? deliveryPerson?.name : '';
+  const deliveryPartnerPhone = typeof deliveryPerson === 'object' ? deliveryPerson?.phone : '';
+  const deliveryPartnerVehicle = typeof deliveryPerson === 'object' ? deliveryPerson?.vehicleNumber : '';
+  const hasDeliveryPartnerAssigned = Boolean(
+    (deliveryPerson && typeof deliveryPerson === 'object' && (deliveryPerson?._id || deliveryPartnerName || deliveryPartnerPhone))
+      || (typeof deliveryPerson === 'string' && deliveryPerson.trim())
+  );
+  const canShowDeliveryContact = hasDeliveryPartnerAssigned && !isCancelled;
 
-        {/* Order Status Timeline */}
-        {!isCancelled && (
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6 max-[388px]:p-3 mb-6 max-[388px]:mb-4">
-            <h2 className="text-xl max-[388px]:text-lg font-bold mb-6 max-[388px]:mb-4">Order Status</h2>
-            <div className="relative overflow-x-auto -mx-2 px-2">
-              <div className="flex justify-between items-center min-w-[420px] xs:min-w-[520px] sm:min-w-[640px] max-[388px]:min-w-[360px]">
-                {getOrderStatusSteps().map((step, index) => {
-                  const Icon = step.icon;
-                  return (
-                    <div key={step.key} className="flex-1 relative">
-                      <div className="flex flex-col items-center">
-                        <div
-                          className={`w-12 h-12 max-[388px]:w-10 max-[388px]:h-10 rounded-full flex items-center justify-center ${
-                            step.completed
-                              ? 'bg-green-500 text-white'
-                              : step.current
-                              ? 'bg-primary-500 text-white animate-pulse'
-                              : 'bg-gray-200 text-gray-400'
-                          }`}
-                        >
-                          <Icon className="h-6 w-6 max-[388px]:h-5 max-[388px]:w-5" />
-                        </div>
-                        <p
-                          className={`mt-2 text-xs max-[388px]:text-[11px] text-center font-medium ${
-                            step.completed || step.current ? 'text-gray-900' : 'text-gray-400'
-                          }`}
-                        >
-                          {step.label}
-                        </p>
-                      </div>
-                      {index < getOrderStatusSteps().length - 1 && (
-                        <div
-                          className={`absolute top-6 left-1/2 h-0.5 w-full ${
-                            step.completed ? 'bg-green-500' : 'bg-gray-200'
-                          }`}
-                          style={{ zIndex: -1 }}
-                        />
-                      )}
-                    </div>
-                  );
-                })}
+  const restaurantPosition = (() => {
+    const coords = order?.restaurantId?.location?.coordinates;
+    if (!Array.isArray(coords) || coords.length < 2) return null;
+    const [lng, lat] = coords;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return [lat, lng];
+  })();
+
+  const deliveryPosition = (() => {
+    const c1 = order?.addressId?.coordinates;
+    if (Array.isArray(c1) && c1.length >= 2) {
+      const [lng, lat] = c1;
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
+    }
+
+    const c2 = order?.deliveryAddress?.coordinates?.coordinates || order?.deliveryAddress?.coordinates;
+    if (Array.isArray(c2) && c2.length >= 2) {
+      const [lng, lat] = c2;
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
+    }
+
+    return null;
+  })();
+
+  const partnerPosition = (() => {
+    if (livePartnerPosition) return livePartnerPosition;
+
+    const orderTracked = order?.deliveryPartnerLocation?.coordinates;
+    if (Array.isArray(orderTracked) && orderTracked.length >= 2) {
+      const [lng, lat] = orderTracked;
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
+    }
+
+    const c = order?.deliveryPartnerId?.currentLocation?.coordinates;
+    if (Array.isArray(c) && c.length >= 2) {
+      const [lng, lat] = c;
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
+    }
+
+    const userLocation = order?.deliveryPartnerId?.location?.coordinates;
+    if (Array.isArray(userLocation) && userLocation.length >= 2) {
+      const [lng, lat] = userLocation;
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng];
+    }
+
+    return null;
+  })();
+
+  const etaMinutesFromEstimated = (() => {
+    const estimatedMs = order?.estimatedDelivery ? new Date(order.estimatedDelivery).getTime() : null;
+    if (!Number.isFinite(estimatedMs)) return null;
+    return Math.max(0, Math.ceil((estimatedMs - nowTs) / 60000));
+  })();
+
+  const etaMinutesFromDistance = (() => {
+    if (!partnerPosition || !deliveryPosition) return null;
+    const km = haversineKm(partnerPosition, deliveryPosition);
+    if (!Number.isFinite(km)) return null;
+    return Math.max(1, Math.ceil((km / DELIVERY_SPEED_KMPH) * 60));
+  })();
+
+  const etaMinutesFromOrder = (() => {
+    const v = Number(order?.etaMinutes);
+    if (!Number.isFinite(v) || v <= 0) return null;
+    return Math.ceil(v);
+  })();
+
+  const etaCandidates = [etaMinutesFromEstimated, etaMinutesFromDistance, etaMinutesFromOrder].filter(
+    (v) => Number.isFinite(v) && v >= 0
+  );
+  const etaMinutes = etaCandidates.length ? Math.min(...etaCandidates) : 12;
+  const etaDisplay = `${etaMinutes}`;
+  const arrivalTime = etaMinutes >= 0 ? formatDateTime(new Date(nowTs + etaMinutes * 60000)) : 'Arriving soon';
+
+  const mapCenter = partnerPosition || restaurantPosition || deliveryPosition || [12.9716, 77.5946];
+  const hasRealMapData = Boolean(restaurantPosition || deliveryPosition || partnerPosition);
+
+  const orderIdShort = order?._id?.slice(-8)?.toUpperCase() || 'N/A';
+  const restaurant = order?.restaurantId || {};
+  const restaurantName = restaurant?.name || 'Restaurant';
+  const restaurantImage = restaurant?.image || restaurant?.bannerImage || logo;
+
+  const address = order?.addressId || order?.deliveryAddress || {};
+  const addressType = String(address?.label || address?.type || 'Home').toLowerCase();
+  const addressName = address?.name || address?.street || address?.line1 || 'Address details unavailable';
+  const addressCityLine = [address?.city, address?.state, address?.pincode || address?.zipCode].filter(Boolean).join(', ');
+  const addressLandmark = address?.landmark || '';
+
+  const itemSubtotal = Number(order?.subtotal ?? order?.items?.reduce((sum, item) => sum + Number(item?.price || 0) * Number(item?.quantity || 0), 0) ?? 0);
+  const deliveryFee = Number(order?.deliveryFee ?? order?.deliveryCharge ?? order?.deliveryCharges ?? 0);
+  const taxAmount = Number(order?.tax ?? order?.taxAmount ?? order?.gst ?? 0);
+  const totalAmount = Number(order?.total ?? itemSubtotal + deliveryFee + taxAmount);
+
+  const paymentMethodRaw = String(order?.paymentMethod || 'cod').toLowerCase();
+  const isOnlinePayment = paymentMethodRaw === 'upi' || paymentMethodRaw === 'card';
+  const paymentStatusNormalized = String(order?.paymentStatus || '').toLowerCase();
+  const isPaymentCompleted = ['completed', 'paid', 'success'].includes(paymentStatusNormalized);
+  const isPaymentPendingOnline = isOnlinePayment && !isPaymentCompleted && !isCancelled;
+  const shouldShowTrackingJourney = !isCancelled && !isPaymentPendingOnline;
+  const paymentMethodLabel = paymentMethodRaw === 'cod' ? 'Cash On Delivery' : paymentMethodRaw === 'upi' ? 'UPI' : paymentMethodRaw === 'card' ? 'Card' : order?.paymentMethod || 'Unknown';
+  const paymentBadge = paymentMethodRaw === 'cod'
+    ? 'Pay on Delivery'
+    : isPaymentCompleted
+      ? 'Paid Online'
+      : 'Pending Payment';
+  const statusBadgeClass = order?.status === 'delivered'
+    ? 'bg-green-100 text-green-700'
+    : order?.status === 'cancelled'
+      ? 'bg-red-100 text-red-700'
+      : 'bg-amber-100 text-amber-700';
+
+  const isNavActive = (path) => {
+    if (path === '/') return location.pathname === '/';
+    if (path === '/restaurants') return location.pathname.startsWith('/restaurants') || location.pathname.startsWith('/restaurant/');
+    if (path === '/orders') return location.pathname.startsWith('/orders');
+    if (path === '/profile') return location.pathname.startsWith('/profile');
+    return false;
+  };
+
+  const handleMessagePartner = () => {
+    if (!deliveryPartnerPhone) {
+      toast.error('Delivery partner contact is not available yet.');
+      return;
+    }
+    const message = `Hi ${deliveryPartnerName || 'Partner'}, I am contacting about order #${orderIdShort}.`;
+    window.location.href = `sms:${deliveryPartnerPhone}?body=${encodeURIComponent(message)}`;
+  };
+
+  return (
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#F5F3F1] pb-28">
+      <div className="max-w-5xl lg:max-w-6xl mx-auto min-h-screen w-full overflow-x-hidden">
+        <div className="max-w-md mx-auto">
+          <div className="px-4 pt-[max(env(safe-area-inset-top),10px)]" style={{ backgroundColor: 'rgb(245, 243, 241)' }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => navigate('/orders')}
+                  className="h-8 w-8 rounded-full flex items-center justify-center text-white shadow-[0_8px_18px_rgba(234,88,12,0.32)]"
+                  aria-label="Go back"
+                  style={{ background: 'linear-gradient(rgb(255, 122, 69) 0%, rgb(234, 88, 12) 100%)' }}
+                >
+                  <ArrowLeftIcon className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowTracking((v) => !v)}
+                  className="flex items-center gap-2 text-left min-w-0"
+                >
+                  <MapPinIcon className="h-4 w-4 flex-shrink-0" style={{ color: 'rgb(234, 88, 12)' }} />
+                  <div className="min-w-0">
+                    <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
+                    <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">{address?.city || 'Current Area'}</p>
+                  </div>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button type="button" className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
+                  <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+                </button>
               </div>
             </div>
-            {order.estimatedDelivery && !isDelivered && (
-              <div className="mt-6 max-[388px]:mt-4 text-center">
-                <p className="text-sm max-[388px]:text-xs text-gray-600">
-                  Estimated Delivery: <span className="font-semibold text-primary-600">
-                    {formatDateTime(order.estimatedDelivery)}
-                  </span>
-                </p>
-                {Number(order.etaMinutes) > 0 && (
-                  <p className="mt-1 text-sm max-[388px]:text-xs text-gray-500">
-                    Delivery in {order.etaMinutes} mins
-                  </p>
+          </div>
+
+        {shouldShowTrackingJourney ? (
+          <div className="relative h-[54vh] overflow-hidden">
+            {hasRealMapData ? (
+              <MapContainer center={mapCenter} zoom={14} className="h-full w-full" zoomControl={false} attributionControl={false}>
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+                {restaurantPosition && (
+                  <>
+                    <Marker position={restaurantPosition} icon={restaurantIcon} />
+                    <Circle center={restaurantPosition} radius={130} pathOptions={{ color: '#EF4444', fillColor: '#FCA5A5', fillOpacity: 0.18, weight: 1 }} />
+                  </>
                 )}
-              </div>
+
+                {deliveryPosition && <Marker position={deliveryPosition} icon={deliveryIcon} />}
+                {partnerPosition && <Marker position={partnerPosition} icon={riderIcon} />}
+              </MapContainer>
+            ) : (
+              <div
+                className="h-full w-full"
+                style={{
+                  backgroundImage:
+                    'linear-gradient(rgba(190,186,180,0.78), rgba(190,186,180,0.78)), url(https://images.unsplash.com/photo-1524661135-423995f22d0b?w=1200&q=80)',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              />
             )}
+
+            <div className="absolute inset-0 bg-[#C3BBB2]/35" />
+          </div>
+        ) : (
+          <div className="px-4 pt-3">
+            <div className="rounded-2xl border border-[#E7DFD7] bg-white p-4">
+              <p className="text-[10px] tracking-[0.14em] font-bold text-[#A08B7D] uppercase">
+                {isCancelled ? 'Order Status' : 'Payment Status'}
+              </p>
+              {isCancelled ? (
+                <>
+                  <p className="mt-1 text-[20px] font-black text-[#B42318]">Order Cancelled</p>
+                  <p className="mt-2 text-[12px] text-[#6C655F]">{order?.cancellationReason || 'This order is no longer active.'}</p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-1 text-[20px] font-black text-[#B45309]">Payment Pending</p>
+                  <p className="mt-2 text-[12px] text-[#6C655F]">Please complete payment to start restaurant processing and delivery tracking.</p>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/payment/${id}`, { state: { paymentMethod: paymentMethodRaw } })}
+                    className="mt-3 h-9 px-4 rounded-lg bg-[#F97316] text-white text-[12px] font-bold"
+                  >
+                    Complete Payment
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Live Tracking Section */}
         {showTracking && socket && (order.status === 'out_for_delivery' || order.status === 'ready') && (
-          <div className="mb-6">
+          <div className="px-4 -mt-8 mb-4 relative z-20">
             <LiveTracking orderId={id} socket={socket} />
           </div>
         )}
 
-        {/* Cancelled Status */}
-        {isCancelled && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-[388px]:p-4 mb-6 max-[388px]:mb-4">
-            <div className="flex items-center">
-              <XCircleIcon className="h-8 w-8 text-red-500 mr-3" />
-              <div>
-                <h3 className="text-lg font-semibold text-red-900">Order Cancelled</h3>
-                {order.cancellationReason && (
-                  <p className="text-sm text-red-700 mt-1">Reason: {order.cancellationReason}</p>
-                )}
-                {order.cancelledAt && (
-                  <p className="text-xs text-red-600 mt-1">
-                    Cancelled on {formatDateTime(order.cancelledAt)}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="grid md:grid-cols-3 gap-6 max-[388px]:gap-4">
-          {/* Left Column - Main Details */}
-          <div className="md:col-span-2 space-y-6">
-            {/* Restaurant Info */}
-            <div className="bg-white rounded-lg shadow p-4 sm:p-6 max-[388px]:p-4">
-              <h2 className="text-xl max-[388px]:text-lg font-bold mb-4">Restaurant Details</h2>
-              <Link
-                to={`/restaurant/${order.restaurantId._id}`}
-                className="flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-gray-50 p-3 rounded-lg transition"
-              >
-                <img
-                  src={order.restaurantId.image || 'https://via.placeholder.com/80'}
-                  alt={order.restaurantId.name}
-                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover"
-                />
-                <div className="sm:ml-3 flex-1 min-w-0">
-                  <h3 className="font-semibold text-lg">{order.restaurantId.name}</h3>
-                  {order.restaurantId.phone && (
-                    <div className="flex items-center text-sm text-gray-600 mt-1">
-                      <PhoneIcon className="h-4 w-4 mr-1" />
-                      {order.restaurantId.phone}
-                    </div>
-                  )}
-                </div>
-                <span className="text-primary-600 text-xs sm:text-sm max-[388px]:text-[11px]">View Menu →</span>
-              </Link>
+        <div className={`px-4 relative z-10 ${shouldShowTrackingJourney ? '-mt-14' : 'mt-3'}`}>
+          <div className="relative rounded-[30px] bg-[#F4F4F4] overflow-hidden border border-[#E5E2DE]">
+            <div className="absolute left-1/2 -translate-x-1/2 -top-4 h-8 w-8 rounded-full bg-[#F4F4F4] border border-[#E5E2DE] flex items-center justify-center">
+              <BuildingStorefrontIcon className="h-4 w-4 text-[#F97316]" />
             </div>
 
-            {/* Order Items */}
-            <div className="bg-white rounded-lg shadow p-4 sm:p-6 max-[388px]:p-4">
-              <h2 className="text-xl max-[388px]:text-lg font-bold mb-4">Order Items</h2>
-              <div className="space-y-4">
-                {order.items.map((item, index) => (
-                  <div key={index} className="flex flex-col sm:flex-row sm:items-center border-b pb-4 last:border-b-0 last:pb-0 gap-3">
-                    <img
-                      src={item.image || 'https://via.placeholder.com/60'}
-                      alt={item.name}
-                      className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold">{item.name}</h4>
-                      <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
-                      <p className="text-sm text-gray-600">{formatCurrency(item.price)} each</p>
-                    </div>
-                    <div className="text-right sm:text-left">
-                      <p className="font-semibold">{formatCurrency(item.price * item.quantity)}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Delivery Address */}
-            <div className="bg-white rounded-lg shadow p-4 sm:p-6 max-[388px]:p-4">
-              <h2 className="text-xl max-[388px]:text-lg font-bold mb-4">Delivery Address</h2>
-              <div className="flex">
-                <MapPinIcon className="h-6 w-6 text-primary-600 mr-3 flex-shrink-0" />
+            <div className="px-5 pt-7 pb-5">
+              <div className="flex items-start justify-between gap-3 mb-4">
                 <div>
-                  {order.addressId ? (
-                    <>
-                      <p className="font-semibold capitalize">{order.addressId.type}</p>
-                      <p className="text-gray-700">{order.addressId.street}</p>
-                      <p className="text-gray-700">
-                        {order.addressId.city}, {order.addressId.state} - {order.addressId.zipCode}
-                      </p>
-                      {order.addressId.landmark && (
-                        <p className="text-sm max-[388px]:text-xs text-gray-600 mt-1">
-                          Landmark: {order.addressId.landmark}
-                        </p>
-                      )}
-                    </>
-                  ) : order.deliveryAddress ? (
-                    <>
-                      <p className="text-gray-700">{order.deliveryAddress.street}</p>
-                      <p className="text-gray-700">
-                        {order.deliveryAddress.city}, {order.deliveryAddress.state} - {order.deliveryAddress.zipCode}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-gray-500">Address not available</p>
-                  )}
-                  {order.deliveryInstructions && (
-                    <div className="mt-3 bg-yellow-50 p-3 rounded border border-yellow-200">
-                      <p className="text-sm max-[388px]:text-xs font-semibold text-yellow-800">Delivery Instructions:</p>
-                      <p className="text-sm max-[388px]:text-xs text-yellow-700">{order.deliveryInstructions}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - Summary */}
-          <div className="space-y-6">
-            {/* Payment & Bill Summary */}
-            <div className="bg-white rounded-lg shadow p-4 sm:p-6 max-[388px]:p-4 md:sticky md:top-24">
-              <h2 className="text-xl max-[388px]:text-lg font-bold mb-4">Bill Details</h2>
-              
-              <div className="space-y-3 mb-4 pb-4 border-b">
-                <div className="flex justify-between text-sm max-[388px]:text-xs">
-                  <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">{formatCurrency(order.subtotal)}</span>
-                </div>
-                <div className="flex justify-between text-sm max-[388px]:text-xs">
-                  <span className="text-gray-600">Delivery Fee</span>
-                  <span className="font-medium">{formatCurrency(order.deliveryFee)}</span>
-                </div>
-                <div className="flex justify-between text-sm max-[388px]:text-xs">
-                  <span className="text-gray-600">Tax (5%)</span>
-                  <span className="font-medium">{formatCurrency(order.tax)}</span>
-                </div>
-                {order.discount > 0 && (
-                  <div className="flex justify-between text-sm max-[388px]:text-xs text-green-600">
-                    <span>Discount {order.couponCode && `(${order.couponCode})`}</span>
-                    <span className="font-medium">-{formatCurrency(order.discount)}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-between text-lg max-[388px]:text-base font-bold mb-4">
-                <span>Total Amount</span>
-                <span className="text-primary-600">{formatCurrency(order.total)}</span>
-              </div>
-
-              {/* Payment Method */}
-              <div className="bg-gray-50 rounded-lg p-4 max-[388px]:p-3 mb-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <CreditCardIcon className="h-5 w-5 text-gray-600 mr-2" />
-                    <div>
-                      <p className="text-sm max-[388px]:text-xs text-gray-600">Payment Method</p>
-                      <p className="font-semibold capitalize">
-                        {order.paymentMethod === 'cod' ? 'Cash on Delivery' : 
-                         order.paymentMethod === 'card' ? 'Credit/Debit Card' :
-                         order.paymentMethod === 'upi' ? 'UPI' : order.paymentMethod}
-                      </p>
-                    </div>
-                  </div>
-                  <div>
-                    {order.paymentStatus === 'pending' && order.paymentMethod !== 'cod' && (
-                      <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full">
-                        Payment Pending
-                      </span>
-                    )}
-                    {order.paymentStatus === 'completed' && (
-                      <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
-                        ✓ Paid
-                      </span>
-                    )}
-                    {order.paymentStatus === 'pending' && order.paymentMethod === 'cod' && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
-                        Pay on Delivery
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {order.paymentStatus === 'completed' && order.status === 'pending' && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
-                    <p className="text-xs max-[388px]:text-[11px] text-blue-800">
-                      ✓ Payment received! Your order is waiting for restaurant confirmation.
-                    </p>
-                  </div>
-                )}
-                {order.paymentStatus === 'pending' && order.paymentMethod !== 'cod' && (
-                  <div className="mt-3 p-3 bg-yellow-50 rounded border border-yellow-200">
-                    <p className="text-xs max-[388px]:text-[11px] text-yellow-800">
-                      ⚠️ Payment gateway not integrated. Restaurant owner should not process this order until payment is confirmed.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              {canCancel && !isCancelled && (
-                <button
-                  onClick={() => setShowCancellationModal(true)}
-                  disabled={cancelling}
-                  className="w-full btn-outline border-red-500 text-red-500 hover:bg-red-50 mb-3"
-                >
-                  Cancel Order
-                </button>
-              )}
-
-              {/* Track Order Button */}
-              {(order.status === 'out_for_delivery' || order.status === 'ready') && (
-                <button
-                  onClick={() => setShowTracking(!showTracking)}
-                  className="w-full btn-primary flex items-center justify-center gap-2 mb-3"
-                >
-                  <TruckIcon className="w-5 h-5" />
-                  {showTracking ? 'Hide Tracking' : 'Track Order'}
-                </button>
-              )}
-
-              {isDelivered && (
-                <div className="space-y-3">
-                  {!order.reviewId && (
-                    <button
-                      onClick={() => setShowReviewModal(true)}
-                      className="w-full btn-primary flex items-center justify-center gap-2"
-                    >
-                      <StarIcon className="w-5 h-5" />
-                      Rate this Order
-                    </button>
-                  )}
-                  {order.reviewId && (
-                    <div className="w-full p-3 bg-green-50 border border-green-200 rounded-lg text-center">
-                      <p className="text-green-800 text-sm font-medium">✓ You've reviewed this order</p>
-                    </div>
-                  )}
-                  <Link
-                    to={`/restaurant/${order.restaurantId._id}`}
-                    className="w-full btn-outline block text-center"
-                  >
-                    Order Again
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            {/* Help & Support */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="font-semibold mb-4 max-[388px]:text-sm">Need Help?</h3>
-              
-              {/* Restaurant Contact */}
-              <div className="mb-4 pb-4 border-b">
-                <p className="text-sm max-[388px]:text-xs text-gray-600 mb-2">
-                  For order-related queries, contact the restaurant:
-                </p>
-                <div className="space-y-2">
-                  <div className="flex items-center text-gray-900">
-                    <BuildingStorefrontIcon className="h-4 w-4 mr-2 text-primary-500" />
-                    <span className="font-medium">{order.restaurantId?.name}</span>
-                  </div>
-                  {order.restaurantId?.phone && (
-                    <div className="flex items-center text-primary-600">
-                      <PhoneIcon className="h-4 w-4 mr-2" />
-                      <a href={`tel:${order.restaurantId.phone}`} className="hover:underline">
-                        {order.restaurantId.phone}
-                      </a>
-                    </div>
-                  )}
-                  {order.restaurantId?.email && (
-                    <div className="flex items-center text-primary-600 text-sm">
-                      <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
-                      <a href={`mailto:${order.restaurantId.email}`} className="hover:underline">
-                        {order.restaurantId.email}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* FlashBites Support */}
-              <div>
-                <p className="text-sm max-[388px]:text-xs text-gray-600 mb-2">
-                  For platform support:
-                </p>
-                <div className="space-y-2">
-                  <div className="flex items-center text-gray-900">
-                    <span className="font-medium text-primary-600">FlashBites Support</span>
-                  </div>
-                  <div className="flex items-center text-primary-600">
-                    <PhoneIcon className="h-4 w-4 mr-2" />
-                    <a href="tel:7068247779" className="hover:underline">
-                      +91 70682 47779
-                    </a>
-                  </div>
-                  <div className="flex items-center text-primary-600 text-sm">
-                    <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    <a href="mailto:flashbites@gmail.com" className="hover:underline">
-                      flashbites@gmail.com
-                    </a>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Available 24/7 for payment, refund, and technical issues
+                  <p className="text-[10px] tracking-[0.24em] font-bold text-[#F97316]">ESTIMATED ARRIVAL</p>
+                  <p className="mt-1 text-[#171415] font-black leading-none">
+                    <span className="text-[56px]">{etaDisplay}</span>
+                    <span className="text-[38px] ml-1">min</span>
                   </p>
                 </div>
+                <div className="text-right">
+                  <div className="inline-flex items-center rounded-full bg-[#FCEEDF] px-3 py-1.5 text-[10px] font-bold tracking-[0.07em] text-[#F97316] mb-2">
+                    FAST TRACK
+                  </div>
+                  <p className="text-[14px] text-[#F97316]">{arrivalTime}</p>
+                </div>
               </div>
+
+              {shouldShowTrackingJourney && (
+                <div>
+                  <div className="h-1.5 rounded-full bg-[#E6E3DF] relative">
+                    <div
+                      className="h-1.5 rounded-full bg-[#FF6A00]"
+                      style={{ width: `${Math.min(((progressIndex + 1) / progressFlow.length) * 100, 100)}%` }}
+                    />
+                    <div className="absolute inset-0 flex justify-between items-center px-[2px]">
+                      {miniTimelineSteps.map((step, idx) => (
+                        <span
+                          key={step.label}
+                          className={`h-5 w-5 rounded-full border-[3px] ${step.active ? 'bg-[#FF6A00] border-[#F9D6C0]' : 'bg-[#F4F4F4] border-[#E9E6E3]'}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-4 text-center">
+                    {miniTimelineSteps.map((step) => (
+                      <p key={step.label} className={`text-[10px] font-bold ${step.active ? 'text-[#F97316]' : 'text-[#D4CFC9]'}`}>{step.label}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
+
+            <div className="bg-white/85 border-t border-[#ECE7E2] px-5 py-5">
+              {canShowDeliveryContact ? (
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-16 w-12 rounded-[14px] overflow-hidden border-2 border-[#F97316] bg-[#EFEAE6] flex-shrink-0">
+                      <img
+                        src={deliveryPerson?.profileImage || deliveryPerson?.avatar || logo}
+                        alt={deliveryPartnerName || 'Delivery partner'}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] tracking-[0.16em] font-bold text-[#F97316]">DELIVERY HERO</p>
+                      <p className="text-[18px] font-black text-[#171415] leading-tight mt-1">{deliveryPartnerName || 'Delivery Partner'}</p>
+                      <p className="text-[12px] text-[#F97316] mt-1">{deliveryPartnerVehicle || 'Rider is on the way'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleMessagePartner}
+                      className="h-10 w-10 rounded-full bg-[#F4F4F4] flex items-center justify-center"
+                      aria-label="Message delivery partner"
+                    >
+                      <ChatBubbleLeftEllipsisIcon className="h-5 w-5 text-[#171415]" />
+                    </button>
+                    <a
+                      href={deliveryPartnerPhone ? `tel:${deliveryPartnerPhone}` : undefined}
+                      onClick={(e) => {
+                        if (!deliveryPartnerPhone) {
+                          e.preventDefault();
+                          toast.error('Delivery partner contact is not available yet.');
+                        }
+                      }}
+                      className="h-10 px-5 rounded-full bg-[#FF6A00] text-white text-[12px] font-bold tracking-[0.07em] inline-flex items-center justify-center"
+                    >
+                      CALL
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-[#F0E8E2] bg-[#F9F6F3] px-3.5 py-3">
+                  <p className="text-[11px] font-bold tracking-[0.08em] text-[#A28E81]">DELIVERY PARTNER</p>
+                  <p className="text-[13px] font-semibold text-[#3A342F] mt-1">Not assigned yet</p>
+                  <p className="text-[11px] text-[#8A837D] mt-1">Waiting for restaurant acceptance and partner assignment.</p>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowInvoiceModal(true)}
+              className="w-full border-t border-[#ECE7E2] px-5 py-3.5 flex items-center justify-between bg-white"
+            >
+              <p className="text-[14px] text-[#171415] font-semibold text-left truncate">
+                {order.items?.slice(0, 2).map((i) => `${i.quantity}x ${i.name}`).join(' + ')}
+              </p>
+              <span className="text-[12px] font-bold text-[#F97316] tracking-[0.07em]">VIEW DETAILS</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="px-4 mt-3 lg:mt-4">
+          <div className="space-y-2.5 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6 xl:gap-8">
+            <div className="space-y-2.5 lg:col-span-2">
+            <section className="rounded-2xl bg-white/95 border border-[#E9E3DC] p-3.5 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-[15px] font-bold text-[#1A1716]">Order Details</h2>
+                  <p className="mt-1 text-[12px] text-[#5B5652]">Order #{orderIdShort}</p>
+                  <p className="text-[11px] text-[#8A837D]">{formatDateTime(order.createdAt)}</p>
+                </div>
+                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${statusBadgeClass}`}>
+                  {ORDER_STATUS_LABELS[order.status]}
+                </span>
+              </div>
+            </section>
+
+            <section className="rounded-2xl bg-white/95 border border-[#E9E3DC] p-3.5 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
+              <h3 className="text-[14px] font-bold text-[#1A1716] mb-3">Restaurant Details</h3>
+              <Link
+                to={restaurant?._id ? `/restaurant/${restaurant._id}` : '/restaurants'}
+                className="flex items-center gap-3 rounded-xl p-2.5 hover:bg-[#F8F4F1] transition-colors"
+              >
+                <img src={restaurantImage} alt={restaurantName} className="h-12 w-12 rounded-lg object-cover border border-[#E8E2DB]" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold text-[#1A1716] truncate">{restaurantName}</p>
+                  <p className="text-[11px] text-[#6B6560] mt-0.5">Partnered with FlashBites</p>
+                </div>
+                <span className="text-[10px] font-semibold text-[#F97316]">View Menu →</span>
+              </Link>
+            </section>
+
+            <section className="rounded-2xl bg-white/95 border border-[#E9E3DC] p-3.5 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
+              <h3 className="text-[14px] font-bold text-[#1A1716] mb-3">Order Items</h3>
+              <div className="space-y-2.5">
+                {(order.items || []).map((item, index) => {
+                  const itemImage = item?.menuItemId?.image || item?.image || restaurantImage;
+                  const itemName = item?.name || item?.menuItemId?.name || 'Item';
+                  const itemQty = Number(item?.quantity || 1);
+                  const itemPrice = Number(item?.price || item?.menuItemId?.price || 0);
+                  const itemTotal = itemQty * itemPrice;
+
+                  return (
+                    <div key={`${itemName}-${index}`} className="flex items-center gap-3 border-b border-[#F0EBE6] pb-2.5 last:border-b-0 last:pb-0">
+                      <img src={itemImage} alt={itemName} className="h-11 w-11 rounded-lg object-cover border border-[#ECE6E0]" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12px] font-semibold text-[#1A1716] truncate">{itemName}</p>
+                        <p className="text-[10px] text-[#6C655F]">Quantity: {itemQty}</p>
+                        <p className="text-[10px] text-[#6C655F]">{formatCurrency(itemPrice)} each</p>
+                      </div>
+                      <p className="text-[12px] font-semibold text-[#1A1716]">{formatCurrency(itemTotal)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="rounded-2xl bg-white/95 border border-[#E9E3DC] p-3.5 max-[388px]:p-3 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
+              <h3 className="text-[14px] max-[388px]:text-[13px] font-bold text-[#1A1716] mb-3 max-[388px]:mb-2.5">Delivery Address</h3>
+              <div className="flex items-start gap-2.5 max-[388px]:gap-2">
+                <MapPinIcon className="h-4 w-4 text-[#F97316] flex-shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] max-[388px]:text-[11px] font-semibold text-[#1A1716] capitalize break-words">{addressType}</p>
+                  <p className="text-[11px] max-[388px]:text-[10px] text-[#5E5853] break-words">{addressName}</p>
+                  {addressCityLine && <p className="text-[11px] max-[388px]:text-[10px] text-[#5E5853] break-words">{addressCityLine}</p>}
+                  {addressLandmark && <p className="text-[10px] max-[388px]:text-[9.5px] text-[#7E7771] mt-0.5 break-words">Landmark: {addressLandmark}</p>}
+                </div>
+              </div>
+            </section>
+            </div>
+
+            <div className="space-y-2.5 lg:col-span-1 lg:sticky lg:top-24 lg:self-start">
+            <section className="rounded-2xl bg-white/95 border border-[#E9E3DC] p-3.5 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
+              <h3 className="text-[14px] font-bold text-[#1A1716] mb-3">Bill Details</h3>
+              <div className="space-y-2 text-[11px] pb-3 border-b border-[#EFE9E3]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#6C655F]">Subtotal</span>
+                  <span className="font-medium text-[#1A1716]">{formatCurrency(itemSubtotal)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[#6C655F]">Delivery Fee</span>
+                  <span className="font-medium text-[#1A1716]">{formatCurrency(deliveryFee)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[#6C655F]">Tax (GST)</span>
+                  <span className="font-medium text-[#1A1716]">{formatCurrency(taxAmount)}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-[13px] font-bold mt-3 mb-3.5">
+                <span className="text-[#1A1716]">Total Amount</span>
+                <span className="text-[#F97316]">{formatCurrency(totalAmount)}</span>
+              </div>
+
+              <div className="rounded-xl bg-[#F6F2EF] p-3 border border-[#ECE4DD] mb-3.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <CreditCardIcon className="h-4 w-4 text-[#6C655F]" />
+                    <div>
+                      <p className="text-[10px] text-[#6C655F]">Payment Method</p>
+                      <p className="text-[12px] font-semibold text-[#1A1716]">{paymentMethodLabel}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-blue-100 text-blue-700">{paymentBadge}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowInvoiceModal(true)}
+                  className="w-full h-9 rounded-lg border border-[#F4CDB5] text-[#F97316] text-[12px] font-semibold flex items-center justify-center gap-1.5"
+                >
+                  <DocumentTextIcon className="h-4 w-4" />
+                  View Invoice
+                </button>
+
+                {canCancel && !isCancelled && (
+                  <button
+                    onClick={() => setShowCancellationModal(true)}
+                    disabled={cancelling}
+                    className="w-full h-9 rounded-lg border border-[#FCA5A5] text-[#DC2626] text-[12px] font-semibold"
+                  >
+                    Cancel Order
+                  </button>
+                )}
+
+                {isDelivered && !order.reviewId && (
+                  <button
+                    onClick={() => setShowReviewModal(true)}
+                    className="w-full h-9 rounded-lg bg-[#FF6A00] text-white text-[12px] font-semibold"
+                  >
+                    Rate Order
+                  </button>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-2xl bg-white/95 border border-[#E9E3DC] p-3.5 mb-2 lg:mb-0 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
+              <h3 className="text-[14px] font-bold text-[#1A1716] mb-3">Need Help?</h3>
+
+              <div>
+                <p className="text-[10px] text-[#6C655F] mb-2">For platform support:</p>
+                <div className="space-y-1.5">
+                  <p className="text-[12px] font-semibold text-[#F97316]">FlashBites Support</p>
+                  <div className="flex items-center gap-2 text-[11px] text-[#F97316]">
+                    <PhoneIcon className="h-3.5 w-3.5" />
+                    <a href="tel:+917068247779" className="hover:underline">+91 70682 47779</a>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-[#F97316]">
+                    <EnvelopeIcon className="h-3.5 w-3.5" />
+                    <a href="mailto:info.flashbites@gmail.com" className="hover:underline">info.flashbites@gmail.com</a>
+                  </div>
+                  <p className="text-[10px] text-[#8A837D] pt-0.5">Available 24/7 for payment, refund, and technical issues</p>
+                </div>
+              </div>
+            </section>
+            </div>
+          </div>
+          </div>
+        </div>
+
+        <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t border-[#E6E2DE] bg-[#F5F3F1]" style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
+          <div className="max-w-md mx-auto px-6 pt-1.5 flex items-center justify-between text-[#B0ACA8]">
+            <Link to="/" className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1" style={isNavActive('/') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}>
+              <HomeIcon className="h-4 w-4" />
+              <span className="text-[7px]">Home</span>
+            </Link>
+            <Link to="/restaurants" className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1" style={isNavActive('/restaurants') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}>
+              <MagnifyingGlassIcon className="h-4 w-4" />
+              <span className="text-[7px]">Search</span>
+            </Link>
+            <Link to="/orders" className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1" style={isNavActive('/orders') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}>
+              <ShoppingBagIcon className="h-4 w-4" />
+              <span className="text-[7px]">Orders</span>
+            </Link>
+            <Link to="/profile" className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1" style={isNavActive('/profile') ? { color: 'rgb(234, 88, 12)', background: 'rgb(255, 240, 237)' } : { color: 'rgb(176, 172, 168)' }}>
+              <UserCircleIcon className="h-4 w-4" />
+              <span className="text-[7px]">Profile</span>
+            </Link>
           </div>
         </div>
       </div>
@@ -572,6 +773,13 @@ const OrderDetail = () => {
         onConfirm={handleCancelOrder}
         order={order}
         loading={cancelling}
+      />
+
+      <OrderInvoiceModal
+        isOpen={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        order={order}
+        viewer="customer"
       />
     </div>
   );
