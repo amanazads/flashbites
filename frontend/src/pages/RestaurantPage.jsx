@@ -209,7 +209,7 @@ const RestaurantPage = () => {
   return (
     <div className="page-wrapper bg-[#F5F3F1]">
 
-      <div className="max-w-md mx-auto px-4 pt-[max(env(safe-area-inset-top),14px)] mb-4 lg:hidden">
+      <div className="max-w-md mx-auto px-4 pt-[14px] mb-4 lg:hidden">
         <div className="flex items-center justify-between mb-4">
           <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2 text-left">
             <MapPinIcon className="h-4 w-4" style={{ color: BRAND }} />

@@ -736,7 +736,7 @@ const Partner = () => {
   return (
     <div className="partner-home-theme min-h-screen" style={{ background: 'var(--bg-app)' }}>
       <div className="lg:hidden" style={{ backgroundColor: 'rgb(245, 243, 241)' }}>
-        <div className="max-w-7xl mx-auto px-4 xs:px-5 sm:px-6 lg:px-0 pt-[max(env(safe-area-inset-top),10px)] pb-4 mb-4">
+        <div className="max-w-7xl mx-auto px-4 xs:px-5 sm:px-6 lg:px-0 pt-[10px] pb-4 mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <button

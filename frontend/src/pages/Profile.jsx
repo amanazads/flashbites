@@ -272,7 +272,7 @@ const Profile = () => {
   return (
     <div className="min-h-screen" style={{ background: PAGE_BG }}>
       <div className="max-w-md mx-auto px-6 max-[388px]:px-4 pt-0 pb-[calc(84px+env(safe-area-inset-bottom,0px))]">
-        <div className="px-4 pt-[max(env(safe-area-inset-top),10px)] -mx-6 max-[388px]:-mx-4 mb-4" style={{ backgroundColor: 'rgb(245, 243, 241)' }}>
+        <div className="px-4 pt-[10px] -mx-6 max-[388px]:-mx-4 mb-4" style={{ backgroundColor: 'rgb(245, 243, 241)' }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <button

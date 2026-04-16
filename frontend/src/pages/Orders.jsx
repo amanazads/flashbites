@@ -219,7 +219,7 @@ const Orders = () => {
 
         {/* ── Header ── */}
         <div
-          className="sticky top-0 z-20 px-4 pt-[max(env(safe-area-inset-top),10px)] pb-4 bg-[#F5F3F1]"
+          className="sticky top-0 z-20 px-4 pt-[10px] pb-4 bg-[#F5F3F1]"
           style={{ borderBottom: '1px solid #ECE4DC' }}
         >
           <div className="flex items-center gap-3 mb-4">

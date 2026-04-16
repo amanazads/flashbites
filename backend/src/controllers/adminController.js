@@ -11,6 +11,7 @@ const Notification = require('../models/Notification');
 const AccountDeletionRequest = require('../models/AccountDeletionRequest');
 const PlatformSettings = require('../models/PlatformSettings');
 const { normalizeFeeControls, normalizeRestaurantFeeControls } = require('../utils/feeControl');
+const { normalizeMenuCategories } = require('../utils/menuCategories');
 const { notifyCouponAvailable, notifyUser } = require('../utils/notificationService');
 const { normalizeDeliveryZone } = require('../utils/deliveryGeo');
 const { cacheGet, cacheSet, cacheDelByPrefix } = require('../utils/memoryCache');
@@ -88,6 +89,10 @@ const normalizeSettingsPayload = (payload = {}) => {
     ? normalizeFeeControls(payload.feeControls)
     : null;
 
+  const menuCategories = payload.menuCategories
+    ? normalizeMenuCategories(payload.menuCategories)
+    : null;
+
   return {
     commissionPercent: Number.isFinite(commissionPercent)
       ? Math.min(90, Math.max(0, commissionPercent))
@@ -103,13 +108,15 @@ const normalizeSettingsPayload = (payload = {}) => {
     deliveryChargeRules: deliveryChargeRules && deliveryChargeRules.length > 0 ? deliveryChargeRules : undefined,
     promoBanners: promoBanners ? promoBanners : undefined,
     deliveryPartnerPayout: deliveryPartnerPayout || undefined,
-    feeControls: feeControls || undefined
+    feeControls: feeControls || undefined,
+    menuCategories: menuCategories || undefined
   };
 };
 
 const attachFeeControls = (settings = {}) => ({
   ...settings,
   feeControls: normalizeFeeControls(settings.feeControls),
+  menuCategories: normalizeMenuCategories(settings.menuCategories),
 });
 
 const attachRestaurantFeeControls = (restaurant = {}) => ({
