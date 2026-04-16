@@ -31,6 +31,7 @@ import {
   toggleMenuItemAvailability,
   getRestaurantAnalytics 
 } from '../api/restaurantApi';
+import { getPlatformSettings } from '../api/settingsApi';
 import { autocompleteAddress, geocodeAddressQuery } from '../api/locationApi';
 import { getRestaurantOrders, updateOrderStatus } from '../api/orderApi';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
@@ -41,11 +42,12 @@ import MapPicker from '../components/location/MapPicker';
 import OrderInvoiceModal from '../components/common/OrderInvoiceModal';
 import logo from '../assets/logo.png';
 
-const MENU_CATEGORY_OPTIONS = [
+const DEFAULT_MENU_CATEGORY_OPTIONS = [
   'Starters',
   'Main Course',
   'Desserts',
   'Beverages',
+  'Soups',
   'Breads',
   'Rice',
   'Snacks',
@@ -175,6 +177,7 @@ const RestaurantDashboard = () => {
     isAvailable: true,
     variants: [],
   });
+  const [menuCategoryOptions, setMenuCategoryOptions] = useState(DEFAULT_MENU_CATEGORY_OPTIONS);
 
   useEffect(() => {
     // Wait for user data to load
@@ -190,8 +193,22 @@ const RestaurantDashboard = () => {
       navigate('/');
       return;
     }
+    fetchMenuCategories();
     fetchRestaurantData();
   }, [user, navigate]);
+
+  const fetchMenuCategories = async () => {
+    try {
+      const response = await getPlatformSettings();
+      const categories = response?.data?.settings?.menuCategories;
+      if (Array.isArray(categories) && categories.length > 0) {
+        setMenuCategoryOptions(categories);
+      }
+    } catch {
+      // Keep fallback categories when settings API is unavailable.
+      setMenuCategoryOptions(DEFAULT_MENU_CATEGORY_OPTIONS);
+    }
+  };
 
   const fetchRestaurantData = async () => {
     try {
@@ -1724,7 +1741,7 @@ const RestaurantDashboard = () => {
         {/* Restaurant Form Modal */}
         {showRestaurantForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-[1300] overflow-y-auto">
-            <div className="min-h-full flex items-start justify-center p-2 sm:p-4 pt-[calc(16px+env(safe-area-inset-top))] pb-[calc(16px+env(safe-area-inset-bottom))]">
+            <div className="min-h-full flex items-start justify-center p-2 sm:p-4 pt-[16px] pb-[calc(16px+env(safe-area-inset-bottom))]">
               <div className="bg-white rounded-lg max-w-2xl w-full p-4 sm:p-6 my-2 sm:my-6">
               <div className="sm:hidden sticky top-0 z-10 -mx-4 px-4 py-2 mb-3 bg-white border-b border-gray-100">
                 <div className="flex items-center justify-between">
@@ -2178,7 +2195,7 @@ const RestaurantDashboard = () => {
         {/* Menu Item Form Modal */}
         {showMenuForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-[1300] overflow-y-auto">
-            <div className="min-h-full flex items-start justify-center p-2 sm:p-4 pt-[calc(16px+env(safe-area-inset-top))] pb-[calc(16px+env(safe-area-inset-bottom))]">
+            <div className="min-h-full flex items-start justify-center p-2 sm:p-4 pt-[16px] pb-[calc(16px+env(safe-area-inset-bottom))]">
               <div className="bg-white rounded-lg max-w-lg w-full p-4 sm:p-6 my-2 sm:my-6">
               <div className="sm:hidden sticky top-0 z-10 -mx-4 px-4 py-2 mb-3 bg-white border-b border-gray-100">
                 <div className="flex items-center justify-between">
@@ -2314,7 +2331,7 @@ const RestaurantDashboard = () => {
                       Categories *
                     </label>
                     <div className="max-h-44 overflow-y-auto border rounded-lg p-3 grid grid-cols-2 gap-2">
-                      {MENU_CATEGORY_OPTIONS.map((category) => {
+                      {menuCategoryOptions.map((category) => {
                         const checked = menuItemData.categories?.includes(category);
                         return (
                           <label key={category} className="inline-flex items-center gap-2 text-sm text-gray-700">

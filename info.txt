@@ -1,0 +1,2 @@
+after getting logged in change the profile icon into an avatar, first letter of name etc so that it can be easily idetified if the user is logged in or not
+

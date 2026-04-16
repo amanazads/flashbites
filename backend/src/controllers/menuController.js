@@ -1,36 +1,14 @@
 const MenuItem = require('../models/MenuItem');
+const PlatformSettings = require('../models/PlatformSettings');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/imageUpload');
+const { normalizeMenuCategories } = require('../utils/menuCategories');
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const ALLOWED_MENU_CATEGORIES = [
-  'Starters',
-  'Main Course',
-  'Desserts',
-  'Beverages',
-  'Breads',
-  'Rice',
-  'Snacks',
-  'Fast Food',
-  'Pizza',
-  'Burger',
-  'South Indian',
-  'North Indian',
-  'Chinese',
-  'Paneer',
-  'Cake',
-  'Biryani',
-  'Veg Meal',
-  'Noodles',
-  'Sandwich',
-  'Dosa',
-  'Italian',
-  'Momos',
-  'Chaap',
-  'Fries',
-  'Shakes',
-  'Coffee'
-];
+const getAllowedMenuCategories = async () => {
+  const settings = await PlatformSettings.findOne().select('menuCategories').lean();
+  return normalizeMenuCategories(settings?.menuCategories);
+};
 
 const parseCategories = (categories, category) => {
   let normalized = [];
@@ -85,6 +63,7 @@ exports.addMenuItem = async (req, res) => {
       variants,
     } = req.body;
     const normalizedCategories = parseCategories(categories, category);
+    const allowedMenuCategories = await getAllowedMenuCategories();
     const parsedPrice = Number(price);
 
     let parsedVariants = [];
@@ -125,12 +104,12 @@ exports.addMenuItem = async (req, res) => {
       return errorResponse(res, 400, 'Price must be a valid number greater than 0');
     }
 
-    const invalidCategories = normalizedCategories.filter((c) => !ALLOWED_MENU_CATEGORIES.includes(c));
+    const invalidCategories = normalizedCategories.filter((c) => !allowedMenuCategories.includes(c));
     if (invalidCategories.length > 0) {
       return errorResponse(
         res,
         400,
-        `Invalid categories: ${invalidCategories.join(', ')}. Must be one of: ${ALLOWED_MENU_CATEGORIES.join(', ')}`
+        `Invalid categories: ${invalidCategories.join(', ')}. Must be one of: ${allowedMenuCategories.join(', ')}`
       );
     }
 
@@ -254,13 +233,14 @@ exports.updateMenuItem = async (req, res) => {
     }
 
     const normalizedCategories = parseCategories(req.body.categories, req.body.category);
+    const allowedMenuCategories = await getAllowedMenuCategories();
     if (normalizedCategories.length > 0) {
-      const invalidCategories = normalizedCategories.filter((c) => !ALLOWED_MENU_CATEGORIES.includes(c));
+      const invalidCategories = normalizedCategories.filter((c) => !allowedMenuCategories.includes(c));
       if (invalidCategories.length > 0) {
         return errorResponse(
           res,
           400,
-          `Invalid categories: ${invalidCategories.join(', ')}. Must be one of: ${ALLOWED_MENU_CATEGORIES.join(', ')}`
+          `Invalid categories: ${invalidCategories.join(', ')}. Must be one of: ${allowedMenuCategories.join(', ')}`
         );
       }
 

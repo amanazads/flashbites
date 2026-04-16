@@ -661,7 +661,7 @@ const Home = () => {
       />
 
       <div className="min-h-screen bg-[#F5F3F1]">
-        <div className="max-w-md mx-auto px-4 pb-28 pt-[max(env(safe-area-inset-top),8px)] text-[13px]">
+        <div className="max-w-md mx-auto px-4 pb-28 pt-[8px] text-[13px]">
           <div className="flex items-center justify-between gap-3 mb-3 lg:hidden">
             <button type="button" onClick={() => setShowAddressPicker(true)} className="min-w-0 flex-1 flex items-center gap-2 text-left">
               <MapPinIcon className="h-4 w-4" style={{ color: BRAND }} />

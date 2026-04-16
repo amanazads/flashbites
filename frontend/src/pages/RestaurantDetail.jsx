@@ -242,7 +242,7 @@ const RestaurantDetail = () => {
       <SEO title={`${safeRestaurant.name} | FlashBites`} description={seoDesc} />
 
       <div className="max-w-md mx-auto">
-        <div className="px-4 pt-[max(env(safe-area-inset-top),10px)]" style={{ backgroundColor: '#F5F3F1' }}>
+        <div className="px-4 pt-[10px]" style={{ backgroundColor: '#F5F3F1' }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <button

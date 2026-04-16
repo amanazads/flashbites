@@ -74,6 +74,37 @@ const MENU_CATEGORIES = [
   'Shakes',
   'Coffee'
 ];
+
+const DEFAULT_MENU_CATEGORIES = [
+  'Starters',
+  'Main Course',
+  'Desserts',
+  'Beverages',
+  'Soups',
+  'Breads',
+  'Rice',
+  'Snacks',
+  'Fast Food',
+  'Pizza',
+  'Burger',
+  'South Indian',
+  'North Indian',
+  'Chinese',
+  'Paneer',
+  'Cake',
+  'Biryani',
+  'Veg Meal',
+  'Noodles',
+  'Sandwich',
+  'Dosa',
+  'Italian',
+  'Momos',
+  'Chaap',
+  'Fries',
+  'Shakes',
+  'Coffee'
+];
+
 const ROLE_OPTIONS = [
   { value: 'user', label: 'User' },
   { value: 'restaurant_owner', label: 'Restaurant Owner' },
@@ -243,7 +274,8 @@ const AdminPanel = () => {
       { minDistance: 5, maxDistance: 15, charge: 25 },
       { minDistance: 15, maxDistance: 9999, charge: 30 }
     ],
-    promoBanners: []
+    promoBanners: [],
+    menuCategories: DEFAULT_MENU_CATEGORIES
   });
   const [restaurantPayoutDrafts, setRestaurantPayoutDrafts] = useState({});
   const [restaurantPayoutSavingId, setRestaurantPayoutSavingId] = useState(null);
@@ -497,7 +529,10 @@ const AdminPanel = () => {
             actionValue: banner.actionValue || '',
             isActive: banner.isActive !== false,
             sortOrder: Number.isFinite(Number(banner.sortOrder)) ? Number(banner.sortOrder) : index
-          }))
+          })),
+          menuCategories: Array.isArray(settings.menuCategories) && settings.menuCategories.length > 0
+            ? settings.menuCategories
+            : DEFAULT_MENU_CATEGORIES
         });
       }
     } catch (error) {
@@ -767,6 +802,19 @@ const AdminPanel = () => {
   const savePlatformSettings = async () => {
     try {
       setSettingsSaving(true);
+      
+      // Validate and normalize menu categories
+      const normalizedMenuCategories = Array.from(new Set(
+        (settingsForm.menuCategories || [])
+          .map(cat => String(cat || '').trim())
+          .filter(Boolean)
+      ));
+      
+      if (normalizedMenuCategories.length === 0) {
+        toast.error('Please add at least one menu category');
+        return;
+      }
+      
       const payload = {
         commissionPercent: Number(settingsForm.commissionPercent),
         deliveryFee: Number(settingsForm.deliveryFee),
@@ -796,7 +844,8 @@ const AdminPanel = () => {
           actionValue: banner.actionValue || '',
           isActive: banner.isActive !== false,
           sortOrder: Number.isFinite(Number(banner.sortOrder)) ? Number(banner.sortOrder) : index
-        }))
+        })),
+        menuCategories: normalizedMenuCategories
       };
 
       await updatePlatformSettings(payload);
@@ -1330,6 +1379,11 @@ const AdminPanel = () => {
     });
   };
 
+  // Compute effective menu categories (use custom categories if set, otherwise use defaults)
+  const effectiveMenuCategories = Array.isArray(settingsForm.menuCategories) && settingsForm.menuCategories.length > 0
+    ? settingsForm.menuCategories
+    : DEFAULT_MENU_CATEGORIES;
+
   const fetchRestaurantMenu = async (restaurantId) => {
     if (!restaurantId) {
       setMenuItems([]);
@@ -1350,7 +1404,7 @@ const AdminPanel = () => {
   };
 
   const handleEditMenuItem = async (restaurantId, item) => {
-    const categoryOptions = MENU_CATEGORIES
+    const categoryOptions = effectiveMenuCategories
       .map((category) => `<option value="${category}" ${item.category === category ? 'selected' : ''}>${category}</option>`)
       .join('');
 
@@ -1822,6 +1876,28 @@ const AdminPanel = () => {
                         </div>
                       ))}
                     </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <h3 className="text-sm font-bold text-gray-800 mb-3">Menu Categories</h3>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Define the food categories available to restaurants. These will appear in restaurant menus and when editing menu items. One category per line.
+                    </p>
+                    <textarea
+                      value={(settingsForm.menuCategories || []).join('\n')}
+                      onChange={(e) => {
+                        const nextCategories = Array.from(new Set(
+                          e.target.value.split(/\n|,/).map(raw => String(raw || '').trim()).filter(Boolean)
+                        ));
+                        handleSettingsChange('menuCategories', nextCategories);
+                      }}
+                      placeholder="Starters&#10;Main Course&#10;Desserts&#10;Beverages&#10;..."
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono"
+                      rows="6"
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      {(settingsForm.menuCategories || []).length} categories defined • Automatically deduplicates entries
+                    </p>
                   </div>
 
                   <div className="mt-6 flex justify-end">

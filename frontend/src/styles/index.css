@@ -34,9 +34,9 @@
   --nav-height-mob: 64px;
   --nav-height-desk: 64px;
   --bottom-nav-h:   72px;
-  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-top: 0px;
   --safe-area-inset-bottom: env(safe-area-inset-bottom);
-  --mobile-notch-offset: max(env(safe-area-inset-top), 0px);
+  --mobile-notch-offset: 0px;
 
   /* Shadows */
   --shadow-xs:   0 1px 4px rgba(0,0,0,0.05);
@@ -64,20 +64,6 @@ html, body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-@media (max-width: 1023px) {
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--mobile-notch-offset);
-    background: #F5F3F1;
-    z-index: 1300;
-    pointer-events: none;
-  }
 }
 
 /* Global font scaling for very small and very large screens */
@@ -235,12 +221,12 @@ input, textarea, select {
   }
 
   /* ── Safe area aware padding ── */
-  .safe-top    { padding-top:    env(safe-area-inset-top);    }
+  .safe-top    { padding-top:    0;    }
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
   .safe-left   { padding-left:   env(safe-area-inset-left);   }
   .safe-right  { padding-right:  env(safe-area-inset-right);  }
   .pb-safe     { padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
-  .pt-safe     { padding-top:    max(0.75rem, env(safe-area-inset-top)); }
+  .pt-safe     { padding-top:    0.75rem; }
 
   /* Content padding to not hide behind fixed navbars (mobile) */
   .content-mobile-safe {
@@ -293,11 +279,11 @@ input, textarea, select {
 }
 
 .app-page-shell {
-  padding-top: max(env(safe-area-inset-top), 12px);
+  padding-top: 12px;
 }
 
 .legal-doc-page {
-  padding-top: max(env(safe-area-inset-top), 12px);
+  padding-top: 12px;
   padding-bottom: 2.5rem;
 }
 

@@ -220,7 +220,7 @@ const NotificationBell = () => {
       {showMenu && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)}></div>
-          <div className="fixed lg:absolute left-2 right-2 lg:left-auto lg:right-0 top-[calc(env(safe-area-inset-top)+56px)] lg:top-full lg:mt-2 w-auto lg:w-[360px] max-w-none lg:max-w-[360px] bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden transform origin-top-right transition-all">
+          <div className="fixed lg:absolute left-2 right-2 lg:left-auto lg:right-0 top-[56px] lg:top-full lg:mt-2 w-auto lg:w-[360px] max-w-none lg:max-w-[360px] bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden transform origin-top-right transition-all">
             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-white to-[#FFF7F5]">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-xl bg-[#FFF0ED] flex items-center justify-center">

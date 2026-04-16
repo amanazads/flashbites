@@ -18,6 +18,7 @@ import { clearCart } from '../redux/slices/cartSlice';
 import { setSelectedDeliveryAddress } from '../redux/slices/uiSlice';
 import { getAddresses } from '../api/userApi';
 import { getPlatformSettings } from '../api/settingsApi';
+import { getOrderById } from '../api/orderApi';
 import { createRazorpayOrder, recordPaymentFailure, verifyPayment } from '../api/paymentApi';
 import { calculateCartTotal, calculateDistance, isRestaurantOpen } from '../utils/helpers';
 import { formatCurrency } from '../utils/formatters';
@@ -113,6 +114,30 @@ const Checkout = () => {
   const [deliveryDistance, setDeliveryDistance] = useState(0);
   const [showAddAddressModal, setShowAddAddressModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [postOrderTransition, setPostOrderTransition] = useState({ active: false, message: '' });
+
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const routeAfterRestaurantDecision = async (orderId) => {
+    setPostOrderTransition({
+      active: true,
+      message: t('checkout.waitingRestaurantDecision', 'Confirming with restaurant...')
+    });
+
+    await wait(4500);
+
+    try {
+      const latestOrderRes = await getOrderById(orderId);
+      const latestStatus = String(latestOrderRes?.data?.order?.status || '').toLowerCase();
+      if (latestStatus === 'cancelled') {
+        toast.error(t('checkout.orderRejected', 'This order was rejected by the restaurant.'));
+      }
+    } catch {
+      // Non-blocking: still navigate to detail page where live status will refresh.
+    }
+
+    navigate(`/orders/${orderId}`, { state: { justPlaced: true } });
+  };
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -304,7 +329,7 @@ const Checkout = () => {
         if (!isOnlinePayment) {
           dispatch(clearCart());
           toast.success(t('checkout.orderPlacedCod', 'Order placed successfully! Pay on delivery'));
-          navigate(`/orders/${orderId}`);
+          await routeAfterRestaurantDecision(orderId);
           return;
         }
 
@@ -372,7 +397,7 @@ const Checkout = () => {
               dispatch(clearCart());
               toast.dismiss();
               toast.success(t('checkout.paymentSuccess', 'Payment successful!'));
-              navigate(`/orders/${orderId}`);
+              await routeAfterRestaurantDecision(orderId);
             } catch {
               toast.dismiss();
               toast.error(t('checkout.paymentVerifyFailed', 'Payment verification failed. Please contact support.'));
@@ -418,6 +443,7 @@ const Checkout = () => {
     } catch (error) {
       toast.error(error.message || t('checkout.orderPlaceFailed', 'Unable to place your order right now. Please try again.'));
     } finally {
+      setPostOrderTransition((prev) => (prev.active ? { active: false, message: '' } : prev));
       setLoading(false);
     }
   };
@@ -446,7 +472,7 @@ const Checkout = () => {
   return (
     <div className="min-h-screen w-full overflow-x-hidden" style={{ background: '#F5F3F1' }}>
       <div className="max-w-md mx-auto pb-32">
-        <div className="px-4 pt-[max(env(safe-area-inset-top),10px)]" style={{ backgroundColor: 'rgb(245, 243, 241)' }}>
+        <div className="px-4 pt-[10px]" style={{ backgroundColor: 'rgb(245, 243, 241)' }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <button
@@ -689,6 +715,20 @@ const Checkout = () => {
         onClose={() => setShowAddAddressModal(false)}
         onAddressAdded={handleAddressAdded}
       />
+
+      {postOrderTransition.active && (
+        <div className="fixed inset-0 z-[120] bg-black/45 backdrop-blur-[1px] flex items-center justify-center px-6">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl border border-gray-100">
+            <div className="mx-auto h-11 w-11 rounded-full border-4 border-orange-200 border-t-orange-500 animate-spin" />
+            <p className="mt-4 text-sm font-bold text-[#171415]">
+              {postOrderTransition.message || t('checkout.waitingRestaurantDecision', 'Confirming with restaurant...')}
+            </p>
+            <p className="mt-1.5 text-xs text-gray-500">
+              {t('checkout.waitingRestaurantDecisionSub', 'Finding the best delivery partner after restaurant acceptance.')}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

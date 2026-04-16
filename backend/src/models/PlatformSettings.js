@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { DEFAULT_MENU_CATEGORIES } = require('../utils/menuCategories');
 
 const deliveryChargeRuleSchema = new mongoose.Schema(
   {
@@ -92,6 +93,16 @@ const platformSettingsSchema = new mongoose.Schema(
     feeControls: {
       type: feeControlsSchema,
       default: () => ({})
+    },
+    menuCategories: {
+      type: [String],
+      default: [...DEFAULT_MENU_CATEGORIES],
+      validate: {
+        validator: function(value) {
+          return Array.isArray(value) && value.length > 0;
+        },
+        message: 'At least one menu category is required'
+      }
     }
   },
   { timestamps: true }

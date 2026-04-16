@@ -168,12 +168,33 @@ function App() {
 
   // Initialize status bar for native platforms
   useEffect(() => {
+    let mediaQuery;
+
+    const isSystemDark = () => (
+      typeof window !== 'undefined'
+      && window.matchMedia
+      && window.matchMedia('(prefers-color-scheme: dark)').matches
+    );
+
+    const applyStatusBarTheme = async () => {
+      if (!isNative || !Capacitor.isPluginAvailable('StatusBar')) return;
+
+      const darkMode = isSystemDark();
+      await StatusBar.setStyle({ style: darkMode ? Style.Light : Style.Dark });
+      await StatusBar.setBackgroundColor({ color: darkMode ? '#111827' : '#F5F3F1' });
+    };
+
     const initializeStatusBar = async () => {
       try {
         if (isNative && Capacitor.isPluginAvailable('StatusBar')) {
+          await StatusBar.show();
           await StatusBar.setOverlaysWebView({ overlay: false });
-          await StatusBar.setStyle({ style: Style.Light });
-          await StatusBar.setBackgroundColor({ color: '#111827' });
+          await applyStatusBarTheme();
+
+          if (typeof window !== 'undefined' && window.matchMedia) {
+            mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            mediaQuery.addEventListener('change', applyStatusBarTheme);
+          }
         }
       } catch {
         // Don't throw - this is non-critical
@@ -185,7 +206,12 @@ function App() {
       initializeStatusBar();
     }, 500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (mediaQuery) {
+        mediaQuery.removeEventListener('change', applyStatusBarTheme);
+      }
+    };
   }, [isNative]);
 
   useEffect(() => {

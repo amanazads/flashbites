@@ -1,34 +1,5 @@
 const mongoose = require('mongoose');
 
-const ALLOWED_MENU_CATEGORIES = [
-  'Starters',
-  'Main Course',
-  'Desserts',
-  'Beverages',
-  'Breads',
-  'Rice',
-  'Snacks',
-  'Fast Food',
-  'Pizza',
-  'Burger',
-  'South Indian',
-  'North Indian',
-  'Chinese',
-  'Paneer',
-  'Cake',
-  'Biryani',
-  'Veg Meal',
-  'Noodles',
-  'Sandwich',
-  'Dosa',
-  'Italian',
-  'Momos',
-  'Chaap',
-  'Fries',
-  'Shakes',
-  'Coffee'
-];
-
 const menuItemSchema = new mongoose.Schema({
   restaurantId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -68,8 +39,7 @@ const menuItemSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    required: false,
-    enum: ALLOWED_MENU_CATEGORIES
+    required: false
   },
   categories: {
     type: [String],
@@ -80,8 +50,7 @@ const menuItemSchema = new mongoose.Schema({
         return Array.isArray(v) && v.length > 0;
       },
       message: 'At least one category is required'
-    },
-    enum: ALLOWED_MENU_CATEGORIES
+    }
   },
   variants: [{
     name: {

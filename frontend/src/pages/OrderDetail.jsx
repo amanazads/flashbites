@@ -231,7 +231,9 @@ const OrderDetail = () => {
     (deliveryPerson && typeof deliveryPerson === 'object' && (deliveryPerson?._id || deliveryPartnerName || deliveryPartnerPhone))
       || (typeof deliveryPerson === 'string' && deliveryPerson.trim())
   );
-  const canShowDeliveryContact = hasDeliveryPartnerAssigned && !isCancelled;
+  const canShowDeliveryContact = hasDeliveryPartnerAssigned
+    && !isCancelled
+    && ['out_for_delivery', 'delivered'].includes(order?.status);
 
   const restaurantPosition = (() => {
     const coords = order?.restaurantId?.location?.coordinates;
@@ -331,7 +333,13 @@ const OrderDetail = () => {
   const paymentStatusNormalized = String(order?.paymentStatus || '').toLowerCase();
   const isPaymentCompleted = ['completed', 'paid', 'success'].includes(paymentStatusNormalized);
   const isPaymentPendingOnline = isOnlinePayment && !isPaymentCompleted && !isCancelled;
-  const shouldShowTrackingJourney = !isCancelled && !isPaymentPendingOnline;
+  const restaurantAcceptedFlow = ['confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
+  const hasRestaurantAccepted = restaurantAcceptedFlow.includes(order?.status);
+  const shouldShowTrackingJourney = !isCancelled && !isPaymentPendingOnline && hasRestaurantAccepted;
+  const canShowLiveTrackingMap = showTracking
+    && socket
+    && hasDeliveryPartnerAssigned
+    && ['out_for_delivery', 'delivered'].includes(order?.status);
   const paymentMethodLabel = paymentMethodRaw === 'cod' ? 'Cash On Delivery' : paymentMethodRaw === 'upi' ? 'UPI' : paymentMethodRaw === 'card' ? 'Card' : order?.paymentMethod || 'Unknown';
   const paymentBadge = paymentMethodRaw === 'cod'
     ? 'Pay on Delivery'
@@ -365,7 +373,7 @@ const OrderDetail = () => {
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#F5F3F1] pb-28">
       <div className="max-w-5xl lg:max-w-6xl mx-auto min-h-screen w-full overflow-x-hidden">
         <div className="max-w-md mx-auto">
-          <div className="px-4 pt-[max(env(safe-area-inset-top),10px)]" style={{ backgroundColor: 'rgb(245, 243, 241)' }}>
+          <div className="px-4 pt-[10px]" style={{ backgroundColor: 'rgb(245, 243, 241)' }}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2 min-w-0">
                 <button
@@ -439,7 +447,7 @@ const OrderDetail = () => {
                   <p className="mt-1 text-[20px] font-black text-[#B42318]">Order Cancelled</p>
                   <p className="mt-2 text-[12px] text-[#6C655F]">{order?.cancellationReason || 'This order is no longer active.'}</p>
                 </>
-              ) : (
+              ) : isPaymentPendingOnline ? (
                 <>
                   <p className="mt-1 text-[20px] font-black text-[#B45309]">Payment Pending</p>
                   <p className="mt-2 text-[12px] text-[#6C655F]">Please complete payment to start restaurant processing and delivery tracking.</p>
@@ -451,12 +459,17 @@ const OrderDetail = () => {
                     Complete Payment
                   </button>
                 </>
+              ) : (
+                <>
+                  <p className="mt-1 text-[20px] font-black text-[#1D4ED8]">Awaiting Restaurant Decision</p>
+                  <p className="mt-2 text-[12px] text-[#6C655F]">Your order is placed. The restaurant is reviewing it now. Delivery partner assignment starts right after acceptance.</p>
+                </>
               )}
             </div>
           </div>
         )}
 
-        {showTracking && socket && (order.status === 'out_for_delivery' || order.status === 'ready') && (
+        {canShowLiveTrackingMap && (
           <div className="px-4 -mt-8 mb-4 relative z-20">
             <LiveTracking orderId={id} socket={socket} />
           </div>
