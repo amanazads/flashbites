@@ -72,7 +72,7 @@ const Home = () => {
   const { restaurants, loading } = useSelector((s) => s.restaurant);
   const { items: cartItems, restaurant: cartRestaurant } = useSelector((s) => s.cart);
   const { selectedDeliveryAddress } = useSelector((s) => s.ui);
-  const { isAuthenticated } = useSelector((s) => s.auth);
+  const { isAuthenticated, user } = useSelector((s) => s.auth);
   const { t, language, openLanguageModal } = useLanguage();
 
   const getLocalizedItemName = useCallback((item) => {
@@ -105,6 +105,7 @@ const Home = () => {
   const lastLocationErrorToastAtRef = useRef(0);
 
   const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const userInitial = (user?.name || user?.fullName || user?.email || 'U').trim().charAt(0).toUpperCase();
 
   const buildLocationSelection = useCallback(async (latitude, longitude, fallbackId) => {
     const fallbackSelection = {
@@ -683,8 +684,18 @@ const Home = () => {
               >
                 <GlobeAltIcon className="h-5 w-5" />
               </button>
-              <button type="button" onClick={() => navigate('/profile')} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
-                <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => navigate(isAuthenticated ? '/profile' : '/login')}
+                className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden bg-white flex items-center justify-center"
+                aria-label={isAuthenticated ? 'Open profile' : 'Log in'}
+                title={isAuthenticated ? 'Profile' : 'Log in'}
+              >
+                {isAuthenticated ? (
+                  <span className="text-[11px] font-extrabold text-[#EA580C]">{userInitial}</span>
+                ) : (
+                  <UserCircleIcon className="h-5 w-5 text-[#EA580C]" />
+                )}
               </button>
             </div>
           </div>
@@ -983,12 +994,18 @@ const Home = () => {
               <span className="text-[8px]">{t('nav.orders', 'Orders')}</span>
             </Link>
             <Link
-              to="/profile"
+              to={isAuthenticated ? '/profile' : '/login'}
               className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
               style={isNavActive('/profile') ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
             >
-              <UserCircleIcon className="h-5 w-5" />
-              <span className="text-[8px]">{t('common.profile', 'Profile')}</span>
+              {isAuthenticated ? (
+                <span className="h-5 w-5 rounded-full border border-current flex items-center justify-center text-[10px] font-bold">
+                  {userInitial}
+                </span>
+              ) : (
+                <UserCircleIcon className="h-5 w-5" />
+              )}
+              <span className="text-[8px]">{isAuthenticated ? t('common.profile', 'Profile') : t('nav.logIn', 'Log in')}</span>
             </Link>
           </div>
         </div>

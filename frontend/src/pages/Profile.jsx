@@ -32,7 +32,6 @@ import {
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import { BRAND } from '../constants/theme';
-import logo from '../assets/logo.png';
 import AddAddressModal from '../components/common/AddAddressModal';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getDeliveryAddressLabel } from '../utils/deliveryAddress';
@@ -45,6 +44,8 @@ const ADDRESS_TYPES = {
   work: { label: 'Work', color: '#2563EB', bg: '#EFF6FF' },
   other: { label: 'Other', color: '#7C3AED', bg: '#F5F3FF' },
 };
+
+const getUserInitial = (user) => (user?.name || user?.fullName || user?.email || 'U').trim().charAt(0).toUpperCase();
 
 const InstagramIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
@@ -117,6 +118,7 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [ordersCount, setOrdersCount] = useState(0);
+  const userInitial = getUserInitial(user);
 
   const [profileData, setProfileData] = useState({ name: user?.name || '', phone: user?.phone || '' });
 
@@ -304,8 +306,10 @@ const Profile = () => {
               >
                 <GlobeAltIcon className="h-5 w-5" />
               </button>
-              <button type="button" onClick={() => setIsEditing(true)} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
-                <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+              <button type="button" onClick={() => setIsEditing(true)} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden bg-white flex items-center justify-center" aria-label="Edit profile avatar">
+                <span className="text-[11px] font-black" style={{ color: '#EA580C' }}>
+                  {isAuthenticated ? userInitial : 'U'}
+                </span>
               </button>
             </div>
           </div>
@@ -314,8 +318,10 @@ const Profile = () => {
         <section className="rounded-[32px] px-5 py-5" style={{ background: CARD_BG, boxShadow: '0 6px 16px rgba(60,30,20,0.06)' }}>
           <div className="relative w-[124px] h-[124px] mx-auto">
             <div className="absolute inset-0 rounded-full border border-[#EAD7D0]" style={{ background: '#FFF6F2' }} />
-            <div className="absolute inset-[6px] rounded-full overflow-hidden" style={{ background: '#FFF6F2' }}>
-              <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+            <div className="absolute inset-[6px] rounded-full overflow-hidden flex items-center justify-center" style={{ background: 'linear-gradient(180deg, #FFF8F4 0%, #FEE4D6 100%)' }}>
+              <span className="text-[42px] font-black tracking-tight" style={{ color: '#EA580C' }}>
+                {isAuthenticated ? userInitial : 'U'}
+              </span>
             </div>
             <button
               type="button"

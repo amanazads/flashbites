@@ -214,7 +214,6 @@ const RestaurantPage = () => {
           <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2 text-left">
             <MapPinIcon className="h-4 w-4" style={{ color: BRAND }} />
             <div>
-              <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">Deliver to</p>
               <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
               <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">
                 {deliveryAddressLabel}
