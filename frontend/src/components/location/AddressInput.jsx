@@ -1,14 +1,27 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
-import { autocompleteAddress, geocodeAddressQuery } from '../../api/locationApi';
+import { useJsApiLoader } from '@react-google-maps/api';
+import { Capacitor } from '@capacitor/core';
 
 const PLACES_LIBRARIES = ['places'];
 
-const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.REACT_APP_GOOGLE_KEY;
+const WEB_GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.REACT_APP_GOOGLE_KEY;
+const NATIVE_GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_NATIVE_API_KEY;
 const ALLOW_GOOGLE_MAPS_ON_LOCALHOST = String(import.meta.env.VITE_ALLOW_GOOGLE_MAPS_ON_LOCALHOST || '').toLowerCase() === 'true';
 
+const isNativePlatform = () => {
+  try {
+    return Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'web';
+  } catch {
+    return Boolean(window?.Capacitor?.isNativePlatform?.());
+  }
+};
+
 const parseAddressComponents = (components = []) => {
-  const getByType = (type) => components.find((item) => item.types?.includes(type))?.long_name || '';
+  const getByType = (type) =>
+    components.find((item) => item.types?.includes(type))?.longText ||
+    components.find((item) => item.types?.includes(type))?.long_name ||
+    components.find((item) => item.types?.includes(type))?.shortText ||
+    '';
 
   const streetNumber = getByType('street_number');
   const route = getByType('route');
@@ -22,19 +35,26 @@ const parseAddressComponents = (components = []) => {
 };
 
 export default function AddressInput({ value = '', onChange, onSelect, placeholder = 'Enter delivery address', className = '' }) {
-  const autocompleteRef = useRef(null);
-  const fallbackContainerRef = useRef(null);
+  const containerRef = useRef(null);
+  const placesLibraryRef = useRef(null);
+  const sessionTokenRef = useRef(null);
   const [inputValue, setInputValue] = useState(value);
-  const [fallbackSuggestions, setFallbackSuggestions] = useState([]);
-  const [fallbackLoading, setFallbackLoading] = useState(false);
-  const [showFallback, setShowFallback] = useState(false);
+  const nativePreferred = isNativePlatform() && Boolean(NATIVE_GOOGLE_KEY);
+  const nativeRuntime = isNativePlatform();
+  const [loaderAttempt, setLoaderAttempt] = useState(nativePreferred ? 'native' : 'web');
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState(nativePreferred ? NATIVE_GOOGLE_KEY : WEB_GOOGLE_KEY);
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [googleAuthFailed, setGoogleAuthFailed] = useState(false);
+  const [placesLibraryReady, setPlacesLibraryReady] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const isLocalHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
-  const shouldUseGoogleMaps = Boolean(GOOGLE_KEY) && (!isLocalHost || ALLOW_GOOGLE_MAPS_ON_LOCALHOST);
+  const shouldUseGoogleMaps = Boolean(googleMapsApiKey) && (nativeRuntime || !isLocalHost || ALLOW_GOOGLE_MAPS_ON_LOCALHOST);
   const libraries = useMemo(() => PLACES_LIBRARIES, []);
   const { isLoaded } = useJsApiLoader({
-    id: 'flashbites-google-map-picker',
-    googleMapsApiKey: shouldUseGoogleMaps ? GOOGLE_KEY : '',
+    id: `flashbites-google-map-picker-${loaderAttempt}`,
+    googleMapsApiKey: shouldUseGoogleMaps ? googleMapsApiKey : '',
     libraries
   });
 
@@ -59,21 +79,41 @@ export default function AddressInput({ value = '', onChange, onSelect, placehold
   }, [value]);
 
   useEffect(() => {
-    return () => {
-      if (typeof document === 'undefined') return;
+    if (!isLoaded || typeof window === 'undefined' || !window?.google?.maps?.importLibrary) return;
 
-      document.querySelectorAll('.pac-container').forEach((node) => {
-        if (!node.children.length) {
-          node.remove();
-        }
-      });
+    let isActive = true;
+
+    (async () => {
+      try {
+        const placesLibrary = await window.google.maps.importLibrary('places');
+        if (!isActive) return;
+
+        placesLibraryRef.current = placesLibrary;
+        sessionTokenRef.current = new placesLibrary.AutocompleteSessionToken();
+        setPlacesLibraryReady(true);
+      } catch {
+        if (!isActive) return;
+
+        placesLibraryRef.current = null;
+        sessionTokenRef.current = null;
+        setPlacesLibraryReady(false);
+      }
+    })();
+
+    return () => {
+      isActive = false;
     };
-  }, []);
+  }, [isLoaded]);
+
+  useEffect(() => {
+    setGoogleMapsApiKey(nativePreferred ? NATIVE_GOOGLE_KEY : WEB_GOOGLE_KEY);
+    setLoaderAttempt(nativePreferred ? 'native' : 'web');
+  }, [nativePreferred]);
 
   useEffect(() => {
     const closeOnOutsideClick = (e) => {
-      if (fallbackContainerRef.current && !fallbackContainerRef.current.contains(e.target)) {
-        setShowFallback(false);
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setShowSuggestions(false);
       }
     };
     document.addEventListener('mousedown', closeOnOutsideClick);
@@ -81,31 +121,40 @@ export default function AddressInput({ value = '', onChange, onSelect, placehold
   }, []);
 
   useEffect(() => {
-    // Always load backend suggestions as a resilient fallback.
+    if (!shouldUseGoogleMaps || googleAuthFailed || !isLoaded || !placesLibraryReady || !placesLibraryRef.current?.AutocompleteSuggestion) return;
+
     const query = String(inputValue || '').trim();
     if (query.length < 3) {
-      setFallbackSuggestions([]);
-      setShowFallback(false);
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setActiveIndex(-1);
       return;
     }
 
     let cancelled = false;
     const timer = setTimeout(async () => {
-      setFallbackLoading(true);
+      setSuggestionsLoading(true);
       try {
-        const response = await autocompleteAddress(query);
-        const suggestions = response?.data?.suggestions || response?.suggestions || [];
-        if (!cancelled) {
-          setFallbackSuggestions(Array.isArray(suggestions) ? suggestions : []);
-          setShowFallback(Array.isArray(suggestions) && suggestions.length > 0);
-        }
+        const { suggestions: nextSuggestions = [] } = await placesLibraryRef.current.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+          input: query,
+          sessionToken: sessionTokenRef.current
+        });
+
+        if (cancelled) return;
+
+        setSuggestions(nextSuggestions);
+        setShowSuggestions(nextSuggestions.length > 0);
+        setActiveIndex(-1);
       } catch {
         if (!cancelled) {
-          setFallbackSuggestions([]);
-          setShowFallback(false);
+          setSuggestions([]);
+          setShowSuggestions(false);
+          setActiveIndex(-1);
         }
       } finally {
-        if (!cancelled) setFallbackLoading(false);
+        if (!cancelled) {
+          setSuggestionsLoading(false);
+        }
       }
     }, 250);
 
@@ -113,122 +162,111 @@ export default function AddressInput({ value = '', onChange, onSelect, placehold
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [inputValue]);
+  }, [googleAuthFailed, inputValue, isLoaded, placesLibraryReady, shouldUseGoogleMaps]);
+
+  useEffect(() => {
+    if (!nativePreferred) return;
+    if (isLoaded) return;
+
+    const timeout = window.setTimeout(() => {
+      setGoogleMapsApiKey(WEB_GOOGLE_KEY);
+      setLoaderAttempt('web-fallback');
+    }, 6000);
+
+    return () => window.clearTimeout(timeout);
+  }, [isLoaded, nativePreferred]);
 
   const handleLocalChange = (nextValue) => {
     setInputValue(nextValue);
+    if (!String(nextValue || '').trim() && placesLibraryReady && placesLibraryRef.current?.AutocompleteSessionToken) {
+      sessionTokenRef.current = new placesLibraryRef.current.AutocompleteSessionToken();
+    }
     if (typeof onChange === 'function') {
       onChange(nextValue);
     }
   };
 
-  const onLoad = (auto) => {
-    autocompleteRef.current = auto;
-  };
+  const selectSuggestion = async (suggestion) => {
+    const placePrediction = suggestion?.placePrediction;
+    if (!placePrediction) {
+      return;
+    }
 
-  const onPlaceChanged = () => {
-    const place = autocompleteRef.current?.getPlace?.();
-    if (!place) return;
-
-    const formattedAddress = place.formatted_address || inputValue;
-    handleLocalChange(formattedAddress);
-
-    const lat = place.geometry?.location?.lat?.();
-    const lng = place.geometry?.location?.lng?.();
-
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-
-    const parsed = parseAddressComponents(place.address_components || []);
-
-    if (typeof onSelect === 'function') {
-      onSelect({
-        address: formattedAddress,
-        fullAddress: formattedAddress,
-        lat,
-        lng,
-        ...parsed
+    try {
+      const place = placePrediction.toPlace();
+      await place.fetchFields({
+        fields: ['formattedAddress', 'location', 'addressComponents']
       });
-    }
 
-    setShowFallback(false);
-  };
+      const formattedAddress = place.formattedAddress || placePrediction.text?.text || inputValue;
+      const lat = Number(place.location?.lat?.() ?? place.location?.lat);
+      const lng = Number(place.location?.lng?.() ?? place.location?.lng);
 
-  const selectFallbackSuggestion = async (suggestion) => {
-    const formattedAddress = suggestion?.fullAddress || suggestion?.label || inputValue;
-    const lat = Number(suggestion?.lat);
-    const lng = Number(suggestion?.lng);
+      handleLocalChange(formattedAddress);
+      setShowSuggestions(false);
 
-    let resolved = {
-      fullAddress: formattedAddress,
-      address: formattedAddress,
-      city: suggestion?.city || '',
-      state: suggestion?.state || '',
-      zipCode: suggestion?.zipCode || '',
-      street: suggestion?.street || '',
-      lat,
-      lng,
-    };
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      try {
-        const geocodeRes = await geocodeAddressQuery(formattedAddress);
-        const loc = geocodeRes?.data?.location || geocodeRes?.location || null;
-        if (loc) {
-          resolved = {
-            ...resolved,
-            fullAddress: loc.fullAddress || formattedAddress,
-            address: loc.fullAddress || formattedAddress,
-            city: loc.city || resolved.city,
-            state: loc.state || resolved.state,
-            zipCode: loc.zipCode || resolved.zipCode,
-            street: loc.street || resolved.street,
-            lat: Number(loc.lat),
-            lng: Number(loc.lng),
-          };
-        }
-      } catch {
-        // Keep text-only selection if geocode lookup fails.
+      const parsed = parseAddressComponents(place.addressComponents || []);
+
+      if (typeof onSelect === 'function') {
+        onSelect({
+          address: formattedAddress,
+          fullAddress: formattedAddress,
+          lat,
+          lng,
+          ...parsed
+        });
       }
-    }
 
-    handleLocalChange(resolved.fullAddress || formattedAddress);
-    setShowFallback(false);
-    if (typeof onSelect === 'function') onSelect(resolved);
+      if (placesLibraryReady && placesLibraryRef.current?.AutocompleteSessionToken) {
+        sessionTokenRef.current = new placesLibraryRef.current.AutocompleteSessionToken();
+      }
+    } catch {
+      setShowSuggestions(false);
+    }
   };
 
-  const fallbackDropdown = showFallback && (
+  const suggestionsDropdown = showSuggestions && (
     <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-56 overflow-auto">
-      {fallbackLoading ? (
+      {suggestionsLoading ? (
         <div className="px-3 py-2 text-xs text-gray-500">Searching addresses...</div>
-      ) : fallbackSuggestions.length === 0 ? (
+      ) : suggestions.length === 0 ? (
         <div className="px-3 py-2 text-xs text-gray-500">No suggestions found.</div>
       ) : (
-        fallbackSuggestions.map((suggestion, idx) => (
-          <button
-            key={`${suggestion.placeId || suggestion.label || 's'}-${idx}`}
-            type="button"
-            onClick={() => selectFallbackSuggestion(suggestion)}
-            className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-          >
-            <div className="text-sm text-gray-800 truncate">{suggestion.label || suggestion.fullAddress}</div>
-          </button>
-        ))
+        suggestions.map((suggestion, idx) => {
+          const placePrediction = suggestion.placePrediction;
+          const primaryText = placePrediction?.text?.text || placePrediction?.mainText?.text || suggestion.description || '';
+          const secondaryText = placePrediction?.secondaryText?.text || '';
+
+          return (
+            <button
+              key={`${placePrediction?.placeId || primaryText || 's'}-${idx}`}
+              type="button"
+              onClick={() => selectSuggestion(suggestion)}
+              className={`w-full text-left px-3 py-2 border-b border-gray-100 last:border-b-0 ${activeIndex === idx ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
+            >
+              <div className="text-sm text-gray-800 truncate">{primaryText}</div>
+              {secondaryText ? <div className="text-[11px] text-gray-500 truncate">{secondaryText}</div> : null}
+            </button>
+          );
+        })
       )}
     </div>
   );
 
   if (!shouldUseGoogleMaps || googleAuthFailed) {
     return (
-      <div className="relative" ref={fallbackContainerRef}>
+      <div className="relative" ref={containerRef}>
         <input
           type="text"
           value={inputValue}
           onChange={(e) => handleLocalChange(e.target.value)}
-          onFocus={() => setShowFallback(fallbackSuggestions.length > 0)}
+          onFocus={() => setShowSuggestions(suggestions.length > 0 || String(inputValue || '').trim().length >= 3)}
           placeholder={placeholder}
           className={className || 'w-full p-3 border rounded-lg'}
         />
-        {fallbackDropdown}
+        {suggestionsDropdown}
       </div>
     );
   }
@@ -246,18 +284,34 @@ export default function AddressInput({ value = '', onChange, onSelect, placehold
   }
 
   return (
-    <div className="relative" ref={fallbackContainerRef}>
-      <Autocomplete onLoad={onLoad} onPlaceChanged={onPlaceChanged}>
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => handleLocalChange(e.target.value)}
-          onFocus={() => setShowFallback(fallbackSuggestions.length > 0)}
-          placeholder={placeholder}
-          className={className || 'w-full p-3 border rounded-lg'}
-        />
-      </Autocomplete>
-      {fallbackDropdown}
+    <div className="relative" ref={containerRef}>
+      <input
+        type="text"
+        value={inputValue}
+        onChange={(e) => handleLocalChange(e.target.value)}
+        onFocus={() => setShowSuggestions(suggestions.length > 0)}
+        onKeyDown={(e) => {
+          if (!showSuggestions || suggestions.length === 0) return;
+
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setActiveIndex((prev) => (prev + 1) % suggestions.length);
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setActiveIndex((prev) => (prev <= 0 ? suggestions.length - 1 : prev - 1));
+          } else if (e.key === 'Enter') {
+            if (activeIndex >= 0 && activeIndex < suggestions.length) {
+              e.preventDefault();
+              selectSuggestion(suggestions[activeIndex]);
+            }
+          } else if (e.key === 'Escape') {
+            setShowSuggestions(false);
+          }
+        }}
+        placeholder={placeholder}
+        className={className || 'w-full p-3 border rounded-lg'}
+      />
+      {suggestionsDropdown}
     </div>
   );
 }

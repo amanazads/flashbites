@@ -1,13 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
-import { MapContainer, Marker as LeafletMarker, TileLayer, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import { Capacitor } from '@capacitor/core';
 
-const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.REACT_APP_GOOGLE_KEY;
+const WEB_GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.REACT_APP_GOOGLE_KEY;
+const NATIVE_GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_NATIVE_API_KEY;
 const ALLOW_GOOGLE_MAPS_ON_LOCALHOST = String(import.meta.env.VITE_ALLOW_GOOGLE_MAPS_ON_LOCALHOST || '').toLowerCase() === 'true';
 const MAP_LIBRARIES = ['places'];
 const MAP_OPTIONS = {
@@ -17,23 +13,12 @@ const MAP_OPTIONS = {
   gestureHandling: 'greedy'
 };
 
-const fallbackLeafletIcon = L.icon({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-const LeafletClickHandler = ({ onMapClick }) => {
-  useMapEvents({
-    click: (e) => {
-      onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng });
-    },
-  });
-  return null;
+const isNativePlatform = () => {
+  try {
+    return Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'web';
+  } catch {
+    return Boolean(window?.Capacitor?.isNativePlatform?.());
+  }
 };
 
 export default function MapPicker({
@@ -42,7 +27,11 @@ export default function MapPicker({
   mapHeight = 300
 }) {
   const isLocalHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
-  const shouldUseGoogleMaps = Boolean(GOOGLE_KEY) && (!isLocalHost || ALLOW_GOOGLE_MAPS_ON_LOCALHOST);
+  const nativeRuntime = isNativePlatform();
+  const nativePreferred = isNativePlatform() && Boolean(NATIVE_GOOGLE_KEY);
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState(nativePreferred ? NATIVE_GOOGLE_KEY : WEB_GOOGLE_KEY);
+  const [loaderAttempt, setLoaderAttempt] = useState(nativePreferred ? 'native' : 'web');
+  const shouldUseGoogleMaps = Boolean(googleMapsApiKey) && (nativeRuntime || !isLocalHost || ALLOW_GOOGLE_MAPS_ON_LOCALHOST);
   const defaultCenter = useMemo(() => ({
     lat: Number(initialPosition?.lat) || 31.53,
     lng: Number(initialPosition?.lng) || 75.91
@@ -54,6 +43,11 @@ export default function MapPicker({
   useEffect(() => {
     setPosition(defaultCenter);
   }, [defaultCenter]);
+
+  useEffect(() => {
+    setGoogleMapsApiKey(nativePreferred ? NATIVE_GOOGLE_KEY : WEB_GOOGLE_KEY);
+    setLoaderAttempt(nativePreferred ? 'native' : 'web');
+  }, [nativePreferred]);
 
   useEffect(() => {
     if (!shouldUseGoogleMaps || typeof window === 'undefined') return;
@@ -72,10 +66,22 @@ export default function MapPicker({
   }, [shouldUseGoogleMaps]);
 
   const { isLoaded, loadError } = useJsApiLoader({
-    id: 'flashbites-google-map-picker',
-    googleMapsApiKey: shouldUseGoogleMaps ? GOOGLE_KEY : '',
+    id: `flashbites-google-map-picker-${loaderAttempt}`,
+    googleMapsApiKey: shouldUseGoogleMaps ? googleMapsApiKey : '',
     libraries: MAP_LIBRARIES
   });
+
+  useEffect(() => {
+    if (!nativePreferred) return;
+    if (isLoaded || loadError) return;
+
+    const timeout = window.setTimeout(() => {
+      setGoogleMapsApiKey(WEB_GOOGLE_KEY);
+      setLoaderAttempt('web-fallback');
+    }, 6000);
+
+    return () => window.clearTimeout(timeout);
+  }, [isLoaded, loadError, nativePreferred]);
 
   const emitSelection = (nextPosition) => {
     setPosition(nextPosition);
@@ -84,48 +90,20 @@ export default function MapPicker({
     }
   };
 
-  const renderLeafletFallback = (showError = false) => (
-    <div className="rounded-lg overflow-hidden border border-gray-200">
-      {showError && (
-        <div className="p-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-200">
-          Google map unavailable. Using fallback map.
-        </div>
-      )}
-      <MapContainer
-        center={position}
-        zoom={15}
-        style={{ width: '100%', height: `${mapHeight}px` }}
-      >
-        <TileLayer
-          attribution='&copy; OpenStreetMap contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <LeafletClickHandler onMapClick={emitSelection} />
-        <LeafletMarker
-          position={position}
-          draggable
-          icon={fallbackLeafletIcon}
-          eventHandlers={{
-            dragend: (event) => {
-              const marker = event.target;
-              const latlng = marker.getLatLng();
-              emitSelection({ lat: latlng.lat, lng: latlng.lng });
-            },
-          }}
-        />
-      </MapContainer>
-      <div className="bg-white text-[11px] text-gray-600 px-2 py-1 border-t border-gray-200">
-        Tap map or drag pin
-      </div>
-    </div>
-  );
-
   if (!shouldUseGoogleMaps) {
-    return renderLeafletFallback(false);
+    return (
+      <div className="w-full rounded-lg border border-gray-200 p-4 text-xs text-gray-500">
+        Loading map...
+      </div>
+    );
   }
 
   if (googleAuthFailed || loadError) {
-    return renderLeafletFallback(true);
+    return (
+      <div className="w-full rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+        Google Maps could not be loaded. Verify API key restrictions, billing, and that Maps JavaScript API + Places API are enabled.
+      </div>
+    );
   }
 
   if (!isLoaded) {
