@@ -34,9 +34,10 @@
   --nav-height-mob: 64px;
   --nav-height-desk: 64px;
   --bottom-nav-h:   72px;
-  --safe-area-inset-top: 0px;
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
   --safe-area-inset-bottom: env(safe-area-inset-bottom);
-  --mobile-notch-offset: 0px;
+  --mobile-notch-offset: max(var(--safe-area-inset-top), 10px);
+  --mobile-notch-gap: clamp(2px, 0.8vw, 6px);
 
   /* Shadows */
   --shadow-xs:   0 1px 4px rgba(0,0,0,0.05);
@@ -114,6 +115,45 @@ ion-app,
 }
 
 @media (max-width: 1023px) {
+  /* Theme-aware top strip so notch/status area stays visually clean. */
+  main::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(var(--mobile-notch-offset) + var(--mobile-notch-gap));
+    background: linear-gradient(to bottom, rgba(245, 243, 241, 0.96), rgba(245, 243, 241, 0));
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    z-index: 1090;
+    pointer-events: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    main::before {
+      background: linear-gradient(to bottom, rgba(18, 24, 33, 0.94), rgba(18, 24, 33, 0));
+    }
+  }
+
+  /* Keep page content below notch with a minimal, consistent top gap. */
+  main {
+    padding-top: calc(var(--mobile-notch-offset) + var(--mobile-notch-gap));
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  html,
+  body,
+  #root,
+  main,
+  .page-wrapper,
+  .app-page-shell,
+  .legal-doc-page,
+  .min-h-screen {
+    scroll-padding-top: calc(var(--mobile-notch-offset) + 8px);
+  }
+
   /* Keep sticky and fixed top bars below notch/status area during scroll on mobile. */
   .page-wrapper .sticky.top-0,
   .app-page-shell .sticky.top-0,
@@ -279,11 +319,11 @@ input, textarea, select {
 }
 
 .app-page-shell {
-  padding-top: 12px;
+  padding-top: calc(12px + var(--mobile-notch-gap));
 }
 
 .legal-doc-page {
-  padding-top: 12px;
+  padding-top: calc(12px + var(--mobile-notch-gap));
   padding-bottom: 2.5rem;
 }
 
