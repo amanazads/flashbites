@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateProfile, getAddresses, deleteAddress } from '../api/userApi';
 import { getUserOrders } from '../api/orderApi';
-import { logout } from '../redux/slices/authSlice';
+import { logout, setAuthUser } from '../redux/slices/authSlice';
 import * as authApi from '../api/authApi';
 import {
   ArrowLeftIcon,
@@ -107,7 +107,7 @@ const Profile = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAuthenticated, loading: authLoading } = useSelector((s) => s.auth);
+  const { user, token, isAuthenticated, loading: authLoading } = useSelector((s) => s.auth);
   const selectedDeliveryAddress = useSelector((s) => s.ui.selectedDeliveryAddress);
   const { t, openLanguageModal } = useLanguage();
   const deliveryAddressLabel = getDeliveryAddressLabel(selectedDeliveryAddress, t('common.currentArea', 'Current Area'));
@@ -158,9 +158,28 @@ const Profile = () => {
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
+    const nextName = profileData.name.trim();
+    const nextPhone = profileData.phone.trim();
+
+    if (!nextName) {
+      toast.error(t('profile.nameRequired', 'Name is required'));
+      return;
+    }
+
     setSavingProfile(true);
     try {
-      await updateProfile(profileData);
+      const response = await updateProfile({ name: nextName, phone: nextPhone });
+      const updatedUser =
+        response?.data?.user ||
+        response?.user ||
+        {
+          ...user,
+          name: nextName,
+          phone: nextPhone,
+        };
+
+      dispatch(setAuthUser({ user: updatedUser, token }));
+      setProfileData({ name: updatedUser?.name || '', phone: updatedUser?.phone || '' });
       toast.success(t('profile.updated', 'Profile updated successfully'));
       setIsEditing(false);
     } catch {
