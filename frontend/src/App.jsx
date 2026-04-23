@@ -180,8 +180,8 @@ function App() {
       if (!isNative || !Capacitor.isPluginAvailable('StatusBar')) return;
 
       const darkMode = isSystemDark();
+      // Only set the appearance; background color is now handled by theme for Android 15+ edge-to-edge support
       await StatusBar.setStyle({ style: darkMode ? Style.Light : Style.Dark });
-      await StatusBar.setBackgroundColor({ color: darkMode ? '#111827' : '#F5F3F1' });
     };
 
     const initializeStatusBar = async () => {
