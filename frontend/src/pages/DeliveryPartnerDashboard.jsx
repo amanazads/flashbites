@@ -69,17 +69,18 @@ const DeliveryPartnerDashboard = () => {
 
     // Listen for new order notifications
     const handleNewOrder = () => {
-      if (autoRefreshEnabled) fetchData(); // Refresh orders
+      // Always refresh once on real-time availability updates.
+      fetchData();
     };
 
     // Listen for order assignment
     const handleOrderAssigned = () => {
-      if (autoRefreshEnabled) fetchData(); // Refresh orders
+      fetchData();
     };
 
     // Listen for order cancellation
     const handleOrderCancelled = () => {
-      if (autoRefreshEnabled) fetchData(); // Refresh orders
+      fetchData();
     };
 
     // Keep earnings and stats in sync immediately when a delivery status changes.

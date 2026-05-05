@@ -171,7 +171,7 @@ const logNearbyGeoPrimarySuccess = ({ lat, lng, maxDistance, limit, candidateCou
 // @access  Private (Restaurant Owner)
 exports.createRestaurant = async (req, res) => {
   try {
-    let { name, email, phone, description, cuisines, address, location, timing, deliveryFee, deliveryTime, prepTimeMinutes, deliveryRadiusKm, deliveryRadius, deliveryZone } = req.body;
+    let { name, email, phone, description, cuisines, address, location, timing, deliveryFee, deliveryTime, prepTimeMinutes, deliveryRadiusKm, deliveryZone } = req.body;
 
     const parsedCuisines = parseJsonField(cuisines, 'cuisines');
     if (!parsedCuisines.ok) return errorResponse(res, 400, parsedCuisines.message);
@@ -220,10 +220,6 @@ exports.createRestaurant = async (req, res) => {
     if (typeof prepTimeMinutes === 'string' && prepTimeMinutes.trim()) {
       const parsedPrepTime = Number(prepTimeMinutes);
       prepTimeMinutes = Number.isFinite(parsedPrepTime) ? parsedPrepTime : undefined;
-    }
-
-    if (deliveryRadiusKm == null && deliveryRadius != null) {
-      deliveryRadiusKm = deliveryRadius;
     }
 
     const normalizedDeliveryZone = parseDeliveryZonePayload(deliveryZone);
@@ -305,7 +301,7 @@ exports.getAllRestaurants = async (req, res) => {
       lng,
       addressLat,
       addressLng,
-      radius = 20000,
+      radius = 15000,
       minRating,
       sortBy = '-rating',
       page = 1,
@@ -429,12 +425,11 @@ exports.getAllRestaurants = async (req, res) => {
 
           const point = [lngNum, latNum];
           const hasUsableZone = isUsableRestaurantDeliveryZone(r.deliveryZone, coords);
-          if (hasUsableZone && !isPointInDeliveryZone(r.deliveryZone, point)) return null;
+          if (!hasUsableZone) return null;
+          if (!isPointInDeliveryZone(r.deliveryZone, point)) return null;
 
           const distanceKm = calculateDistance(latNum, lngNum, coords[1], coords[0]);
-          const allowedKm = Number(r.deliveryRadiusKm || 20);
           if (!Number.isFinite(distanceKm)) return null;
-          if (!hasUsableZone && distanceKm > allowedKm) return null;
           return { ...r, distanceKm: Number(distanceKm.toFixed(2)) };
         })
         .filter(Boolean)
@@ -475,7 +470,7 @@ exports.getNearbyRestaurants = async (req, res) => {
   try {
     const lat = Number(req.query.lat);
     const lng = Number(req.query.lng);
-    const maxDistanceRaw = Number(req.query.maxDistance || 10000);
+    const maxDistanceRaw = Number(req.query.maxDistance || 15000);
     const maxDistance = Number.isFinite(maxDistanceRaw)
       ? Math.min(Math.max(maxDistanceRaw, 1000), 100000)
       : 10000;
@@ -589,14 +584,8 @@ exports.getNearbyRestaurants = async (req, res) => {
     const restaurants = candidates.filter((restaurant) => {
       const coords = restaurant.location?.coordinates || [];
       const hasUsableZone = isUsableRestaurantDeliveryZone(restaurant.deliveryZone, coords);
-
-      if (hasUsableZone) {
-        return isPointInDeliveryZone(restaurant.deliveryZone, [lng, lat]);
-      }
-
-      const distanceKm = Number(restaurant.distanceKm);
-      const allowedKm = Number(restaurant.deliveryRadiusKm || 20);
-      return Number.isFinite(distanceKm) && distanceKm <= allowedKm;
+      if (!hasUsableZone) return false;
+      return isPointInDeliveryZone(restaurant.deliveryZone, [lng, lat]);
     }).slice(0, safeLimit);
 
     return successResponse(res, 200, 'Nearby restaurants retrieved successfully', {
@@ -752,10 +741,6 @@ exports.updateRestaurant = async (req, res) => {
         await deleteFromCloudinary(restaurant.image);
       }
       req.body.image = await uploadToCloudinary(req.file.buffer, 'flashbites/restaurants');
-    }
-
-    if (req.body.deliveryRadiusKm == null && req.body.deliveryRadius != null) {
-      req.body.deliveryRadiusKm = req.body.deliveryRadius;
     }
 
     if (req.body.deliveryZone !== undefined) {
