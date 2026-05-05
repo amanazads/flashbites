@@ -38,7 +38,7 @@ const assignDeliveryPartner = async (orderDoc) => {
     location: {
       $near: {
         $geometry: location,
-        $maxDistance: 5000
+        $maxDistance: 15000
       }
     }
   }).select('_id name phone');

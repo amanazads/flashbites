@@ -124,7 +124,7 @@ const restaurantSchema = new mongoose.Schema({
   },
   deliveryRadiusKm: {
     type: Number,
-    default: 20,
+    default: 15,
     min: 1,
     max: 100
   },

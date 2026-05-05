@@ -7,6 +7,14 @@ dotenv.config();
 
 const isFiniteNumber = (value) => Number.isFinite(Number(value));
 
+// Allow configuring the default radius via env or CLI
+// Priority: --radius=XX CLI arg > process.env.DEFAULT_DELIVERY_RADIUS_KM > fallback 15
+const cliRadiusArg = process.argv.find((arg) => arg.startsWith('--radius='));
+const cliRadius = cliRadiusArg ? Number(cliRadiusArg.split('=')[1]) : NaN;
+const DEFAULT_RADIUS_KM = Number.isFinite(Number(cliRadius))
+  ? Number(cliRadius)
+  : (Number(process.env.DEFAULT_DELIVERY_RADIUS_KM) || 15);
+
 const hasValidLocation = (restaurant) => {
   const coords = restaurant?.location?.coordinates;
   return Array.isArray(coords) && coords.length === 2 && isFiniteNumber(coords[0]) && isFiniteNumber(coords[1]);
@@ -14,7 +22,8 @@ const hasValidLocation = (restaurant) => {
 
 const radiusToDeltas = (radiusKm, latDeg) => {
   const earthRadiusKm = 6371;
-  const safeRadius = Math.min(Math.max(Number(radiusKm) || 20, 1), 100);
+  const fallback = Number(radiusKm) || DEFAULT_RADIUS_KM;
+  const safeRadius = Math.min(Math.max(Number(fallback), 1), 100);
   const latRad = (Number(latDeg) * Math.PI) / 180;
   const angularDistance = safeRadius / earthRadiusKm;
 
@@ -79,7 +88,7 @@ const main = async () => {
       continue;
     }
 
-    const nextZone = buildBoxZone(coords[0], coords[1], restaurant.deliveryRadiusKm || 20);
+    const nextZone = buildBoxZone(coords[0], coords[1], restaurant.deliveryRadiusKm || DEFAULT_RADIUS_KM);
     if (!nextZone) {
       continue;
     }
@@ -94,7 +103,7 @@ const main = async () => {
     touched.push({
       id: String(restaurant._id),
       name: restaurant.name,
-      radiusKm: Number(restaurant.deliveryRadiusKm || 20),
+      radiusKm: Number(restaurant.deliveryRadiusKm || DEFAULT_RADIUS_KM),
       reason: currentZoneLooksUsable ? 'forced-refresh' : 'stale-or-missing-zone',
     });
   }

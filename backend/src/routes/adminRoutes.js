@@ -19,6 +19,7 @@ const {
   updateRestaurantPayoutRate,
   updateRestaurantFeeControls,
   saveRestaurantDeliveryZone,
+  getDeliveryZoneHealth,
   createCoupon,
   getAllCoupons,
   updateCoupon,
@@ -28,7 +29,14 @@ const {
   reviewAccountDeletionRequest,
   getPlatformSettings,
   updatePlatformSettings,
-  getDeliveryTrackingDashboard
+  getDeliveryTrackingDashboard,
+  getDeliveryPartners,
+  getDeliveryPartnerDetails,
+  updateDeliveryPartner,
+  toggleDeliveryPartnerStatus,
+  getDeliveryPartnerOrders,
+  rejectOrderAssignment,
+  reassignOrderToPartner
 } = require('../controllers/adminController');
 
 router.use(protect, restrictTo('admin')); // All admin routes
@@ -44,6 +52,7 @@ router.put('/delivery-partners/:id/earnings-control', updateDeliveryPartnerEarni
 router.get('/delivery-tracking', getDeliveryTrackingDashboard);
 router.get('/orders', getAllOrders);
 router.get('/restaurants', getAllRestaurants);
+router.get('/restaurants/delivery-zone-health', getDeliveryZoneHealth);
 router.patch('/restaurants/:id/approve', approveRestaurant);
 router.patch('/restaurants/:id/payout-rate', updateRestaurantPayoutRate);
 router.patch('/restaurants/:id/fee-controls', updateRestaurantFeeControls);
@@ -55,6 +64,15 @@ router.patch('/account-deletion-requests/:id/review', reviewAccountDeletionReque
 
 router.get('/settings', getPlatformSettings);
 router.put('/settings', updatePlatformSettings);
+
+// Delivery partner management routes (new comprehensive panel)
+router.get('/delivery-partners', getDeliveryPartners);
+router.get('/delivery-partners/:id', getDeliveryPartnerDetails);
+router.put('/delivery-partners/:id', updateDeliveryPartner);
+router.put('/delivery-partners/:id/status', toggleDeliveryPartnerStatus);
+router.get('/delivery-partners/:id/orders', getDeliveryPartnerOrders);
+router.post('/delivery-partners/:id/orders/:orderId/reject', rejectOrderAssignment);
+router.post('/delivery-partners/:id/orders/:orderId/reassign', reassignOrderToPartner);
 
 // Coupon management routes
 router.route('/coupons')

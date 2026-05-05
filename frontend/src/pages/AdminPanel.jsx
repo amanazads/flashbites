@@ -45,6 +45,7 @@ import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../utils/constants';
 import axios from '../api/axios';
 import socketService from '../services/socketService';
 import RestaurantLocationModal from '../components/admin/RestaurantLocationModal';
+import DeliveryPartnerManagement from './DeliveryPartnerManagement';
 
 const MENU_CATEGORIES = [
   'Starters',
@@ -1690,6 +1691,16 @@ const AdminPanel = () => {
                 Earnings Control
               </button>
               <button
+                onClick={() => setActiveTab('partner-management')}
+                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium whitespace-nowrap ${
+                  activeTab === 'partner-management'
+                    ? 'border-b-2 border-primary-500 text-primary-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Partner Management
+              </button>
+              <button
                 onClick={() => {
                   setActiveTab('analytics');
                   fetchAnalytics();
@@ -3308,6 +3319,11 @@ const AdminPanel = () => {
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Partner Management Tab */}
+            {activeTab === 'partner-management' && (
+              <DeliveryPartnerManagement />
             )}
 
             {/* Analytics Tab */}

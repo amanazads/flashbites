@@ -99,3 +99,35 @@ export const updateCoupon = (id, payload) => {
 export const deleteCoupon = (id) => {
   return axios.delete(`/admin/coupons/${id}`);
 };
+
+// ============================================================
+// NEW: DELIVERY PARTNER MANAGEMENT API
+// ============================================================
+
+export const getDeliveryPartners = (params) => {
+  return axios.get('/admin/delivery-partners', { params });
+};
+
+export const getDeliveryPartnerDetails = (id) => {
+  return axios.get(`/admin/delivery-partners/${id}`);
+};
+
+export const updateDeliveryPartner = (id, payload) => {
+  return axios.put(`/admin/delivery-partners/${id}`, payload);
+};
+
+export const toggleDeliveryPartnerStatus = (id, isActive) => {
+  return axios.put(`/admin/delivery-partners/${id}/status`, { isActive });
+};
+
+export const getDeliveryPartnerOrders = (id, params) => {
+  return axios.get(`/admin/delivery-partners/${id}/orders`, { params });
+};
+
+export const rejectOrderAssignment = (partnerId, orderId, reason) => {
+  return axios.post(`/admin/delivery-partners/${partnerId}/orders/${orderId}/reject`, { reason });
+};
+
+export const reassignOrderToPartner = (partnerId, orderId, targetPartnerId) => {
+  return axios.post(`/admin/delivery-partners/${partnerId}/orders/${orderId}/reassign`, { targetPartnerId });
+};
