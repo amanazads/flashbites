@@ -29,6 +29,8 @@ const ForgotPassword = () => {
   const [step, setStep] = useState(1); // 1: phone, 2: otp, 3: new password
   const [loading, setLoading] = useState(false);
   const [otpBlockRemaining, setOtpBlockRemaining] = useState(0);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     phone: '',
     otp: '',
@@ -182,8 +184,8 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="auth-page-shell min-h-screen flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8" style={{ background: '#F6F1F1' }}>
-      <div className="auth-form-shell max-w-md w-full space-y-6 sm:space-y-8">
+    <div className="auth-page-shell min-h-screen flex items-center justify-center px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16" style={{ background: '#F6F1F1' }}>
+      <div className="auth-form-shell w-full max-w-md lg:max-w-[27rem] space-y-6 sm:space-y-8">
         <div className="text-center mb-1">
           <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 bg-[#FBF7F6] border border-[#EFE3E3]">
             <div className="w-8 h-8 rounded-md bg-white border border-[#EEE4E4] flex items-center justify-center">
@@ -193,7 +195,7 @@ const ForgotPassword = () => {
           </div>
         </div>
 
-        <div className="auth-surface p-5 sm:p-8">
+        <div className="auth-surface p-5 sm:p-8 lg:p-9">
           <div className="text-center">
             <h2 className="text-2xl sm:text-3xl font-black text-[#201A1C] mb-2">{t('forgot.title', 'Forgot Password')}</h2>
             <p className="text-sm text-[#6B6064]">
@@ -290,30 +292,48 @@ const ForgotPassword = () => {
             <form onSubmit={handleResetPassword} className="mt-8 space-y-6">
               <div>
                 <label htmlFor="newPassword" className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('forgot.newPassword', 'New Password')}</label>
-                <input
-                  id="newPassword"
-                  name="newPassword"
-                  type="password"
-                  required
-                  value={formData.newPassword}
-                  onChange={handleChange}
-                  className="auth-input-base px-4 text-[14px] sm:text-[15px] text-[#3A3235] placeholder:text-[#AA9EA2] outline-none"
-                  placeholder={t('register.passwordPlaceholder', 'Min 6 characters')}
-                />
+                <div className="relative">
+                  <input
+                    id="newPassword"
+                    name="newPassword"
+                    type={showNewPassword ? 'text' : 'password'}
+                    required
+                    value={formData.newPassword}
+                    onChange={handleChange}
+                    className="auth-input-base px-4 pr-16 text-[14px] sm:text-[15px] text-[#3A3235] placeholder:text-[#AA9EA2] outline-none"
+                    placeholder={t('register.passwordPlaceholder', 'Min 6 characters')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword((prev) => !prev)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold uppercase tracking-[0.06em] text-[#8A7E82]"
+                  >
+                    {showNewPassword ? t('auth.login.hide', 'Hide') : t('auth.login.show', 'Show')}
+                  </button>
+                </div>
               </div>
 
               <div>
                 <label htmlFor="confirmPassword" className="block text-xs font-bold text-[#7B6E72] uppercase tracking-[0.12em] mb-1.5">{t('forgot.confirmPassword', 'Confirm Password')}</label>
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  required
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="auth-input-base px-4 text-[14px] sm:text-[15px] text-[#3A3235] placeholder:text-[#AA9EA2] outline-none"
-                  placeholder={t('register.confirmPasswordPlaceholder', 'Re-enter password')}
-                />
+                <div className="relative">
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className="auth-input-base px-4 pr-16 text-[14px] sm:text-[15px] text-[#3A3235] placeholder:text-[#AA9EA2] outline-none"
+                    placeholder={t('register.confirmPasswordPlaceholder', 'Re-enter password')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold uppercase tracking-[0.06em] text-[#8A7E82]"
+                  >
+                    {showConfirmPassword ? t('auth.login.hide', 'Hide') : t('auth.login.show', 'Show')}
+                  </button>
+                </div>
               </div>
 
               <button
