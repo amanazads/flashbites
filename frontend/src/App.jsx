@@ -188,7 +188,7 @@ function App() {
       try {
         if (isNative && Capacitor.isPluginAvailable('StatusBar')) {
           await StatusBar.show();
-          await StatusBar.setOverlaysWebView({ overlay: false });
+          // Keep the web view edge-to-edge; avoid forcing the old opaque status bar path.
           await applyStatusBarTheme();
 
           if (typeof window !== 'undefined' && window.matchMedia) {
