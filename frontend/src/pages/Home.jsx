@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLanguage } from '../contexts/LanguageContext';
+import { isRestaurantOpen } from '../utils/helpers';
 import {
   GlobeAltIcon,
   HomeIcon,
@@ -63,6 +64,21 @@ const mapSavedAddressToSelection = (addr) => {
 };
 
 const getItemRestaurantId = (item) => String(item?.restaurantId || item?.restaurant?._id || '');
+const hasValidLocationSelection = (value) => {
+  if (!value || typeof value !== 'object') return false;
+
+  const lat = Number(value.latitude);
+  const lng = Number(value.longitude);
+  const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
+  if (hasCoords) return true;
+
+  return Boolean(
+    String(value.fullAddress || '').trim()
+    || String(value.street || '').trim()
+    || String(value.city || '').trim()
+    || String(value.id || '').trim()
+  );
+};
 
 const Home = () => {
   const navigate = useNavigate();
@@ -72,8 +88,9 @@ const Home = () => {
   const { restaurants, loading } = useSelector((s) => s.restaurant);
   const { items: cartItems, restaurant: cartRestaurant } = useSelector((s) => s.cart);
   const { selectedDeliveryAddress } = useSelector((s) => s.ui);
-  const { isAuthenticated } = useSelector((s) => s.auth);
+  const { isAuthenticated, user } = useSelector((s) => s.auth);
   const { t, language, openLanguageModal } = useLanguage();
+  const hasSelectedLocation = hasValidLocationSelection(selectedDeliveryAddress);
 
   const getLocalizedItemName = useCallback((item) => {
     const english = typeof item?.name === 'string' ? item.name : '';
@@ -105,6 +122,7 @@ const Home = () => {
   const lastLocationErrorToastAtRef = useRef(0);
 
   const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const userInitial = (user?.name || user?.fullName || user?.email || 'U').trim().charAt(0).toUpperCase();
 
   const buildLocationSelection = useCallback(async (latitude, longitude, fallbackId) => {
     const fallbackSelection = {
@@ -241,8 +259,10 @@ const Home = () => {
       const saved = localStorage.getItem(SELECTED_ADDRESS_KEY);
       if (!selectedDeliveryAddress && saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object') {
+        if (hasValidLocationSelection(parsed)) {
           dispatch(setSelectedDeliveryAddress(parsed));
+        } else {
+          localStorage.removeItem(SELECTED_ADDRESS_KEY);
         }
       }
     } catch {
@@ -251,7 +271,7 @@ const Home = () => {
   }, [dispatch, selectedDeliveryAddress]);
 
   useEffect(() => {
-    if (!selectedDeliveryAddress) {
+    if (!hasSelectedLocation) {
       setShowAddressPicker(true);
       return;
     }
@@ -265,7 +285,7 @@ const Home = () => {
     if (!hasCoords) return;
 
     dispatch(fetchRestaurants({ lat, lng, radius: 50000, limit: 50 }));
-  }, [dispatch, selectedDeliveryAddress]);
+  }, [dispatch, hasSelectedLocation, selectedDeliveryAddress]);
 
   const handleUseCurrentLocation = () => {
     const showLocationErrorToast = (message) => {
@@ -661,14 +681,16 @@ const Home = () => {
       />
 
       <div className="min-h-screen bg-[#F5F3F1]">
-        <div className="max-w-md mx-auto px-4 pb-28 pt-[max(env(safe-area-inset-top),8px)] text-[13px]">
+        <div className="max-w-md mx-auto px-4 pb-28 pt-[8px] text-[13px]">
           <div className="flex items-center justify-between gap-3 mb-3 lg:hidden">
             <button type="button" onClick={() => setShowAddressPicker(true)} className="min-w-0 flex-1 flex items-center gap-2 text-left">
               <MapPinIcon className="h-4 w-4" style={{ color: BRAND }} />
               <div className="min-w-0">
                 <p className="text-[7px] uppercase tracking-wide text-gray-500 font-semibold">{t('common.deliverTo', 'Deliver to')}</p>
                 <p className="text-[12px] leading-none font-semibold text-gray-900 truncate">
-                  {selectedDeliveryAddress?.city || t('home.selectLocationTitle', 'Select location')}
+                  {hasSelectedLocation
+                    ? (selectedDeliveryAddress?.city || t('common.deliverTo', 'Deliver to'))
+                    : t('home.selectLocationTitle', 'Select location')}
                 </p>
               </div>
             </button>
@@ -683,8 +705,18 @@ const Home = () => {
               >
                 <GlobeAltIcon className="h-5 w-5" />
               </button>
-              <button type="button" onClick={() => navigate('/profile')} className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden">
-                <img src={logo} alt="Profile" className="h-full w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => navigate(isAuthenticated ? '/profile' : '/login')}
+                className="h-8 w-8 rounded-full border-2 border-[#EA580C] overflow-hidden bg-white flex items-center justify-center"
+                aria-label={isAuthenticated ? 'Open profile' : 'Log in'}
+                title={isAuthenticated ? 'Profile' : 'Log in'}
+              >
+                {isAuthenticated ? (
+                  <span className="text-[11px] font-extrabold text-[#EA580C]">{userInitial}</span>
+                ) : (
+                  <UserCircleIcon className="h-5 w-5 text-[#EA580C]" />
+                )}
               </button>
             </div>
           </div>
@@ -714,18 +746,37 @@ const Home = () => {
                 ) : (
                   <>
                     {searchSuggestions.restaurants.map((r) => (
-                      <button
-                        key={`sr-${r._id}`}
-                        type="button"
-                        onMouseDown={() => {
-                          setShowSuggestions(false);
-                          navigate(`/restaurant/${r._id}`);
-                        }}
-                        className="w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50"
-                      >
-                        <p className="text-[12px] font-semibold text-gray-900 line-clamp-1">{r.name}</p>
-                        <p className="text-[10px] text-gray-500 line-clamp-1">{t('home.restaurant', 'Restaurant')}</p>
-                      </button>
+                      (() => {
+                        const availability = isRestaurantOpen(r?.timing, r?.acceptingOrders !== false);
+                        return (
+                          <button
+                            key={`sr-${r._id}`}
+                            type="button"
+                            disabled={!availability.isOpen}
+                            onMouseDown={() => {
+                              if (!availability.isOpen) return;
+                              setShowSuggestions(false);
+                              navigate(`/restaurant/${r._id}`);
+                            }}
+                            className={`w-full text-left px-4 py-3 border-b border-gray-100 ${availability.isOpen ? 'hover:bg-gray-50' : 'bg-gray-50/80 cursor-not-allowed'}`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-[12px] font-semibold text-gray-900 line-clamp-1">{r.name}</p>
+                                <p className="text-[10px] text-gray-500 line-clamp-1">{t('home.restaurant', 'Restaurant')}</p>
+                              </div>
+                              {!availability.isOpen && (
+                                <div className="shrink-0 text-right">
+                                  <p className="text-[10px] font-bold text-[#EA580C]">Closed Now</p>
+                                  {availability.opensAt && (
+                                    <p className="text-[9px] text-gray-500">Opens at {availability.opensAt}</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })()
                     ))}
 
                     {searchSuggestions.items.map((item) => {
@@ -918,24 +969,56 @@ const Home = () => {
               <div className="py-10 text-center text-[12px] text-gray-500">{t('home.noRestaurants', 'No restaurants for this location yet.')}</div>
             ) : (
               <div className="space-y-5">
-                {featuredRestaurants.map((r) => (
-                  <Link key={r._id} to={`/restaurant/${r._id}`} className="block bg-white rounded-[22px] border border-[#E8E3DF] overflow-hidden">
-                    <div className="relative h-52">
-                      <img src={r.image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80'} alt={r.name} className="w-full h-full object-cover" />
-                      <div className="absolute right-3 top-3 bg-white rounded-full px-2 py-1 text-[10px] font-bold">★ {Number(r.rating || 4.7).toFixed(1)}</div>
-                    </div>
-                    <div className="p-4">
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="text-[25px] leading-[1.05] font-extrabold text-gray-900">{r.name}</h3>
-                        <span className="text-[9px] font-semibold px-3 py-1 rounded-full bg-[#E7F4EE] text-[#2E8B67]">{t('home.freeDelivery', 'FREE DELIVERY')}</span>
+                {featuredRestaurants.map((r) => {
+                  const availability = isRestaurantOpen(r?.timing, r?.acceptingOrders !== false);
+                  const CardWrapper = availability.isOpen
+                    ? Link
+                    : 'div';
+
+                  return (
+                    <CardWrapper
+                      key={r._id}
+                      {...(availability.isOpen ? { to: `/restaurant/${r._id}` } : {})}
+                      className="block bg-white rounded-[22px] border border-[#E8E3DF] overflow-hidden"
+                    >
+                      <div className="relative h-52">
+                        <img
+                          src={r.image || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80'}
+                          alt={r.name}
+                          className="w-full h-full object-cover"
+                          style={{ filter: availability.isOpen ? 'none' : 'grayscale(30%) brightness(0.85)' }}
+                        />
+                        <div className="absolute right-3 top-3 bg-white rounded-full px-2 py-1 text-[10px] font-bold">★ {Number(r.rating || 4.7).toFixed(1)}</div>
+                        {!availability.isOpen && (
+                          <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center gap-1.5">
+                            <span className="bg-white text-gray-900 text-[11px] font-bold px-3 py-1.5 rounded-lg shadow">
+                              Closed Now
+                            </span>
+                            {availability.opensAt && (
+                              <span className="text-white/80 text-[10px]">Opens at {availability.opensAt}</span>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div className="text-[12px] text-gray-600 flex items-center gap-4">
-                        <span>{String(r.deliveryTime || '25-35 min')}</span>
-                        <span>{r.distance ? `${(r.distance * 1.60934).toFixed(1)} km` : '1.9 km'}</span>
+                      <div className="p-4" style={{ opacity: availability.isOpen ? 1 : 0.75 }}>
+                        <div className="flex items-center justify-between mb-1 gap-3">
+                          <h3 className="text-[25px] leading-[1.05] font-extrabold text-gray-900">{r.name}</h3>
+                          {availability.isOpen ? (
+                            <span className="text-[9px] font-semibold px-3 py-1 rounded-full bg-[#E7F4EE] text-[#2E8B67]">{t('home.freeDelivery', 'FREE DELIVERY')}</span>
+                          ) : (
+                            <span className="text-[9px] font-semibold px-3 py-1 rounded-full bg-[#FFF1F2] text-[#BE123C]">
+                              {t('home.closedNow', 'Closed Now')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[12px] text-gray-600 flex items-center gap-4">
+                          <span>{String(r.deliveryTime || '25-35 min')}</span>
+                          <span>{r.distance ? `${(r.distance * 1.60934).toFixed(1)} km` : '1.9 km'}</span>
+                        </div>
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                    </CardWrapper>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -983,12 +1066,18 @@ const Home = () => {
               <span className="text-[8px]">{t('nav.orders', 'Orders')}</span>
             </Link>
             <Link
-              to="/profile"
+              to={isAuthenticated ? '/profile' : '/login'}
               className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1"
               style={isNavActive('/profile') ? { color: BRAND, background: '#FFF0ED' } : { color: '#B0ACA8' }}
             >
-              <UserCircleIcon className="h-5 w-5" />
-              <span className="text-[8px]">{t('common.profile', 'Profile')}</span>
+              {isAuthenticated ? (
+                <span className="h-5 w-5 rounded-full border border-current flex items-center justify-center text-[10px] font-bold">
+                  {userInitial}
+                </span>
+              ) : (
+                <UserCircleIcon className="h-5 w-5" />
+              )}
+              <span className="text-[8px]">{isAuthenticated ? t('common.profile', 'Profile') : t('nav.logIn', 'Log in')}</span>
             </Link>
           </div>
         </div>
@@ -999,7 +1088,11 @@ const Home = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowAddressPicker(false)}
+              onClick={() => {
+                if (hasSelectedLocation) {
+                  setShowAddressPicker(false);
+                }
+              }}
               className="fixed inset-0 z-[2000] bg-black/45 backdrop-blur-[2px] flex items-end sm:items-center justify-center px-4"
             >
               <motion.div

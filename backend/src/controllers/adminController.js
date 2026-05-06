@@ -11,8 +11,9 @@ const Notification = require('../models/Notification');
 const AccountDeletionRequest = require('../models/AccountDeletionRequest');
 const PlatformSettings = require('../models/PlatformSettings');
 const { normalizeFeeControls, normalizeRestaurantFeeControls } = require('../utils/feeControl');
+const { normalizeMenuCategories } = require('../utils/menuCategories');
 const { notifyCouponAvailable, notifyUser } = require('../utils/notificationService');
-const { normalizeDeliveryZone } = require('../utils/deliveryGeo');
+const { normalizeDeliveryZone, isPointInDeliveryZone } = require('../utils/deliveryGeo');
 const { cacheGet, cacheSet, cacheDelByPrefix } = require('../utils/memoryCache');
 
 const ADMIN_CACHE_PREFIX = 'admin:';
@@ -88,6 +89,10 @@ const normalizeSettingsPayload = (payload = {}) => {
     ? normalizeFeeControls(payload.feeControls)
     : null;
 
+  const menuCategories = payload.menuCategories
+    ? normalizeMenuCategories(payload.menuCategories)
+    : null;
+
   return {
     commissionPercent: Number.isFinite(commissionPercent)
       ? Math.min(90, Math.max(0, commissionPercent))
@@ -103,13 +108,15 @@ const normalizeSettingsPayload = (payload = {}) => {
     deliveryChargeRules: deliveryChargeRules && deliveryChargeRules.length > 0 ? deliveryChargeRules : undefined,
     promoBanners: promoBanners ? promoBanners : undefined,
     deliveryPartnerPayout: deliveryPartnerPayout || undefined,
-    feeControls: feeControls || undefined
+    feeControls: feeControls || undefined,
+    menuCategories: menuCategories || undefined
   };
 };
 
 const attachFeeControls = (settings = {}) => ({
   ...settings,
   feeControls: normalizeFeeControls(settings.feeControls),
+  menuCategories: normalizeMenuCategories(settings.menuCategories),
 });
 
 const attachRestaurantFeeControls = (restaurant = {}) => ({
@@ -1348,6 +1355,64 @@ exports.saveRestaurantDeliveryZone = async (req, res) => {
   }
 };
 
+// @desc    Validate delivery zone health across restaurants
+// @route   GET /api/admin/restaurants/delivery-zone-health
+// @access  Private (Admin)
+exports.getDeliveryZoneHealth = async (req, res) => {
+  try {
+    const restaurants = await Restaurant.find({ isApproved: true, isActive: true })
+      .select('name location deliveryZone updatedAt')
+      .lean();
+
+    const issues = [];
+
+    for (const restaurant of restaurants) {
+      const coords = restaurant.location?.coordinates;
+      const hasValidPoint = Array.isArray(coords)
+        && coords.length === 2
+        && Number.isFinite(Number(coords[0]))
+        && Number.isFinite(Number(coords[1]));
+
+      if (!hasValidPoint) {
+        issues.push({
+          id: String(restaurant._id),
+          name: restaurant.name,
+          issue: 'missing-or-invalid-location'
+        });
+        continue;
+      }
+
+      const hasZone = Boolean(restaurant.deliveryZone?.coordinates?.[0]?.length);
+      if (!hasZone) {
+        issues.push({
+          id: String(restaurant._id),
+          name: restaurant.name,
+          issue: 'missing-delivery-zone'
+        });
+        continue;
+      }
+
+      const includesRestaurantPoint = isPointInDeliveryZone(restaurant.deliveryZone, [coords[0], coords[1]]);
+      if (!includesRestaurantPoint) {
+        issues.push({
+          id: String(restaurant._id),
+          name: restaurant.name,
+          issue: 'zone-does-not-include-restaurant-location'
+        });
+      }
+    }
+
+    return successResponse(res, 200, 'Delivery zone health retrieved', {
+      scanned: restaurants.length,
+      healthy: restaurants.length - issues.length,
+      issuesCount: issues.length,
+      issues
+    });
+  } catch (error) {
+    return errorResponse(res, 500, 'Failed to validate delivery zones', error.message);
+  }
+};
+
 // @desc    Update restaurant payout rate override
 // @route   PATCH /api/admin/restaurants/:id/payout-rate
 // @access  Private (Admin)
@@ -1489,5 +1554,372 @@ exports.getDeliveryTrackingDashboard = async (req, res) => {
     return successResponse(res, 200, 'Delivery tracking dashboard fetched successfully', payload);
   } catch (error) {
     return errorResponse(res, 500, 'Failed to fetch delivery tracking dashboard', error.message);
+  }
+};
+
+// ============================================================
+// NEW: COMPREHENSIVE DELIVERY PARTNER MANAGEMENT
+// ============================================================
+
+// @desc    Get all delivery partners with detailed info
+// @route   GET /api/admin/delivery-partners
+// @access  Private (Admin)
+exports.getDeliveryPartners = async (req, res) => {
+  try {
+    const { isActive, isOnDuty, search, page = 1, limit = 20 } = req.query;
+    const query = { role: 'delivery_partner' };
+
+    if (isActive !== undefined) query.isActive = isActive === 'true';
+    if (isOnDuty !== undefined) query.isOnDuty = isOnDuty === 'true';
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+    const partners = await User.find(query)
+      .select('name phone email isActive isOnDuty avatar createdAt dutyStatusUpdatedAt lastLocationUpdate')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit, 10))
+      .lean();
+
+    const total = await User.countDocuments(query);
+
+    // Get delivery stats for each partner
+    const partnerIds = partners.map(p => p._id);
+    const stats = partnerIds.length
+      ? await Order.aggregate([
+          {
+            $match: {
+              deliveryPartnerId: { $in: partnerIds }
+            }
+          },
+          {
+            $group: {
+              _id: '$deliveryPartnerId',
+              totalDeliveries: { $sum: 1 },
+              completedDeliveries: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } },
+              cancelledDeliveries: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } },
+              pendingDeliveries: { $sum: { $cond: [{ $in: ['$status', ['confirmed', 'ready', 'out_for_delivery']] }, 1, 0] } }
+            }
+          }
+        ])
+      : [];
+
+    const statsMap = new Map(stats.map(s => [String(s._id), s]));
+
+    const enrichedPartners = partners.map(partner => ({
+      ...partner,
+      stats: statsMap.get(String(partner._id)) || {
+        totalDeliveries: 0,
+        completedDeliveries: 0,
+        cancelledDeliveries: 0,
+        pendingDeliveries: 0
+      }
+    }));
+
+    successResponse(res, 200, 'Delivery partners retrieved successfully', {
+      partners: enrichedPartners,
+      pagination: {
+        total,
+        page: parseInt(page, 10),
+        pages: Math.ceil(total / parseInt(limit, 10))
+      }
+    });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to get delivery partners', error.message);
+  }
+};
+
+// @desc    Get detailed delivery partner profile
+// @route   GET /api/admin/delivery-partners/:id
+// @access  Private (Admin)
+exports.getDeliveryPartnerDetails = async (req, res) => {
+  try {
+    const partner = await User.findOne({ _id: req.params.id, role: 'delivery_partner' })
+      .select('-password -refreshToken')
+      .lean();
+
+    if (!partner) {
+      return errorResponse(res, 404, 'Delivery partner not found');
+    }
+
+    // Get comprehensive stats
+    const stats = await Order.aggregate([
+      { $match: { deliveryPartnerId: mongoose.Types.ObjectId(req.params.id) } },
+      {
+        $facet: {
+          summary: [
+            {
+              $group: {
+                _id: null,
+                totalDeliveries: { $sum: 1 },
+                completedDeliveries: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } },
+                cancelledDeliveries: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } },
+                totalEarnings: {
+                  $sum: {
+                    $cond: [
+                      { $gt: ['$deliveryPartnerEarning', 0] },
+                      '$deliveryPartnerEarning',
+                      { $ifNull: ['$deliveryPartnerPayoutSnapshot.perOrder', 0] }
+                    ]
+                  }
+                },
+                avgRating: { $avg: '$deliveryRating' }
+              }
+            }
+          ],
+          recentOrders: [
+            {
+              $sort: { createdAt: -1 }
+            },
+            { $limit: 10 },
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'userId',
+                foreignField: '_id',
+                as: 'customer'
+              }
+            },
+            {
+              $lookup: {
+                from: 'restaurants',
+                localField: 'restaurantId',
+                foreignField: '_id',
+                as: 'restaurant'
+              }
+            },
+            {
+              $project: {
+                _id: 1,
+                orderNumber: 1,
+                status: 1,
+                total: 1,
+                deliveryPartnerEarning: 1,
+                createdAt: 1,
+                customer: { $arrayElemAt: ['$customer.name', 0] },
+                restaurant: { $arrayElemAt: ['$restaurant.name', 0] }
+              }
+            }
+          ]
+        }
+      }
+    ]);
+
+    const summaryData = stats[0]?.summary?.[0] || {
+      totalDeliveries: 0,
+      completedDeliveries: 0,
+      cancelledDeliveries: 0,
+      totalEarnings: 0,
+      avgRating: 0
+    };
+
+    const recentOrders = stats[0]?.recentOrders || [];
+
+    successResponse(res, 200, 'Partner details retrieved successfully', {
+      partner,
+      stats: summaryData,
+      recentOrders
+    });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to get partner details', error.message);
+  }
+};
+
+// @desc    Update delivery partner information
+// @route   PUT /api/admin/delivery-partners/:id
+// @access  Private (Admin)
+exports.updateDeliveryPartner = async (req, res) => {
+  try {
+    const { name, email, isActive, deliveryPayoutOverride } = req.body;
+    const updateData = {};
+
+    if (name !== undefined) updateData.name = String(name).trim();
+    if (email !== undefined) updateData.email = String(email).trim().toLowerCase();
+    if (isActive !== undefined) updateData.isActive = Boolean(isActive);
+    if (deliveryPayoutOverride !== undefined) {
+      updateData.deliveryPayoutOverride = normalizeDeliveryPartnerPayout(deliveryPayoutOverride);
+    }
+
+    const partner = await User.findOneAndUpdate(
+      { _id: req.params.id, role: 'delivery_partner' },
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).select('-password -refreshToken');
+
+    if (!partner) {
+      return errorResponse(res, 404, 'Delivery partner not found');
+    }
+
+    invalidateAdminCache();
+    successResponse(res, 200, 'Delivery partner updated successfully', { partner });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to update delivery partner', error.message);
+  }
+};
+
+// @desc    Deactivate/activate delivery partner
+// @route   PUT /api/admin/delivery-partners/:id/status
+// @access  Private (Admin)
+exports.toggleDeliveryPartnerStatus = async (req, res) => {
+  try {
+    const { isActive } = req.body;
+
+    if (typeof isActive !== 'boolean') {
+      return errorResponse(res, 400, 'isActive must be a boolean');
+    }
+
+    const partner = await User.findOneAndUpdate(
+      { _id: req.params.id, role: 'delivery_partner' },
+      { $set: { isActive } },
+      { new: true }
+    ).select('-password -refreshToken');
+
+    if (!partner) {
+      return errorResponse(res, 404, 'Delivery partner not found');
+    }
+
+    invalidateAdminCache();
+    successResponse(res, 200, `Delivery partner ${isActive ? 'activated' : 'deactivated'} successfully`, { partner });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to update partner status', error.message);
+  }
+};
+
+// @desc    Get all orders for a specific delivery partner
+// @route   GET /api/admin/delivery-partners/:id/orders
+// @access  Private (Admin)
+exports.getDeliveryPartnerOrders = async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    const partnerId = mongoose.Types.ObjectId(req.params.id);
+    const query = { deliveryPartnerId: partnerId };
+
+    if (status) query.status = status;
+
+    const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+    const orders = await Order.find(query)
+      .populate('userId', 'name phone email')
+      .populate('restaurantId', 'name address')
+      .populate('addressId', 'street city state landmark')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit, 10))
+      .lean();
+
+    const total = await Order.countDocuments(query);
+
+    successResponse(res, 200, 'Partner orders retrieved successfully', {
+      orders,
+      pagination: {
+        total,
+        page: parseInt(page, 10),
+        pages: Math.ceil(total / parseInt(limit, 10))
+      }
+    });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to get partner orders', error.message);
+  }
+};
+
+// @desc    Reject order assignment (admin action)
+// @route   POST /api/admin/delivery-partners/:id/orders/:orderId/reject
+// @access  Private (Admin)
+exports.rejectOrderAssignment = async (req, res) => {
+  try {
+    const { reason = 'Admin rejected order' } = req.body;
+    const { id: partnerId, orderId } = req.params;
+
+    const order = await Order.findOne({
+      _id: orderId,
+      deliveryPartnerId: partnerId
+    });
+
+    if (!order) {
+      return errorResponse(res, 404, 'Order not found or not assigned to this partner');
+    }
+
+    // Reset delivery partner assignment
+    order.deliveryPartnerId = null;
+    order.rejectionReason = reason;
+    order.rejectedAt = new Date();
+    await order.save();
+
+    // Notify available partners again if order was in ready or confirmed status
+    if (['confirmed', 'ready'].includes(order.status)) {
+      const { notifyDeliveryPartnersNewOrder } = require('../services/socketService');
+      notifyDeliveryPartnersNewOrder({
+        _id: order._id,
+        orderNumber: order.orderNumber,
+        status: order.status,
+        total: order.total
+      });
+    }
+
+    invalidateAdminCache();
+    successResponse(res, 200, 'Order rejected and reassigned to available partners', { order });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to reject order assignment', error.message);
+  }
+};
+
+// @desc    Reassign order to another delivery partner
+// @route   POST /api/admin/delivery-partners/:id/orders/:orderId/reassign
+// @access  Private (Admin)
+exports.reassignOrderToPartner = async (req, res) => {
+  try {
+    const { targetPartnerId } = req.body;
+    const { orderId } = req.params;
+
+    if (!targetPartnerId) {
+      return errorResponse(res, 400, 'targetPartnerId is required');
+    }
+
+    // Verify new partner exists
+    const newPartner = await User.findOne({
+      _id: targetPartnerId,
+      role: 'delivery_partner',
+      isActive: true
+    });
+
+    if (!newPartner) {
+      return errorResponse(res, 404, 'Target delivery partner not found or inactive');
+    }
+
+    // Update order
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        $set: {
+          deliveryPartnerId: targetPartnerId,
+          assignedAt: new Date()
+        }
+      },
+      { new: true }
+    ).populate('userId', 'name phone').populate('restaurantId', 'name address');
+
+    if (!order) {
+      return errorResponse(res, 404, 'Order not found');
+    }
+
+    // Notify new partner
+    const { notifyUser } = require('../utils/notificationService');
+    if (newPartner.fcmToken) {
+      notifyUser(newPartner._id, {
+        title: 'New Delivery Assigned',
+        body: `Order ${order.orderNumber} has been assigned to you by admin`,
+        data: { orderId: String(order._id), type: 'order_assigned' }
+      });
+    }
+
+    invalidateAdminCache();
+    successResponse(res, 200, 'Order reassigned successfully', { order });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to reassign order', error.message);
   }
 };

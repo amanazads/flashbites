@@ -14,10 +14,8 @@ const {
   notifyRestaurantNewOrder, 
   notifyUserOrderPlaced,
   notifyOrderReadyForPickup,
-  notifyUserDeliveryAssigned,
   notifyPaymentReminder,
   notifyDeliveryPartnerNewOrder,
-  notifyDeliveryPartnerAssignment,
   notifyDeliveryPartnerOrderReady,
   notifyDeliveryPartnerOrderCancelled
 } = require('../utils/notificationService');
@@ -27,14 +25,12 @@ const {
   notifyUserOrderUpdate,
   notifyDeliveryPartner,
   notifyDeliveryPartnersNewOrder,
-  notifyDeliveryPartnerOrderAssigned,
   notifyDeliveryPartnerOrderCancelled: socketNotifyDeliveryPartnerCancelled,
   emitOrderStatusUpdate,
   emitOrderFinancialUpdate
 } = require('../services/socketService');
 const { calculateDistance, calculateDeliveryCharge, DEFAULT_DELIVERY_CHARGES } = require('../utils/calculateDistance');
 const { normalizeFeeControls, resolveEffectiveFeeControls, isFeeEnabledAt } = require('../utils/feeControl');
-const { assignDeliveryPartner } = require('../services/deliveryAssignmentService');
 const { calculateEtaMinutes, isPointInDeliveryZone } = require('../utils/deliveryGeo');
 
 const debugAddressFlow = process.env.DEBUG_ADDRESS_FLOW === 'true';
@@ -371,7 +367,7 @@ exports.createOrder = async (req, res) => {
 
     // Verify restaurant exists and is active
     const restaurant = await Restaurant.findById(restaurantId)
-      .select('name ownerId isActive isApproved acceptingOrders timing location deliveryTime deliveryRadiusKm address payoutRateOverride feeControls')
+      .select('name ownerId isActive isApproved acceptingOrders timing location deliveryZone deliveryTime address payoutRateOverride feeControls')
       .lean();
     
     if (!restaurant) {
@@ -573,14 +569,14 @@ exports.createOrder = async (req, res) => {
     const hasUsableDeliveryZone = hasDeliveryZone
       && isPointInDeliveryZone(restaurant.deliveryZone, [restLng, restLat]);
 
-    if (hasUsableDeliveryZone) {
-      const isDeliverableByZone = isPointInDeliveryZone(restaurant.deliveryZone, [addrLng, addrLat]);
-      if (!isDeliverableByZone) {
-        return errorResponse(res, 400, 'Restaurant does not deliver to this location');
-      }
+    if (!hasUsableDeliveryZone) {
+      return errorResponse(res, 400, 'Restaurant delivery zone is not configured. Please contact support.');
     }
 
-    const maxDistanceKm = Number(restaurant.deliveryRadiusKm || process.env.MAX_DELIVERY_DISTANCE_KM || 20);
+    const isDeliverableByZone = isPointInDeliveryZone(restaurant.deliveryZone, [addrLng, addrLat]);
+    if (!isDeliverableByZone) {
+      return errorResponse(res, 400, 'Restaurant does not deliver to this location');
+    }
 
     if (debugAddressFlow) {
       console.log('[address-flow][order] user address context', {
@@ -595,37 +591,15 @@ exports.createOrder = async (req, res) => {
         name: restaurant.name,
         lat: restLat,
         lng: restLng,
-        deliveryRadiusKm: maxDistanceKm
+        deliveryZoneConfigured: hasUsableDeliveryZone
       });
       console.log('[address-flow][order] distance check', {
         distanceKm: Number(distance.toFixed(3)),
-        maxDistanceKm,
       });
     }
 
     if (!Number.isFinite(distance)) {
       return errorResponse(res, 400, 'Invalid address: could not calculate delivery distance. Please update your address location.');
-    }
-
-    if (!hasUsableDeliveryZone && distance > maxDistanceKm) {
-      if (debugAddressFlow) {
-        const debugData = {
-          distanceKm: Number(distance.toFixed(2)),
-          maxDistanceKm,
-          restaurantCoords,
-          deliveryCoords,
-          restaurantId,
-          addressId
-        };
-        console.warn('[address-flow][order] delivery distance check failed', debugData);
-        return errorResponse(
-          res,
-          400,
-          `Delivery not available (distance ${distance.toFixed(2)}km > ${maxDistanceKm}km). Please update your address.`,
-          debugData
-        );
-      }
-      return errorResponse(res, 400, `Delivery is not available in your area. This restaurant delivers up to ${maxDistanceKm} km.`);
     }
 
     let discount = 0;
@@ -757,15 +731,6 @@ exports.createOrder = async (req, res) => {
 
     const order = await Order.create(orderDoc);
 
-    let assignedPartner = null;
-    try {
-      assignedPartner = await assignDeliveryPartner(order);
-    } catch (assignmentError) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn('Auto assignment failed:', assignmentError.message);
-      }
-    }
-
     if (paymentMethod === 'card' || paymentMethod === 'upi') {
       // NOTE: Restaurant should NOT process order until payment is confirmed
       if (process.env.NODE_ENV !== 'production') {
@@ -795,12 +760,6 @@ exports.createOrder = async (req, res) => {
       
       // Database + Push notification to user
       await notifyUserOrderPlaced(populatedOrder);
-
-      if (assignedPartner && populatedOrder.deliveryPartnerId) {
-        await notifyUserDeliveryAssigned(populatedOrder, populatedOrder.deliveryPartnerId);
-        await notifyDeliveryPartnerAssignment(populatedOrder, populatedOrder.deliveryPartnerId);
-        notifyDeliveryPartnerOrderAssigned(populatedOrder.deliveryPartnerId._id.toString(), populatedOrder);
-      }
 
       if (paymentMethod !== 'cod' && process.env.NODE_ENV !== 'production') {
         console.log(`⚠️ WARNING: Online payment not confirmed yet!`);
@@ -1088,8 +1047,8 @@ exports.updateOrderStatus = async (req, res) => {
         emitOrderStatusUpdate(populatedOrder._id.toString(), status, populatedOrder);
         
         // Additional specific notifications
-        if (status === 'confirmed' || status === 'ready') {
-          // Notify all delivery partners about new order available
+        if (['confirmed', 'preparing', 'ready'].includes(status)) {
+          // Notify all delivery partners about order availability from acceptance onward.
           try {
             const orderData = await notifyDeliveryPartnerNewOrder(populatedOrder);
             if (orderData) {

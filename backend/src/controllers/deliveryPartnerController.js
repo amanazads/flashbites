@@ -106,9 +106,9 @@ const getHistoryRangeStart = (timeframe) => {
 // @access  Private (Delivery Partner)
 exports.getAvailableOrders = async (req, res) => {
   try {
-    // Get orders that are ready for delivery or confirmed (not yet assigned)
+    // Show orders from confirmation onward so partners can accept early.
     const orders = await Order.find({
-      status: { $in: ['ready', 'confirmed'] },
+      status: { $in: ['confirmed', 'preparing', 'ready'] },
       $or: [
         { deliveryPartnerId: { $exists: false } },
         { deliveryPartnerId: null }
@@ -163,7 +163,7 @@ exports.acceptOrder = async (req, res) => {
     const acceptedOrder = await Order.findOneAndUpdate(
       {
         _id: orderId,
-        status: { $in: ['ready', 'confirmed'] },
+        status: { $in: ['confirmed', 'preparing', 'ready'] },
         $or: [{ deliveryPartnerId: { $exists: false } }, { deliveryPartnerId: null }],
       },
       {

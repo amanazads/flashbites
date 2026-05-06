@@ -29,7 +29,31 @@ const Payment = () => {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(location.state?.paymentMethod || 'upi');
+  const [postOrderTransition, setPostOrderTransition] = useState({ active: false, message: '' });
   const { t } = useLanguage();
+
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const routeAfterRestaurantDecision = async (id) => {
+    setPostOrderTransition({
+      active: true,
+      message: t('payment.waitingRestaurantDecision', 'Confirming with restaurant...')
+    });
+
+    await wait(4500);
+
+    try {
+      const latestOrderRes = await getOrderById(id);
+      const latestStatus = String(latestOrderRes?.data?.order?.status || '').toLowerCase();
+      if (latestStatus === 'cancelled') {
+        toast.error(t('payment.orderRejected', 'This order was rejected by the restaurant.'));
+      }
+    } catch {
+      // Non-blocking fallback: order page will refresh status via polling/socket.
+    }
+
+    navigate(`/orders/${id}`, { state: { justPlaced: true } });
+  };
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -123,7 +147,7 @@ const Payment = () => {
 
             toast.dismiss();
             toast.success(t('payment.success', 'Payment successful!'));
-            navigate(`/orders/${order._id}`);
+            await routeAfterRestaurantDecision(order._id);
           } catch (error) {
             toast.dismiss();
             toast.error(t('payment.verifyFailedRetry', 'Payment verification failed. Redirecting to checkout.'));
@@ -291,6 +315,20 @@ const Payment = () => {
           </div>
         </div>
       </div>
+
+      {postOrderTransition.active && (
+        <div className="fixed inset-0 z-[120] bg-black/45 backdrop-blur-[1px] flex items-center justify-center px-6">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl border border-gray-100">
+            <div className="mx-auto h-11 w-11 rounded-full border-4 border-orange-200 border-t-orange-500 animate-spin" />
+            <p className="mt-4 text-sm font-bold text-[#171415]">
+              {postOrderTransition.message || t('payment.waitingRestaurantDecision', 'Confirming with restaurant...')}
+            </p>
+            <p className="mt-1.5 text-xs text-gray-500">
+              {t('payment.waitingRestaurantDecisionSub', 'Finding the best delivery partner after restaurant acceptance.')}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

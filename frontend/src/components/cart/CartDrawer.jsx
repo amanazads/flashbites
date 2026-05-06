@@ -193,8 +193,8 @@ const CartDrawer = () => {
       />
 
       {/* Drawer – full-screen on mobile, right-side panel on sm+ */}
-      <div className="fixed inset-0 z-[1400] sm:left-auto sm:w-[400px] bg-[#F5F3F1] shadow-2xl flex flex-col animate-slide-up sm:animate-slide-right overflow-hidden h-[100dvh]">
-        <div className="px-4 bg-[#F5F3F1] sticky top-0 z-10 border-b border-[#EDE7E3]" style={{ paddingTop: 'max(10px, env(safe-area-inset-top, 0px))', paddingBottom: '10px' }}>
+      <div className="fixed inset-0 z-[1400] sm:left-auto sm:w-[400px] bg-[#F5F3F1] shadow-2xl flex flex-col animate-slide-up sm:animate-slide-right overflow-hidden h-[100dvh] pt-[var(--mobile-notch-offset)] sm:pt-0">
+        <div className="px-4 bg-[#F5F3F1] sticky top-0 z-10 border-b border-[#EDE7E3] py-2.5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <button

@@ -69,17 +69,18 @@ const DeliveryPartnerDashboard = () => {
 
     // Listen for new order notifications
     const handleNewOrder = () => {
-      if (autoRefreshEnabled) fetchData(); // Refresh orders
+      // Always refresh once on real-time availability updates.
+      fetchData();
     };
 
     // Listen for order assignment
     const handleOrderAssigned = () => {
-      if (autoRefreshEnabled) fetchData(); // Refresh orders
+      fetchData();
     };
 
     // Listen for order cancellation
     const handleOrderCancelled = () => {
-      if (autoRefreshEnabled) fetchData(); // Refresh orders
+      fetchData();
     };
 
     // Keep earnings and stats in sync immediately when a delivery status changes.
@@ -397,7 +398,7 @@ const DeliveryPartnerDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F3F1] pt-[max(env(safe-area-inset-top),8px)] pb-28 lg:py-8">
+    <div className="min-h-screen bg-[#F5F3F1] pt-[8px] pb-28 lg:py-8">
       <div className="max-w-7xl mx-auto container-px">
         <div className="flex items-center justify-between gap-3 mb-3 lg:hidden">
           <button type="button" className="min-w-0 flex-1 flex items-center gap-2 text-left">
