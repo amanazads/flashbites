@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { updateDeliveryLocation } from '../api/deliveryPartnerApi';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 
 /**
  * Custom hook to track and send delivery partner's location
@@ -14,6 +15,7 @@ export const useLocationTracking = (orderId, isEnabled = true, interval = 10000)
   const [isTracking, setIsTracking] = useState(false);
   const watchIdRef = useRef(null);
   const intervalIdRef = useRef(null);
+  const locationServicesAlertShownRef = useRef(false);
 
   // Send location to backend
   const sendLocation = async (latitude, longitude) => {
@@ -26,18 +28,44 @@ export const useLocationTracking = (orderId, isEnabled = true, interval = 10000)
     }
   };
 
+  const stopTracking = () => {
+    if (watchIdRef.current) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+
+    if (intervalIdRef.current) {
+      clearInterval(intervalIdRef.current);
+      intervalIdRef.current = null;
+    }
+
+    setIsTracking(false);
+  };
+
+  const showLocationServicesDisabledAlert = async () => {
+    if (locationServicesAlertShownRef.current) return;
+    locationServicesAlertShownRef.current = true;
+
+    await Swal.fire({
+      title: 'Turn on device location',
+      text: 'Your device location services are off. Please enable location first, then try again.',
+      icon: 'warning',
+      confirmButtonText: 'OK'
+    });
+  };
+
+  const isLocationServicesDisabledError = (err) => {
+    const message = String(err?.message || '');
+    return (
+      err?.code === 2 ||
+      /location services|gps|location is off|location turned off|disabled/i.test(message)
+    );
+  };
+
   useEffect(() => {
     if (!isEnabled || !orderId) {
       // Stop tracking if disabled or no active order
-      if (watchIdRef.current) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-      if (intervalIdRef.current) {
-        clearInterval(intervalIdRef.current);
-        intervalIdRef.current = null;
-      }
-      setIsTracking(false);
+      stopTracking();
       return;
     }
 
@@ -47,6 +75,8 @@ export const useLocationTracking = (orderId, isEnabled = true, interval = 10000)
       toast.error('Geolocation not supported');
       return;
     }
+
+    locationServicesAlertShownRef.current = false;
 
     setIsTracking(true);
 
@@ -66,7 +96,7 @@ export const useLocationTracking = (orderId, isEnabled = true, interval = 10000)
           errorMessage = 'Location permission denied';
           break;
         case err.POSITION_UNAVAILABLE:
-          errorMessage = 'Location unavailable';
+          errorMessage = 'Device location services are turned off. Please enable location first, then try again.';
           break;
         case err.TIMEOUT:
           errorMessage = 'Location request timeout';
@@ -77,6 +107,11 @@ export const useLocationTracking = (orderId, isEnabled = true, interval = 10000)
       
       setError(errorMessage);
       console.error('Geolocation error:', errorMessage);
+
+      if (isLocationServicesDisabledError(err)) {
+        stopTracking();
+        showLocationServicesDisabledAlert();
+      }
     };
 
     // Watch position for real-time updates
@@ -103,17 +138,20 @@ export const useLocationTracking = (orderId, isEnabled = true, interval = 10000)
         const { latitude, longitude } = position.coords;
         sendLocation(latitude, longitude);
       },
-      (err) => console.error('Initial location fetch failed:', err)
+      (err) => {
+        console.error('Initial location fetch failed:', err);
+
+        if (isLocationServicesDisabledError(err)) {
+          setError('Device location services are turned off. Please enable location first, then try again.');
+          stopTracking();
+          showLocationServicesDisabledAlert();
+        }
+      }
     );
 
     // Cleanup
     return () => {
-      if (watchIdRef.current) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
-      if (intervalIdRef.current) {
-        clearInterval(intervalIdRef.current);
-      }
+      stopTracking();
     };
   }, [orderId, isEnabled, interval]);
 
