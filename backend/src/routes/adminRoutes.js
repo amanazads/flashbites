@@ -35,6 +35,7 @@ const {
   updateDeliveryPartner,
   toggleDeliveryPartnerStatus,
   getDeliveryPartnerOrders,
+  acceptOrderBehalfOfPartner,
   rejectOrderAssignment,
   reassignOrderToPartner
 } = require('../controllers/adminController');
@@ -71,6 +72,7 @@ router.get('/delivery-partners/:id', getDeliveryPartnerDetails);
 router.put('/delivery-partners/:id', updateDeliveryPartner);
 router.put('/delivery-partners/:id/status', toggleDeliveryPartnerStatus);
 router.get('/delivery-partners/:id/orders', getDeliveryPartnerOrders);
+router.post('/delivery-partners/:id/orders/:orderId/accept', acceptOrderBehalfOfPartner);
 router.post('/delivery-partners/:id/orders/:orderId/reject', rejectOrderAssignment);
 router.post('/delivery-partners/:id/orders/:orderId/reassign', reassignOrderToPartner);
 

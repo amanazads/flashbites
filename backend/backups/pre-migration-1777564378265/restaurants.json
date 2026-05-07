@@ -1,0 +1,548 @@
+[
+  {
+    "_id": "69ad04ddadadf0706a4464a5",
+    "ownerId": "69c41efd22f0cb745e2f739c",
+    "name": "Amazing Pizza",
+    "email": "amazingpizza.flashbites.shop@proton.me",
+    "phone": "8445233392",
+    "description": "Special Pizza Restaurant",
+    "cuisines": [
+      "Pizza",
+      "Fast Food",
+      "Burger",
+      "Chinese"
+    ],
+    "address": {
+      "street": "Near V-Mart Basement",
+      "city": "Sidhauli",
+      "state": "Uttar Pradesh",
+      "zipCode": "261303"
+    },
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.8306,
+        27.2858
+      ]
+    },
+    "deliveryZone": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            80.8206,
+            27.275799999999997
+          ],
+          [
+            80.84060000000001,
+            27.275799999999997
+          ],
+          [
+            80.84060000000001,
+            27.2958
+          ],
+          [
+            80.8206,
+            27.2958
+          ],
+          [
+            80.8206,
+            27.275799999999997
+          ]
+        ]
+      ]
+    },
+    "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1772946652/flashbites/restaurants/cwhh3wjvnkvoaivjze3b.jpg",
+    "images": [],
+    "timing": {
+      "open": "10:00",
+      "close": "23:00"
+    },
+    "deliveryTime": "30-45",
+    "prepTimeMinutes": 20,
+    "deliveryRadiusKm": 20,
+    "rating": 0,
+    "totalReviews": 0,
+    "totalOrders": 8,
+    "isActive": true,
+    "isApproved": true,
+    "acceptingOrders": true,
+    "isPureVeg": true,
+    "payoutRateOverride": null,
+    "createdAt": "2026-03-25T17:05:35.187Z",
+    "updatedAt": "2026-03-25T17:05:35.187Z",
+    "__v": 0
+  },
+  {
+    "_id": "69ad0b5fae88d71cf65d21ec",
+    "ownerId": "69c4218717188fc419adb03a",
+    "name": "Dosai Pure Veg Restaurant",
+    "email": "dosai-sdl@proton.me",
+    "phone": "9450452129",
+    "description": "Special Pure Veg Restaurant",
+    "cuisines": [
+      "Chinese",
+      "South Indian",
+      "Pizza",
+      "Fast Food"
+    ],
+    "address": {
+      "street": "Main Market",
+      "city": "Sidhauli",
+      "state": "Uttar Pradesh",
+      "zipCode": "261303"
+    },
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.832,
+        27.2862
+      ]
+    },
+    "deliveryZone": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            80.82199999999999,
+            27.2762
+          ],
+          [
+            80.842,
+            27.2762
+          ],
+          [
+            80.842,
+            27.296200000000002
+          ],
+          [
+            80.82199999999999,
+            27.296200000000002
+          ],
+          [
+            80.82199999999999,
+            27.2762
+          ]
+        ]
+      ]
+    },
+    "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1772453424/flashbites/restaurants/bxglw63c5fefhgcoimf2.jpg",
+    "images": [],
+    "timing": {
+      "open": "09:00",
+      "close": "23:00"
+    },
+    "deliveryTime": "30-40",
+    "prepTimeMinutes": 20,
+    "deliveryRadiusKm": 20,
+    "rating": 0,
+    "totalReviews": 0,
+    "totalOrders": 1,
+    "isActive": true,
+    "isApproved": true,
+    "acceptingOrders": true,
+    "isPureVeg": false,
+    "payoutRateOverride": null,
+    "createdAt": "2026-03-25T17:05:35.345Z",
+    "updatedAt": "2026-03-25T17:05:35.345Z",
+    "__v": 0
+  },
+  {
+    "_id": "69aee82ba14082a2ff2d2beb",
+    "ownerId": "69c4241c3dd438f7a2e92fce",
+    "name": "Mr Sandwich",
+    "email": "info.flashbites@gmail.com",
+    "phone": "7007464755",
+    "description": "Special Sandwich Restaurant",
+    "cuisines": [
+      "Fast Food",
+      "Burger",
+      "Pizza"
+    ],
+    "address": {
+      "street": "Sidhauli Market",
+      "city": "Sidhauli",
+      "state": "Uttar Pradesh",
+      "zipCode": "261303"
+    },
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.8314,
+        27.2866
+      ]
+    },
+    "deliveryZone": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            80.8214,
+            27.2766
+          ],
+          [
+            80.84140000000001,
+            27.2766
+          ],
+          [
+            80.84140000000001,
+            27.2966
+          ],
+          [
+            80.8214,
+            27.2966
+          ],
+          [
+            80.8214,
+            27.2766
+          ]
+        ]
+      ]
+    },
+    "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1773070378/flashbites/restaurants/lqcwpfcrf4vgruba2myq.jpg",
+    "images": [],
+    "timing": {
+      "open": "00:01",
+      "close": "23:59"
+    },
+    "deliveryTime": "30-40",
+    "prepTimeMinutes": 20,
+    "deliveryRadiusKm": 20,
+    "rating": 0,
+    "totalReviews": 0,
+    "totalOrders": 0,
+    "isActive": true,
+    "isApproved": true,
+    "acceptingOrders": true,
+    "isPureVeg": false,
+    "payoutRateOverride": null,
+    "createdAt": "2026-03-25T17:19:27.080Z",
+    "updatedAt": "2026-03-25T18:45:42.936Z",
+    "__v": 0
+  },
+  {
+    "_id": "69bed9df3cfb9796c7d11bde",
+    "ownerId": "69c426688bde35af3f51e4b7",
+    "name": "Tac Cafe",
+    "email": "info.flashbites@gmail.com",
+    "phone": "7696764202",
+    "description": "pizza, shakes, coffee, fries",
+    "cuisines": [
+      "Pizza",
+      "Shakes",
+      "Coffee",
+      "Fast Food"
+    ],
+    "address": {
+      "street": "Bajwara",
+      "city": "Hoshiarpur",
+      "state": "Punjab",
+      "zipCode": "146023"
+    },
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        75.93886386761476,
+        31.525574996020932
+      ]
+    },
+    "deliveryZone": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            75.7278562712017,
+            31.345710674837186
+          ],
+          [
+            76.14987146402781,
+            31.345710674837186
+          ],
+          [
+            76.14987146402781,
+            31.70543931720468
+          ],
+          [
+            75.7278562712017,
+            31.70543931720468
+          ],
+          [
+            75.7278562712017,
+            31.345710674837186
+          ]
+        ]
+      ]
+    },
+    "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1774115294/flashbites/restaurants/zqs0rq5mpee0661vxrdl.jpg",
+    "images": [],
+    "timing": {
+      "open": "10:00",
+      "close": "23:00"
+    },
+    "deliveryTime": "30-40",
+    "prepTimeMinutes": 20,
+    "deliveryRadiusKm": 20,
+    "rating": 0,
+    "totalReviews": 0,
+    "totalOrders": 1,
+    "isActive": true,
+    "isApproved": true,
+    "acceptingOrders": true,
+    "isPureVeg": true,
+    "payoutRateOverride": null,
+    "createdAt": "2026-03-25T17:19:27.217Z",
+    "updatedAt": "2026-04-12T10:19:08.788Z",
+    "__v": 0,
+    "feeControls": {
+      "deliveryFee": {
+        "useGlobal": true,
+        "enabled": true,
+        "effectiveFrom": null
+      },
+      "platformFee": {
+        "useGlobal": true,
+        "enabled": true,
+        "effectiveFrom": null
+      },
+      "tax": {
+        "useGlobal": true,
+        "enabled": true,
+        "effectiveFrom": null
+      }
+    }
+  },
+  {
+    "_id": "69c266d286ec0562e91fe0e4",
+    "ownerId": "69c426eb431d8209df8803ed",
+    "name": "Grill Hut Junction",
+    "email": "info.flashbites@gmail.com",
+    "phone": "8872565600",
+    "description": "Breakfast | Lunch | Dinner",
+    "cuisines": [
+      "Chinese",
+      "Starters",
+      "Breads",
+      "Sandwich",
+      "Burger"
+    ],
+    "address": {
+      "street": "Near SSP Residency Mall Road Hoashiarpur",
+      "city": "Hoshiarpur",
+      "state": "Punjab",
+      "zipCode": "146001"
+    },
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        75.92046305043208,
+        31.529533409611354
+      ]
+    },
+    "deliveryZone": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            75.7094465108005,
+            31.349669088427607
+          ],
+          [
+            76.13147959006365,
+            31.349669088427607
+          ],
+          [
+            76.13147959006365,
+            31.7093977307951
+          ],
+          [
+            75.7094465108005,
+            31.7093977307951
+          ],
+          [
+            75.7094465108005,
+            31.349669088427607
+          ]
+        ]
+      ]
+    },
+    "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1774347985/flashbites/restaurants/ixdnhi2zrgt3aef1syax.jpg",
+    "images": [],
+    "timing": {
+      "open": "11:00",
+      "close": "23:00"
+    },
+    "deliveryTime": "30-45",
+    "prepTimeMinutes": 20,
+    "deliveryRadiusKm": 20,
+    "rating": 0,
+    "totalReviews": 0,
+    "totalOrders": 0,
+    "isActive": true,
+    "isApproved": true,
+    "acceptingOrders": true,
+    "isPureVeg": false,
+    "payoutRateOverride": null,
+    "createdAt": "2026-03-25T17:19:27.354Z",
+    "updatedAt": "2026-03-26T05:45:48.585Z",
+    "__v": 0
+  },
+  {
+    "_id": "69cf5e1a549303b1c40a58ad",
+    "ownerId": "69d5e08548f088b43a8a30ba",
+    "name": "Shami Chicken Biryani",
+    "email": "info.flashbites@gmail.com",
+    "phone": "7068247779",
+    "description": "Special non-veg restaurant",
+    "cuisines": [],
+    "address": {
+      "street": "Main Market",
+      "city": "Sidhauli",
+      "state": "Uttar Pradesh",
+      "zipCode": "261303"
+    },
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.832,
+        27.2862
+      ]
+    },
+    "deliveryZone": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            80.82199999999999,
+            27.2762
+          ],
+          [
+            80.842,
+            27.2762
+          ],
+          [
+            80.842,
+            27.296200000000002
+          ],
+          [
+            80.82199999999999,
+            27.296200000000002
+          ],
+          [
+            80.82199999999999,
+            27.2762
+          ]
+        ]
+      ]
+    },
+    "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1775624690/flashbites/restaurants/znsf6vnp9aw3juecbx6o.jpg",
+    "images": [],
+    "timing": {
+      "open": "11:00",
+      "close": "22:00"
+    },
+    "deliveryTime": "30-40",
+    "prepTimeMinutes": 20,
+    "deliveryRadiusKm": 20,
+    "rating": 0,
+    "totalReviews": 0,
+    "totalOrders": 1,
+    "isActive": true,
+    "isApproved": true,
+    "acceptingOrders": true,
+    "isPureVeg": false,
+    "payoutRateOverride": null,
+    "createdAt": "2026-03-25T17:05:35.345Z",
+    "updatedAt": "2026-03-25T17:05:35.345Z",
+    "__v": 0
+  },
+  {
+    "_id": "69da05dd867a2449bfd8b3c1",
+    "ownerId": "69d7bd03401796045d7471dc",
+    "name": "Marzi Cafe",
+    "email": "info.flashbites@gmail.com",
+    "phone": "8416830079",
+    "description": "",
+    "cuisines": [
+      "Indian",
+      "Chinese",
+      "Italian"
+    ],
+    "address": {
+      "street": "Mishrikh Road, Biswan Chauraha",
+      "city": "Sidhauli",
+      "state": "UTTAR PRADESH",
+      "zipCode": "261303"
+    },
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        80.8336559867859,
+        27.286931470960237
+      ]
+    },
+    "image": "https://res.cloudinary.com/drtbzfqlr/image/upload/v1775896028/flashbites/restaurants/wpqneiqoxn1fqcpwqx5q.jpg",
+    "images": [],
+    "timing": {
+      "open": "11:00",
+      "close": "22:00"
+    },
+    "deliveryTime": "30-40",
+    "prepTimeMinutes": 20,
+    "deliveryRadiusKm": 20,
+    "rating": 0,
+    "totalReviews": 0,
+    "totalOrders": 0,
+    "isActive": true,
+    "isApproved": true,
+    "acceptingOrders": true,
+    "isPureVeg": false,
+    "payoutRateOverride": null,
+    "feeControls": {
+      "deliveryFee": {
+        "useGlobal": true,
+        "enabled": true,
+        "effectiveFrom": null
+      },
+      "platformFee": {
+        "useGlobal": true,
+        "enabled": true,
+        "effectiveFrom": null
+      },
+      "tax": {
+        "useGlobal": true,
+        "enabled": true,
+        "effectiveFrom": null
+      }
+    },
+    "createdAt": "2026-04-11T08:27:09.356Z",
+    "updatedAt": "2026-04-30T15:15:08.850Z",
+    "__v": 0,
+    "deliveryZone": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            80.8206,
+            27.2758
+          ],
+          [
+            80.8406,
+            27.2758
+          ],
+          [
+            80.8406,
+            27.2958
+          ],
+          [
+            80.8206,
+            27.2958
+          ],
+          [
+            80.8206,
+            27.2758
+          ]
+        ]
+      ]
+    }
+  }
+]
