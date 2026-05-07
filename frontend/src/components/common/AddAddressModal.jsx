@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import Swal from 'sweetalert2';
 import { addAddress } from '../../api/userApi';
 import { reverseGeocodeCoordinates } from '../../api/locationApi';
 import toast from 'react-hot-toast';
@@ -143,6 +144,15 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
   const handleUseCurrentLocation = () => {
     setLocating(true);
 
+    const showLocationServicesDisabledAlert = async () => {
+      await Swal.fire({
+        title: 'Turn on device location',
+        text: 'Your device location services are off. Please enable location first, then try again.',
+        icon: 'warning',
+        confirmButtonText: 'OK',
+      });
+    };
+
     const browserFallback = () => {
       if (!navigator.geolocation) {
         setLocating(false);
@@ -166,7 +176,12 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
         },
         () => {
           setLocating(false);
-          toast.error('Unable to fetch current location. Please allow location permission.');
+          Swal.fire({
+            title: 'Turn on device location',
+            text: 'Your device location services are off. Please enable location first, then try again.',
+            icon: 'warning',
+            confirmButtonText: 'OK',
+          });
         },
         {
           enableHighAccuracy: true,
@@ -197,7 +212,13 @@ const AddAddressModal = ({ isOpen, onClose, onAddressAdded }) => {
           setLocating(false);
           toast.success('Current location selected');
         })
-        .catch(() => {
+        .catch((error) => {
+          if (error?.code === 2 || /location|gps|services/i.test(error?.message || '')) {
+            setLocating(false);
+            showLocationServicesDisabledAlert();
+            return;
+          }
+
           // Fallback to browser geolocation in case plugin is unavailable.
           browserFallback();
         });

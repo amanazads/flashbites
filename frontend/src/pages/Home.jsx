@@ -296,6 +296,15 @@ const Home = () => {
       toast.error(message);
     };
 
+    const showLocationServicesDisabledAlert = async () => {
+      await Swal.fire({
+        title: 'Turn on device location',
+        text: 'Your device location services are off. Please enable location first, then try again.',
+        icon: 'warning',
+        confirmButtonText: 'OK',
+      });
+    };
+
     const useSavedAddressFallback = () => {
       const fallback = (savedAddresses || [])
         .map((addr) => mapSavedAddressToSelection(addr))
@@ -323,7 +332,7 @@ const Home = () => {
       }
 
       if (error?.code === 2) {
-        return 'Location signal is unavailable right now. Please move to open sky or use address search.';
+        return 'Device location is turned off. Please enable location services and try again.';
       }
 
       if (error?.code === 3) {
@@ -431,6 +440,12 @@ const Home = () => {
           await onSuccess(fallbackPosition);
         } catch (fallbackError) {
           setDetectingLocation(false);
+
+          if ((fallbackError || highAccuracyError)?.code === 2) {
+            setShowAddressPicker(true);
+            await showLocationServicesDisabledAlert();
+            return;
+          }
 
           if (await useLastKnownLocation()) {
             return;
