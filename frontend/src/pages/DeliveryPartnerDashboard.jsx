@@ -139,6 +139,9 @@ const DeliveryPartnerDashboard = () => {
 
   useEffect(() => {
     if (locationError) {
+      if (/device location services are turned off/i.test(locationError)) {
+        return;
+      }
       toast.error(locationError);
     }
   }, [locationError]);
