@@ -77,7 +77,11 @@ const DeliveryPartnerManagement = () => {
     try {
       const response = await getDeliveryPartnerDetails(partnerId);
       if (response.data.success) {
-        setSelectedPartner(response.data.data.partner);
+        const partnerData = {
+          ...response.data.data.partner,
+          stats: response.data.data.stats
+        };
+        setSelectedPartner(partnerData);
         setEditFormData({
           name: response.data.data.partner.name,
           email: response.data.data.partner.email || '',

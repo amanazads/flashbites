@@ -1650,7 +1650,7 @@ exports.getDeliveryPartnerDetails = async (req, res) => {
 
     // Get comprehensive stats
     const stats = await Order.aggregate([
-      { $match: { deliveryPartnerId: mongoose.Types.ObjectId(req.params.id) } },
+      { $match: { deliveryPartnerId: new mongoose.Types.ObjectId(req.params.id) } },
       {
         $facet: {
           summary: [
@@ -1797,7 +1797,7 @@ exports.toggleDeliveryPartnerStatus = async (req, res) => {
 exports.getDeliveryPartnerOrders = async (req, res) => {
   try {
     const { status, page = 1, limit = 20 } = req.query;
-    const partnerId = mongoose.Types.ObjectId(req.params.id);
+    const partnerId = new mongoose.Types.ObjectId(req.params.id);
     const query = { deliveryPartnerId: partnerId };
 
     if (status) query.status = status;
