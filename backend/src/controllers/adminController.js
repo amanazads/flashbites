@@ -1827,6 +1827,57 @@ exports.getDeliveryPartnerOrders = async (req, res) => {
   }
 };
 
+// @desc    Accept order on behalf of delivery partner (admin action)
+// @route   POST /api/admin/delivery-partners/:id/orders/:orderId/accept
+// @access  Private (Admin)
+exports.acceptOrderBehalfOfPartner = async (req, res) => {
+  try {
+    const { id: partnerId, orderId } = req.params;
+
+    const order = await Order.findOne({
+      _id: orderId,
+      deliveryPartnerId: partnerId
+    }).populate('userId', 'name phone fcmToken').populate('restaurantId', 'name');
+
+    if (!order) {
+      return errorResponse(res, 404, 'Order not found or not assigned to this partner');
+    }
+
+    // Check if order is in a state that can be accepted
+    if (!['confirmed', 'preparing', 'ready'].includes(order.status)) {
+      return errorResponse(res, 400, `Cannot accept order with status: ${order.status}`);
+    }
+
+    // Update order status to out_for_delivery
+    order.status = 'out_for_delivery';
+    order.acceptedAt = new Date();
+    await order.save();
+
+    // Notify customer that delivery partner accepted the order
+    const { notifyUser } = require('../utils/notificationService');
+    if (order.userId?.fcmToken) {
+      notifyUser(order.userId._id, {
+        title: 'Delivery Started',
+        body: `Your order from ${order.restaurantId?.name} is on the way!`,
+        data: { orderId: String(order._id), type: 'delivery_started', status: 'out_for_delivery' }
+      });
+    }
+
+    // Broadcast to socket listeners
+    const { broadcastOrderUpdate } = require('../services/socketService');
+    broadcastOrderUpdate(order._id, {
+      status: 'out_for_delivery',
+      deliveryPartnerId: partnerId,
+      acceptedAt: order.acceptedAt
+    });
+
+    invalidateAdminCache();
+    successResponse(res, 200, 'Order accepted on behalf of delivery partner', { order });
+  } catch (error) {
+    errorResponse(res, 500, 'Failed to accept order on behalf of delivery partner', error.message);
+  }
+};
+
 // @desc    Reject order assignment (admin action)
 // @route   POST /api/admin/delivery-partners/:id/orders/:orderId/reject
 // @access  Private (Admin)

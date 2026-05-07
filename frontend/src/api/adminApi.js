@@ -124,6 +124,10 @@ export const getDeliveryPartnerOrders = (id, params) => {
   return axios.get(`/admin/delivery-partners/${id}/orders`, { params });
 };
 
+export const acceptOrderBehalfOfPartner = (partnerId, orderId) => {
+  return axios.post(`/admin/delivery-partners/${partnerId}/orders/${orderId}/accept`);
+};
+
 export const rejectOrderAssignment = (partnerId, orderId, reason) => {
   return axios.post(`/admin/delivery-partners/${partnerId}/orders/${orderId}/reject`, { reason });
 };

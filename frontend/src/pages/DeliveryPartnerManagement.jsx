@@ -28,6 +28,7 @@ import {
   updateDeliveryPartner,
   toggleDeliveryPartnerStatus,
   getDeliveryPartnerOrders,
+  acceptOrderBehalfOfPartner,
   rejectOrderAssignment,
   reassignOrderToPartner
 } from '../api/adminApi';
@@ -175,6 +176,36 @@ const DeliveryPartnerManagement = () => {
       } catch (error) {
         toast.error('Failed to update partner status');
         console.error('Toggle status error:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Accept order on behalf of delivery partner
+  const handleAcceptOrder = async (orderId) => {
+    const result = await Swal.fire({
+      title: 'Accept Order',
+      text: 'Accept this order on behalf of the delivery partner? The order status will change to "Out for Delivery".',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, Accept Order'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        setLoading(true);
+        const response = await acceptOrderBehalfOfPartner(selectedPartner._id, orderId);
+        if (response.data.success) {
+          toast.success('Order accepted successfully');
+          fetchPartnerOrders(selectedPartner._id);
+        } else {
+          toast.error(response.data.message || 'Failed to accept order');
+        }
+      } catch (error) {
+        toast.error('Failed to accept order');
+        console.error('Accept order error:', error);
       } finally {
         setLoading(false);
       }
@@ -717,6 +748,15 @@ const DeliveryPartnerManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                       {['confirmed', 'ready', 'out_for_delivery'].includes(order.status) && (
                         <>
+                          {['confirmed', 'ready'].includes(order.status) && (
+                            <button
+                              onClick={() => handleAcceptOrder(order._id)}
+                              className="text-green-600 hover:text-green-800 text-xs font-medium"
+                              title="Accept Order"
+                            >
+                              Accept
+                            </button>
+                          )}
                           <button
                             onClick={() => handleRejectOrder(order._id)}
                             className="text-red-600 hover:text-red-800 text-xs font-medium"
