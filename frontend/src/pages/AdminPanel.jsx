@@ -1496,268 +1496,348 @@ const AdminPanel = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-3 sm:py-6 lg:py-8">
-      <div className="max-w-7xl mx-auto container-px">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-6 lg:py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
         {/* Header */}
-        <div className="mb-5 sm:mb-8 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Admin Panel</h1>
+        <div className="mb-6 sm:mb-8 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">Admin Panel</h1>
             <p className="mt-2 text-sm sm:text-base text-gray-600">
-              Manage restaurants, users, and platform settings
+              Manage restaurants, users, orders, and platform settings
             </p>
           </div>
-          <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-2">
+          <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-2 sm:gap-3">
             <button
               onClick={() => setAutoRefreshEnabled((prev) => !prev)}
-              className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm text-white ${autoRefreshEnabled ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium text-white transition ${autoRefreshEnabled ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
             >
-              {autoRefreshEnabled ? 'Stop Auto Refresh' : 'Start Auto Refresh'}
+              {autoRefreshEnabled ? '⏹ Stop Refresh' : '▶ Start Refresh'}
             </button>
             <button
               onClick={fetchData}
-              className="w-full sm:w-auto px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+              className="px-4 py-2 text-sm font-medium bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition"
             >
-              Refresh Now
+              🔄 Refresh Now
             </button>
           </div>
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5 mb-6 sm:mb-8">
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <BuildingStorefrontIcon className="h-8 w-8 text-primary-500" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-6 sm:mb-8">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition">
+            <div className="flex items-start gap-4">
+              <div className="p-2 sm:p-3 bg-primary-50 rounded-lg">
+                <BuildingStorefrontIcon className="h-6 w-6 sm:h-8 sm:w-8 text-primary-500" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Restaurants</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalRestaurants}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Total Restaurants</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">{stats.totalRestaurants}</p>
                 {stats.pendingApprovals > 0 && (
-                  <p className="text-xs text-primary-600">{stats.pendingApprovals} pending approval</p>
+                  <p className="text-xs text-primary-600 mt-1 font-semibold">{stats.pendingApprovals} pending</p>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <UserGroupIcon className="h-8 w-8 text-blue-500" />
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition">
+            <div className="flex items-start gap-4">
+              <div className="p-2 sm:p-3 bg-blue-50 rounded-lg">
+                <UserGroupIcon className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <ShoppingBagIcon className="h-8 w-8 text-green-500" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Orders</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Total Users</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">{stats.totalUsers}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <BanknotesIcon className="h-8 w-8 text-purple-500" />
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition">
+            <div className="flex items-start gap-4">
+              <div className="p-2 sm:p-3 bg-green-50 rounded-lg">
+                <ShoppingBagIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">₹{stats.totalRevenue.toLocaleString()}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Total Orders</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">{stats.totalOrders}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition">
+            <div className="flex items-start gap-4">
+              <div className="p-2 sm:p-3 bg-purple-50 rounded-lg">
+                <BanknotesIcon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Total Revenue</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">₹{stats.totalRevenue.toLocaleString()}</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-lg shadow mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="flex -mb-px overflow-x-auto whitespace-nowrap scrollbar-hide px-1 sm:px-2">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-6">
+          <div className="border-b border-gray-200 overflow-x-auto scrollbar-hide">
+            <nav className="flex -mb-px whitespace-nowrap px-2 sm:px-4">
               <button
                 onClick={() => setActiveTab('overview')}
-                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
+                className={`px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition ${
                   activeTab === 'overview'
-                    ? 'border-b-2 border-primary-500 text-primary-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Overview
               </button>
               <button
                 onClick={() => setActiveTab('fees')}
-                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
+                className={`px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition ${
                   activeTab === 'fees'
-                    ? 'border-b-2 border-primary-500 text-primary-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Fees & Charges
               </button>
               <button
                 onClick={() => setActiveTab('content')}
-                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
+                className={`px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition ${
                   activeTab === 'content'
-                    ? 'border-b-2 border-primary-500 text-primary-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Content
               </button>
               <button
                 onClick={() => setActiveTab('restaurants')}
-                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
+                className={`px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
                   activeTab === 'restaurants'
-                    ? 'border-b-2 border-primary-500 text-primary-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Restaurants ({restaurants.length})
               </button>
               <button
                 onClick={() => setActiveTab('coupons')}
-                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
+                className={`px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
                   activeTab === 'coupons'
-                    ? 'border-b-2 border-primary-500 text-primary-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Coupons ({coupons.length})
               </button>
               <button
                 onClick={() => setActiveTab('users')}
-                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
+                className={`px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
                   activeTab === 'users'
-                    ? 'border-b-2 border-primary-500 text-primary-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Users ({users.length})
               </button>
               <button
                 onClick={() => setActiveTab('menu-items')}
-                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
+                className={`px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
                   activeTab === 'menu-items'
-                    ? 'border-b-2 border-primary-500 text-primary-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Menu Items
               </button>
               <button
                 onClick={() => setActiveTab('orders')}
-                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
+                className={`px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
                   activeTab === 'orders'
-                    ? 'border-b-2 border-primary-500 text-primary-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Orders ({orders.length})
               </button>
               <button
                 onClick={() => setActiveTab('tracking')}
-                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
+                className={`px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
                   activeTab === 'tracking'
-                    ? 'border-b-2 border-primary-500 text-primary-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Delivery Tracking ({trackingSummary.totalActiveOrders || 0})
+                Delivery ({trackingSummary.totalActiveOrders || 0})
               </button>
               <button
                 onClick={() => setActiveTab('partners')}
-                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
+                className={`px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
                   activeTab === 'partners'
-                    ? 'border-b-2 border-primary-500 text-primary-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Partners ({partners.length})
               </button>
               <button
                 onClick={() => setActiveTab('earnings')}
-                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
+                className={`px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
                   activeTab === 'earnings'
-                    ? 'border-b-2 border-primary-500 text-primary-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Earnings Control
+                Earnings
               </button>
               <button
                 onClick={() => setActiveTab('partner-management')}
-                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium whitespace-nowrap ${
+                className={`px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
                   activeTab === 'partner-management'
-                    ? 'border-b-2 border-primary-500 text-primary-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Partner Management
+                Mgmt
               </button>
               <button
                 onClick={() => {
                   setActiveTab('analytics');
                   fetchAnalytics();
                 }}
-                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
+                className={`px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
                   activeTab === 'analytics'
-                    ? 'border-b-2 border-primary-500 text-primary-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
                 Analytics
               </button>
               <button
                 onClick={() => setActiveTab('deletionRequests')}
-                className={`px-3 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium ${
+                className={`px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
                   activeTab === 'deletionRequests'
-                    ? 'border-b-2 border-primary-500 text-primary-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Deletion Requests ({deletionRequests.length})
+                Deletions ({deletionRequests.length})
               </button>
             </nav>
           </div>
 
-          <div className="p-3 sm:p-5 lg:p-6">
+          <div className="p-4 sm:p-6 lg:p-8">
             {activeTab === 'overview' && (
-              <div>
-                <h2 className="text-xl font-bold mb-4">Platform Overview</h2>
-                <div className="space-y-4">
-                  <p className="text-gray-600">
-                    Welcome to the admin panel. Monitor and manage all aspects of the FlashBites platform.
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Platform Overview</h2>
+                  <p className="text-sm sm:text-base text-gray-600 mb-4">
+                    Welcome to FlashBites Admin. Monitor key metrics, manage restaurants, users, and platform operations.
                   </p>
-                  {stats.pendingApprovals > 0 && (
-                    <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
-                      <p className="text-primary-800 font-medium">
-                        ⚠️ {stats.pendingApprovals} restaurant(s) awaiting approval
-                      </p>
+                </div>
+                
+                {stats.pendingApprovals > 0 && (
+                  <div className="bg-primary-50 border-l-4 border-primary-500 rounded-lg p-4 sm:p-5">
+                    <div className="flex gap-3">
+                      <div className="mt-0.5">
+                        <p className="text-sm sm:text-base font-semibold text-primary-900">
+                          ⚠️ {stats.pendingApprovals} restaurant(s) awaiting approval
+                        </p>
+                        <p className="text-xs sm:text-sm text-primary-700 mt-1">
+                          Review and approve pending restaurant applications to expand your platform.
+                        </p>
+                      </div>
                       <button
                         onClick={() => setActiveTab('restaurants')}
-                        className="mt-2 text-primary-600 hover:text-primary-800 font-medium"
+                        className="px-3 py-2 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition whitespace-nowrap"
                       >
                         Review Now →
                       </button>
                     </div>
-                  )}
+                  </div>
+                )}
+
+                {stats.pendingDeletionRequests > 0 && (
+                  <div className="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-4 sm:p-5">
+                    <p className="text-sm sm:text-base font-semibold text-yellow-900">
+                      ⏳ {stats.pendingDeletionRequests} account deletion request(s) pending
+                    </p>
+                    <button
+                      onClick={() => setActiveTab('deletionRequests')}
+                      className="mt-2 text-sm font-medium text-yellow-700 hover:text-yellow-900"
+                    >
+                      Review Requests →
+                    </button>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="bg-gray-50 rounded-lg p-4 sm:p-6 border border-gray-200">
+                    <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-3">Quick Actions</h3>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => setActiveTab('restaurants')}
+                        className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-white hover:text-primary-600 transition"
+                      >
+                        → Manage Restaurants
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('users')}
+                        className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-white hover:text-primary-600 transition"
+                      >
+                        → View All Users
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('orders')}
+                        className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-white hover:text-primary-600 transition"
+                      >
+                        → View Orders
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('partner-management')}
+                        className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-white hover:text-primary-600 transition"
+                      >
+                        → Manage Delivery Partners
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4 sm:p-6 border border-gray-200">
+                    <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-3">System Status</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Total Restaurants:</span>
+                        <span className="font-semibold text-gray-900">{stats.totalRestaurants}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Active Users:</span>
+                        <span className="font-semibold text-gray-900">{stats.totalUsers}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Total Orders:</span>
+                        <span className="font-semibold text-gray-900">{stats.totalOrders}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Platform Revenue:</span>
+                        <span className="font-semibold text-gray-900">₹{stats.totalRevenue.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'fees' && (
-              <div>
-                <h2 className="text-xl font-bold mb-4">Fees & Charges</h2>
-                <div className="bg-gray-50 rounded-lg p-4 sm:p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Platform Fees & Charges</h2>
+                  <p className="text-sm text-gray-600">Configure commission rates, delivery fees, and other platform charges.</p>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 sm:p-6 space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Commission Percent (%)</label>
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">Commission Percent (%)</label>
                       <input
                         type="number"
                         min="0"
@@ -1765,39 +1845,60 @@ const AdminPanel = () => {
                         step="0.1"
                         value={settingsForm.commissionPercent}
                         onChange={(e) => handleSettingsChange('commissionPercent', e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                        className="w-full rounded-lg border border-gray-200 px-3 sm:px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
+                      <p className="text-xs text-gray-500 mt-1">Platform commission from restaurant orders</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Default Delivery Fee (INR)</label>
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">Default Delivery Fee (INR)</label>
                       <input
                         type="number"
                         min="0"
                         step="1"
                         value={settingsForm.deliveryFee}
                         onChange={(e) => handleSettingsChange('deliveryFee', e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                        className="w-full rounded-lg border border-gray-200 px-3 sm:px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
+                      <p className="text-xs text-gray-500 mt-1">Charged per delivery</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Platform Fee (INR)</label>
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">Platform Fee (INR)</label>
                       <input
                         type="number"
                         min="0"
+                        step="1"
                         value={settingsForm.platformFee}
                         onChange={(e) => handleSettingsChange('platformFee', e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                        className="w-full rounded-lg border border-gray-200 px-3 sm:px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
+                      <p className="text-xs text-gray-500 mt-1">Per order platform charge</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Tax Rate (%)</label>
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">Tax Rate (%)</label>
                       <input
                         type="number"
                         min="0"
                         step="0.1"
                         value={settingsForm.taxRate}
                         onChange={(e) => handleSettingsChange('taxRate', e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                        className="w-full rounded-lg border border-gray-200 px-3 sm:px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Applicable tax rate</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">Restaurant Payout Rate (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={settingsForm.restaurantPayoutRate}
+                        onChange={(e) => handleSettingsChange('restaurantPayoutRate', e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 px-3 sm:px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Default payout to restaurants</p>
+                    </div>
+                  </div>
                       />
                     </div>
                     <div>
