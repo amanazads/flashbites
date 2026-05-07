@@ -1899,22 +1899,6 @@ const AdminPanel = () => {
                       <p className="text-xs text-gray-500 mt-1">Default payout to restaurants</p>
                     </div>
                   </div>
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Restaurant Payout Rate (%)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={settingsForm.restaurantPayoutRate}
-                        onChange={(e) => handleSettingsChange('restaurantPayoutRate', e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                      />
-                      <p className="mt-1 text-xs text-gray-500">Used when a restaurant has no custom override.</p>
-                    </div>
-                  </div>
 
                   <div className="mt-6">
                     <h3 className="text-sm font-bold text-gray-800 mb-3">Fee Visibility and Billing Control</h3>
