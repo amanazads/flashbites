@@ -56,11 +56,11 @@ const DeliveryPartnerManagement = () => {
       if (filters.search) params.search = filters.search;
 
       const response = await getDeliveryPartners(params);
-      if (response.success) {
-        setPartners(response.data.partners);
-        setPagination(response.data.pagination);
+      if (response.data.success) {
+        setPartners(response.data.data.partners);
+        setPagination(response.data.data.pagination);
       } else {
-        toast.error(response.message || 'Failed to fetch delivery partners');
+        toast.error(response.data.message || 'Failed to fetch delivery partners');
       }
     } catch (error) {
       toast.error('Failed to fetch delivery partners');
@@ -75,12 +75,12 @@ const DeliveryPartnerManagement = () => {
     setLoading(true);
     try {
       const response = await getDeliveryPartnerDetails(partnerId);
-      if (response.success) {
-        setSelectedPartner(response.data.partner);
+      if (response.data.success) {
+        setSelectedPartner(response.data.data.partner);
         setEditFormData({
-          name: response.data.partner.name,
-          email: response.data.partner.email || '',
-          isActive: response.data.partner.isActive
+          name: response.data.data.partner.name,
+          email: response.data.data.partner.email || '',
+          isActive: response.data.data.partner.isActive
         });
         setView('details');
       } else {
@@ -99,8 +99,8 @@ const DeliveryPartnerManagement = () => {
     setLoading(true);
     try {
       const response = await getDeliveryPartnerOrders(partnerId, { page, limit: 20 });
-      if (response.success) {
-        setPartnerOrders(response.data.orders);
+      if (response.data.success) {
+        setPartnerOrders(response.data.data.orders);
         setView('orders');
       } else {
         toast.error('Failed to fetch partner orders');
@@ -117,8 +117,8 @@ const DeliveryPartnerManagement = () => {
   const loadAvailablePartners = async () => {
     try {
       const response = await getDeliveryPartners({ limit: 100, isActive: 'true' });
-      if (response.success) {
-        setAvailablePartners(response.data.partners.filter(p => p._id !== selectedPartner._id));
+      if (response.data.success) {
+        setAvailablePartners(response.data.data.partners.filter(p => p._id !== selectedPartner._id));
       }
     } catch (error) {
       console.error('Failed to load available partners:', error);
@@ -130,12 +130,12 @@ const DeliveryPartnerManagement = () => {
     try {
       setLoading(true);
       const response = await updateDeliveryPartner(selectedPartner._id, editFormData);
-      if (response.success) {
+      if (response.data.success) {
         toast.success('Partner updated successfully');
-        setSelectedPartner(response.data.partner);
+        setSelectedPartner(response.data.data.partner);
         fetchPartners(pagination.page);
       } else {
-        toast.error(response.message || 'Failed to update partner');
+        toast.error(response.data.message || 'Failed to update partner');
       }
     } catch (error) {
       toast.error('Failed to update partner');
@@ -163,14 +163,14 @@ const DeliveryPartnerManagement = () => {
       try {
         setLoading(true);
         const response = await toggleDeliveryPartnerStatus(partnerId, !currentStatus);
-        if (response.success) {
+        if (response.data.success) {
           toast.success(`Partner ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
           fetchPartners(pagination.page);
           if (selectedPartner?._id === partnerId) {
-            setSelectedPartner(response.data.partner);
+            setSelectedPartner(response.data.data.partner);
           }
         } else {
-          toast.error(response.message || 'Failed to update partner status');
+          toast.error(response.data.message || 'Failed to update partner status');
         }
       } catch (error) {
         toast.error('Failed to update partner status');
@@ -201,11 +201,11 @@ const DeliveryPartnerManagement = () => {
           orderId,
           result.value || 'Admin rejected order'
         );
-        if (response.success) {
+        if (response.data.success) {
           toast.success('Order rejected and reassigned');
           fetchPartnerOrders(selectedPartner._id);
         } else {
-          toast.error(response.message || 'Failed to reject order');
+          toast.error(response.data.message || 'Failed to reject order');
         }
       } catch (error) {
         toast.error('Failed to reject order');
@@ -243,11 +243,11 @@ const DeliveryPartnerManagement = () => {
           orderId,
           targetPartnerId
         );
-        if (response.success) {
+        if (response.data.success) {
           toast.success('Order reassigned successfully');
           fetchPartnerOrders(selectedPartner._id);
         } else {
-          toast.error(response.message || 'Failed to reassign order');
+          toast.error(response.data.message || 'Failed to reassign order');
         }
       } catch (error) {
         toast.error('Failed to reassign order');
