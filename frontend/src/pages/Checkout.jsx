@@ -28,6 +28,8 @@ import logo from '../assets/logo.png';
 import toast from 'react-hot-toast';
 import { useLanguage } from '../contexts/LanguageContext';
 
+const APPLIED_COUPON_STORAGE_KEY = 'flashbites.appliedCoupon';
+
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
 const isProdBuild = import.meta.env.PROD;
 const isLiveRazorpayKey = (key) => typeof key === 'string' && key.startsWith('rzp_live_');
@@ -115,6 +117,7 @@ const Checkout = () => {
   const [showAddAddressModal, setShowAddAddressModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [postOrderTransition, setPostOrderTransition] = useState({ active: false, message: '' });
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
 
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -198,6 +201,23 @@ const Checkout = () => {
     setDeliveryDistance(parseFloat(distance));
   }, [selectedAddress, restaurant, addresses]);
 
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(APPLIED_COUPON_STORAGE_KEY);
+      if (!saved) {
+        setAppliedCoupon(null);
+        return;
+      }
+
+      const parsed = JSON.parse(saved);
+      if (parsed?.code) {
+        setAppliedCoupon(parsed);
+      }
+    } catch {
+      setAppliedCoupon(null);
+    }
+  }, []);
+
   const selectedAddressObj = useMemo(
     () => addresses.find((addr) => addr._id === selectedAddress) || null,
     [addresses, selectedAddress]
@@ -237,6 +257,8 @@ const Checkout = () => {
   const taxRate = isTaxEnabled ? Number(platformSettings?.taxRate || 0.05) : 0;
   const tax = listedSubtotal * taxRate;
   const total = listedSubtotal + deliveryFee + platformFee + tax;
+  const couponDiscount = Number(appliedCoupon?.discount || 0);
+  const payableTotal = Math.max(total - couponDiscount, 0);
 
   const restaurantAvailability = isRestaurantOpen(restaurant?.timing, restaurant?.acceptingOrders !== false);
   const isRestaurantCurrentlyOpen = !restaurant ? true : restaurantAvailability.isOpen;
@@ -302,6 +324,17 @@ const Checkout = () => {
     setLoading(true);
     try {
       const selectedPaymentMethod = paymentMethod === 'cod' ? 'cod' : paymentMethod;
+      let savedCouponCode = null;
+
+      try {
+        const savedCouponRaw = localStorage.getItem(APPLIED_COUPON_STORAGE_KEY);
+        if (savedCouponRaw) {
+          const savedCoupon = JSON.parse(savedCouponRaw);
+          savedCouponCode = savedCoupon?.code ? String(savedCoupon.code).toUpperCase() : null;
+        }
+      } catch {
+        savedCouponCode = null;
+      }
 
       const orderData = {
         restaurantId: restaurant._id,
@@ -312,7 +345,7 @@ const Checkout = () => {
           variantName: item.selectedVariant ? item.selectedVariant.name : undefined,
         })),
         paymentMethod: selectedPaymentMethod,
-        couponCode: null,
+        couponCode: savedCouponCode,
       };
 
       const result = await dispatch(createOrder(orderData));
@@ -328,6 +361,11 @@ const Checkout = () => {
 
         if (!isOnlinePayment) {
           dispatch(clearCart());
+          try {
+            localStorage.removeItem(APPLIED_COUPON_STORAGE_KEY);
+          } catch {
+            // Ignore storage cleanup failures.
+          }
           toast.success(t('checkout.orderPlacedCod', 'Order placed successfully! Pay on delivery'));
           await routeAfterRestaurantDecision(orderId);
           return;
@@ -395,6 +433,11 @@ const Checkout = () => {
               });
 
               dispatch(clearCart());
+              try {
+                localStorage.removeItem(APPLIED_COUPON_STORAGE_KEY);
+              } catch {
+                // Ignore storage cleanup failures.
+              }
               toast.dismiss();
               toast.success(t('checkout.paymentSuccess', 'Payment successful!'));
               await routeAfterRestaurantDecision(orderId);
@@ -643,11 +686,17 @@ const Checkout = () => {
                   <span className="font-medium">{formatCurrency(tax)}</span>
                 </div>
               )}
+              {appliedCoupon && (
+                <div className="flex items-center justify-between text-green-700">
+                  <span>{t('checkout.discount', 'Discount')} ({appliedCoupon.code})</span>
+                  <span className="font-medium">-{formatCurrency(couponDiscount)}</span>
+                </div>
+              )}
             </div>
 
             <div className="mt-4 pt-4 border-t border-dashed border-[#DEBBB2] flex items-center justify-between">
               <span className="text-[15px] leading-none font-extrabold text-[#171415]">{t('checkout.totalToPay', 'Total to Pay')}</span>
-              <span className="text-[18px] leading-none font-black text-[#171415]">{formatCurrency(total)}</span>
+              <span className="text-[18px] leading-none font-black text-[#171415]">{formatCurrency(payableTotal)}</span>
             </div>
           </section>
 
@@ -695,7 +744,7 @@ const Checkout = () => {
                 </p>
               </div>
             </div>
-            <p className="text-[18px] leading-none font-black text-[#171415]">{formatCurrency(total)}</p>
+            <p className="text-[18px] leading-none font-black text-[#171415]">{formatCurrency(payableTotal)}</p>
           </div>
 
           <button

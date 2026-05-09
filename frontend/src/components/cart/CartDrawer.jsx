@@ -14,6 +14,8 @@ import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import { getDeliveryAddressLabel } from '../../utils/deliveryAddress';
 
+const APPLIED_COUPON_STORAGE_KEY = 'flashbites.appliedCoupon';
+
 const CartDrawer = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -117,6 +119,21 @@ const CartDrawer = () => {
   }, [location.pathname, dispatch]);
 
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem(APPLIED_COUPON_STORAGE_KEY);
+      if (!saved) return;
+
+      const parsed = JSON.parse(saved);
+      if (parsed?.code) {
+        setPromoCode(String(parsed.code).toUpperCase());
+        setAppliedCoupon(parsed);
+      }
+    } catch {
+      // Ignore malformed saved coupon data.
+    }
+  }, []);
+
+  useEffect(() => {
     if (!cartOpen) return undefined;
 
     const previousOverflow = document.body.style.overflow;
@@ -154,10 +171,20 @@ const CartDrawer = () => {
       if (response?.success) {
         setAppliedCoupon(response.data.coupon);
         setPromoCode(codeToApply.toUpperCase());
+        try {
+          localStorage.setItem(APPLIED_COUPON_STORAGE_KEY, JSON.stringify(response.data.coupon));
+        } catch {
+          // Ignore storage failures.
+        }
         toast.success(response.message || 'Coupon applied successfully');
       }
     } catch (error) {
       setAppliedCoupon(null);
+      try {
+        localStorage.removeItem(APPLIED_COUPON_STORAGE_KEY);
+      } catch {
+        // Ignore storage failures.
+      }
       toast.error(error?.response?.data?.message || 'Invalid coupon code');
     } finally {
       setCouponLoading(false);
@@ -167,6 +194,11 @@ const CartDrawer = () => {
   const handleRemoveCoupon = () => {
     setAppliedCoupon(null);
     setPromoCode('');
+    try {
+      localStorage.removeItem(APPLIED_COUPON_STORAGE_KEY);
+    } catch {
+      // Ignore storage failures.
+    }
     toast.success('Coupon removed');
   };
 

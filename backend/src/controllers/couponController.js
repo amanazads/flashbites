@@ -98,6 +98,8 @@ exports.getAvailableCoupons = async (req, res) => {
   try {
     const { orderValue, restaurantId } = req.query;
     const now = new Date();
+    const numericOrderValue = Number(orderValue);
+    const hasOrderValue = Number.isFinite(numericOrderValue);
 
     const userId = req.user?._id?.toString();
 
@@ -105,12 +107,15 @@ exports.getAvailableCoupons = async (req, res) => {
       isActive: true,
       validFrom: { $lte: now },
       validTill: { $gte: now },
-      minOrderValue: { $lte: Number(orderValue) || 0 },
       $or: [
         { usageLimit: null },
         { $expr: { $lt: ['$usedCount', '$usageLimit'] } }
       ]
     };
+
+    if (hasOrderValue) {
+      query.minOrderValue = { $lte: numericOrderValue };
+    }
 
     if (restaurantId) {
       query.$or = query.$or || [];
@@ -157,17 +162,22 @@ exports.getPublicCoupons = async (req, res) => {
   try {
     const { orderValue, restaurantId } = req.query;
     const now = new Date();
+    const numericOrderValue = Number(orderValue);
+    const hasOrderValue = Number.isFinite(numericOrderValue);
 
     const query = {
       isActive: true,
       validFrom: { $lte: now },
       validTill: { $gte: now },
-      minOrderValue: { $lte: Number(orderValue) || 0 },
       $or: [
         { usageLimit: null },
         { $expr: { $lt: ['$usedCount', '$usageLimit'] } }
       ]
     };
+
+    if (hasOrderValue) {
+      query.minOrderValue = { $lte: numericOrderValue };
+    }
 
     if (restaurantId) {
       query.$and = [
