@@ -87,12 +87,12 @@ const RestaurantCard = ({ restaurant: r, matchedItems = [], selectedCategory = n
 
         {/* Closed overlay */}
         {!isOpen && (
-          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1.5">
-            <span className="bg-white text-gray-900 text-[11px] max-[300px]:text-[10px] font-bold px-3 py-1.5 max-[300px]:px-2.5 max-[300px]:py-1 rounded-lg shadow">
-              Closed Now
+          <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-2 z-20">
+            <span className="bg-white text-red-600 text-[13px] max-[300px]:text-[12px] font-extrabold px-4 py-2 max-[300px]:px-3 max-[300px]:py-1.5 rounded-lg shadow-lg">
+              ● CLOSED
             </span>
             {opensAt && (
-              <span className="text-white/75 text-[10px] max-[300px]:text-[9px]">Opens at {opensAt}</span>
+              <span className="text-white font-semibold text-[11px] max-[300px]:text-[10px]">Opens at {opensAt}</span>
             )}
           </div>
         )}

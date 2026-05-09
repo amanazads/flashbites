@@ -1005,24 +1005,24 @@ const Home = () => {
                         />
                         <div className="absolute right-3 top-3 bg-white rounded-full px-2 py-1 text-[10px] font-bold">★ {Number(r.rating || 4.7).toFixed(1)}</div>
                         {!availability.isOpen && (
-                          <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center gap-1.5">
-                            <span className="bg-white text-gray-900 text-[11px] font-bold px-3 py-1.5 rounded-lg shadow">
-                              Closed Now
+                          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2 z-20">
+                            <span className="bg-white text-red-600 text-[13px] font-extrabold px-4 py-2 rounded-lg shadow-lg whitespace-nowrap">
+                              ● CLOSED
                             </span>
                             {availability.opensAt && (
-                              <span className="text-white/80 text-[10px]">Opens at {availability.opensAt}</span>
+                              <span className="text-white font-semibold text-[11px]">Opens at {availability.opensAt}</span>
                             )}
                           </div>
                         )}
                       </div>
-                      <div className="p-4" style={{ opacity: availability.isOpen ? 1 : 0.75 }}>
+                      <div className="p-4" style={{ opacity: availability.isOpen ? 1 : 0.6 }}>
                         <div className="flex items-center justify-between mb-1 gap-3">
                           <h3 className="text-[25px] leading-[1.05] font-extrabold text-gray-900">{r.name}</h3>
                           {availability.isOpen ? (
                             <span className="text-[9px] font-semibold px-3 py-1 rounded-full bg-[#E7F4EE] text-[#2E8B67]">{t('home.freeDelivery', 'FREE DELIVERY')}</span>
                           ) : (
-                            <span className="text-[9px] font-semibold px-3 py-1 rounded-full bg-[#FFF1F2] text-[#BE123C]">
-                              {t('home.closedNow', 'Closed Now')}
+                            <span className="text-[10px] font-extrabold px-3 py-1.5 rounded-full bg-[#FEE2E2] text-[#DC2626] border border-red-300">
+                              ● CLOSED
                             </span>
                           )}
                         </div>

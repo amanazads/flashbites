@@ -33,30 +33,47 @@ export const debounce = (func, delay) => {
  */
 export const isRestaurantOpen = (timing, acceptingOrders = true) => {
   const result = { isOpen: false, opensAt: '', closesAt: '' };
+  
+  // If restaurant is not accepting orders, always closed
   if (!acceptingOrders) return result;
-  if (!timing || !timing.open || !timing.close) return { ...result, isOpen: true }; // no timing = always open
-
-  const now = new Date();
-  const [openH, openM] = timing.open.split(':').map(Number);
-  const [closeH, closeM] = timing.close.split(':').map(Number);
-
-  const openMins = openH * 60 + openM;
-  const closeMins = closeH * 60 + closeM;
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-
-  let isOpen;
-  if (openMins <= closeMins) {
-    // Same day (e.g. 09:00 - 22:00)
-    isOpen = nowMins >= openMins && nowMins < closeMins;
-  } else {
-    // Overnight (e.g. 22:00 - 02:00)
-    isOpen = nowMins >= openMins || nowMins < closeMins;
+  
+  // If no timing data, assume always open (for backward compatibility)
+  if (!timing || !timing.open || !timing.close) {
+    return { ...result, isOpen: true };
   }
 
-  result.isOpen = isOpen;
-  result.opensAt = timing.open;
-  result.closesAt = timing.close;
-  return result;
+  try {
+    const now = new Date();
+    const [openH, openM] = String(timing.open).split(':').map(Number);
+    const [closeH, closeM] = String(timing.close).split(':').map(Number);
+
+    // Validate parsed values
+    if (!Number.isFinite(openH) || !Number.isFinite(openM) || 
+        !Number.isFinite(closeH) || !Number.isFinite(closeM)) {
+      return { ...result, isOpen: true }; // Invalid timing = assume open
+    }
+
+    const openMins = openH * 60 + openM;
+    const closeMins = closeH * 60 + closeM;
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+
+    let isOpen;
+    if (openMins <= closeMins) {
+      // Same day (e.g. 09:00 - 22:00)
+      isOpen = nowMins >= openMins && nowMins < closeMins;
+    } else {
+      // Overnight (e.g. 22:00 - 02:00)
+      isOpen = nowMins >= openMins || nowMins < closeMins;
+    }
+
+    result.isOpen = isOpen;
+    result.opensAt = timing.open;
+    result.closesAt = timing.close;
+    return result;
+  } catch (error) {
+    console.warn('Error parsing restaurant timing:', error, timing);
+    return { ...result, isOpen: true }; // On error, assume open
+  }
 };
 
 
