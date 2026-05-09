@@ -70,6 +70,10 @@ const platformSettingsSchema = new mongoose.Schema(
     platformFee: { type: Number, default: 25, min: 0 },
     taxRate: { type: Number, default: 0.05, min: 0, max: 1 },
     restaurantPayoutRate: { type: Number, default: 0.75, min: 0, max: 1 },
+    mobileAppVersion: { type: String, default: '' },
+    mobileAppStoreUrl: { type: String, default: '' },
+    mobileAppReleaseNotes: { type: String, default: '' },
+    forceMobileAppUpdate: { type: Boolean, default: false },
     deliveryChargeRules: {
       type: [deliveryChargeRuleSchema],
       default: [

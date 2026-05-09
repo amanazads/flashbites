@@ -24,6 +24,7 @@ const notificationSchema = new mongoose.Schema({
       'new_restaurant',
       'special_offer',
       'coupon_available',
+      'app_update',
       'restaurant_approved',
       'restaurant_rejected',
       'payment_received',

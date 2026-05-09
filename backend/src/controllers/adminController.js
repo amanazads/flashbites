@@ -12,7 +12,7 @@ const AccountDeletionRequest = require('../models/AccountDeletionRequest');
 const PlatformSettings = require('../models/PlatformSettings');
 const { normalizeFeeControls, normalizeRestaurantFeeControls } = require('../utils/feeControl');
 const { normalizeMenuCategories } = require('../utils/menuCategories');
-const { notifyCouponAvailable, notifyUser } = require('../utils/notificationService');
+const { notifyAppUpdateToAllUsers, notifyCouponAvailable, notifyUser } = require('../utils/notificationService');
 const { normalizeDeliveryZone, isPointInDeliveryZone } = require('../utils/deliveryGeo');
 const { cacheGet, cacheSet, cacheDelByPrefix } = require('../utils/memoryCache');
 
@@ -46,6 +46,16 @@ const normalizeSettingsPayload = (payload = {}) => {
   const platformFee = Number(payload.platformFee);
   const taxRate = Number(payload.taxRate);
   const restaurantPayoutRate = Number(payload.restaurantPayoutRate);
+  const mobileAppVersion = typeof payload.mobileAppVersion === 'string' ? payload.mobileAppVersion.trim() : undefined;
+  const mobileAppStoreUrl = typeof payload.mobileAppStoreUrl === 'string' ? payload.mobileAppStoreUrl.trim() : undefined;
+  const mobileAppReleaseNotes = typeof payload.mobileAppReleaseNotes === 'string' ? payload.mobileAppReleaseNotes.trim() : undefined;
+  const forceMobileAppUpdate = payload.forceMobileAppUpdate === undefined
+    ? undefined
+    : ['true', true, '1', 1].includes(payload.forceMobileAppUpdate)
+      ? true
+      : ['false', false, '0', 0].includes(payload.forceMobileAppUpdate)
+        ? false
+        : Boolean(payload.forceMobileAppUpdate);
 
   const deliveryChargeRules = Array.isArray(payload.deliveryChargeRules)
     ? payload.deliveryChargeRules
@@ -105,6 +115,10 @@ const normalizeSettingsPayload = (payload = {}) => {
     restaurantPayoutRate: Number.isFinite(restaurantPayoutRate)
       ? Math.min(1, Math.max(0, restaurantPayoutRate))
       : undefined,
+    mobileAppVersion: mobileAppVersion || undefined,
+    mobileAppStoreUrl: mobileAppStoreUrl || undefined,
+    mobileAppReleaseNotes: mobileAppReleaseNotes || undefined,
+    forceMobileAppUpdate,
     deliveryChargeRules: deliveryChargeRules && deliveryChargeRules.length > 0 ? deliveryChargeRules : undefined,
     promoBanners: promoBanners ? promoBanners : undefined,
     deliveryPartnerPayout: deliveryPartnerPayout || undefined,
@@ -593,6 +607,7 @@ exports.getPlatformSettings = async (req, res) => {
 // @access  Private (Admin)
 exports.updatePlatformSettings = async (req, res) => {
   try {
+    const previousSettings = await PlatformSettings.findOne().lean();
     const updates = normalizeSettingsPayload(req.body);
 
     let settings = await PlatformSettings.findOneAndUpdate(
@@ -602,6 +617,19 @@ exports.updatePlatformSettings = async (req, res) => {
     ).lean();
 
     settings = attachFeeControls(settings);
+
+    const previousVersion = String(previousSettings?.mobileAppVersion || '').trim();
+    const nextVersion = String(settings?.mobileAppVersion || '').trim();
+    const versionChanged = nextVersion && nextVersion !== previousVersion;
+
+    if (versionChanged) {
+      await notifyAppUpdateToAllUsers({
+        version: nextVersion,
+        storeUrl: settings.mobileAppStoreUrl,
+        forceUpdate: Boolean(settings.forceMobileAppUpdate),
+        releaseNotes: settings.mobileAppReleaseNotes
+      });
+    }
 
     invalidateAdminCache();
     successResponse(res, 200, 'Platform settings updated', { settings });

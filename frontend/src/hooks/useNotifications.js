@@ -4,13 +4,124 @@ import socketService from '../services/socketService';
 import notificationSound from '../utils/notificationSound';
 import { toast } from 'react-hot-toast';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { getFCMToken, onForegroundMessage } from '../firebase';
+import { PushNotifications } from '@capacitor/push-notifications';
 import axiosInstance from '../api/axios';
 
 const isNativePlatform = () => !!(window.Capacitor && window.Capacitor.isNativePlatform());
+const WEB_PUSH_SERVICE_WORKER_PATH = '/push-sw.js';
 
 let notifIdCounter = Math.floor(Math.random() * 100000);
 const nextNotifId = () => ++notifIdCounter;
+
+const urlBase64ToUint8Array = (base64String) => {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+
+  return outputArray;
+};
+
+const ensureBrowserNotificationPermission = async () => {
+  if (!('Notification' in window)) return 'unsupported';
+
+  if (Notification.permission === 'default') {
+    return Notification.requestPermission();
+  }
+
+  return Notification.permission;
+};
+
+const getVapidPublicKey = async () => {
+  const response = await axiosInstance.get('/notifications/vapid-public-key');
+  return response?.data?.data?.publicKey || response?.data?.publicKey || '';
+};
+
+const registerBrowserPushSubscription = async () => {
+  if (isNativePlatform()) return false;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+
+  const permission = await ensureBrowserNotificationPermission();
+  if (permission !== 'granted') return false;
+
+  const vapidKey = await getVapidPublicKey();
+  if (!vapidKey) return false;
+
+  const registration = await navigator.serviceWorker.register(WEB_PUSH_SERVICE_WORKER_PATH);
+  let subscription = await registration.pushManager.getSubscription();
+
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+    });
+  }
+
+  const payload = subscription.toJSON ? subscription.toJSON() : {
+    endpoint: subscription.endpoint,
+    keys: {
+      p256dh: subscription.getKey('p256dh') ? btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')))) : '',
+      auth: subscription.getKey('auth') ? btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth')))) : ''
+    }
+  };
+
+  const keys = payload.keys || {};
+  if (!payload.endpoint || !keys.p256dh || !keys.auth) return false;
+
+  await axiosInstance.post('/notifications/subscribe', {
+    endpoint: payload.endpoint,
+    keys: {
+      p256dh: keys.p256dh,
+      auth: keys.auth,
+    },
+    deviceType: 'web',
+    browser: navigator.userAgent,
+  });
+
+  return true;
+};
+
+const registerNativePushNotifications = async (onToken, onReceive) => {
+  if (!isNativePlatform()) return [];
+
+  const permission = await PushNotifications.requestPermissions();
+  if (permission.receive !== 'granted') {
+    return [];
+  }
+
+  const handles = [];
+  handles.push(await PushNotifications.addListener('registration', async (token) => {
+    if (token?.value) {
+      await onToken(token.value);
+    }
+  }));
+  handles.push(await PushNotifications.addListener('registrationError', (error) => {
+    console.error('Push registration error:', error);
+  }));
+  handles.push(await PushNotifications.addListener('pushNotificationReceived', async (notification) => {
+    await onReceive(notification || {});
+  }));
+  handles.push(await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+    const url = action?.notification?.data?.url;
+    if (url) {
+      window.location.href = url;
+    }
+  }));
+  handles.push(await LocalNotifications.addListener('localNotificationActionPerformed', (event) => {
+    const url = event?.notification?.extra?.url;
+    if (url) {
+      window.location.href = url;
+    }
+  }));
+
+  await PushNotifications.register();
+
+  return handles;
+};
 
 // ─── Send a native system notification (iOS/Android tray OR browser notification) ───
 const sendSystemNotification = async (title, body, data = {}) => {
@@ -67,18 +178,6 @@ const sendSystemNotification = async (title, body, data = {}) => {
   }
 };
 
-// ─── Register FCM token with backend after login ───
-const registerFCMToken = async (authAxios) => {
-  try {
-    if (isNativePlatform()) return; // Capacitor uses local notifications, not FCM web push
-    const token = await getFCMToken();
-    if (!token) return;
-    // Save token to backend so server can send targeted pushes
-    await authAxios.post('/users/fcm-token', { token });
-  } catch {
-  }
-};
-
 export const useNotifications = () => {
   const { user, token } = useSelector((state) => state.auth);
   const [connected, setConnected] = useState(false);
@@ -86,8 +185,8 @@ export const useNotifications = () => {
     const saved = localStorage.getItem('notificationSoundEnabled');
     return saved !== null ? JSON.parse(saved) : true;
   });
-  const authAxiosRef = useRef(null);
   const recentNotificationKeysRef = useRef(new Map());
+  const nativePushListenerHandlesRef = useRef([]);
 
   useEffect(() => {
     const syncSoundFromStorage = () => {
@@ -142,6 +241,11 @@ export const useNotifications = () => {
     if (token && user) {
       socketService.connect(token);
       setConnected(true);
+      const cleanupNativePushListeners = async () => {
+        const handles = nativePushListenerHandlesRef.current || [];
+        nativePushListenerHandlesRef.current = [];
+        await Promise.allSettled(handles.map((handle) => handle?.remove?.()));
+      };
 
       // Initialize audio on first user interaction
       const initAudio = () => {
@@ -155,64 +259,43 @@ export const useNotifications = () => {
       document.addEventListener('touchstart', initAudio, { once: false });
       notificationSound.init();
 
-      // Set up FCM for web push (foreground + background)
-      if (!isNativePlatform()) {
-        // Get & register FCM token
-        authAxiosRef.current = axiosInstance;
-        registerFCMToken(axiosInstance);
+      const setupDeliveryChannels = async () => {
+        try {
+          if (isNativePlatform()) {
+            await LocalNotifications.requestPermissions();
+            await LocalNotifications.createChannel({
+              id: 'flashbites-orders',
+              name: 'Order Updates',
+              description: 'Real-time order status notifications',
+              importance: 5,
+              sound: 'default',
+              vibration: true,
+              lights: true,
+              lightColor: '#EA580C',
+            }).catch(() => {});
 
-        // Listen for foreground FCM messages (when app is open)
-        onForegroundMessage((payload) => {
-          const { title, body } = payload.notification || {};
-          const orderId = payload?.data?.orderId || payload?.data?.order_id || '';
-          const status = payload?.data?.status || '';
-          const fcmKey = `fcm:${orderId}:${status}:${title || ''}:${body || ''}`;
-
-          if (title && shouldNotifyForKey(fcmKey)) {
-            if (soundEnabled) notificationSound.playNotification('new-order');
-            toast(
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-[#FFF0ED] flex items-center justify-center text-xl">🔔</div>
-                <div>
-                  <p className="font-bold text-gray-900 mb-0.5">{title}</p>
-                  {body && <p className="text-sm text-gray-600">{body}</p>}
-                </div>
-              </div>,
-              {
-                duration: 7000,
-                position: 'top-center',
-                style: {
-                  background: '#FFFFFF',
-                  color: '#111827',
-                  borderRadius: '16px',
-                  padding: '14px 18px',
-                  boxShadow: '0 14px 36px rgba(0,0,0,0.18)',
-                  border: '1px solid #F3F4F6',
-                },
+            nativePushListenerHandlesRef.current = await registerNativePushNotifications(
+              async (tokenValue) => {
+                await axiosInstance.post('/users/fcm-token', { token: tokenValue });
+              },
+              async (notification) => {
+                const title = notification?.title || 'FlashBites';
+                const body = notification?.body || notification?.data?.message || 'You have a new notification';
+                await sendSystemNotification(title, body, notification?.data || {});
               }
             );
+          } else {
+            const permission = await ensureBrowserNotificationPermission();
+            if (permission === 'granted') {
+              await registerBrowserPushSubscription();
+            }
           }
-        });
-      }
+        } catch (error) {
+          console.error('Failed to set up push notifications:', error);
+        }
+      };
 
-      // Request native notification permission on mobile
-      if (isNativePlatform()) {
-        LocalNotifications.requestPermissions().then((perm) => {
-          // Create notification channel for Android
-          LocalNotifications.createChannel({
-            id: 'flashbites-orders',
-            name: 'Order Updates',
-            description: 'Real-time order status notifications',
-            importance: 5,
-            sound: 'default',
-            vibration: true,
-            lights: true,
-            lightColor: '#EA580C',
-          }).catch(() => {}); // createChannel only exists on Android
-        }).catch(() => {});
-      } else if ('Notification' in window && Notification.permission === 'default') {
-        setTimeout(() => Notification.requestPermission(), 3000);
-      }
+      setupDeliveryChannels();
 
       return () => {
         setTimeout(() => {
@@ -223,6 +306,7 @@ export const useNotifications = () => {
         }, 100);
         document.removeEventListener('click', initAudio);
         document.removeEventListener('touchstart', initAudio);
+        cleanupNativePushListeners();
       };
     }
   }, [token, user, shouldNotifyForKey, soundEnabled]);
@@ -404,11 +488,29 @@ export const useNotifications = () => {
 
   const requestNotificationPermission = useCallback(async () => {
     if (isNativePlatform()) {
-      const perm = await LocalNotifications.requestPermissions();
-      if (perm.display === 'granted') toast.success('Notifications enabled! 🔔');
+      if ((nativePushListenerHandlesRef.current || []).length > 0) {
+        toast.success('Notifications enabled! 🔔');
+        return;
+      }
+
+      const handles = await registerNativePushNotifications(
+        async (tokenValue) => {
+          await axiosInstance.post('/users/fcm-token', { token: tokenValue });
+        },
+        async (notification) => {
+          const title = notification?.title || 'FlashBites';
+          const body = notification?.body || notification?.data?.message || 'You have a new notification';
+          await sendSystemNotification(title, body, notification?.data || {});
+        }
+      );
+      nativePushListenerHandlesRef.current = handles;
+      if (handles.length > 0) toast.success('Notifications enabled! 🔔');
     } else if ('Notification' in window) {
       const perm = await Notification.requestPermission();
-      if (perm === 'granted') toast.success('Browser notifications enabled! 🔔');
+      if (perm === 'granted') {
+        await registerBrowserPushSubscription();
+        toast.success('Browser notifications enabled! 🔔');
+      }
     }
   }, []);
 

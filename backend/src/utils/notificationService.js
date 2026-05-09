@@ -329,6 +329,44 @@ const notifyMultipleUsers = async (userIds, notificationData) => {
   }
 };
 
+const notifyAppUpdateToAllUsers = async (updateInfo = {}) => {
+  try {
+    const activeUsers = await User.find({
+      isActive: true,
+      role: { $in: ['user', 'restaurant_owner', 'delivery_partner', 'admin'] }
+    }).select('_id').lean();
+
+    const version = String(updateInfo.version || '').trim() || 'latest';
+    const storeUrl = String(updateInfo.storeUrl || '').trim();
+    const forceUpdate = Boolean(updateInfo.forceUpdate);
+    const releaseNotes = String(updateInfo.releaseNotes || '').trim();
+
+    const notificationData = {
+      title: forceUpdate ? '📱 Update Required' : '📱 Update Available',
+      message: forceUpdate
+        ? `FlashBites version ${version} is required. Please update the app to continue using the latest features.`
+        : `FlashBites version ${version} is now available on the Play Store. Update to get the latest features.`,
+      type: 'app_update',
+      priority: 'high',
+      data: {
+        version,
+        storeUrl,
+        url: storeUrl,
+        actionUrl: storeUrl,
+        forceUpdate,
+        releaseNotes
+      }
+    };
+
+    const userIds = activeUsers.map((user) => user._id);
+    await notifyMultipleUsers(userIds, notificationData);
+    return true;
+  } catch (error) {
+    console.error('Error notifying users about app update:', error);
+    return false;
+  }
+};
+
 // Order status change notifications
 const notifyOrderStatus = async (order, status) => {
   try {
@@ -667,6 +705,7 @@ module.exports = {
   notifyMultipleUsers,
   notifyOrderStatus,
   notifyCouponAvailable,
+  notifyAppUpdateToAllUsers,
   notifyRestaurantNewOrder,
   notifyUserOrderPlaced,
   notifyOrderReadyForPickup,

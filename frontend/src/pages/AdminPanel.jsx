@@ -269,6 +269,10 @@ const AdminPanel = () => {
     platformFee: 25,
     taxRate: 5,
     restaurantPayoutRate: 75,
+    mobileAppVersion: '',
+    mobileAppStoreUrl: '',
+    mobileAppReleaseNotes: '',
+    forceMobileAppUpdate: false,
     feeControls: defaultFeeControls(),
     deliveryChargeRules: [
       { minDistance: 0, maxDistance: 5, charge: 0 },
@@ -511,6 +515,10 @@ const AdminPanel = () => {
           platformFee: settings.platformFee ?? 25,
           taxRate: (settings.taxRate ?? 0.05) * 100,
           restaurantPayoutRate: (settings.restaurantPayoutRate ?? 0.75) * 100,
+          mobileAppVersion: settings.mobileAppVersion || '',
+          mobileAppStoreUrl: settings.mobileAppStoreUrl || '',
+          mobileAppReleaseNotes: settings.mobileAppReleaseNotes || '',
+          forceMobileAppUpdate: Boolean(settings.forceMobileAppUpdate),
           feeControls: mapFeeControlsFromSettings(settings.feeControls),
           deliveryChargeRules: settings.deliveryChargeRules || [
             { minDistance: 0, maxDistance: 5, charge: 0 },
@@ -822,6 +830,10 @@ const AdminPanel = () => {
         platformFee: Number(settingsForm.platformFee),
         taxRate: Number(settingsForm.taxRate) / 100,
         restaurantPayoutRate: Number(settingsForm.restaurantPayoutRate) / 100,
+        mobileAppVersion: String(settingsForm.mobileAppVersion || '').trim(),
+        mobileAppStoreUrl: String(settingsForm.mobileAppStoreUrl || '').trim(),
+        mobileAppReleaseNotes: String(settingsForm.mobileAppReleaseNotes || '').trim(),
+        forceMobileAppUpdate: Boolean(settingsForm.forceMobileAppUpdate),
         feeControls: {
           deliveryFee: mapFeeControlToPayload(settingsForm?.feeControls?.deliveryFee),
           platformFee: mapFeeControlToPayload(settingsForm?.feeControls?.platformFee),
@@ -1898,6 +1910,53 @@ const AdminPanel = () => {
                       />
                       <p className="text-xs text-gray-500 mt-1">Default payout to restaurants</p>
                     </div>
+                  </div>
+
+                  <div className="mt-6 rounded-xl border border-orange-200 bg-orange-50 p-4 sm:p-5 space-y-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-800">Mobile App Update</h3>
+                      <p className="text-xs text-gray-500 mt-1">Set the latest Play Store version so the app can notify users, delivery partners, and restaurants when an update is available.</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">Latest App Version</label>
+                        <input
+                          type="text"
+                          value={settingsForm.mobileAppVersion}
+                          onChange={(e) => handleSettingsChange('mobileAppVersion', e.target.value)}
+                          placeholder="1.0.28"
+                          className="w-full rounded-lg border border-gray-200 px-3 sm:px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">Play Store URL</label>
+                        <input
+                          type="url"
+                          value={settingsForm.mobileAppStoreUrl}
+                          onChange={(e) => handleSettingsChange('mobileAppStoreUrl', e.target.value)}
+                          placeholder="https://play.google.com/store/apps/details?id=..."
+                          className="w-full rounded-lg border border-gray-200 px-3 sm:px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">Release Notes</label>
+                      <textarea
+                        value={settingsForm.mobileAppReleaseNotes}
+                        onChange={(e) => handleSettingsChange('mobileAppReleaseNotes', e.target.value)}
+                        rows="4"
+                        placeholder="Bug fixes, performance improvements, and new features..."
+                        className="w-full rounded-lg border border-gray-200 px-3 sm:px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                    </div>
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(settingsForm.forceMobileAppUpdate)}
+                        onChange={(e) => handleSettingsChange('forceMobileAppUpdate', e.target.checked)}
+                      />
+                      Force users to update before continuing
+                    </label>
                   </div>
 
                   <div className="mt-6">
